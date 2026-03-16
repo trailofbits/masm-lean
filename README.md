@@ -11,12 +11,17 @@ Formal verification of the [Miden Assembly](https://github.com/0xMiden/miden-vm)
 
 ## Correctness Proofs
 
-| Theorem                       | Procedure              | Property                                                        |
-| ----------------------------- | ---------------------- | --------------------------------------------------------------- |
-| `word_eqz_correct`            | `word::eqz`            | Returns 1 iff all four word elements are zero                   |
-| `u64_eqz_correct`             | `u64::eqz`             | Returns 1 iff both u32 limbs are zero                           |
-| `u64_overflowing_add_correct` | `u64::overflowing_add` | Produces `[overflow, c_lo, c_hi]` matching `(a + b)` with carry |
+| Theorem                       | Procedure              | Property                                                         |
+| ----------------------------- | ---------------------- | ---------------------------------------------------------------- |
+| `u64_and_correct`             | `u64::and`             | Produces limb-wise bitwise AND of two u64 values                 |
+| `u64_clz_correct`             | `u64::clz`             | Counts leading zeros of a u64 value                              |
+| `u64_eq_correct`              | `u64::eq`              | Returns 1 iff two u64 values are equal                           |
+| `u64_eqz_correct`             | `u64::eqz`             | Returns 1 iff both u32 limbs are zero                            |
+| `u64_overflowing_add_correct` | `u64::overflowing_add` | Produces `[overflow, c_lo, c_hi]` matching `(a + b)` with carry  |
 | `u64_wrapping_add_correct`    | `u64::wrapping_add`    | Produces `[c_lo, c_hi]` equal to `(a + b) mod 2^64`             |
+| `u64_wrapping_sub_correct`    | `u64::wrapping_sub`    | Produces `[c_lo, c_hi]` equal to `(a - b) mod 2^64`             |
+| `word_eqz_correct`            | `word::eqz`            | Returns 1 iff all four word elements are zero                    |
+| `word_testz_correct`           | `word::testz`          | Returns 1 iff all four word elements are zero (non-destructive)  |
 
 ## Verifying
 

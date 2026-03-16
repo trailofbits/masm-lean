@@ -6,5 +6,12 @@ import MidenLean.Semantics
 import MidenLean.Generated.Word
 import MidenLean.Generated.U64
 import MidenLean.Proofs.Helpers
+import MidenLean.Proofs.StepLemmas
+import MidenLean.Proofs.Tactics
 import MidenLean.Proofs.Word
 import MidenLean.Proofs.U64
+import MidenLean.Proofs.U64Eq
+import MidenLean.Proofs.U64Sub
+import MidenLean.Proofs.U64And
+import MidenLean.Proofs.U64Clz
+import MidenLean.Proofs.WordTestz

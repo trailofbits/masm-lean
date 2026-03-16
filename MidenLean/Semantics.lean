@@ -23,7 +23,7 @@ private def insertAt {α : Type} (l : List α) (n : Nat) (v : α) : List α :=
 -- U32 arithmetic helpers (operating on natural numbers)
 -- ============================================================================
 
-private def u32Max : Nat := 2^32
+def u32Max : Nat := 2^32
 
 /-- Wrapping u32 addition. -/
 private def u32WAdd (a b : Nat) : Nat := (a + b) % u32Max
@@ -40,7 +40,7 @@ private def u32WideAdd3 (a b c : Nat) : Nat × Nat :=
 
 /-- Overflowing u32 subtraction: returns (borrow, result).
     borrow = 1 if a < b. result = (a - b) mod 2^32. -/
-private def u32OverflowingSub (a b : Nat) : Nat × Nat :=
+def u32OverflowingSub (a b : Nat) : Nat × Nat :=
   if a >= b then (0, a - b)
   else (1, u32Max - b + a)
 
@@ -63,7 +63,7 @@ private def u32RotateRight (a b : Nat) : Nat :=
   (a / 2^b) ||| ((a * 2^(32 - b)) % u32Max)
 
 /-- Count leading zeros of a 32-bit value. -/
-private def u32CountLeadingZeros (n : Nat) : Nat :=
+def u32CountLeadingZeros (n : Nat) : Nat :=
   if n == 0 then 32
   else
     let rec go (count : Nat) : (fuel : Nat) → Nat
@@ -75,7 +75,7 @@ private def u32CountLeadingZeros (n : Nat) : Nat :=
     go 0 32
 
 /-- Count trailing zeros of a 32-bit value. -/
-private def u32CountTrailingZeros (n : Nat) : Nat :=
+def u32CountTrailingZeros (n : Nat) : Nat :=
   if n == 0 then 32
   else
     let rec go (bit : Nat) : (fuel : Nat) → Nat
