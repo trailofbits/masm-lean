@@ -6,8 +6,8 @@ This document describes the high-level design of the MASM-to-Lean formal verific
 
 The project has two components:
 
-1. **Lean library** (`MidenLean/`) — An executable semantics of the Miden VM in Lean 4, plus correctness proofs for core library procedures.
-2. **Rust translator** (`masm-to-lean/`) — Parses `.masm` source files and emits Lean data definitions (`List Op`).
+1. **Lean library** (`MidenLean/`) — An executable semantics of the Miden VM in Lean 4, and correctness proofs for core library procedures.
+2. **Rust translator** (`masm-to-lean/`) — Parses `.masm` source files and emits a Lean `List Op` definition for each procedure.
 
 ## Repository Layout
 

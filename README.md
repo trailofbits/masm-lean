@@ -33,7 +33,12 @@ lake build
 
 # Verify a single proof file
 lake build MidenLean.Proofs.Word
+lake build MidenLean.Proofs.WordTestz
 lake build MidenLean.Proofs.U64
+lake build MidenLean.Proofs.U64And
+lake build MidenLean.Proofs.U64Clz
+lake build MidenLean.Proofs.U64Eq
+lake build MidenLean.Proofs.U64Sub
 ```
 
 (A successful build with no `sorry` warnings confirms all theorems are machine-checked.)
