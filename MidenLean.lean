@@ -5,3 +5,6 @@ import MidenLean.Op
 import MidenLean.Semantics
 import MidenLean.Generated.Word
 import MidenLean.Generated.U64
+import MidenLean.Proofs.Helpers
+import MidenLean.Proofs.Word
+import MidenLean.Proofs.U64
