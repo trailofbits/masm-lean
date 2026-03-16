@@ -1,0 +1,9 @@
+[package]
+name = "masm-to-lean"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+miden-assembly-syntax = { version = "=0.22.0", git = "https://github.com/0xMiden/miden-vm", rev = "821990729b83112fafe6de38377d55323c2db9c5", default-features = false, features = ["std"] }
+clap = { version = "4", features = ["derive"] }
+anyhow = "1"
