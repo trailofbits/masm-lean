@@ -16,7 +16,9 @@ set_option maxHeartbeats 8000000 in
     Computed as !(a > b). -/
 theorem u64_lte_correct
     (a_lo a_hi b_lo b_hi : Felt) (rest : List Felt) (s : MidenState)
-    (hs : s.stack = b_lo :: b_hi :: a_lo :: a_hi :: rest) :
+    (hs : s.stack = b_lo :: b_hi :: a_lo :: a_hi :: rest)
+    (ha_lo : a_lo.isU32 = true) (ha_hi : a_hi.isU32 = true)
+    (hb_lo : b_lo.isU32 = true) (hb_hi : b_hi.isU32 = true) :
     execWithEnv u64ProcEnv 20 s Miden.Core.Math.U64.lte =
     some (s.withStack (
       let borrow_lo := decide (b_lo.val < a_lo.val)
@@ -36,10 +38,10 @@ theorem u64_lte_correct
   -- Step through gt body
   miden_movup; miden_movup; miden_movup
   miden_swap
-  rw [stepU32OverflowSub]; dsimp only []
+  rw [stepU32OverflowSub (ha := by assumption) (hb := by assumption)]; dsimp only []
   miden_movdn
   rw [stepDrop]; dsimp only []
-  rw [stepU32OverflowSub]; dsimp only []
+  rw [stepU32OverflowSub (ha := by assumption) (hb := by assumption)]; dsimp only []
   miden_swap
   rw [stepEqImm]; dsimp only []
   miden_movup

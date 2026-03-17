@@ -15,7 +15,9 @@ set_option maxHeartbeats 4000000 in
     where (c_hi, c_lo) is the 64-bit sum and overflow is the carry bit. -/
 theorem u64_widening_add_correct
     (a_lo a_hi b_lo b_hi : Felt) (rest : List Felt) (s : MidenState)
-    (hs : s.stack = b_lo :: b_hi :: a_lo :: a_hi :: rest) :
+    (hs : s.stack = b_lo :: b_hi :: a_lo :: a_hi :: rest)
+    (ha_lo : a_lo.isU32 = true) (ha_hi : a_hi.isU32 = true)
+    (hb_lo : b_lo.isU32 = true) (hb_hi : b_hi.isU32 = true) :
     execWithEnv u64ProcEnv 10 s Miden.Core.Math.U64.widening_add =
     some (s.withStack (
       let lo_sum := b_lo.val + a_lo.val
@@ -39,21 +41,26 @@ theorem u64_widening_add_correct
   simp only [u64ProcEnv]
   dsimp only [bind, Bind.bind, Option.bind]
   unfold Miden.Core.Math.U64.overflowing_add execWithEnv
-  simp only [List.foldlM]
-  change (do
-    let s' ← execInstruction ⟨b_lo :: b_hi :: a_lo :: a_hi :: rest, mem, locs, adv⟩ (.movup 2)
-    let s' ← execInstruction s' (.u32WidenAdd)
-    let s' ← execInstruction s' (.movdn 3)
-    let s' ← execInstruction s' (.u32WidenAdd3)
-    let s' ← execInstruction s' (.movdn 2)
-    let s' ← execInstruction s' (.movdn 2)
-    pure s') = _
-  miden_movup
-  rw [stepU32WidenAdd]; miden_bind
-  miden_movdn
-  rw [stepU32WidenAdd3]; miden_bind
-  miden_movdn; miden_movdn
-  dsimp only [pure, Pure.pure]
+  simp only [List.foldlM, bind, Bind.bind, Option.bind, MidenState.withStack]
+  simp (config := { decide := true }) only [
+    execInstruction, execMovup, removeNth, execU32WidenAdd, u32WideAdd, u32Max,
+    execMovdn, insertAt,
+    ha_lo, hb_lo, ha_hi, hb_hi,
+    Bool.not_true, Bool.false_or, ite_false, ite_true,
+    MidenState.withStack, List.eraseIdx, List.set,
+    List.take, List.drop, List.cons_append, List.nil_append,
+    pure, Pure.pure, bind, Bind.bind, Option.bind,
+    List.getElem?_cons_zero, List.getElem?_cons_succ]
+  have h_mod_isU32 : (Felt.ofNat ((b_lo.val + a_lo.val) % 2 ^ 32)).isU32 = true :=
+    u32_mod_isU32 _
+  have h_carry_isU32 : (Felt.ofNat ((b_lo.val + a_lo.val) / 2 ^ 32)).isU32 = true :=
+    u32_div_2_32_isU32 b_lo a_lo hb_lo ha_lo
+  simp (config := { decide := true }) only [h_mod_isU32, h_carry_isU32, ha_hi, hb_hi,
+    Bool.not_true, Bool.false_or, ite_false, ite_true,
+    MidenState.withStack, pure, Pure.pure, bind, Bind.bind, Option.bind,
+    execU32WidenAdd3, u32WideAdd3, u32Max,
+    execMovdn, insertAt,
+    List.take, List.drop, List.cons_append, List.nil_append]
   have hcarry : (Felt.ofNat ((b_lo.val + a_lo.val) / 2 ^ 32)).val = (b_lo.val + a_lo.val) / 2 ^ 32 :=
     felt_ofNat_val_lt _ (sum_div_2_32_lt_prime b_lo a_lo)
   rw [hcarry]

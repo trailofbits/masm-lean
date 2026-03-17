@@ -15,7 +15,9 @@ set_option maxHeartbeats 8000000 in
     The comparison is: b_hi < a_hi, or (b_hi == a_hi and b_lo < a_lo). -/
 theorem u64_gt_correct
     (a_lo a_hi b_lo b_hi : Felt) (rest : List Felt) (s : MidenState)
-    (hs : s.stack = b_lo :: b_hi :: a_lo :: a_hi :: rest) :
+    (hs : s.stack = b_lo :: b_hi :: a_lo :: a_hi :: rest)
+    (ha_lo : a_lo.isU32 = true) (ha_hi : a_hi.isU32 = true)
+    (hb_lo : b_lo.isU32 = true) (hb_hi : b_hi.isU32 = true) :
     exec 20 s Miden.Core.Math.U64.gt =
     some (s.withStack (
       let borrow_lo := decide (b_lo.val < a_lo.val)
@@ -45,10 +47,10 @@ theorem u64_gt_correct
     pure s') = _
   miden_movup; miden_movup; miden_movup
   miden_swap
-  rw [stepU32OverflowSub]; miden_bind
+  rw [stepU32OverflowSub (ha := by assumption) (hb := by assumption)]; miden_bind
   miden_movdn
   rw [stepDrop]; miden_bind
-  rw [stepU32OverflowSub]; miden_bind
+  rw [stepU32OverflowSub (ha := by assumption) (hb := by assumption)]; miden_bind
   miden_swap
   rw [stepEqImm]; miden_bind
   miden_movup

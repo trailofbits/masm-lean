@@ -15,7 +15,9 @@ set_option maxHeartbeats 8000000 in
     and borrow = 1 iff the subtraction underflowed. -/
 theorem u64_overflowing_sub_correct
     (a_lo a_hi b_lo b_hi : Felt) (rest : List Felt) (s : MidenState)
-    (hs : s.stack = b_lo :: b_hi :: a_lo :: a_hi :: rest) :
+    (hs : s.stack = b_lo :: b_hi :: a_lo :: a_hi :: rest)
+    (ha_lo : a_lo.isU32 = true) (ha_hi : a_hi.isU32 = true)
+    (hb_lo : b_lo.isU32 = true) (hb_hi : b_hi.isU32 = true) :
     exec 20 s Miden.Core.Math.U64.overflowing_sub =
     some (s.withStack (
       let sub_lo := u32OverflowingSub a_lo.val b_lo.val
@@ -47,9 +49,9 @@ theorem u64_overflowing_sub_correct
     let s' ← execInstruction s' (.swap 1)
     pure s') = _
   miden_movup; miden_movup; miden_movup
-  rw [stepU32OverflowSub]; miden_bind
+  rw [stepU32OverflowSub (ha := by assumption) (hb := by assumption)]; miden_bind
   miden_movup; miden_movup
-  rw [stepU32OverflowSub]; miden_bind
+  rw [stepU32OverflowSub (ha := by assumption) (hb := by assumption)]; miden_bind
   miden_swap
   miden_movup
   -- The third u32OverflowSub operates on Felt.ofNat values
@@ -59,7 +61,12 @@ theorem u64_overflowing_sub_correct
   have h_val_fst : (Felt.ofNat (u32OverflowingSub a_lo.val b_lo.val).1).val =
       (u32OverflowingSub a_lo.val b_lo.val).1 :=
     felt_ofNat_val_lt _ (u32_overflow_sub_fst_lt _ _)
-  rw [stepU32OverflowSub]; miden_bind
+  have h_isU32_snd : (Felt.ofNat (u32OverflowingSub a_hi.val b_hi.val).2).isU32 = true :=
+    u32OverflowingSub_snd_isU32 _ _ (by simp [Felt.isU32, decide_eq_true_eq] at ha_hi; exact ha_hi)
+      (by simp [Felt.isU32, decide_eq_true_eq] at hb_hi; exact hb_hi)
+  have h_isU32_fst : (Felt.ofNat (u32OverflowingSub a_lo.val b_lo.val).1).isU32 = true :=
+    u32OverflowingSub_fst_isU32 _ _
+  rw [stepU32OverflowSub (ha := h_isU32_snd) (hb := h_isU32_fst)]; miden_bind
   rw [h_val_snd, h_val_fst]
   miden_movup
   -- Convert both borrows to boolean ite form for stepOrIte

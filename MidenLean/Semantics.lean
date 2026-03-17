@@ -26,15 +26,15 @@ def insertAt {α : Type} (l : List α) (n : Nat) (v : α) : List α :=
 def u32Max : Nat := 2^32
 
 /-- Wrapping u32 addition. -/
-private def u32WAdd (a b : Nat) : Nat := (a + b) % u32Max
+def u32WAdd (a b : Nat) : Nat := (a + b) % u32Max
 
 /-- Widening u32 addition: returns (lo, carry). -/
-private def u32WideAdd (a b : Nat) : Nat × Nat :=
+def u32WideAdd (a b : Nat) : Nat × Nat :=
   let sum := a + b
   (sum % u32Max, sum / u32Max)
 
 /-- Widening u32 addition of three values: returns (lo, carry). -/
-private def u32WideAdd3 (a b c : Nat) : Nat × Nat :=
+def u32WideAdd3 (a b c : Nat) : Nat × Nat :=
   let sum := a + b + c
   (sum % u32Max, sum / u32Max)
 
@@ -45,21 +45,21 @@ def u32OverflowingSub (a b : Nat) : Nat × Nat :=
   else (1, u32Max - b + a)
 
 /-- Widening u32 multiplication: returns (lo, hi). -/
-private def u32WideMul (a b : Nat) : Nat × Nat :=
+def u32WideMul (a b : Nat) : Nat × Nat :=
   let prod := a * b
   (prod % u32Max, prod / u32Max)
 
 /-- Widening multiply-add: a * b + c, returns (lo, hi). -/
-private def u32WideMadd (a b c : Nat) : Nat × Nat :=
+def u32WideMadd (a b c : Nat) : Nat × Nat :=
   let result := a * b + c
   (result % u32Max, result / u32Max)
 
 /-- Left-rotate a 32-bit value by b bits. -/
-private def u32RotateLeft (a b : Nat) : Nat :=
+def u32RotateLeft (a b : Nat) : Nat :=
   ((a * 2^b) % u32Max) ||| (a / 2^(32 - b))
 
 /-- Right-rotate a 32-bit value by b bits. -/
-private def u32RotateRight (a b : Nat) : Nat :=
+def u32RotateRight (a b : Nat) : Nat :=
   (a / 2^b) ||| ((a * 2^(32 - b)) % u32Max)
 
 /-- Count leading zeros of a 32-bit value. -/
@@ -87,15 +87,15 @@ def u32CountTrailingZeros (n : Nat) : Nat :=
     go 0 32
 
 /-- Count leading ones of a 32-bit value. -/
-private def u32CountLeadingOnes (n : Nat) : Nat :=
+def u32CountLeadingOnes (n : Nat) : Nat :=
   u32CountLeadingZeros (u32Max - 1 - n)
 
 /-- Count trailing ones of a 32-bit value. -/
-private def u32CountTrailingOnes (n : Nat) : Nat :=
+def u32CountTrailingOnes (n : Nat) : Nat :=
   u32CountTrailingZeros (n ^^^ (u32Max - 1))
 
 /-- Population count (number of set bits) of a 32-bit value. -/
-private def u32PopCount (n : Nat) : Nat :=
+def u32PopCount (n : Nat) : Nat :=
   let rec go (v : Nat) (count : Nat) : (bits : Nat) → Nat
     | 0 => count
     | bits + 1 => go (v / 2) (count + v % 2) bits
@@ -453,100 +453,127 @@ def execU32Split (s : MidenState) : Option MidenState :=
 def execU32WidenAdd (s : MidenState) : Option MidenState :=
   match s.stack with
   | b :: a :: rest =>
-    let (lo, carry) := u32WideAdd a.val b.val
-    some (s.withStack (Felt.ofNat lo :: Felt.ofNat carry :: rest))
+    if !a.isU32 || !b.isU32 then none
+    else
+      let (lo, carry) := u32WideAdd a.val b.val
+      some (s.withStack (Felt.ofNat lo :: Felt.ofNat carry :: rest))
   | _ => none
 
 def execU32OverflowAdd (s : MidenState) : Option MidenState :=
   match s.stack with
   | b :: a :: rest =>
-    let (lo, carry) := u32WideAdd a.val b.val
-    some (s.withStack (Felt.ofNat carry :: Felt.ofNat lo :: rest))
+    if !a.isU32 || !b.isU32 then none
+    else
+      let (lo, carry) := u32WideAdd a.val b.val
+      some (s.withStack (Felt.ofNat carry :: Felt.ofNat lo :: rest))
   | _ => none
 
 def execU32WrappingAdd (s : MidenState) : Option MidenState :=
   match s.stack with
-  | b :: a :: rest => some (s.withStack (Felt.ofNat (u32WAdd a.val b.val) :: rest))
+  | b :: a :: rest =>
+    if !a.isU32 || !b.isU32 then none
+    else some (s.withStack (Felt.ofNat (u32WAdd a.val b.val) :: rest))
   | _ => none
 
 def execU32WidenAdd3 (s : MidenState) : Option MidenState :=
   match s.stack with
   | c :: b :: a :: rest =>
-    let (lo, carry) := u32WideAdd3 a.val b.val c.val
-    some (s.withStack (Felt.ofNat lo :: Felt.ofNat carry :: rest))
+    if !a.isU32 || !b.isU32 || !c.isU32 then none
+    else
+      let (lo, carry) := u32WideAdd3 a.val b.val c.val
+      some (s.withStack (Felt.ofNat lo :: Felt.ofNat carry :: rest))
   | _ => none
 
 def execU32OverflowAdd3 (s : MidenState) : Option MidenState :=
   match s.stack with
   | c :: b :: a :: rest =>
-    let (lo, carry) := u32WideAdd3 a.val b.val c.val
-    some (s.withStack (Felt.ofNat carry :: Felt.ofNat lo :: rest))
+    if !a.isU32 || !b.isU32 || !c.isU32 then none
+    else
+      let (lo, carry) := u32WideAdd3 a.val b.val c.val
+      some (s.withStack (Felt.ofNat carry :: Felt.ofNat lo :: rest))
   | _ => none
 
 def execU32WrappingAdd3 (s : MidenState) : Option MidenState :=
   match s.stack with
   | c :: b :: a :: rest =>
-    some (s.withStack (Felt.ofNat ((a.val + b.val + c.val) % u32Max) :: rest))
+    if !a.isU32 || !b.isU32 || !c.isU32 then none
+    else
+      some (s.withStack (Felt.ofNat ((a.val + b.val + c.val) % u32Max) :: rest))
   | _ => none
 
 def execU32OverflowSub (s : MidenState) : Option MidenState :=
   match s.stack with
   | b :: a :: rest =>
-    let (borrow, diff) := u32OverflowingSub a.val b.val
-    some (s.withStack (Felt.ofNat borrow :: Felt.ofNat diff :: rest))
+    if !a.isU32 || !b.isU32 then none
+    else
+      let (borrow, diff) := u32OverflowingSub a.val b.val
+      some (s.withStack (Felt.ofNat borrow :: Felt.ofNat diff :: rest))
   | _ => none
 
 def execU32WrappingSub (s : MidenState) : Option MidenState :=
   match s.stack with
   | b :: a :: rest =>
-    let (_, diff) := u32OverflowingSub a.val b.val
-    some (s.withStack (Felt.ofNat diff :: rest))
+    if !a.isU32 || !b.isU32 then none
+    else
+      let (_, diff) := u32OverflowingSub a.val b.val
+      some (s.withStack (Felt.ofNat diff :: rest))
   | _ => none
 
 def execU32WidenMul (s : MidenState) : Option MidenState :=
   match s.stack with
   | b :: a :: rest =>
-    let (lo, hi) := u32WideMul a.val b.val
-    some (s.withStack (Felt.ofNat lo :: Felt.ofNat hi :: rest))
+    if !a.isU32 || !b.isU32 then none
+    else
+      let (lo, hi) := u32WideMul a.val b.val
+      some (s.withStack (Felt.ofNat lo :: Felt.ofNat hi :: rest))
   | _ => none
 
 def execU32WrappingMul (s : MidenState) : Option MidenState :=
   match s.stack with
   | b :: a :: rest =>
-    some (s.withStack (Felt.ofNat ((a.val * b.val) % u32Max) :: rest))
+    if !a.isU32 || !b.isU32 then none
+    else
+      some (s.withStack (Felt.ofNat ((a.val * b.val) % u32Max) :: rest))
   | _ => none
 
 def execU32WidenMadd (s : MidenState) : Option MidenState :=
   match s.stack with
   | b :: a :: c :: rest =>
-    let (lo, hi) := u32WideMadd a.val b.val c.val
-    some (s.withStack (Felt.ofNat lo :: Felt.ofNat hi :: rest))
+    if !a.isU32 || !b.isU32 || !c.isU32 then none
+    else
+      let (lo, hi) := u32WideMadd a.val b.val c.val
+      some (s.withStack (Felt.ofNat lo :: Felt.ofNat hi :: rest))
   | _ => none
 
 def execU32WrappingMadd (s : MidenState) : Option MidenState :=
   match s.stack with
   | b :: a :: c :: rest =>
-    some (s.withStack (Felt.ofNat ((a.val * b.val + c.val) % u32Max) :: rest))
+    if !a.isU32 || !b.isU32 || !c.isU32 then none
+    else
+      some (s.withStack (Felt.ofNat ((a.val * b.val + c.val) % u32Max) :: rest))
   | _ => none
 
 def execU32DivMod (s : MidenState) : Option MidenState :=
   match s.stack with
   | b :: a :: rest =>
-    if b.val == 0 then none
+    if !a.isU32 || !b.isU32 then none
+    else if b.val == 0 then none
     else some (s.withStack (Felt.ofNat (a.val % b.val) :: Felt.ofNat (a.val / b.val) :: rest))
   | _ => none
 
 def execU32Div (s : MidenState) : Option MidenState :=
   match s.stack with
   | b :: a :: rest =>
-    if b.val == 0 then none
+    if !a.isU32 || !b.isU32 then none
+    else if b.val == 0 then none
     else some (s.withStack (Felt.ofNat (a.val / b.val) :: rest))
   | _ => none
 
 def execU32Mod (s : MidenState) : Option MidenState :=
   match s.stack with
   | b :: a :: rest =>
-    if b.val == 0 then none
+    if !a.isU32 || !b.isU32 then none
+    else if b.val == 0 then none
     else some (s.withStack (Felt.ofNat (a.val % b.val) :: rest))
   | _ => none
 
@@ -583,114 +610,144 @@ def execU32Not (s : MidenState) : Option MidenState :=
 def execU32Shl (s : MidenState) : Option MidenState :=
   match s.stack with
   | b :: a :: rest =>
-    if b.val > 31 then none
+    if !a.isU32 || !b.isU32 then none
+    else if b.val > 31 then none
     else some (s.withStack (Felt.ofNat ((a.val * 2^b.val) % u32Max) :: rest))
   | _ => none
 
 def execU32ShlImm (n : Nat) (s : MidenState) : Option MidenState :=
   match s.stack with
   | a :: rest =>
-    if n > 31 then none
+    if !a.isU32 then none
+    else if n > 31 then none
     else some (s.withStack (Felt.ofNat ((a.val * 2^n) % u32Max) :: rest))
   | _ => none
 
 def execU32Shr (s : MidenState) : Option MidenState :=
   match s.stack with
   | b :: a :: rest =>
-    if b.val > 31 then none
+    if !a.isU32 || !b.isU32 then none
+    else if b.val > 31 then none
     else some (s.withStack (Felt.ofNat (a.val / 2^b.val) :: rest))
   | _ => none
 
 def execU32ShrImm (n : Nat) (s : MidenState) : Option MidenState :=
   match s.stack with
   | a :: rest =>
-    if n > 31 then none
+    if !a.isU32 then none
+    else if n > 31 then none
     else some (s.withStack (Felt.ofNat (a.val / 2^n) :: rest))
   | _ => none
 
 def execU32Rotl (s : MidenState) : Option MidenState :=
   match s.stack with
   | b :: a :: rest =>
-    if b.val > 31 then none
+    if !a.isU32 || !b.isU32 then none
+    else if b.val > 31 then none
     else some (s.withStack (Felt.ofNat (u32RotateLeft a.val b.val) :: rest))
   | _ => none
 
 def execU32RotlImm (n : Nat) (s : MidenState) : Option MidenState :=
   match s.stack with
   | a :: rest =>
-    if n > 31 then none
+    if !a.isU32 then none
+    else if n > 31 then none
     else some (s.withStack (Felt.ofNat (u32RotateLeft a.val n) :: rest))
   | _ => none
 
 def execU32Rotr (s : MidenState) : Option MidenState :=
   match s.stack with
   | b :: a :: rest =>
-    if b.val > 31 then none
+    if !a.isU32 || !b.isU32 then none
+    else if b.val > 31 then none
     else some (s.withStack (Felt.ofNat (u32RotateRight a.val b.val) :: rest))
   | _ => none
 
 def execU32RotrImm (n : Nat) (s : MidenState) : Option MidenState :=
   match s.stack with
   | a :: rest =>
-    if n > 31 then none
+    if !a.isU32 then none
+    else if n > 31 then none
     else some (s.withStack (Felt.ofNat (u32RotateRight a.val n) :: rest))
   | _ => none
 
 def execU32Popcnt (s : MidenState) : Option MidenState :=
   match s.stack with
-  | a :: rest => some (s.withStack (Felt.ofNat (u32PopCount a.val) :: rest))
+  | a :: rest =>
+    if !a.isU32 then none
+    else some (s.withStack (Felt.ofNat (u32PopCount a.val) :: rest))
   | _ => none
 
 def execU32Clz (s : MidenState) : Option MidenState :=
   match s.stack with
-  | a :: rest => some (s.withStack (Felt.ofNat (u32CountLeadingZeros a.val) :: rest))
+  | a :: rest =>
+    if !a.isU32 then none
+    else some (s.withStack (Felt.ofNat (u32CountLeadingZeros a.val) :: rest))
   | _ => none
 
 def execU32Ctz (s : MidenState) : Option MidenState :=
   match s.stack with
-  | a :: rest => some (s.withStack (Felt.ofNat (u32CountTrailingZeros a.val) :: rest))
+  | a :: rest =>
+    if !a.isU32 then none
+    else some (s.withStack (Felt.ofNat (u32CountTrailingZeros a.val) :: rest))
   | _ => none
 
 def execU32Clo (s : MidenState) : Option MidenState :=
   match s.stack with
-  | a :: rest => some (s.withStack (Felt.ofNat (u32CountLeadingOnes a.val) :: rest))
+  | a :: rest =>
+    if !a.isU32 then none
+    else some (s.withStack (Felt.ofNat (u32CountLeadingOnes a.val) :: rest))
   | _ => none
 
 def execU32Cto (s : MidenState) : Option MidenState :=
   match s.stack with
-  | a :: rest => some (s.withStack (Felt.ofNat (u32CountTrailingOnes a.val) :: rest))
+  | a :: rest =>
+    if !a.isU32 then none
+    else some (s.withStack (Felt.ofNat (u32CountTrailingOnes a.val) :: rest))
   | _ => none
 
 -- U32 comparison
 
 def execU32Lt (s : MidenState) : Option MidenState :=
   match s.stack with
-  | b :: a :: rest => some (s.withStack ((if a.val < b.val then (1 : Felt) else 0) :: rest))
+  | b :: a :: rest =>
+    if !a.isU32 || !b.isU32 then none
+    else some (s.withStack ((if a.val < b.val then (1 : Felt) else 0) :: rest))
   | _ => none
 
 def execU32Lte (s : MidenState) : Option MidenState :=
   match s.stack with
-  | b :: a :: rest => some (s.withStack ((if a.val ≤ b.val then (1 : Felt) else 0) :: rest))
+  | b :: a :: rest =>
+    if !a.isU32 || !b.isU32 then none
+    else some (s.withStack ((if a.val ≤ b.val then (1 : Felt) else 0) :: rest))
   | _ => none
 
 def execU32Gt (s : MidenState) : Option MidenState :=
   match s.stack with
-  | b :: a :: rest => some (s.withStack ((if a.val > b.val then (1 : Felt) else 0) :: rest))
+  | b :: a :: rest =>
+    if !a.isU32 || !b.isU32 then none
+    else some (s.withStack ((if a.val > b.val then (1 : Felt) else 0) :: rest))
   | _ => none
 
 def execU32Gte (s : MidenState) : Option MidenState :=
   match s.stack with
-  | b :: a :: rest => some (s.withStack ((if a.val ≥ b.val then (1 : Felt) else 0) :: rest))
+  | b :: a :: rest =>
+    if !a.isU32 || !b.isU32 then none
+    else some (s.withStack ((if a.val ≥ b.val then (1 : Felt) else 0) :: rest))
   | _ => none
 
 def execU32Min (s : MidenState) : Option MidenState :=
   match s.stack with
-  | b :: a :: rest => some (s.withStack ((if a.val ≤ b.val then a else b) :: rest))
+  | b :: a :: rest =>
+    if !a.isU32 || !b.isU32 then none
+    else some (s.withStack ((if a.val ≤ b.val then a else b) :: rest))
   | _ => none
 
 def execU32Max (s : MidenState) : Option MidenState :=
   match s.stack with
-  | b :: a :: rest => some (s.withStack ((if a.val ≥ b.val then a else b) :: rest))
+  | b :: a :: rest =>
+    if !a.isU32 || !b.isU32 then none
+    else some (s.withStack ((if a.val ≥ b.val then a else b) :: rest))
   | _ => none
 
 -- Memory
@@ -846,7 +903,7 @@ def execAdvLoadW (s : MidenState) : Option MidenState :=
     else
       let vals := s.advice.take 4
       let adv' := s.advice.drop 4
-      some ((s.withAdvice adv').withStack (vals.reverse ++ rest))
+      some ((s.withAdvice adv').withStack (vals ++ rest))
   | _ => none
 
 -- Events

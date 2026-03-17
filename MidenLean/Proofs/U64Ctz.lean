@@ -13,7 +13,8 @@ set_option maxHeartbeats 8000000 in
     Output stack: [result] ++ rest
     where result = if lo == 0 then ctz(hi) + 32 else ctz(lo). -/
 theorem u64_ctz_correct (lo hi : Felt) (rest : List Felt) (s : MidenState)
-    (hs : s.stack = lo :: hi :: rest) :
+    (hs : s.stack = lo :: hi :: rest)
+    (hlo : lo.isU32 = true) (hhi : hi.isU32 = true) :
     exec 20 s Miden.Core.Math.U64.ctz =
     some (s.withStack (
       (if lo == (0 : Felt)
@@ -41,27 +42,18 @@ theorem u64_ctz_correct (lo hi : Felt) (rest : List Felt) (s : MidenState)
   miden_dup
   rw [stepEqImm]; miden_bind
   by_cases h : lo == (0 : Felt)
-  · simp only [h]
+  · simp only [h, ite_true, ite_false, MidenState.withStack]
     unfold execWithEnv; simp only [List.foldlM]
-    change (do
-      let s' ← execInstruction ⟨lo :: hi :: rest, mem, locs, adv⟩ (.drop)
-      let s' ← execInstruction s' (.u32Ctz)
-      let s' ← execInstruction s' (.addImm 32)
-      pure s') = _
     rw [stepDrop]; miden_bind
-    rw [stepU32Ctz]; miden_bind
+    rw [stepU32Ctz (ha := hhi)]; miden_bind
     rw [stepAddImm]; dsimp only [bind, Bind.bind, Option.bind, pure, Pure.pure]
     simp
-  · simp only [h]
+  · simp only [h, ite_false, ite_true, MidenState.withStack]
     unfold execWithEnv; simp only [List.foldlM]
-    change (do
-      let s' ← execInstruction ⟨lo :: hi :: rest, mem, locs, adv⟩ (.swap 1)
-      let s' ← execInstruction s' (.drop)
-      let s' ← execInstruction s' (.u32Ctz)
-      pure s') = _
-    miden_swap
+    simp (config := { decide := true }) only [ite_false, ite_true,
+      bind, Bind.bind, Option.bind, pure, Pure.pure, MidenState.withStack]
+    rw [stepSwap (hn := by decide) (htop := rfl) (hnth := rfl)]; miden_bind
     rw [stepDrop]; miden_bind
-    rw [stepU32Ctz]; dsimp only [bind, Bind.bind, Option.bind, pure, Pure.pure]
-    simp
+    rw [stepU32Ctz (ha := hlo)]
 
 end MidenLean.Proofs
