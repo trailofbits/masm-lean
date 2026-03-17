@@ -18,21 +18,35 @@ The project has two components:
 │   ├── State.lean                  VM state: stack, memory, locals, advice
 │   ├── Instruction.lean            Inductive type for ~130 MASM instructions
 │   ├── Op.lean                     Control flow: ifElse, repeat, whileTrue
-│   ├── Semantics.lean              stepInstruction, execOps, exec
+│   ├── Semantics.lean              exec* handlers, execInstruction dispatch, execWithEnv, exec
 │   ├── Generated/
 │   │   ├── Word.lean               11 word procedures as List Op
-│   │   └── U64.lean                36 u64 procedures as List Op
+│   │   └── U64.lean                31 u64 procedures as List Op
 │   └── Proofs/
-│       ├── Helpers.lean            MidenState simp lemmas and Felt boolean lemmas
+│       ├── Helpers.lean            MidenState simp lemmas and Felt bounds lemmas
 │       ├── StepLemmas.lean         Reusable single-instruction lemmas
 │       ├── Tactics.lean            miden_step / miden_steps tactic macros
 │       ├── Word.lean               word::eqz proof
 │       ├── WordTestz.lean          word::testz proof
 │       ├── U64.lean                u64::eqz, overflowing_add, wrapping_add proofs
-│       ├── U64Eq.lean              u64::eq proof
 │       ├── U64Sub.lean             u64::wrapping_sub proof
+│       ├── U64OverflowingSub.lean  u64::overflowing_sub proof
+│       ├── U64WideningAdd.lean     u64::widening_add proof
+│       ├── U64WrappingMul.lean     u64::wrapping_mul proof
+│       ├── U64Eq.lean              u64::eq proof
+│       ├── U64Neq.lean             u64::neq proof
+│       ├── U64Lt.lean              u64::lt proof
+│       ├── U64Gt.lean              u64::gt proof
+│       ├── U64Lte.lean             u64::lte proof
+│       ├── U64Gte.lean             u64::gte proof
 │       ├── U64And.lean             u64::and proof
-│       └── U64Clz.lean             u64::clz proof
+│       ├── U64Or.lean              u64::or proof
+│       ├── U64Xor.lean             u64::xor proof
+│       ├── U64Clz.lean             u64::clz proof
+│       ├── U64Ctz.lean             u64::ctz proof
+│       ├── U64Clo.lean             u64::clo proof
+│       ├── U64Cto.lean             u64::cto proof
+│       └── U64U32Assert4.lean      u64::u32assert4 proof
 ├── masm-to-lean/                   Rust translator
 │   └── src/
 │       ├── main.rs                 CLI entry point
@@ -59,7 +73,9 @@ Defined in `State.lean` as a structure with four fields:
 
 Memory is modeled as a total function `Nat → Felt` rather than a finite map. This is standard in machine code formalizations (LNSym, eth-isabelle, Cairo). Writes produce a new function via pointwise update; `simp` reduces reads-after-writes trivially. Out-of-bounds addresses (≥ 2^32) cause the semantics to return `none`.
 
-The VM executor (defined by `stepInstruction` and `execOps`) return `Option MidenState`. Failure conditions (failed assertions, division by zero, stack underflow, out-of-bounds memory) produce `none`. A correctness theorem of the form `exec fuel s ops = some s'` proves both that the procedure terminates within the fuel budget and that the result state matches the specification. `execOps` takes a `fuel` parameter that bounds recursion depth. This ensures structural termination without complex well-founded arguments.
+Each MASM instruction is implemented by a dedicated handler function (e.g., `execDrop`, `execDup`, `execSwap`, `execMovup`). The top-level `execInstruction` is a thin dispatch that pattern-matches on the `Instruction` and delegates to the appropriate handler. This avoids duplicating instruction logic between the semantics and the step lemmas.
+
+The VM executor (defined by `execInstruction` and `execWithEnv`) returns `Option MidenState`. Failure conditions (failed assertions, division by zero, stack underflow, out-of-bounds memory) produce `none`. A correctness theorem of the form `exec fuel s ops = some s'` proves both that the procedure terminates within the fuel budget and that the result state matches the specification. `execWithEnv` takes a `fuel` parameter that bounds recursion depth. This ensures structural termination without complex well-founded arguments.
 
 `ProcEnv` (`String → Option (List Op)`) maps procedure names to their bodies. `exec` uses an empty environment (no inter-procedure calls); `execWithProcs` resolves `exec` instructions via the environment. Currently all proven procedures are self-contained (no `exec` instructions), so the empty environment suffices.
 
@@ -68,19 +84,20 @@ The VM executor (defined by `stepInstruction` and `execOps`) return `Option Mide
 A typical correctness proof follows this structure:
 
 1. **Destructure** the state: `obtain ⟨stk, mem, locs, adv⟩ := s`
-2. **Unfold** the procedure and execution machinery: `unfold exec ProcName execOps`
-3. **Rewrite to monadic form**: `change (do let s' ← stepInstruction ...; ...)`
-4. **Step through** instruction by instruction: `rw [stepFoo]; dsimp only [bind, ...]`
+2. **Unfold** the procedure and execution machinery: `unfold exec ProcName execWithEnv`
+3. **Rewrite to monadic form**: `change (do let s' ← execInstruction ...; ...)`
+4. **Step through** instruction by instruction: `rw [stepFoo]; miden_bind` or use `miden_step`
 5. **Close** with `simp` or `rfl`
 
-For procedures with branching (`ifElse`), step 4 includes a `by_cases` to case-split on the condition. For procedures with loops (`repeat`), `unfold execOps.doRepeat` unrolls each iteration. We implement a number of step lemmas to pre-compute the effect of a single `stepInstruction` call on a stack of the appropriate shape. For example, `stepDup` handles any `dup n` instruction regardless of the number of operands on the stack, and `stepSwap` handles any `swap n` instruction regardless of the stack shape.
+For procedures with branching (`ifElse`), step 4 includes a `by_cases` to case-split on the condition. For procedures with loops (`repeat`), `unfold execWithEnv.doRepeat` unrolls each iteration. Step lemmas in `StepLemmas.lean` pre-compute the effect of a single `execInstruction` call by unfolding the dispatch and the handler (e.g., `unfold execInstruction execDup; simp`). The lemmas are parametric where possible: `stepDup` handles any `dup n`, `stepSwap` handles any `swap n`, and `stepMovup`/`stepMovdn` handle any valid index with an explicit range hypothesis.
 
 ### Tactics (`Tactics.lean`)
 
-Three tactic macros automate the step-through pattern:
+Tactic macros automate the step-through pattern:
 
-- **`miden_bind`** — `dsimp only [bind, Bind.bind, Option.bind, List.set]`
-- **`miden_step`** — tries each step lemma in sequence (with parametric arguments for `stepDup` and `stepSwap`)
+- **`miden_bind`** — normalizes monadic bind and list operations after a step lemma rewrite
+- **`miden_dup`**, **`miden_swap`**, **`miden_movup`**, **`miden_movdn`** — apply the corresponding step lemma with automatic argument resolution
+- **`miden_step`** — tries each step lemma in sequence, covering all hypothesis-free instructions
 - **`miden_steps`** — repeats `miden_step` until no more instructions remain
 
 These are useful for straightforward linear instruction sequences. Proofs involving branching, loops, or hypotheses (e.g., `isU32` preconditions for bitwise operations) still require manual intervention.
@@ -102,7 +119,7 @@ Following Lean 4 / Mathlib style:
 | Category          | Convention     | Examples                                          |
 | ----------------- | -------------- | ------------------------------------------------- |
 | Types, structures | UpperCamelCase | `MidenState`, `Instruction`, `Op`                 |
-| Definitions       | lowerCamelCase | `stepInstruction`, `execOps`, `zeroMemory`        |
+| Definitions       | lowerCamelCase | `execInstruction`, `execWithEnv`, `zeroMemory`        |
 | Theorems          | lowerCamelCase | `stepDup`, `stepSwap`, `u64_eq_correct`           |
 | Namespaces        | UpperCamelCase | `MidenLean`, `MidenLean.StepLemmas`               |
 | Generated procs   | dot-separated  | `Miden.Core.Math.U64.eq`, `Miden.Core.Word.testz` |

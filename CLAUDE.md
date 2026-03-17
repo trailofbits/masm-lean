@@ -14,8 +14,9 @@ Lean 4 v4.28.0 via elan. A clean build with zero `sorry` means all theorems are 
 ## Key conventions
 
 - **Lean 4 / Mathlib naming**: lowerCamelCase for defs and theorems, UpperCamelCase for types and namespaces.
-- **Step lemmas** (`StepLemmas.lean`): parametric where possible (`stepDup`, `stepSwap`), concrete for `movup`/`movdn`. These are cached reductions of `stepInstruction`, not new semantics.
-- **Proof pattern**: destructure state, unfold procedure, rewrite to monadic `do`-form, step through with `rw [stepFoo]; dsimp only [bind, ...]`, close with `simp`/`rfl`. See any file in `MidenLean/Proofs/` for examples.
+- **Dispatch architecture** (`Semantics.lean`): `execInstruction` dispatches each instruction to a dedicated handler (`execDrop`, `execDup`, `execSwap`, `execMovup`, etc.). `execWithEnv` executes `List Op` with a `ProcEnv` for procedure calls.
+- **Step lemmas** (`StepLemmas.lean`): parametric where possible (`stepDup`, `stepSwap`), with explicit range hypotheses for `movup`/`movdn`. Proved by `unfold execInstruction execFoo; rfl` or `simp`.
+- **Proof pattern**: destructure state, unfold procedure, rewrite to monadic `do`-form, step through with `rw [stepFoo]; miden_bind` or `miden_step`, close with `simp`/`rfl`. See any file in `MidenLean/Proofs/` for examples.
 - **Correctness theorems**: named `<procedure>_correct` in snake_case matching the MASM name (e.g., `u64_wrapping_sub_correct`).
 - **Generated code** (`MidenLean/Generated/`): produced by the Rust translator. Do not edit by hand.
 
