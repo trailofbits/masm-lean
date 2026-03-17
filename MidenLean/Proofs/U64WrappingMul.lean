@@ -1,0 +1,71 @@
+import MidenLean.Proofs.Tactics
+import MidenLean.Generated.U64
+
+namespace MidenLean.Proofs
+
+open MidenLean
+open MidenLean.StepLemmas
+open MidenLean.Tactics
+
+set_option maxHeartbeats 8000000 in
+/-- u64.wrapping_mul correctly computes the low 64 bits of the product of two u64 values.
+    Input stack:  [b_lo, b_hi, a_lo, a_hi] ++ rest
+    Output stack: [c_lo, c_hi] ++ rest
+    where c_lo is the low 32 bits and c_hi the high 32 bits of (a * b) mod 2^64.
+    Requires a_lo and b_lo to be u32 for intermediate value recovery. -/
+theorem u64_wrapping_mul_correct
+    (a_lo a_hi b_lo b_hi : Felt) (rest : List Felt) (s : MidenState)
+    (hs : s.stack = b_lo :: b_hi :: a_lo :: a_hi :: rest)
+    (ha_lo : a_lo.isU32 = true) (hb_lo : b_lo.isU32 = true) :
+    exec 20 s Miden.Core.Math.U64.wrapping_mul =
+    some (s.withStack (
+      let prod_lo := a_lo.val * b_lo.val
+      let cross1 := b_hi.val * a_lo.val + prod_lo / 2^32
+      let cross2 := b_lo.val * a_hi.val + cross1 % 2^32
+      Felt.ofNat (prod_lo % 2^32) :: Felt.ofNat (cross2 % 2^32) :: rest)) := by
+  obtain ⟨stk, mem, locs, adv⟩ := s
+  simp only [MidenState.withStack] at hs ⊢
+  subst hs
+  unfold exec Miden.Core.Math.U64.wrapping_mul execWithEnv
+  simp only [List.foldlM]
+  change (do
+    let s' ← execInstruction ⟨b_lo :: b_hi :: a_lo :: a_hi :: rest, mem, locs, adv⟩ (.dup 2)
+    let s' ← execInstruction s' (.dup 1)
+    let s' ← execInstruction s' (.u32WidenMul)
+    let s' ← execInstruction s' (.swap 1)
+    let s' ← execInstruction s' (.movup 3)
+    let s' ← execInstruction s' (.movup 4)
+    let s' ← execInstruction s' (.u32WidenMadd)
+    let s' ← execInstruction s' (.swap 1)
+    let s' ← execInstruction s' (.drop)
+    let s' ← execInstruction s' (.movup 2)
+    let s' ← execInstruction s' (.movup 3)
+    let s' ← execInstruction s' (.u32WidenMadd)
+    let s' ← execInstruction s' (.swap 1)
+    let s' ← execInstruction s' (.drop)
+    let s' ← execInstruction s' (.swap 1)
+    pure s') = _
+  miden_dup; miden_dup
+  rw [stepU32WidenMul]; miden_bind
+  miden_swap; miden_movup; miden_movup
+  -- u32WidenMadd (b_hi * a_lo + carry)
+  have h_carry_val : (Felt.ofNat (a_lo.val * b_lo.val / 2^32)).val =
+      a_lo.val * b_lo.val / 2^32 :=
+    felt_ofNat_val_lt _ (u32_prod_div_lt_prime a_lo b_lo ha_lo hb_lo)
+  rw [stepU32WidenMadd]; miden_bind
+  rw [h_carry_val]
+  miden_swap
+  rw [stepDrop]; miden_bind
+  miden_movup; miden_movup
+  -- u32WidenMadd (b_lo * a_hi + cross1_lo)
+  have h_cross1_val : (Felt.ofNat ((b_hi.val * a_lo.val + a_lo.val * b_lo.val / 2^32) % 2^32)).val =
+      (b_hi.val * a_lo.val + a_lo.val * b_lo.val / 2^32) % 2^32 :=
+    felt_ofNat_val_lt _ (u32_mod_lt_prime _)
+  rw [stepU32WidenMadd]; miden_bind
+  rw [h_cross1_val]
+  miden_swap
+  rw [stepDrop]; miden_bind
+  miden_swap
+  dsimp only [pure, Pure.pure]
+
+end MidenLean.Proofs

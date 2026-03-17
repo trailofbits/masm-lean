@@ -18,14 +18,14 @@ theorem word_testz_correct (a b c d : Felt) (rest : List Felt) (s : MidenState)
   subst hs
   -- Unfold top-level definitions
   unfold exec Miden.Core.Word.testz
-  -- Unfold execOps to process the foldlM over the 4-element op list
-  unfold execOps
+  -- Unfold execWithEnv to process the foldlM over the 4-element op list
+  unfold execWithEnv
   simp only [List.foldlM]
   -- The first op is repeat 4 [dup 3, eqImm 0]
   -- This calls doRepeat with fuel=19, n=4
   -- Iteration 1: stack = [a, b, c, d, ...rest]
-  unfold execOps.doRepeat
-  unfold execOps
+  unfold execWithEnv.doRepeat
+  unfold execWithEnv
   simp only [List.foldlM]
   -- dup 3 on [a, b, c, d, ...rest] → [d, a, b, c, d, ...rest]
   rw [StepLemmas.stepDup (h := rfl)]
@@ -34,8 +34,8 @@ theorem word_testz_correct (a b c d : Felt) (rest : List Felt) (s : MidenState)
   rw [StepLemmas.stepEqImm]
   dsimp only [bind, Option.bind]
   -- Iteration 2: stack = [(d==0?), a, b, c, d, ...rest]
-  unfold execOps.doRepeat
-  unfold execOps
+  unfold execWithEnv.doRepeat
+  unfold execWithEnv
   simp only [List.foldlM]
   -- dup 3 copies index 3 = c
   rw [StepLemmas.stepDup (h := rfl)]
@@ -44,8 +44,8 @@ theorem word_testz_correct (a b c d : Felt) (rest : List Felt) (s : MidenState)
   rw [StepLemmas.stepEqImm]
   dsimp only [bind, Option.bind]
   -- Iteration 3: stack = [(c==0?), (d==0?), a, b, c, d, ...rest]
-  unfold execOps.doRepeat
-  unfold execOps
+  unfold execWithEnv.doRepeat
+  unfold execWithEnv
   simp only [List.foldlM]
   -- dup 3 copies index 3 = b
   rw [StepLemmas.stepDup (h := rfl)]
@@ -54,8 +54,8 @@ theorem word_testz_correct (a b c d : Felt) (rest : List Felt) (s : MidenState)
   rw [StepLemmas.stepEqImm]
   dsimp only [bind, Option.bind]
   -- Iteration 4: stack = [(b==0?), (c==0?), (d==0?), a, b, c, d, ...rest]
-  unfold execOps.doRepeat
-  unfold execOps
+  unfold execWithEnv.doRepeat
+  unfold execWithEnv
   simp only [List.foldlM]
   -- dup 3 copies index 3 = a
   rw [StepLemmas.stepDup (h := rfl)]
@@ -64,7 +64,7 @@ theorem word_testz_correct (a b c d : Felt) (rest : List Felt) (s : MidenState)
   rw [StepLemmas.stepEqImm]
   dsimp only [bind, Option.bind]
   -- doRepeat base case (n = 0)
-  unfold execOps.doRepeat
+  unfold execWithEnv.doRepeat
   dsimp only [bind, Option.bind]
   -- Now stack: [(a==0?), (b==0?), (c==0?), (d==0?), a, b, c, d, ...rest]
   -- Process the three and instructions

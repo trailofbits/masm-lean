@@ -10,13 +10,13 @@ open Instruction
 -- ============================================================================
 
 /-- Remove the nth element from a list, returning (element, remaining list). -/
-private def removeNth {α : Type} (l : List α) (n : Nat) : Option (α × List α) :=
+def removeNth {α : Type} (l : List α) (n : Nat) : Option (α × List α) :=
   match l[n]? with
   | none => none
   | some v => some (v, l.eraseIdx n)
 
 /-- Insert an element at position n in a list. -/
-private def insertAt {α : Type} (l : List α) (n : Nat) (v : α) : List α :=
+def insertAt {α : Type} (l : List α) (n : Nat) (v : α) : List α :=
   (l.take n) ++ [v] ++ (l.drop n)
 
 -- ============================================================================
@@ -102,367 +102,627 @@ private def u32PopCount (n : Nat) : Nat :=
   go n 0 32
 
 -- ============================================================================
--- Single instruction step
+-- Instruction execution handlers
 -- ============================================================================
 
-/-- Execute a single instruction, returning the new state or none on failure. -/
-def stepInstruction (s : MidenState) (i : Instruction) : Option MidenState :=
-  match i, s.stack with
+-- Assertions
 
-  -- No-op
-  | Instruction.nop, _ => some s
+def execAssert (s : MidenState) : Option MidenState :=
+  match s.stack with
+  | a :: rest => if a.val == 1 then some (s.withStack rest) else none
+  | _ => none
 
-  -- Assertions
-  | Instruction.assert, a :: rest =>
-    if a.val == 1 then some (s.withStack rest) else none
-  | Instruction.assertWithError _, a :: rest =>
-    if a.val == 1 then some (s.withStack rest) else none
-  | Instruction.assertz, a :: rest =>
-    if a.val == 0 then some (s.withStack rest) else none
-  | Instruction.assertzWithError _, a :: rest =>
-    if a.val == 0 then some (s.withStack rest) else none
-  | Instruction.assertEq, b :: a :: rest =>
-    if a == b then some (s.withStack rest) else none
-  | Instruction.assertEqWithError _, b :: a :: rest =>
-    if a == b then some (s.withStack rest) else none
-  | Instruction.assertEqw, stk =>
-    match stk with
-    | b0 :: b1 :: b2 :: b3 :: a0 :: a1 :: a2 :: a3 :: rest =>
-      if a0 == b0 && a1 == b1 && a2 == b2 && a3 == b3
-      then some (s.withStack rest)
-      else none
-    | _ => none
+def execAssertz (s : MidenState) : Option MidenState :=
+  match s.stack with
+  | a :: rest => if a.val == 0 then some (s.withStack rest) else none
+  | _ => none
 
-  -- Drop
-  | Instruction.drop, _ :: rest => some (s.withStack rest)
-  | Instruction.dropw, _ :: _ :: _ :: _ :: rest => some (s.withStack rest)
+def execAssertEq (s : MidenState) : Option MidenState :=
+  match s.stack with
+  | b :: a :: rest => if a == b then some (s.withStack rest) else none
+  | _ => none
 
-  -- Pad
-  | Instruction.padw, stk => some (s.withStack (0 :: 0 :: 0 :: 0 :: stk))
+def execAssertEqw (s : MidenState) : Option MidenState :=
+  match s.stack with
+  | b0 :: b1 :: b2 :: b3 :: a0 :: a1 :: a2 :: a3 :: rest =>
+    if a0 == b0 && a1 == b1 && a2 == b2 && a3 == b3
+    then some (s.withStack rest) else none
+  | _ => none
 
-  -- Dup
-  | Instruction.dup n, stk =>
-    match stk[n.val]? with
-    | some v => some (s.withStack (v :: stk))
-    | none => none
-  | Instruction.dupw n, stk =>
+-- Stack: drop, pad, push
+
+def execDrop (s : MidenState) : Option MidenState :=
+  match s.stack with
+  | _ :: rest => some (s.withStack rest)
+  | _ => none
+
+def execDropw (s : MidenState) : Option MidenState :=
+  match s.stack with
+  | _ :: _ :: _ :: _ :: rest => some (s.withStack rest)
+  | _ => none
+
+def execPadw (s : MidenState) : Option MidenState :=
+  some (s.withStack (0 :: 0 :: 0 :: 0 :: s.stack))
+
+def execPush (v : Felt) (s : MidenState) : Option MidenState :=
+  some (s.withStack (v :: s.stack))
+
+def execPushList (vs : List Felt) (s : MidenState) : Option MidenState :=
+  some (s.withStack (vs ++ s.stack))
+
+-- Stack: dup
+
+def execDup (n : Fin 16) (s : MidenState) : Option MidenState :=
+  match s.stack[n.val]? with
+  | some v => some (s.withStack (v :: s.stack))
+  | none => none
+
+def execDupw (n : Fin 4) (s : MidenState) : Option MidenState :=
+  let base := n.val * 4
+  match s.stack[base]?, s.stack[base+1]?, s.stack[base+2]?, s.stack[base+3]? with
+  | some a, some b, some c, some d => some (s.withStack (a :: b :: c :: d :: s.stack))
+  | _, _, _, _ => none
+
+-- Stack: swap
+
+def execSwap (n : Fin 16) (s : MidenState) : Option MidenState :=
+  if n.val == 0 then some s
+  else
+    match s.stack[0]?, s.stack[n.val]? with
+    | some top, some nth =>
+      some (s.withStack (s.stack.set 0 nth |>.set n.val top))
+    | _, _ => none
+
+def execSwapw (n : Fin 4) (s : MidenState) : Option MidenState :=
+  if n.val == 0 then some s
+  else
     let base := n.val * 4
-    match stk[base]?, stk[base+1]?, stk[base+2]?, stk[base+3]? with
-    | some a, some b, some c, some d => some (s.withStack (a :: b :: c :: d :: stk))
-    | _, _, _, _ => none
+    match s.stack[0]?, s.stack[1]?, s.stack[2]?, s.stack[3]?,
+          s.stack[base]?, s.stack[base+1]?, s.stack[base+2]?, s.stack[base+3]? with
+    | some a0, some a1, some a2, some a3,
+      some b0, some b1, some b2, some b3 =>
+      let stk' := s.stack
+        |>.set 0 b0 |>.set 1 b1 |>.set 2 b2 |>.set 3 b3
+        |>.set base a0 |>.set (base+1) a1 |>.set (base+2) a2 |>.set (base+3) a3
+      some (s.withStack stk')
+    | _, _, _, _, _, _, _, _ => none
 
-  -- Swap: swap.n swaps top element with element at position n
-  | Instruction.swap n, stk =>
-    if n.val == 0 then some s  -- swap.0 is nop
-    else
-      match stk[0]?, stk[n.val]? with
-      | some top, some nth =>
-        let stk' := stk.set 0 nth |>.set n.val top
-        some (s.withStack stk')
-      | _, _ => none
-  | Instruction.swapw n, stk =>
-    if n.val == 0 then some s
-    else
-      let base := n.val * 4
-      match stk[0]?, stk[1]?, stk[2]?, stk[3]?,
-            stk[base]?, stk[base+1]?, stk[base+2]?, stk[base+3]? with
-      | some a0, some a1, some a2, some a3,
-        some b0, some b1, some b2, some b3 =>
-        let stk' := stk
-          |>.set 0 b0 |>.set 1 b1 |>.set 2 b2 |>.set 3 b3
-          |>.set base a0 |>.set (base+1) a1 |>.set (base+2) a2 |>.set (base+3) a3
-        some (s.withStack stk')
-      | _, _, _, _, _, _, _, _ => none
-  | Instruction.swapdw, stk =>
-    match stk with
-    | a0::a1::a2::a3::b0::b1::b2::b3::c0::c1::c2::c3::d0::d1::d2::d3::rest =>
-      -- Swap words: [A,B,C,D,...] -> [C,D,A,B,...]
-      some (s.withStack (c0::c1::c2::c3::d0::d1::d2::d3::a0::a1::a2::a3::b0::b1::b2::b3::rest))
+def execSwapdw (s : MidenState) : Option MidenState :=
+  match s.stack with
+  | a0::a1::a2::a3::b0::b1::b2::b3::c0::c1::c2::c3::d0::d1::d2::d3::rest =>
+    some (s.withStack (c0::c1::c2::c3::d0::d1::d2::d3::a0::a1::a2::a3::b0::b1::b2::b3::rest))
+  | _ => none
+
+-- Stack: move
+
+def execMovup (n : Nat) (s : MidenState) : Option MidenState :=
+  if n < 2 || n > 15 then none
+  else
+    match removeNth s.stack n with
+    | some (v, rest) => some (s.withStack (v :: rest))
+    | none => none
+
+def execMovdn (n : Nat) (s : MidenState) : Option MidenState :=
+  if n < 2 || n > 15 then none
+  else
+    match s.stack with
+    | top :: rest => some (s.withStack (insertAt rest n top))
     | _ => none
 
-  -- Movup: moves element at position n to the top. Valid for n in {2, ..., 15}.
-  | Instruction.movup n, stk =>
-    if n < 2 || n > 15 then none
+def execMovupw (n : Nat) (s : MidenState) : Option MidenState :=
+  if n < 2 || n > 3 then none
+  else
+    let base := n * 4
+    if s.stack.length < base + 4 then none
     else
-      match removeNth stk n with
-      | some (v, rest) => some (s.withStack (v :: rest))
-      | none => none
+      let before := s.stack.take base
+      let word := (s.stack.drop base).take 4
+      let after := s.stack.drop (base + 4)
+      some (s.withStack (word ++ before ++ after))
 
-  -- Movdn: moves top element to position n. Valid for n in {2, ..., 15}.
-  | Instruction.movdn n, stk =>
-    if n < 2 || n > 15 then none
+def execMovdnw (n : Nat) (s : MidenState) : Option MidenState :=
+  if n < 2 || n > 3 then none
+  else
+    if s.stack.length < (n + 1) * 4 then none
     else
-      match stk with
-      | top :: rest => some (s.withStack (insertAt rest n top))
-      | _ => none
+      let word := s.stack.take 4
+      let remaining := s.stack.drop 4
+      let before := remaining.take (n * 4)
+      let after := remaining.drop (n * 4)
+      some (s.withStack (before ++ word ++ after))
 
-  -- Movupw: move word at position n to the top. Valid for n in {2, 3}.
-  | Instruction.movupw n, stk =>
-    if n < 2 || n > 3 then none
-    else
-      let base := n * 4
-      if stk.length < base + 4 then none
-      else
-        let before := stk.take base
-        let word := (stk.drop base).take 4
-        let after := stk.drop (base + 4)
-        some (s.withStack (word ++ before ++ after))
+def execReversew (s : MidenState) : Option MidenState :=
+  match s.stack with
+  | a :: b :: c :: d :: rest => some (s.withStack (d :: c :: b :: a :: rest))
+  | _ => none
 
-  -- Movdnw: move top word to position n. Valid for n in {2, 3}.
-  | Instruction.movdnw n, stk =>
-    if n < 2 || n > 3 then none
-    else
-      if stk.length < (n + 1) * 4 then none
-      else
-        let word := stk.take 4
-        let remaining := stk.drop 4
-        let before := remaining.take (n * 4)
-        let after := remaining.drop (n * 4)
-        some (s.withStack (before ++ word ++ after))
+-- Conditional operations
 
-  -- Reversew: reverse top 4 elements
-  | Instruction.reversew, a :: b :: c :: d :: rest =>
-    some (s.withStack (d :: c :: b :: a :: rest))
-
-  -- Conditional operations
-  | Instruction.cswap, c :: b :: a :: rest =>
+def execCswap (s : MidenState) : Option MidenState :=
+  match s.stack with
+  | c :: b :: a :: rest =>
     if c.val == 1 then some (s.withStack (a :: b :: rest))
     else if c.val == 0 then some (s.withStack (b :: a :: rest))
     else none
-  | Instruction.cswapw, stk =>
-    match stk with
-    | c :: b0::b1::b2::b3 :: a0::a1::a2::a3 :: rest =>
-      if c.val == 1 then some (s.withStack (a0::a1::a2::a3::b0::b1::b2::b3::rest))
-      else if c.val == 0 then some (s.withStack (b0::b1::b2::b3::a0::a1::a2::a3::rest))
-      else none
-    | _ => none
-  | Instruction.cdrop, c :: b :: a :: rest =>
+  | _ => none
+
+def execCswapw (s : MidenState) : Option MidenState :=
+  match s.stack with
+  | c :: b0::b1::b2::b3 :: a0::a1::a2::a3 :: rest =>
+    if c.val == 1 then some (s.withStack (a0::a1::a2::a3::b0::b1::b2::b3::rest))
+    else if c.val == 0 then some (s.withStack (b0::b1::b2::b3::a0::a1::a2::a3::rest))
+    else none
+  | _ => none
+
+def execCdrop (s : MidenState) : Option MidenState :=
+  match s.stack with
+  | c :: b :: a :: rest =>
     if c.val == 1 then some (s.withStack (b :: rest))
     else if c.val == 0 then some (s.withStack (a :: rest))
     else none
-  | Instruction.cdropw, stk =>
-    match stk with
-    | c :: b0::b1::b2::b3 :: a0::a1::a2::a3 :: rest =>
-      if c.val == 1 then some (s.withStack (b0::b1::b2::b3::rest))
-      else if c.val == 0 then some (s.withStack (a0::a1::a2::a3::rest))
-      else none
-    | _ => none
+  | _ => none
 
-  -- Push constants
-  | Instruction.push v, stk => some (s.withStack (v :: stk))
-  | Instruction.pushList vs, stk => some (s.withStack (vs ++ stk))
+def execCdropw (s : MidenState) : Option MidenState :=
+  match s.stack with
+  | c :: b0::b1::b2::b3 :: a0::a1::a2::a3 :: rest =>
+    if c.val == 1 then some (s.withStack (b0::b1::b2::b3::rest))
+    else if c.val == 0 then some (s.withStack (a0::a1::a2::a3::rest))
+    else none
+  | _ => none
 
-  -- Field arithmetic
-  | Instruction.add, b :: a :: rest => some (s.withStack ((a + b) :: rest))
-  | Instruction.addImm v, a :: rest => some (s.withStack ((a + v) :: rest))
-  | Instruction.sub, b :: a :: rest => some (s.withStack ((a - b) :: rest))
-  | Instruction.subImm v, a :: rest => some (s.withStack ((a - v) :: rest))
-  | Instruction.mul, b :: a :: rest => some (s.withStack ((a * b) :: rest))
-  | Instruction.mulImm v, a :: rest => some (s.withStack ((a * v) :: rest))
-  | Instruction.div, b :: a :: rest =>
-    if b == 0 then none else some (s.withStack ((a * b⁻¹) :: rest))
-  | Instruction.divImm v, a :: rest =>
-    if v == 0 then none else some (s.withStack ((a * v⁻¹) :: rest))
-  | Instruction.neg, a :: rest => some (s.withStack ((-a) :: rest))
-  | Instruction.inv, a :: rest =>
-    if a == 0 then none else some (s.withStack (a⁻¹ :: rest))
-  | Instruction.pow2, a :: rest =>
+-- Field arithmetic
+
+def execAdd (s : MidenState) : Option MidenState :=
+  match s.stack with
+  | b :: a :: rest => some (s.withStack ((a + b) :: rest))
+  | _ => none
+
+def execAddImm (v : Felt) (s : MidenState) : Option MidenState :=
+  match s.stack with
+  | a :: rest => some (s.withStack ((a + v) :: rest))
+  | _ => none
+
+def execSub (s : MidenState) : Option MidenState :=
+  match s.stack with
+  | b :: a :: rest => some (s.withStack ((a - b) :: rest))
+  | _ => none
+
+def execSubImm (v : Felt) (s : MidenState) : Option MidenState :=
+  match s.stack with
+  | a :: rest => some (s.withStack ((a - v) :: rest))
+  | _ => none
+
+def execMul (s : MidenState) : Option MidenState :=
+  match s.stack with
+  | b :: a :: rest => some (s.withStack ((a * b) :: rest))
+  | _ => none
+
+def execMulImm (v : Felt) (s : MidenState) : Option MidenState :=
+  match s.stack with
+  | a :: rest => some (s.withStack ((a * v) :: rest))
+  | _ => none
+
+def execDiv (s : MidenState) : Option MidenState :=
+  match s.stack with
+  | b :: a :: rest => if b == 0 then none else some (s.withStack ((a * b⁻¹) :: rest))
+  | _ => none
+
+def execDivImm (v : Felt) (s : MidenState) : Option MidenState :=
+  match s.stack with
+  | a :: rest => if v == 0 then none else some (s.withStack ((a * v⁻¹) :: rest))
+  | _ => none
+
+def execNeg (s : MidenState) : Option MidenState :=
+  match s.stack with
+  | a :: rest => some (s.withStack ((-a) :: rest))
+  | _ => none
+
+def execInv (s : MidenState) : Option MidenState :=
+  match s.stack with
+  | a :: rest => if a == 0 then none else some (s.withStack (a⁻¹ :: rest))
+  | _ => none
+
+def execPow2 (s : MidenState) : Option MidenState :=
+  match s.stack with
+  | a :: rest =>
     if a.val > 63 then none
     else some (s.withStack (Felt.ofNat (2^a.val) :: rest))
-  | Instruction.incr, a :: rest => some (s.withStack ((a + 1) :: rest))
+  | _ => none
 
-  -- Field comparison
-  | Instruction.eq, b :: a :: rest =>
-    some (s.withStack ((if a == b then (1 : Felt) else 0) :: rest))
-  | Instruction.eqImm v, a :: rest =>
-    some (s.withStack ((if a == v then (1 : Felt) else 0) :: rest))
-  | Instruction.neq, b :: a :: rest =>
-    some (s.withStack ((if a != b then (1 : Felt) else 0) :: rest))
-  | Instruction.neqImm v, a :: rest =>
-    some (s.withStack ((if a != v then (1 : Felt) else 0) :: rest))
-  | Instruction.lt, b :: a :: rest =>
-    some (s.withStack ((if a.val < b.val then (1 : Felt) else 0) :: rest))
-  | Instruction.lte, b :: a :: rest =>
-    some (s.withStack ((if a.val ≤ b.val then (1 : Felt) else 0) :: rest))
-  | Instruction.gt, b :: a :: rest =>
-    some (s.withStack ((if a.val > b.val then (1 : Felt) else 0) :: rest))
-  | Instruction.gte, b :: a :: rest =>
-    some (s.withStack ((if a.val ≥ b.val then (1 : Felt) else 0) :: rest))
-  | Instruction.isOdd, a :: rest =>
-    some (s.withStack ((if a.val % 2 == 1 then (1 : Felt) else 0) :: rest))
+def execIncr (s : MidenState) : Option MidenState :=
+  match s.stack with
+  | a :: rest => some (s.withStack ((a + 1) :: rest))
+  | _ => none
 
-  -- Field boolean (inputs must be 0 or 1)
-  | Instruction.and, b :: a :: rest =>
-    if a.isBool && b.isBool
-    then some (s.withStack ((a * b) :: rest))
-    else none
-  | Instruction.or, b :: a :: rest =>
-    if a.isBool && b.isBool
-    then some (s.withStack ((a + b - a * b) :: rest))
-    else none
-  | Instruction.xor, b :: a :: rest =>
-    if a.isBool && b.isBool
-    then some (s.withStack ((a + b - 2 * a * b) :: rest))
-    else none
-  | Instruction.not, a :: rest =>
-    if a.isBool
-    then some (s.withStack ((1 - a) :: rest))
-    else none
+-- Field comparison
 
-  -- U32 assertions
-  | Instruction.u32Assert, stk =>
-    match stk with
-    | a :: _ => if a.isU32 then some s else none
-    | _ => none
-  | Instruction.u32Assert2, stk =>
-    match stk with
-    | b :: a :: _ => if a.isU32 && b.isU32 then some s else none
-    | _ => none
-  | Instruction.u32AssertW, stk =>
-    match stk with
-    | a :: b :: c :: d :: _ =>
-      if a.isU32 && b.isU32 && c.isU32 && d.isU32 then some s else none
-    | _ => none
-  | Instruction.u32Test, a :: stk =>
-    some (s.withStack ((if a.isU32 then (1 : Felt) else 0) :: a :: stk))
-  | Instruction.u32TestW, stk =>
-    match stk with
-    | a :: b :: c :: d :: _ =>
-      let result : Felt := if a.isU32 && b.isU32 && c.isU32 && d.isU32 then 1 else 0
-      some (s.withStack (result :: stk))
-    | _ => none
+def execEq (s : MidenState) : Option MidenState :=
+  match s.stack with
+  | b :: a :: rest => some (s.withStack ((if a == b then (1 : Felt) else 0) :: rest))
+  | _ => none
 
-  -- U32 conversions
-  | Instruction.u32Cast, a :: rest =>
-    some (s.withStack (a.lo32 :: rest))
-  | Instruction.u32Split, a :: rest =>
-    some (s.withStack (a.lo32 :: a.hi32 :: rest))
+def execEqImm (v : Felt) (s : MidenState) : Option MidenState :=
+  match s.stack with
+  | a :: rest => some (s.withStack ((if a == v then (1 : Felt) else 0) :: rest))
+  | _ => none
 
-  -- U32 arithmetic
-  | Instruction.u32WidenAdd, b :: a :: rest =>
+def execNeq (s : MidenState) : Option MidenState :=
+  match s.stack with
+  | b :: a :: rest => some (s.withStack ((if a != b then (1 : Felt) else 0) :: rest))
+  | _ => none
+
+def execNeqImm (v : Felt) (s : MidenState) : Option MidenState :=
+  match s.stack with
+  | a :: rest => some (s.withStack ((if a != v then (1 : Felt) else 0) :: rest))
+  | _ => none
+
+def execLt (s : MidenState) : Option MidenState :=
+  match s.stack with
+  | b :: a :: rest => some (s.withStack ((if a.val < b.val then (1 : Felt) else 0) :: rest))
+  | _ => none
+
+def execLte (s : MidenState) : Option MidenState :=
+  match s.stack with
+  | b :: a :: rest => some (s.withStack ((if a.val ≤ b.val then (1 : Felt) else 0) :: rest))
+  | _ => none
+
+def execGt (s : MidenState) : Option MidenState :=
+  match s.stack with
+  | b :: a :: rest => some (s.withStack ((if a.val > b.val then (1 : Felt) else 0) :: rest))
+  | _ => none
+
+def execGte (s : MidenState) : Option MidenState :=
+  match s.stack with
+  | b :: a :: rest => some (s.withStack ((if a.val ≥ b.val then (1 : Felt) else 0) :: rest))
+  | _ => none
+
+def execIsOdd (s : MidenState) : Option MidenState :=
+  match s.stack with
+  | a :: rest => some (s.withStack ((if a.val % 2 == 1 then (1 : Felt) else 0) :: rest))
+  | _ => none
+
+-- Field boolean (inputs must be 0 or 1)
+
+def execAnd (s : MidenState) : Option MidenState :=
+  match s.stack with
+  | b :: a :: rest =>
+    if a.isBool && b.isBool then some (s.withStack ((a * b) :: rest)) else none
+  | _ => none
+
+def execOr (s : MidenState) : Option MidenState :=
+  match s.stack with
+  | b :: a :: rest =>
+    if a.isBool && b.isBool then some (s.withStack ((a + b - a * b) :: rest)) else none
+  | _ => none
+
+def execXor (s : MidenState) : Option MidenState :=
+  match s.stack with
+  | b :: a :: rest =>
+    if a.isBool && b.isBool then some (s.withStack ((a + b - 2 * a * b) :: rest)) else none
+  | _ => none
+
+def execNot (s : MidenState) : Option MidenState :=
+  match s.stack with
+  | a :: rest => if a.isBool then some (s.withStack ((1 - a) :: rest)) else none
+  | _ => none
+
+-- U32 assertions
+
+def execU32Assert (s : MidenState) : Option MidenState :=
+  match s.stack with
+  | a :: _ => if a.isU32 then some s else none
+  | _ => none
+
+def execU32Assert2 (s : MidenState) : Option MidenState :=
+  match s.stack with
+  | b :: a :: _ => if a.isU32 && b.isU32 then some s else none
+  | _ => none
+
+def execU32AssertW (s : MidenState) : Option MidenState :=
+  match s.stack with
+  | a :: b :: c :: d :: _ =>
+    if a.isU32 && b.isU32 && c.isU32 && d.isU32 then some s else none
+  | _ => none
+
+def execU32Test (s : MidenState) : Option MidenState :=
+  match s.stack with
+  | a :: stk => some (s.withStack ((if a.isU32 then (1 : Felt) else 0) :: a :: stk))
+  | _ => none
+
+def execU32TestW (s : MidenState) : Option MidenState :=
+  match s.stack with
+  | a :: b :: c :: d :: _ =>
+    let result : Felt := if a.isU32 && b.isU32 && c.isU32 && d.isU32 then 1 else 0
+    some (s.withStack (result :: s.stack))
+  | _ => none
+
+-- U32 conversions
+
+def execU32Cast (s : MidenState) : Option MidenState :=
+  match s.stack with
+  | a :: rest => some (s.withStack (a.lo32 :: rest))
+  | _ => none
+
+def execU32Split (s : MidenState) : Option MidenState :=
+  match s.stack with
+  | a :: rest => some (s.withStack (a.lo32 :: a.hi32 :: rest))
+  | _ => none
+
+-- U32 arithmetic
+
+def execU32WidenAdd (s : MidenState) : Option MidenState :=
+  match s.stack with
+  | b :: a :: rest =>
     let (lo, carry) := u32WideAdd a.val b.val
     some (s.withStack (Felt.ofNat lo :: Felt.ofNat carry :: rest))
-  | Instruction.u32OverflowAdd, b :: a :: rest =>
+  | _ => none
+
+def execU32OverflowAdd (s : MidenState) : Option MidenState :=
+  match s.stack with
+  | b :: a :: rest =>
     let (lo, carry) := u32WideAdd a.val b.val
     some (s.withStack (Felt.ofNat carry :: Felt.ofNat lo :: rest))
-  | Instruction.u32WrappingAdd, b :: a :: rest =>
-    some (s.withStack (Felt.ofNat (u32WAdd a.val b.val) :: rest))
-  | Instruction.u32WidenAdd3, c :: b :: a :: rest =>
+  | _ => none
+
+def execU32WrappingAdd (s : MidenState) : Option MidenState :=
+  match s.stack with
+  | b :: a :: rest => some (s.withStack (Felt.ofNat (u32WAdd a.val b.val) :: rest))
+  | _ => none
+
+def execU32WidenAdd3 (s : MidenState) : Option MidenState :=
+  match s.stack with
+  | c :: b :: a :: rest =>
     let (lo, carry) := u32WideAdd3 a.val b.val c.val
     some (s.withStack (Felt.ofNat lo :: Felt.ofNat carry :: rest))
-  | Instruction.u32OverflowAdd3, c :: b :: a :: rest =>
+  | _ => none
+
+def execU32OverflowAdd3 (s : MidenState) : Option MidenState :=
+  match s.stack with
+  | c :: b :: a :: rest =>
     let (lo, carry) := u32WideAdd3 a.val b.val c.val
     some (s.withStack (Felt.ofNat carry :: Felt.ofNat lo :: rest))
-  | Instruction.u32WrappingAdd3, c :: b :: a :: rest =>
-    let sum := (a.val + b.val + c.val) % u32Max
-    some (s.withStack (Felt.ofNat sum :: rest))
-  | Instruction.u32OverflowSub, b :: a :: rest =>
+  | _ => none
+
+def execU32WrappingAdd3 (s : MidenState) : Option MidenState :=
+  match s.stack with
+  | c :: b :: a :: rest =>
+    some (s.withStack (Felt.ofNat ((a.val + b.val + c.val) % u32Max) :: rest))
+  | _ => none
+
+def execU32OverflowSub (s : MidenState) : Option MidenState :=
+  match s.stack with
+  | b :: a :: rest =>
     let (borrow, diff) := u32OverflowingSub a.val b.val
     some (s.withStack (Felt.ofNat borrow :: Felt.ofNat diff :: rest))
-  | Instruction.u32WrappingSub, b :: a :: rest =>
+  | _ => none
+
+def execU32WrappingSub (s : MidenState) : Option MidenState :=
+  match s.stack with
+  | b :: a :: rest =>
     let (_, diff) := u32OverflowingSub a.val b.val
     some (s.withStack (Felt.ofNat diff :: rest))
-  | Instruction.u32WidenMul, b :: a :: rest =>
+  | _ => none
+
+def execU32WidenMul (s : MidenState) : Option MidenState :=
+  match s.stack with
+  | b :: a :: rest =>
     let (lo, hi) := u32WideMul a.val b.val
     some (s.withStack (Felt.ofNat lo :: Felt.ofNat hi :: rest))
-  | Instruction.u32WrappingMul, b :: a :: rest =>
+  | _ => none
+
+def execU32WrappingMul (s : MidenState) : Option MidenState :=
+  match s.stack with
+  | b :: a :: rest =>
     some (s.withStack (Felt.ofNat ((a.val * b.val) % u32Max) :: rest))
-  | Instruction.u32WidenMadd, b :: a :: c :: rest =>
+  | _ => none
+
+def execU32WidenMadd (s : MidenState) : Option MidenState :=
+  match s.stack with
+  | b :: a :: c :: rest =>
     let (lo, hi) := u32WideMadd a.val b.val c.val
     some (s.withStack (Felt.ofNat lo :: Felt.ofNat hi :: rest))
-  | Instruction.u32WrappingMadd, b :: a :: c :: rest =>
+  | _ => none
+
+def execU32WrappingMadd (s : MidenState) : Option MidenState :=
+  match s.stack with
+  | b :: a :: c :: rest =>
     some (s.withStack (Felt.ofNat ((a.val * b.val + c.val) % u32Max) :: rest))
-  | Instruction.u32DivMod, b :: a :: rest =>
+  | _ => none
+
+def execU32DivMod (s : MidenState) : Option MidenState :=
+  match s.stack with
+  | b :: a :: rest =>
     if b.val == 0 then none
-    else
-      let q := a.val / b.val
-      let r := a.val % b.val
-      some (s.withStack (Felt.ofNat r :: Felt.ofNat q :: rest))
-  | Instruction.u32Div, b :: a :: rest =>
+    else some (s.withStack (Felt.ofNat (a.val % b.val) :: Felt.ofNat (a.val / b.val) :: rest))
+  | _ => none
+
+def execU32Div (s : MidenState) : Option MidenState :=
+  match s.stack with
+  | b :: a :: rest =>
     if b.val == 0 then none
     else some (s.withStack (Felt.ofNat (a.val / b.val) :: rest))
-  | Instruction.u32Mod, b :: a :: rest =>
+  | _ => none
+
+def execU32Mod (s : MidenState) : Option MidenState :=
+  match s.stack with
+  | b :: a :: rest =>
     if b.val == 0 then none
     else some (s.withStack (Felt.ofNat (a.val % b.val) :: rest))
+  | _ => none
 
-  -- U32 bitwise (fail if inputs are not valid u32)
-  | Instruction.u32And, b :: a :: rest =>
+-- U32 bitwise
+
+def execU32And (s : MidenState) : Option MidenState :=
+  match s.stack with
+  | b :: a :: rest =>
     if !a.isU32 || !b.isU32 then none
     else some (s.withStack (Felt.ofNat (a.val &&& b.val) :: rest))
-  | Instruction.u32Or, b :: a :: rest =>
+  | _ => none
+
+def execU32Or (s : MidenState) : Option MidenState :=
+  match s.stack with
+  | b :: a :: rest =>
     if !a.isU32 || !b.isU32 then none
     else some (s.withStack (Felt.ofNat (a.val ||| b.val) :: rest))
-  | Instruction.u32Xor, b :: a :: rest =>
+  | _ => none
+
+def execU32Xor (s : MidenState) : Option MidenState :=
+  match s.stack with
+  | b :: a :: rest =>
     if !a.isU32 || !b.isU32 then none
     else some (s.withStack (Felt.ofNat (a.val ^^^ b.val) :: rest))
-  | Instruction.u32Not, a :: rest =>
+  | _ => none
+
+def execU32Not (s : MidenState) : Option MidenState :=
+  match s.stack with
+  | a :: rest =>
     if !a.isU32 then none
     else some (s.withStack (Felt.ofNat (u32Max - 1 - a.val) :: rest))
-  | Instruction.u32Shl, b :: a :: rest =>
+  | _ => none
+
+def execU32Shl (s : MidenState) : Option MidenState :=
+  match s.stack with
+  | b :: a :: rest =>
     if b.val > 31 then none
     else some (s.withStack (Felt.ofNat ((a.val * 2^b.val) % u32Max) :: rest))
-  | Instruction.u32ShlImm n, a :: rest =>
+  | _ => none
+
+def execU32ShlImm (n : Nat) (s : MidenState) : Option MidenState :=
+  match s.stack with
+  | a :: rest =>
     if n > 31 then none
     else some (s.withStack (Felt.ofNat ((a.val * 2^n) % u32Max) :: rest))
-  | Instruction.u32Shr, b :: a :: rest =>
+  | _ => none
+
+def execU32Shr (s : MidenState) : Option MidenState :=
+  match s.stack with
+  | b :: a :: rest =>
     if b.val > 31 then none
     else some (s.withStack (Felt.ofNat (a.val / 2^b.val) :: rest))
-  | Instruction.u32ShrImm n, a :: rest =>
+  | _ => none
+
+def execU32ShrImm (n : Nat) (s : MidenState) : Option MidenState :=
+  match s.stack with
+  | a :: rest =>
     if n > 31 then none
     else some (s.withStack (Felt.ofNat (a.val / 2^n) :: rest))
-  | Instruction.u32Rotl, b :: a :: rest =>
+  | _ => none
+
+def execU32Rotl (s : MidenState) : Option MidenState :=
+  match s.stack with
+  | b :: a :: rest =>
     if b.val > 31 then none
     else some (s.withStack (Felt.ofNat (u32RotateLeft a.val b.val) :: rest))
-  | Instruction.u32RotlImm n, a :: rest =>
+  | _ => none
+
+def execU32RotlImm (n : Nat) (s : MidenState) : Option MidenState :=
+  match s.stack with
+  | a :: rest =>
     if n > 31 then none
     else some (s.withStack (Felt.ofNat (u32RotateLeft a.val n) :: rest))
-  | Instruction.u32Rotr, b :: a :: rest =>
+  | _ => none
+
+def execU32Rotr (s : MidenState) : Option MidenState :=
+  match s.stack with
+  | b :: a :: rest =>
     if b.val > 31 then none
     else some (s.withStack (Felt.ofNat (u32RotateRight a.val b.val) :: rest))
-  | Instruction.u32RotrImm n, a :: rest =>
+  | _ => none
+
+def execU32RotrImm (n : Nat) (s : MidenState) : Option MidenState :=
+  match s.stack with
+  | a :: rest =>
     if n > 31 then none
     else some (s.withStack (Felt.ofNat (u32RotateRight a.val n) :: rest))
-  | Instruction.u32Popcnt, a :: rest =>
-    some (s.withStack (Felt.ofNat (u32PopCount a.val) :: rest))
-  | Instruction.u32Clz, a :: rest =>
-    some (s.withStack (Felt.ofNat (u32CountLeadingZeros a.val) :: rest))
-  | Instruction.u32Ctz, a :: rest =>
-    some (s.withStack (Felt.ofNat (u32CountTrailingZeros a.val) :: rest))
-  | Instruction.u32Clo, a :: rest =>
-    some (s.withStack (Felt.ofNat (u32CountLeadingOnes a.val) :: rest))
-  | Instruction.u32Cto, a :: rest =>
-    some (s.withStack (Felt.ofNat (u32CountTrailingOnes a.val) :: rest))
+  | _ => none
 
-  -- U32 comparison
-  | Instruction.u32Lt, b :: a :: rest =>
-    some (s.withStack ((if a.val < b.val then (1 : Felt) else 0) :: rest))
-  | Instruction.u32Lte, b :: a :: rest =>
-    some (s.withStack ((if a.val ≤ b.val then (1 : Felt) else 0) :: rest))
-  | Instruction.u32Gt, b :: a :: rest =>
-    some (s.withStack ((if a.val > b.val then (1 : Felt) else 0) :: rest))
-  | Instruction.u32Gte, b :: a :: rest =>
-    some (s.withStack ((if a.val ≥ b.val then (1 : Felt) else 0) :: rest))
-  | Instruction.u32Min, b :: a :: rest =>
-    some (s.withStack ((if a.val ≤ b.val then a else b) :: rest))
-  | Instruction.u32Max, b :: a :: rest =>
-    some (s.withStack ((if a.val ≥ b.val then a else b) :: rest))
+def execU32Popcnt (s : MidenState) : Option MidenState :=
+  match s.stack with
+  | a :: rest => some (s.withStack (Felt.ofNat (u32PopCount a.val) :: rest))
+  | _ => none
 
-  -- Memory (absolute addressing)
-  | Instruction.memLoad, a :: rest =>
+def execU32Clz (s : MidenState) : Option MidenState :=
+  match s.stack with
+  | a :: rest => some (s.withStack (Felt.ofNat (u32CountLeadingZeros a.val) :: rest))
+  | _ => none
+
+def execU32Ctz (s : MidenState) : Option MidenState :=
+  match s.stack with
+  | a :: rest => some (s.withStack (Felt.ofNat (u32CountTrailingZeros a.val) :: rest))
+  | _ => none
+
+def execU32Clo (s : MidenState) : Option MidenState :=
+  match s.stack with
+  | a :: rest => some (s.withStack (Felt.ofNat (u32CountLeadingOnes a.val) :: rest))
+  | _ => none
+
+def execU32Cto (s : MidenState) : Option MidenState :=
+  match s.stack with
+  | a :: rest => some (s.withStack (Felt.ofNat (u32CountTrailingOnes a.val) :: rest))
+  | _ => none
+
+-- U32 comparison
+
+def execU32Lt (s : MidenState) : Option MidenState :=
+  match s.stack with
+  | b :: a :: rest => some (s.withStack ((if a.val < b.val then (1 : Felt) else 0) :: rest))
+  | _ => none
+
+def execU32Lte (s : MidenState) : Option MidenState :=
+  match s.stack with
+  | b :: a :: rest => some (s.withStack ((if a.val ≤ b.val then (1 : Felt) else 0) :: rest))
+  | _ => none
+
+def execU32Gt (s : MidenState) : Option MidenState :=
+  match s.stack with
+  | b :: a :: rest => some (s.withStack ((if a.val > b.val then (1 : Felt) else 0) :: rest))
+  | _ => none
+
+def execU32Gte (s : MidenState) : Option MidenState :=
+  match s.stack with
+  | b :: a :: rest => some (s.withStack ((if a.val ≥ b.val then (1 : Felt) else 0) :: rest))
+  | _ => none
+
+def execU32Min (s : MidenState) : Option MidenState :=
+  match s.stack with
+  | b :: a :: rest => some (s.withStack ((if a.val ≤ b.val then a else b) :: rest))
+  | _ => none
+
+def execU32Max (s : MidenState) : Option MidenState :=
+  match s.stack with
+  | b :: a :: rest => some (s.withStack ((if a.val ≥ b.val then a else b) :: rest))
+  | _ => none
+
+-- Memory
+
+def execMemLoad (s : MidenState) : Option MidenState :=
+  match s.stack with
+  | a :: rest =>
     if a.val >= u32Max then none
     else some (s.withStack (s.memory a.val :: rest))
-  | Instruction.memLoadImm addr, stk =>
-    if addr >= u32Max then none
-    else some (s.withStack (s.memory addr :: stk))
-  | Instruction.memStore, a :: v :: rest =>
+  | _ => none
+
+def execMemLoadImm (addr : Nat) (s : MidenState) : Option MidenState :=
+  if addr >= u32Max then none
+  else some (s.withStack (s.memory addr :: s.stack))
+
+def execMemStore (s : MidenState) : Option MidenState :=
+  match s.stack with
+  | a :: v :: rest =>
     if a.val >= u32Max then none
     else some ((s.writeMemory a.val v).withStack rest)
-  | Instruction.memStoreImm addr, v :: rest =>
+  | _ => none
+
+def execMemStoreImm (addr : Nat) (s : MidenState) : Option MidenState :=
+  match s.stack with
+  | v :: rest =>
     if addr >= u32Max then none
     else some ((s.writeMemory addr v).withStack rest)
+  | _ => none
 
-  -- Memory word store (big-endian): store word, leaving it on the stack
-  | Instruction.memStorewBe, a :: e0 :: e1 :: e2 :: e3 :: rest =>
+def execMemStorewBe (s : MidenState) : Option MidenState :=
+  match s.stack with
+  | a :: e0 :: e1 :: e2 :: e3 :: rest =>
     if a.val >= u32Max || a.val % 4 != 0 then none
     else
       let addr := a.val
@@ -471,7 +731,11 @@ def stepInstruction (s : MidenState) (i : Instruction) : Option MidenState :=
         |>.writeMemory (addr+2) e1
         |>.writeMemory (addr+3) e0
       some (s'.withStack (e0 :: e1 :: e2 :: e3 :: rest))
-  | Instruction.memStorewBeImm addr, e0 :: e1 :: e2 :: e3 :: rest =>
+  | _ => none
+
+def execMemStorewBeImm (addr : Nat) (s : MidenState) : Option MidenState :=
+  match s.stack with
+  | e0 :: e1 :: e2 :: e3 :: rest =>
     if addr >= u32Max || addr % 4 != 0 then none
     else
       let s' := s.writeMemory addr e3
@@ -479,9 +743,11 @@ def stepInstruction (s : MidenState) (i : Instruction) : Option MidenState :=
         |>.writeMemory (addr+2) e1
         |>.writeMemory (addr+3) e0
       some (s'.withStack (e0 :: e1 :: e2 :: e3 :: rest))
+  | _ => none
 
-  -- Memory word store (little-endian)
-  | Instruction.memStorewLe, a :: e0 :: e1 :: e2 :: e3 :: rest =>
+def execMemStorewLe (s : MidenState) : Option MidenState :=
+  match s.stack with
+  | a :: e0 :: e1 :: e2 :: e3 :: rest =>
     if a.val >= u32Max || a.val % 4 != 0 then none
     else
       let addr := a.val
@@ -490,7 +756,11 @@ def stepInstruction (s : MidenState) (i : Instruction) : Option MidenState :=
         |>.writeMemory (addr+2) e2
         |>.writeMemory (addr+3) e3
       some (s'.withStack (e0 :: e1 :: e2 :: e3 :: rest))
-  | Instruction.memStorewLeImm addr, e0 :: e1 :: e2 :: e3 :: rest =>
+  | _ => none
+
+def execMemStorewLeImm (addr : Nat) (s : MidenState) : Option MidenState :=
+  match s.stack with
+  | e0 :: e1 :: e2 :: e3 :: rest =>
     if addr >= u32Max || addr % 4 != 0 then none
     else
       let s' := s.writeMemory addr e0
@@ -498,9 +768,11 @@ def stepInstruction (s : MidenState) (i : Instruction) : Option MidenState :=
         |>.writeMemory (addr+2) e2
         |>.writeMemory (addr+3) e3
       some (s'.withStack (e0 :: e1 :: e2 :: e3 :: rest))
+  | _ => none
 
-  -- Memory word load (big-endian): overwrites top 4 stack elements
-  | Instruction.memLoadwBe, a :: _ :: _ :: _ :: _ :: rest =>
+def execMemLoadwBe (s : MidenState) : Option MidenState :=
+  match s.stack with
+  | a :: _ :: _ :: _ :: _ :: rest =>
     if a.val >= u32Max || a.val % 4 != 0 then none
     else
       let addr := a.val
@@ -509,7 +781,11 @@ def stepInstruction (s : MidenState) (i : Instruction) : Option MidenState :=
       let e1 := s.memory (addr+2)
       let e0 := s.memory (addr+3)
       some (s.withStack (e0 :: e1 :: e2 :: e3 :: rest))
-  | Instruction.memLoadwBeImm addr, _ :: _ :: _ :: _ :: rest =>
+  | _ => none
+
+def execMemLoadwBeImm (addr : Nat) (s : MidenState) : Option MidenState :=
+  match s.stack with
+  | _ :: _ :: _ :: _ :: rest =>
     if addr >= u32Max || addr % 4 != 0 then none
     else
       let e3 := s.memory addr
@@ -517,9 +793,11 @@ def stepInstruction (s : MidenState) (i : Instruction) : Option MidenState :=
       let e1 := s.memory (addr+2)
       let e0 := s.memory (addr+3)
       some (s.withStack (e0 :: e1 :: e2 :: e3 :: rest))
+  | _ => none
 
-  -- Memory word load (little-endian)
-  | Instruction.memLoadwLe, a :: _ :: _ :: _ :: _ :: rest =>
+def execMemLoadwLe (s : MidenState) : Option MidenState :=
+  match s.stack with
+  | a :: _ :: _ :: _ :: _ :: rest =>
     if a.val >= u32Max || a.val % 4 != 0 then none
     else
       let addr := a.val
@@ -528,7 +806,11 @@ def stepInstruction (s : MidenState) (i : Instruction) : Option MidenState :=
       let e2 := s.memory (addr+2)
       let e3 := s.memory (addr+3)
       some (s.withStack (e0 :: e1 :: e2 :: e3 :: rest))
-  | Instruction.memLoadwLeImm addr, _ :: _ :: _ :: _ :: rest =>
+  | _ => none
+
+def execMemLoadwLeImm (addr : Nat) (s : MidenState) : Option MidenState :=
+  match s.stack with
+  | _ :: _ :: _ :: _ :: rest =>
     if addr >= u32Max || addr % 4 != 0 then none
     else
       let e0 := s.memory addr
@@ -536,37 +818,167 @@ def stepInstruction (s : MidenState) (i : Instruction) : Option MidenState :=
       let e2 := s.memory (addr+2)
       let e3 := s.memory (addr+3)
       some (s.withStack (e0 :: e1 :: e2 :: e3 :: rest))
+  | _ => none
 
-  -- Procedure locals
-  | Instruction.locLoad idx, stk =>
-    some (s.withStack (s.locals idx :: stk))
-  | Instruction.locStore idx, v :: rest =>
-    some ((s.writeLocal idx v).withStack rest)
+-- Procedure locals
 
-  -- Advice stack
-  | Instruction.advPush n, stk =>
-    if s.advice.length < n then none
-    else
-      let vals := s.advice.take n
-      let adv' := s.advice.drop n
-      -- First popped is deepest: reverse so first advice value ends up deepest
-      some ((s.withAdvice adv').withStack (vals.reverse ++ stk))
-  | Instruction.advLoadW, _ :: _ :: _ :: _ :: rest =>
+def execLocLoad (idx : Nat) (s : MidenState) : Option MidenState :=
+  some (s.withStack (s.locals idx :: s.stack))
+
+def execLocStore (idx : Nat) (s : MidenState) : Option MidenState :=
+  match s.stack with
+  | v :: rest => some ((s.writeLocal idx v).withStack rest)
+  | _ => none
+
+-- Advice stack
+
+def execAdvPush (n : Nat) (s : MidenState) : Option MidenState :=
+  if s.advice.length < n then none
+  else
+    let vals := s.advice.take n
+    let adv' := s.advice.drop n
+    some ((s.withAdvice adv').withStack (vals.reverse ++ s.stack))
+
+def execAdvLoadW (s : MidenState) : Option MidenState :=
+  match s.stack with
+  | _ :: _ :: _ :: _ :: rest =>
     if s.advice.length < 4 then none
     else
       let vals := s.advice.take 4
       let adv' := s.advice.drop 4
       some ((s.withAdvice adv').withStack (vals.reverse ++ rest))
+  | _ => none
 
-  -- Events (reads top of stack as event ID but does not consume it; stack unchanged)
-  | Instruction.emit, _ :: _ => some s
-  | Instruction.emitImm _, _ => some s
+-- Events
 
-  -- Exec is handled at the Op level, not here
-  | Instruction.exec _, _ => none
+def execEmit (s : MidenState) : Option MidenState :=
+  match s.stack with
+  | _ :: _ => some s
+  | _ => none
 
-  -- Catch-all for insufficient stack depth
-  | _, _ => none
+-- ============================================================================
+-- Single instruction dispatch
+-- ============================================================================
+
+/-- Execute a single instruction by dispatching to the appropriate handler. -/
+def execInstruction (s : MidenState) (i : Instruction) : Option MidenState :=
+  match i with
+  | .nop => some s
+  | .assert => execAssert s
+  | .assertWithError _ => execAssert s
+  | .assertz => execAssertz s
+  | .assertzWithError _ => execAssertz s
+  | .assertEq => execAssertEq s
+  | .assertEqWithError _ => execAssertEq s
+  | .assertEqw => execAssertEqw s
+  | .drop => execDrop s
+  | .dropw => execDropw s
+  | .padw => execPadw s
+  | .dup n => execDup n s
+  | .dupw n => execDupw n s
+  | .swap n => execSwap n s
+  | .swapw n => execSwapw n s
+  | .swapdw => execSwapdw s
+  | .movup n => execMovup n s
+  | .movdn n => execMovdn n s
+  | .movupw n => execMovupw n s
+  | .movdnw n => execMovdnw n s
+  | .reversew => execReversew s
+  | .cswap => execCswap s
+  | .cswapw => execCswapw s
+  | .cdrop => execCdrop s
+  | .cdropw => execCdropw s
+  | .push v => execPush v s
+  | .pushList vs => execPushList vs s
+  | .add => execAdd s
+  | .addImm v => execAddImm v s
+  | .sub => execSub s
+  | .subImm v => execSubImm v s
+  | .mul => execMul s
+  | .mulImm v => execMulImm v s
+  | .div => execDiv s
+  | .divImm v => execDivImm v s
+  | .neg => execNeg s
+  | .inv => execInv s
+  | .pow2 => execPow2 s
+  | .incr => execIncr s
+  | .eq => execEq s
+  | .eqImm v => execEqImm v s
+  | .neq => execNeq s
+  | .neqImm v => execNeqImm v s
+  | .lt => execLt s
+  | .lte => execLte s
+  | .gt => execGt s
+  | .gte => execGte s
+  | .isOdd => execIsOdd s
+  | .and => execAnd s
+  | .or => execOr s
+  | .xor => execXor s
+  | .not => execNot s
+  | .u32Assert => execU32Assert s
+  | .u32Assert2 => execU32Assert2 s
+  | .u32AssertW => execU32AssertW s
+  | .u32Test => execU32Test s
+  | .u32TestW => execU32TestW s
+  | .u32Cast => execU32Cast s
+  | .u32Split => execU32Split s
+  | .u32WidenAdd => execU32WidenAdd s
+  | .u32OverflowAdd => execU32OverflowAdd s
+  | .u32WrappingAdd => execU32WrappingAdd s
+  | .u32WidenAdd3 => execU32WidenAdd3 s
+  | .u32OverflowAdd3 => execU32OverflowAdd3 s
+  | .u32WrappingAdd3 => execU32WrappingAdd3 s
+  | .u32OverflowSub => execU32OverflowSub s
+  | .u32WrappingSub => execU32WrappingSub s
+  | .u32WidenMul => execU32WidenMul s
+  | .u32WrappingMul => execU32WrappingMul s
+  | .u32WidenMadd => execU32WidenMadd s
+  | .u32WrappingMadd => execU32WrappingMadd s
+  | .u32DivMod => execU32DivMod s
+  | .u32Div => execU32Div s
+  | .u32Mod => execU32Mod s
+  | .u32And => execU32And s
+  | .u32Or => execU32Or s
+  | .u32Xor => execU32Xor s
+  | .u32Not => execU32Not s
+  | .u32Shl => execU32Shl s
+  | .u32ShlImm n => execU32ShlImm n s
+  | .u32Shr => execU32Shr s
+  | .u32ShrImm n => execU32ShrImm n s
+  | .u32Rotl => execU32Rotl s
+  | .u32RotlImm n => execU32RotlImm n s
+  | .u32Rotr => execU32Rotr s
+  | .u32RotrImm n => execU32RotrImm n s
+  | .u32Popcnt => execU32Popcnt s
+  | .u32Clz => execU32Clz s
+  | .u32Ctz => execU32Ctz s
+  | .u32Clo => execU32Clo s
+  | .u32Cto => execU32Cto s
+  | .u32Lt => execU32Lt s
+  | .u32Lte => execU32Lte s
+  | .u32Gt => execU32Gt s
+  | .u32Gte => execU32Gte s
+  | .u32Min => execU32Min s
+  | .u32Max => execU32Max s
+  | .memLoad => execMemLoad s
+  | .memLoadImm addr => execMemLoadImm addr s
+  | .memStore => execMemStore s
+  | .memStoreImm addr => execMemStoreImm addr s
+  | .memStorewBe => execMemStorewBe s
+  | .memStorewBeImm addr => execMemStorewBeImm addr s
+  | .memStorewLe => execMemStorewLe s
+  | .memStorewLeImm addr => execMemStorewLeImm addr s
+  | .memLoadwBe => execMemLoadwBe s
+  | .memLoadwBeImm addr => execMemLoadwBeImm addr s
+  | .memLoadwLe => execMemLoadwLe s
+  | .memLoadwLeImm addr => execMemLoadwLeImm addr s
+  | .locLoad idx => execLocLoad idx s
+  | .locStore idx => execLocStore idx s
+  | .advPush n => execAdvPush n s
+  | .advLoadW => execAdvLoadW s
+  | .emit => execEmit s
+  | .emitImm _ => some s  -- events are no-ops in semantics
+  | .exec _ => none  -- handled at Op level
 
 -- ============================================================================
 -- Op execution (with procedure environment)
@@ -577,7 +989,7 @@ def ProcEnv := String → Option (List Op)
 
 /-- Execute a list of operations given a procedure environment.
     `fuel` bounds recursion to ensure termination. -/
-def execOps (env : ProcEnv) (fuel : Nat) (s : MidenState) (ops : List Op) : Option MidenState :=
+def execWithEnv (env : ProcEnv) (fuel : Nat) (s : MidenState) (ops : List Op) : Option MidenState :=
   match fuel with
   | 0 => none  -- out of fuel
   | fuel' + 1 =>
@@ -585,16 +997,16 @@ def execOps (env : ProcEnv) (fuel : Nat) (s : MidenState) (ops : List Op) : Opti
       match op with
       | Op.inst (Instruction.exec target) =>
         match env target with
-        | some body => execOps env fuel' state body
+        | some body => execWithEnv env fuel' state body
         | none => none
-      | Op.inst i => stepInstruction state i
+      | Op.inst i => execInstruction state i
       | Op.ifElse thenBlk elseBlk =>
         match state.stack with
         | cond :: rest =>
           if cond.val == 1 then
-            execOps env fuel' (state.withStack rest) thenBlk
+            execWithEnv env fuel' (state.withStack rest) thenBlk
           else if cond.val == 0 then
-            execOps env fuel' (state.withStack rest) elseBlk
+            execWithEnv env fuel' (state.withStack rest) elseBlk
           else none
         | _ => none
       | Op.repeat count body =>
@@ -607,7 +1019,7 @@ where
     match n with
     | 0 => some st
     | n' + 1 =>
-      match execOps env fuel st body with
+      match execWithEnv env fuel st body with
       | some st' => doRepeat fuel n' body st'
       | none => none
   doWhile (fuel : Nat) (f : Nat) (body : List Op) (st : MidenState) : Option MidenState :=
@@ -617,7 +1029,7 @@ where
       match st.stack with
       | cond :: rest =>
         if cond.val == 1 then
-          match execOps env fuel (st.withStack rest) body with
+          match execWithEnv env fuel (st.withStack rest) body with
           | some st' => doWhile fuel f' body st'
           | none => none
         else if cond.val == 0 then some (st.withStack rest)
@@ -626,11 +1038,11 @@ where
 
 /-- Execute with an empty procedure environment. -/
 def exec (fuel : Nat) (s : MidenState) (ops : List Op) : Option MidenState :=
-  execOps (fun _ => none) fuel s ops
+  execWithEnv (fun _ => none) fuel s ops
 
 /-- Execute with a list of named procedures as environment. -/
 def execWithProcs (procs : List Procedure) (fuel : Nat) (s : MidenState) (ops : List Op)
     : Option MidenState :=
-  execOps (fun name => Procedure.lookup procs name) fuel s ops
+  execWithEnv (fun name => Procedure.lookup procs name) fuel s ops
 
 end MidenLean
