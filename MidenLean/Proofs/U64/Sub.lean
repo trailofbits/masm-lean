@@ -13,7 +13,7 @@ theorem u64_wrapping_sub_correct
     (hs : s.stack = b_lo :: b_hi :: a_lo :: a_hi :: rest)
     (ha_lo : a_lo.isU32 = true) (ha_hi : a_hi.isU32 = true)
     (hb_lo : b_lo.isU32 = true) (hb_hi : b_hi.isU32 = true) :
-    exec 20 s Miden.Core.Math.U64.wrapping_sub =
+    exec 20 s Miden.Core.U64.wrapping_sub =
     some (s.withStack (
       let sub_lo := u32OverflowingSub a_lo.val b_lo.val
       let sub_hi := u32OverflowingSub a_hi.val b_hi.val
@@ -22,7 +22,7 @@ theorem u64_wrapping_sub_correct
   obtain ⟨stk, mem, locs, adv⟩ := s
   simp only [MidenState.withStack] at hs ⊢
   subst hs
-  unfold exec Miden.Core.Math.U64.wrapping_sub execWithEnv
+  unfold exec Miden.Core.U64.wrapping_sub execWithEnv
   simp only [List.foldlM]
   change (do
     let s' ← execInstruction ⟨b_lo :: b_hi :: a_lo :: a_hi :: rest, mem, locs, adv⟩ (.movup 3)

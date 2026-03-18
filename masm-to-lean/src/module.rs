@@ -39,7 +39,7 @@ pub fn translate_module(module: &Module, namespace: &str) -> Result<String> {
 
 /// Sanitize a MASM procedure name for use as a Lean identifier.
 /// MASM names may contain characters that aren't valid in Lean.
-fn sanitize_lean_name(name: &str) -> String {
+pub fn sanitize_lean_name(name: &str) -> String {
     // Lean identifiers: alphanumeric + underscores, must not start with digit.
     // MASM names are typically already valid Lean identifiers.
     // Replace any problematic characters with underscores.

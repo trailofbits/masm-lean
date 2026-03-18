@@ -18,7 +18,7 @@ theorem u64_gt_correct
     (hs : s.stack = b_lo :: b_hi :: a_lo :: a_hi :: rest)
     (ha_lo : a_lo.isU32 = true) (ha_hi : a_hi.isU32 = true)
     (hb_lo : b_lo.isU32 = true) (hb_hi : b_hi.isU32 = true) :
-    exec 20 s Miden.Core.Math.U64.gt =
+    exec 20 s Miden.Core.U64.gt =
     some (s.withStack (
       let borrow_lo := decide (b_lo.val < a_lo.val)
       let borrow_hi := decide (b_hi.val < a_hi.val)
@@ -27,7 +27,7 @@ theorem u64_gt_correct
   obtain ⟨stk, mem, locs, adv⟩ := s
   simp only [MidenState.withStack] at hs ⊢
   subst hs
-  unfold exec Miden.Core.Math.U64.gt execWithEnv
+  unfold exec Miden.Core.U64.gt execWithEnv
   simp only [List.foldlM]
   -- gt differs from lt: swap 1 before first sub, no swap before second sub
   change (do

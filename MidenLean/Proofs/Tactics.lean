@@ -137,7 +137,7 @@ open Lean Elab Tactic Meta in
 /-- `miden_setup ProcName` automates the standard boilerplate for `exec`-based proofs.
     Destructures `s`, substitutes `hs`, unfolds `exec`/`execWithEnv`, and normalizes.
     After `miden_setup`, the goal is a chain of `execInstruction` calls bound with `>>=`. -/
-elab "miden_setup " proc:ident : tactic => do
+elab "miden_setup " proc:term : tactic => do
   let s := mkIdent `s
   let hs := mkIdent `hs
   let stk := mkIdent `stk
@@ -147,13 +147,14 @@ elab "miden_setup " proc:ident : tactic => do
   evalTactic (← `(tactic| obtain ⟨$stk, $mem, $locs, $adv⟩ := $s))
   evalTactic (← `(tactic| simp only [MidenState.withStack] at $hs ⊢))
   evalTactic (← `(tactic| subst $hs))
-  evalTactic (← `(tactic| unfold exec $proc execWithEnv))
+  let procId : TSyntax `ident := ⟨proc.raw⟩
+  evalTactic (← `(tactic| unfold exec $procId execWithEnv))
   evalTactic (← `(tactic| simp only [List.foldlM]))
 
 open Lean Elab Tactic Meta in
 /-- `miden_setup_env ProcName` is like `miden_setup` but for `execWithEnv`-based proofs.
     Unfolds the procedure and execWithEnv (not `exec`). -/
-elab "miden_setup_env " proc:ident : tactic => do
+elab "miden_setup_env " proc:term : tactic => do
   let s := mkIdent `s
   let hs := mkIdent `hs
   let stk := mkIdent `stk
@@ -163,7 +164,8 @@ elab "miden_setup_env " proc:ident : tactic => do
   evalTactic (← `(tactic| obtain ⟨$stk, $mem, $locs, $adv⟩ := $s))
   evalTactic (← `(tactic| simp only [MidenState.withStack] at $hs ⊢))
   evalTactic (← `(tactic| subst $hs))
-  evalTactic (← `(tactic| unfold $proc execWithEnv))
+  let procId : TSyntax `ident := ⟨proc.raw⟩
+  evalTactic (← `(tactic| unfold $procId execWithEnv))
   evalTactic (← `(tactic| simp only [List.foldlM]))
 
 -- ============================================================================
@@ -177,12 +179,12 @@ elab "miden_setup_env " proc:ident : tactic => do
 
     Usage:
       miden_call proc_name
-    where `proc_name` is the called procedure (e.g., `Miden.Core.Math.U64.overflowing_add`).
+    where `proc_name` is the called procedure (e.g., `Miden.Core.U64.overflowing_add`).
 
     Prerequisite: the environment must be the first thing to resolve in the goal.
     Typically used after a step like:
       simp only [u64ProcEnv]
-      miden_call Miden.Core.Math.U64.overflowing_add -/
+      miden_call Miden.Core.U64.overflowing_add -/
 syntax "miden_call" ident : tactic
 macro_rules
   | `(tactic| miden_call $proc) =>

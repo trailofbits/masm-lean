@@ -2,7 +2,7 @@ import MidenLean.Semantics
 
 open MidenLean
 
-namespace Miden.Core.Math.U64
+namespace Miden.Core.U64
 
 def u32assert4 : List Op := [
   .inst (.u32Assert2),
@@ -331,8 +331,10 @@ def shr : List Op := [
   .inst (.movup 3),
   .inst (.mul),
   .inst (.add),
-  .inst (.movup 2),
+  .inst (.dup 2),
   .inst (.cswap),
+  .inst (.movup 2),
+  .inst (.mul),
   .inst (.swap 1)
 ]
 
@@ -455,4 +457,4 @@ def cto : List Op := [
 ]
 ]
 
-end Miden.Core.Math.U64
+end Miden.Core.U64
