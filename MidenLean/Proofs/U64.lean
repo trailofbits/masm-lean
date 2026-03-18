@@ -122,26 +122,23 @@ theorem u64_wrapping_add_correct
   unfold Miden.Core.U64.overflowing_add execWithEnv
   simp only [List.foldlM]
   -- Normalize and reduce the entire chain via simp/decide
-  simp only [List.foldlM, bind, Bind.bind, Option.bind, MidenState.withStack]
+  simp only [bind, Bind.bind, Option.bind]
   simp (config := { decide := true }) only [
     execInstruction, execMovup, removeNth, execU32WidenAdd, u32WideAdd, u32Max,
     execMovdn, insertAt, execU32WidenAdd3, u32WideAdd3, execDrop,
     ha_lo, hb_lo, ha_hi, hb_hi,
-    Bool.not_true, Bool.false_or, ite_false, ite_true,
-    MidenState.withStack, List.eraseIdx, List.set,
+    Bool.not_true, Bool.false_or, ite_false,
+    MidenState.withStack, List.eraseIdx,
     List.take, List.drop, List.cons_append, List.nil_append,
-    pure, Pure.pure, bind, Bind.bind, Option.bind,
+    pure, Pure.pure,
     List.getElem?_cons_zero, List.getElem?_cons_succ]
   have h_mod_isU32 : (Felt.ofNat ((b_lo.val + a_lo.val) % 2 ^ 32)).isU32 = true :=
     u32_mod_isU32 _
   have h_carry_isU32 : (Felt.ofNat ((b_lo.val + a_lo.val) / 2 ^ 32)).isU32 = true :=
     u32_div_2_32_isU32 b_lo a_lo hb_lo ha_lo
   -- Reduce all remaining matches and if-then-else
-  simp (config := { decide := true }) only [h_mod_isU32, h_carry_isU32, ha_hi, hb_hi,
-    Bool.not_true, Bool.false_or, ite_false, ite_true,
-    MidenState.withStack, pure, Pure.pure, bind, Bind.bind, Option.bind,
-    execU32WidenAdd3, u32WideAdd3, u32Max,
-    execMovdn, insertAt, execDrop,
+  simp (config := { decide := true }) only [h_carry_isU32,
+    Bool.not_true, ite_false,
     List.take, List.drop, List.cons_append, List.nil_append]
   have hcarry : (Felt.ofNat ((b_lo.val + a_lo.val) / 2 ^ 32)).val = (b_lo.val + a_lo.val) / 2 ^ 32 :=
     felt_ofNat_val_lt _ (sum_div_2_32_lt_prime b_lo a_lo)

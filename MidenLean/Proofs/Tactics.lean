@@ -49,7 +49,7 @@ macro_rules
   | `(tactic| miden_step) =>
     `(tactic| first
       | rw [stepDrop]; miden_bind
-      | rw [stepReverseW]; miden_bind
+      | rw [stepReversew]; miden_bind
       | rw [stepDropw]; miden_bind
       | rw [stepPush]; miden_bind
       | rw [stepAdd]; miden_bind
@@ -80,12 +80,52 @@ macro_rules
       | (rw [stepU32Clz (ha := by assumption)]; miden_bind)
       | (rw [stepU32Ctz (ha := by assumption)]; miden_bind)
       | (rw [stepU32Clo (ha := by assumption)]; miden_bind)
-      | (rw [stepU32Cto (ha := by assumption)]; miden_bind))
+      | (rw [stepU32Cto (ha := by assumption)]; miden_bind)
+      | (rw [stepDupw (h0 := rfl) (h1 := rfl) (h2 := rfl) (h3 := rfl)]; miden_bind)
+      | (rw [stepDiv (hb := by assumption)]; miden_bind)
+      | (rw [stepCdropIte]; miden_bind)
+      | (rw [stepCswapIte]; miden_bind))
 
 /-- Step through all remaining instructions, finishing with pure. -/
 syntax "miden_steps" : tactic
 macro_rules
   | `(tactic| miden_steps) =>
     `(tactic| repeat (first | miden_step | dsimp only [pure, Pure.pure]))
+
+set_option hygiene false in
+syntax "miden_setup" ident : tactic
+set_option hygiene false in
+macro_rules
+  | `(tactic| miden_setup $proc) =>
+    `(tactic|
+      obtain ⟨stk, mem, locs, adv⟩ := s;
+      simp only [MidenState.withStack] at hs ⊢;
+      subst hs;
+      unfold $proc exec execWithEnv;
+      simp only [List.foldlM];
+      try dsimp only [bind, Bind.bind, Option.bind])
+
+set_option hygiene false in
+syntax "miden_setup_env" ident : tactic
+set_option hygiene false in
+macro_rules
+  | `(tactic| miden_setup_env $proc) =>
+    `(tactic|
+      obtain ⟨stk, mem, locs, adv⟩ := s;
+      simp only [MidenState.withStack] at hs ⊢;
+      subst hs;
+      unfold $proc execWithEnv;
+      simp only [List.foldlM];
+      try dsimp only [bind, Bind.bind, Option.bind])
+
+set_option hygiene false in
+syntax "miden_call" ident : tactic
+set_option hygiene false in
+macro_rules
+  | `(tactic| miden_call $proc) =>
+    `(tactic|
+      dsimp only [bind, Bind.bind, Option.bind];
+      unfold $proc execWithEnv;
+      simp only [List.foldlM, bind, Bind.bind, Option.bind, pure, Pure.pure])
 
 end MidenLean.Tactics

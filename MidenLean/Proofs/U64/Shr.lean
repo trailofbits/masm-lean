@@ -238,7 +238,8 @@ private theorem shr_chunk1_correct
   miden_swap
   have h_denom_isU32 := pow2_denom_isU32 shift hshift
   have h_denom_ne_zero := pow2_denom_val_ne_zero shift hshift
-  rw [stepU32DivMod (ha := hhi) (hb := h_denom_isU32) (hbnz := h_denom_ne_zero)]
+  rw [stepU32DivMod (ha := hhi) (hb := h_denom_isU32)
+    (hbz := by intro h; rw [h] at h_denom_ne_zero; simp at h_denom_ne_zero)]
   miden_bind
   rfl
 
@@ -281,7 +282,8 @@ private theorem shr_chunk2_correct
   simp only [] at h_diff_isU32
   have h_diff_ne_zero := shr_diff_val_ne_zero_beq (Felt.ofNat (2 ^ shift.val)).lo32
   simp only [] at h_diff_ne_zero
-  rw [stepU32DivMod (ha := hlo) (hb := h_diff_isU32) (hbnz := h_diff_ne_zero)]
+  rw [stepU32DivMod (ha := hlo) (hb := h_diff_isU32)
+    (hbz := by intro h; rw [h] at h_diff_ne_zero; simp at h_diff_ne_zero)]
   miden_bind
   rfl
 

@@ -8,7 +8,7 @@ open MidenLean.StepLemmas
 open MidenLean.Tactics
 
 set_option maxHeartbeats 8000000 in
-/-- `u64::clz` correctly counts leading zeros of a u64 value.
+/-- u64.clz correctly counts leading zeros of a u64 value.
     Input stack:  [lo, hi] ++ rest
     Output stack: [result] ++ rest
     where result = if hi == 0 then clz(lo) + 32 else clz(hi). -/
@@ -46,15 +46,17 @@ theorem u64_clz_correct (lo hi : Felt) (rest : List Felt) (s : MidenState)
   -- Case split on whether hi == 0
   by_cases h : hi == (0 : Felt)
   · -- Case: hi == 0 (then branch)
-    simp [h, MidenState.withStack]
+    simp only [h, ite_true, MidenState.withStack]
     unfold execWithEnv; simp only [List.foldlM]
     rw [stepDrop]; miden_bind
     rw [stepU32Clz (ha := hlo)]; miden_bind
-    rw [stepAddImm]
+    rw [stepAddImm]; dsimp only [bind, Bind.bind, Option.bind, pure, Pure.pure]
+    simp
   · -- Case: hi != 0 (else branch)
-    simp [h, MidenState.withStack]
+    simp only [h, MidenState.withStack]
     unfold execWithEnv; simp only [List.foldlM]
-    simp (config := { decide := true }) only [bind, Bind.bind, Option.bind, pure, Pure.pure]
+    simp (config := { decide := true }) only [ite_false, ite_true,
+      bind, Bind.bind, Option.bind, pure, Pure.pure]
     rw [stepSwap (hn := by decide) (htop := rfl) (hnth := rfl)]; miden_bind
     rw [stepDrop]; miden_bind
     rw [stepU32Clz (ha := hhi)]

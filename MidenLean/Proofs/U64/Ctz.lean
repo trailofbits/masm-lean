@@ -8,7 +8,7 @@ open MidenLean.StepLemmas
 open MidenLean.Tactics
 
 set_option maxHeartbeats 8000000 in
-/-- `u64::ctz` correctly counts trailing zeros of a u64 value.
+/-- u64.ctz correctly counts trailing zeros of a u64 value.
     Input stack:  [lo, hi] ++ rest
     Output stack: [result] ++ rest
     where result = if lo == 0 then ctz(hi) + 32 else ctz(lo). -/
@@ -42,14 +42,16 @@ theorem u64_ctz_correct (lo hi : Felt) (rest : List Felt) (s : MidenState)
   miden_dup
   rw [stepEqImm]; miden_bind
   by_cases h : lo == (0 : Felt)
-  · simp [h, MidenState.withStack]
+  · simp only [h, ite_true, MidenState.withStack]
     unfold execWithEnv; simp only [List.foldlM]
     rw [stepDrop]; miden_bind
     rw [stepU32Ctz (ha := hhi)]; miden_bind
-    rw [stepAddImm]
-  · simp [h, MidenState.withStack]
+    rw [stepAddImm]; dsimp only [bind, Bind.bind, Option.bind, pure, Pure.pure]
+    simp
+  · simp only [h, MidenState.withStack]
     unfold execWithEnv; simp only [List.foldlM]
-    simp (config := { decide := true }) only [bind, Bind.bind, Option.bind, pure, Pure.pure]
+    simp (config := { decide := true }) only [ite_false, ite_true,
+      bind, Bind.bind, Option.bind, pure, Pure.pure]
     rw [stepSwap (hn := by decide) (htop := rfl) (hnth := rfl)]; miden_bind
     rw [stepDrop]; miden_bind
     rw [stepU32Ctz (ha := hlo)]

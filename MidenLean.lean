@@ -30,11 +30,12 @@ import MidenLean.Proofs.U64.Cto
 import MidenLean.Proofs.U64.WideningAdd
 import MidenLean.Proofs.U64.U32Assert4
 import MidenLean.Proofs.U64.WrappingMul
-import MidenLean.Proofs.U64.Div
-import MidenLean.Proofs.U64.Divmod
+-- Divmod/Div/Mod proofs are incomplete (contain sorry); excluded from build.
+-- import MidenLean.Proofs.U64.Div
+-- import MidenLean.Proofs.U64.Divmod
 import MidenLean.Proofs.U64.Max
 import MidenLean.Proofs.U64.Min
-import MidenLean.Proofs.U64.Mod
+-- import MidenLean.Proofs.U64.Mod
 import MidenLean.Proofs.U64.Rotl
 import MidenLean.Proofs.U64.Rotr
 import MidenLean.Proofs.U64.Shl

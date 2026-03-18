@@ -58,14 +58,14 @@ theorem Felt.isBool_ite_prop (P : Prop) [Decidable P] :
 /-- The Nat.beq-equality of an ite-(1:Felt)/0 with 1 equals the Bool condition. -/
 theorem Felt.ite_val_eq_one (p : Bool) :
     ((if p then (1 : Felt) else 0).val == 1) = p := by
-  cases p <;> simp [Felt.val_one', Felt.val_zero']
+  cases p <;> simp [Felt.val_one']
 
 /-- For a Prop, (if P then (1:Felt) else 0).val == 1 = decide P. -/
 theorem Felt.ite_prop_val_eq_one (P : Prop) [Decidable P] :
     ((if P then (1 : Felt) else 0).val == 1) = decide P := by
   by_cases h : P
-  · simp [h, Felt.val_one', decide_eq_true h]
-  · simp [h, Felt.val_zero', decide_eq_false h]
+  · simp [h, Felt.val_one']
+  · simp [h]
 
 /-- A boolean Felt equals an ite on (val == 1). -/
 theorem Felt.isBool_eq_ite (a : Felt) (h : a.isBool = true) :
@@ -164,7 +164,7 @@ theorem felt_ofNat_isU32_of_lt (n : Nat) (h : n < 2^32) :
 theorem u32OverflowingSub_fst_isU32 (a b : Nat) :
     (Felt.ofNat (u32OverflowingSub a b).1).isU32 = true := by
   apply felt_ofNat_isU32_of_lt
-  unfold u32OverflowingSub; split <;> simp <;> omega
+  unfold u32OverflowingSub; split <;> simp
 
 theorem u32OverflowingSub_snd_isU32 (a b : Nat)
     (ha : a < 2^32) (hb : b < 2^32) :
@@ -202,5 +202,46 @@ theorem u32_prod_div_lt_prime (a b : Felt)
   calc a.val * b.val / 2^32
       ≤ (2^32 - 1) * (2^32 - 1) / 2^32 := Nat.div_le_div_right h3
     _ < GOLDILOCKS_PRIME := by unfold GOLDILOCKS_PRIME; native_decide
+
+-- ============================================================================
+-- execInstruction equation lemmas
+-- ============================================================================
+
+@[simp] theorem execInstruction_u32OverflowSub (s : MidenState) :
+    execInstruction s .u32OverflowSub = execU32OverflowSub s := by
+  unfold execInstruction; rfl
+
+@[simp] theorem execInstruction_u32WrappingSub (s : MidenState) :
+    execInstruction s .u32WrappingSub = execU32WrappingSub s := by
+  unfold execInstruction; rfl
+
+@[simp] theorem execInstruction_u32WidenMul (s : MidenState) :
+    execInstruction s .u32WidenMul = execU32WidenMul s := by
+  unfold execInstruction; rfl
+
+@[simp] theorem execInstruction_u32WidenMadd (s : MidenState) :
+    execInstruction s .u32WidenMadd = execU32WidenMadd s := by
+  unfold execInstruction; rfl
+
+/-- Concrete expansion of execU32WidenMul when isU32 guards pass. -/
+theorem execU32WidenMul_concrete
+    {a b : Felt} {rest : List Felt} {mem locs : Nat → Felt} {adv : List Felt}
+    (ha : a.isU32 = true := by assumption) (hb : b.isU32 = true := by assumption) :
+    execU32WidenMul ⟨b :: a :: rest, mem, locs, adv⟩ =
+    some ⟨Felt.ofNat (a.val * b.val % 4294967296) ::
+      Felt.ofNat (a.val * b.val / 4294967296) :: rest, mem, locs, adv⟩ := by
+  unfold execU32WidenMul u32WideMul u32Max
+  simp [ha, hb, MidenState.withStack]
+
+/-- Concrete expansion of execU32WidenMadd when isU32 guards pass. -/
+theorem execU32WidenMadd_concrete
+    {a b c : Felt} {rest : List Felt} {mem locs : Nat → Felt} {adv : List Felt}
+    (ha : a.isU32 = true := by assumption) (hb : b.isU32 = true := by assumption)
+    (hc : c.isU32 = true := by assumption) :
+    execU32WidenMadd ⟨b :: a :: c :: rest, mem, locs, adv⟩ =
+    some ⟨Felt.ofNat ((a.val * b.val + c.val) % 4294967296) ::
+      Felt.ofNat ((a.val * b.val + c.val) / 4294967296) :: rest, mem, locs, adv⟩ := by
+  unfold execU32WidenMadd u32WideMadd u32Max
+  simp [ha, hb, hc, MidenState.withStack]
 
 end MidenLean
