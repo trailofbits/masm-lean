@@ -5,7 +5,7 @@
 //! - Proof bodies using the tactic API contract (miden_setup, miden_step, etc.)
 //! - Complexity classification annotations
 
-use std::collections::HashMap;
+use std::collections::{BTreeSet, HashMap};
 
 use anyhow::Result;
 use miden_assembly_syntax::ast::{Block, Immediate, Instruction, InvocationTarget, Module, Op};
@@ -53,9 +53,7 @@ enum FlatOp {
         has_step_lemma: bool,
     },
     /// Start of a repeat block.
-    RepeatStart {
-        count: usize,
-    },
+    RepeatStart { count: usize },
     /// End of a repeat block.
     RepeatEnd,
     /// Start of an if-else block.
@@ -127,9 +125,7 @@ fn flatten_op(op: &Op, index: &mut usize, ops: &mut Vec<FlatOp>) {
             }
         }
         Op::If {
-            then_blk,
-            else_blk,
-            ..
+            then_blk, else_blk, ..
         } => {
             ops.push(FlatOp::IfStart);
             flatten_block(then_blk, index, ops);
@@ -188,18 +184,99 @@ fn inst_has_step_lemma(inst: &Instruction) -> bool {
     crate::instruction_info::instruction_info(inst).has_step_lemma
 }
 
-/// Convert an exec target name (e.g., "overflowing_add") to a fully-qualified Lean name
-/// (e.g., "Miden.Core.U64.overflowing_add") by using the namespace of the calling procedure.
-fn sanitize_lean_target(target: &str, caller_fq_name: &str) -> String {
-    // Extract the namespace prefix from the caller's FQ name
-    // e.g., "Miden.Core.U64.wrapping_add" -> "Miden.Core.U64"
-    if let Some(dot_pos) = caller_fq_name.rfind('.') {
-        let namespace = &caller_fq_name[..dot_pos];
-        let sanitized = crate::module::sanitize_lean_name(target);
-        format!("{}.{}", namespace, sanitized)
-    } else {
-        crate::module::sanitize_lean_name(target)
+fn capitalize_segment(s: &str) -> String {
+    let mut chars = s.chars();
+    match chars.next() {
+        Some(c) => c.to_uppercase().collect::<String>() + chars.as_str(),
+        None => String::new(),
     }
+}
+
+fn lean_module_path_from_target(module_path: &str) -> String {
+    module_path
+        .split("::")
+        .filter(|segment| !segment.is_empty())
+        .map(|segment| capitalize_segment(&sanitize_lean_name(segment)))
+        .collect::<Vec<_>>()
+        .join(".")
+}
+
+fn caller_namespace(caller_fq_name: &str) -> &str {
+    caller_fq_name
+        .rsplit_once('.')
+        .map(|(namespace, _)| namespace)
+        .unwrap_or(caller_fq_name)
+}
+
+fn namespace_tree_root(namespace: &str) -> &str {
+    namespace
+        .rsplit_once('.')
+        .map(|(root, _)| root)
+        .unwrap_or("")
+}
+
+fn resolve_target_in_namespace(target: &str, namespace: &str) -> String {
+    if let Some((module_path, proc_name)) = target.rsplit_once("::") {
+        let root = namespace_tree_root(namespace);
+        let module_namespace = lean_module_path_from_target(module_path);
+        let proc_name = sanitize_lean_name(proc_name);
+        if root.is_empty() {
+            format!("{}.{}", module_namespace, proc_name)
+        } else {
+            format!("{}.{}.{}", root, module_namespace, proc_name)
+        }
+    } else {
+        let sanitized = sanitize_lean_name(target);
+        format!("{}.{}", namespace, sanitized)
+    }
+}
+
+/// Convert an exec target name (e.g., "overflowing_add" or "word::lt") to a
+/// fully-qualified Lean name by using the namespace tree of the calling procedure.
+fn sanitize_lean_target(target: &str, caller_fq_name: &str) -> String {
+    resolve_target_in_namespace(target, caller_namespace(caller_fq_name))
+}
+
+fn target_generated_import(target: &str, current_generated_import: &str) -> Option<String> {
+    let (module_path, _) = target.rsplit_once("::")?;
+    let import_root = current_generated_import
+        .rsplit_once('.')
+        .map(|(root, _)| root)
+        .unwrap_or(current_generated_import);
+    let module_segments: Vec<_> = module_path
+        .split("::")
+        .filter(|segment| !segment.is_empty())
+        .collect();
+    let module_leaf = module_segments.last()?;
+    Some(format!(
+        "{}.{}",
+        import_root,
+        capitalize_segment(&sanitize_lean_name(module_leaf))
+    ))
+}
+
+fn collect_generated_imports(
+    generated_import: &str,
+    skeletons: &[ProcSkeleton],
+) -> BTreeSet<String> {
+    let mut imports = BTreeSet::new();
+    imports.insert(generated_import.to_string());
+
+    for skel in skeletons {
+        for op in &skel.body_ops {
+            if let FlatOp::Instruction {
+                exec_target: Some(target),
+                ..
+            } = op
+            {
+                if let Some(import_path) = target_generated_import(target, generated_import) {
+                    imports.insert(import_path);
+                }
+            }
+        }
+    }
+
+    imports
 }
 
 /// Generate parameter names for the given input arity.
@@ -345,14 +422,7 @@ fn emit_proof_body(skel: &ProcSkeleton) -> String {
     } else {
         "miden_setup"
     };
-    if skel.hypotheses.advice_consumed > 0 {
-        out.push_str(&format!(
-            "  {} {} with hadv\n",
-            setup_tactic, skel.fq_lean_name
-        ));
-    } else {
-        out.push_str(&format!("  {} {}\n", setup_tactic, skel.fq_lean_name));
-    }
+    out.push_str(&format!("  {} {}\n", setup_tactic, skel.fq_lean_name));
 
     // Emit tactic calls for each operation
     for flat_op in &skel.body_ops {
@@ -367,24 +437,12 @@ fn emit_proof_body(skel: &ProcSkeleton) -> String {
                 ..
             } => {
                 if *is_exec {
-                    let target_name = exec_target
-                        .as_deref()
-                        .unwrap_or("unknown");
+                    let target_name = exec_target.as_deref().unwrap_or("unknown");
                     // Convert MASM target name to Lean qualified name
                     let lean_target = sanitize_lean_target(target_name, &skel.fq_lean_name);
-                    out.push_str(&format!(
-                        "  -- Instruction {}: {}\n",
-                        index + 1,
-                        lean_repr
-                    ));
-                    out.push_str(&format!(
-                        "  simp only [{}ProcEnv]\n",
-                        skel.module_prefix
-                    ));
-                    out.push_str(&format!(
-                        "  miden_call {}\n",
-                        lean_target
-                    ));
+                    out.push_str(&format!("  -- Instruction {}: {}\n", index + 1, lean_repr));
+                    out.push_str(&format!("  simp only [{}ProcEnv]\n", skel.module_prefix));
+                    out.push_str(&format!("  miden_call {}\n", lean_target));
                 } else if *has_step_lemma {
                     if *needs_hypothesis {
                         out.push_str(&format!(
@@ -393,11 +451,7 @@ fn emit_proof_body(skel: &ProcSkeleton) -> String {
                             lean_repr
                         ));
                     } else {
-                        out.push_str(&format!(
-                            "  -- Instruction {}: {}\n",
-                            index + 1,
-                            lean_repr
-                        ));
+                        out.push_str(&format!("  -- Instruction {}: {}\n", index + 1, lean_repr));
                     }
                     out.push_str("  miden_step\n");
                 } else {
@@ -410,10 +464,7 @@ fn emit_proof_body(skel: &ProcSkeleton) -> String {
                 }
             }
             FlatOp::RepeatStart { count } => {
-                out.push_str(&format!(
-                    "  -- repeat {} begin\n",
-                    count
-                ));
+                out.push_str(&format!("  -- repeat {} begin\n", count));
                 out.push_str(&format!(
                     "  repeat miden_loop  -- unfolds {} iterations\n",
                     count
@@ -492,11 +543,7 @@ pub fn generate_proof_skeletons(
     for proc in module.procedures() {
         let name = proc.name().to_string();
         let lean_def_name = sanitize_lean_name(&name);
-        let theorem_name = format!(
-            "{}_{}_correct",
-            module_prefix,
-            name.replace('-', "_")
-        );
+        let theorem_name = format!("{}_{}_correct", module_prefix, name.replace('-', "_"));
         let fq_lean_name = format!("{}.{}", namespace, lean_def_name);
 
         let stack_effect = final_effects.get(&name).unwrap().clone();
@@ -536,8 +583,13 @@ pub fn generate_proof_skeletons(
         auto_count, semi_count, manual_count
     ));
     out.push_str("-- DO NOT EDIT: copy to MidenLean/Proofs/ and fill sorry holes there.\n\n");
+    let generated_imports = collect_generated_imports(generated_import, &skeletons);
+
     out.push_str("import MidenLean.Proofs.Tactics\n");
-    out.push_str(&format!("import {}\n\n", generated_import));
+    for import_path in generated_imports {
+        out.push_str(&format!("import {}\n", import_path));
+    }
+    out.push('\n');
     out.push_str("namespace MidenLean.Proofs.Generated\n\n");
     out.push_str("open MidenLean\n");
     out.push_str("open MidenLean.StepLemmas\n");
@@ -562,10 +614,7 @@ pub fn generate_proof_skeletons(
         } else {
             4000000
         };
-        out.push_str(&format!(
-            "set_option maxHeartbeats {} in\n",
-            heartbeats
-        ));
+        out.push_str(&format!("set_option maxHeartbeats {} in\n", heartbeats));
         out.push_str(&emit_theorem_statement(skel));
         out.push_str(&emit_proof_body(skel));
         out.push('\n');
@@ -596,19 +645,108 @@ pub fn generate_proof_skeletons(
         ));
         out.push_str("  match name with\n");
         for target in &exec_targets {
-            let lean_name = sanitize_lean_name(target);
-            out.push_str(&format!(
-                "  | \"{}\" => some {}.{}\n",
-                target, namespace, lean_name
-            ));
+            let lean_name = resolve_target_in_namespace(target, namespace);
+            out.push_str(&format!("  | \"{}\" => some {}\n", target, lean_name));
         }
         out.push_str("  | _ => none\n");
     }
 
-    out.push_str(&format!(
-        "\nend MidenLean.Proofs.Generated\n"
-    ));
+    out.push_str(&format!("\nend MidenLean.Proofs.Generated\n"));
 
     Ok(out)
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::classifier::Classification;
+    use crate::hypothesis::ProcHypotheses;
+    use crate::stack_effect::ProcStackEffect;
+
+    fn dummy_stack_effect() -> ProcStackEffect {
+        ProcStackEffect {
+            input_arity: 0,
+            output_arity: 0,
+            net_effect: 0,
+            instruction_count: 0,
+            has_branches: false,
+            has_loops: false,
+            has_repeats: false,
+            has_calls: false,
+            has_advice: false,
+            is_precise: true,
+        }
+    }
+
+    #[test]
+    fn test_sanitize_lean_target_local_symbol() {
+        assert_eq!(
+            sanitize_lean_target("lt", "Miden.Core.U64.min"),
+            "Miden.Core.U64.lt"
+        );
+    }
+
+    #[test]
+    fn test_sanitize_lean_target_path_target() {
+        assert_eq!(
+            sanitize_lean_target("word::lt", "Miden.Core.U64.divmod"),
+            "Miden.Core.Word.lt"
+        );
+    }
+
+    #[test]
+    fn test_emit_proof_body_does_not_use_invalid_with_hadv_syntax() {
+        let skel = ProcSkeleton {
+            masm_name: "divmod".into(),
+            lean_def_name: "divmod".into(),
+            theorem_name: "u64_divmod_correct".into(),
+            fq_lean_name: "Miden.Core.U64.divmod".into(),
+            stack_effect: dummy_stack_effect(),
+            hypotheses: ProcHypotheses {
+                input_arity: 0,
+                hypotheses: vec![],
+                advice_consumed: 4,
+            },
+            classification: Classification::Manual,
+            body_ops: vec![],
+            needs_proc_env: true,
+            module_prefix: "u64".into(),
+        };
+
+        let body = emit_proof_body(&skel);
+        assert!(body.starts_with("  miden_setup_env Miden.Core.U64.divmod\n"));
+        assert!(!body.contains("with hadv"));
+    }
+
+    #[test]
+    fn test_collect_generated_imports_includes_cross_module_targets() {
+        let skel = ProcSkeleton {
+            masm_name: "divmod".into(),
+            lean_def_name: "divmod".into(),
+            theorem_name: "u64_divmod_correct".into(),
+            fq_lean_name: "Miden.Core.U64.divmod".into(),
+            stack_effect: dummy_stack_effect(),
+            hypotheses: ProcHypotheses {
+                input_arity: 0,
+                hypotheses: vec![],
+                advice_consumed: 0,
+            },
+            classification: Classification::Semi,
+            body_ops: vec![FlatOp::Instruction {
+                index: 0,
+                lean_repr: "exec \"word::lt\"".into(),
+                needs_hypothesis: false,
+                is_exec: true,
+                exec_target: Some("word::lt".into()),
+                has_step_lemma: false,
+            }],
+            needs_proc_env: true,
+            module_prefix: "u64".into(),
+        };
+
+        let imports = collect_generated_imports("MidenLean.Generated.U64", &[skel]);
+
+        assert!(imports.contains("MidenLean.Generated.U64"));
+        assert!(imports.contains("MidenLean.Generated.Word"));
+    }
+}

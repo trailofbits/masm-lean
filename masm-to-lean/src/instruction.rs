@@ -200,8 +200,7 @@ pub fn translate_instruction(inst: &Instruction) -> Result<String> {
                 None => {
                     // Word push: push.[a,b,c,d] puts a on top of stack
                     if let PushValue::Word(wv) = span.inner() {
-                        let vals: Vec<String> =
-                            wv.0.iter().map(felt_to_lean).collect();
+                        let vals: Vec<String> = wv.0.iter().map(felt_to_lean).collect();
                         format!(".pushList [{}]", vals.join(", "))
                     } else {
                         unreachable!()

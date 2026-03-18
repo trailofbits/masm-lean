@@ -52,12 +52,9 @@ fn has_unsupported_instructions(block: &Block) -> bool {
                 }
             }
             Op::If {
-                then_blk,
-                else_blk,
-                ..
+                then_blk, else_blk, ..
             } => {
-                if has_unsupported_instructions(then_blk)
-                    || has_unsupported_instructions(else_blk)
+                if has_unsupported_instructions(then_blk) || has_unsupported_instructions(else_blk)
                 {
                     return true;
                 }
@@ -88,9 +85,7 @@ fn count_value_recovery_instructions(block: &Block) -> usize {
                 }
             }
             Op::If {
-                then_blk,
-                else_blk,
-                ..
+                then_blk, else_blk, ..
             } => {
                 count += count_value_recovery_instructions(then_blk);
                 count += count_value_recovery_instructions(else_blk);
@@ -119,7 +114,7 @@ pub fn classify(
         return Classification::Manual;
     }
     // 3. Uses advice stack
-    if hypotheses.advice_consumed > 0 {
+    if stack_effect.has_advice || hypotheses.advice_consumed > 0 {
         return Classification::Manual;
     }
     // 4. Has unsupported instructions
@@ -180,10 +175,7 @@ mod tests {
     #[test]
     fn test_auto_classification_simple() {
         // Straight-line, all step lemmas, no value recovery
-        let block = make_block(vec![
-            Instruction::Dup0,
-            Instruction::Drop,
-        ]);
+        let block = make_block(vec![Instruction::Dup0, Instruction::Drop]);
         assert_eq!(classify_block(&block), Classification::Auto);
     }
 
@@ -205,6 +197,12 @@ mod tests {
             else_blk,
         }];
         let block = Block::new(SourceSpan::UNKNOWN, ops);
+        assert_eq!(classify_block(&block), Classification::Manual);
+    }
+
+    #[test]
+    fn test_manual_classification_advloadw() {
+        let block = make_block(vec![Instruction::AdvLoadW]);
         assert_eq!(classify_block(&block), Classification::Manual);
     }
 

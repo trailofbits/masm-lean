@@ -71,11 +71,7 @@ fn main() -> Result<()> {
         let module_path = MasmPathBuf::new(&module_name)
             .map_err(|e| anyhow::anyhow!("Invalid module name '{}': {}", module_name, e))?;
         let parsed = parser
-            .parse_file(
-                &module_path,
-                path,
-                source_manager.clone(),
-            )
+            .parse_file(&module_path, path, source_manager.clone())
             .map_err(|e| anyhow::anyhow!("Failed to parse {}: {}", path.display(), e))?;
 
         // Determine the Lean namespace
@@ -131,10 +127,7 @@ fn main() -> Result<()> {
                 let name = proc.name().to_string();
                 let first_effect = first_pass.get(&name).unwrap();
                 let effect = if first_effect.has_calls {
-                    stack_effect::analyze_block_with_callees(
-                        proc.body(),
-                        Some(&first_pass),
-                    )
+                    stack_effect::analyze_block_with_callees(proc.body(), Some(&first_pass))
                 } else {
                     first_effect.clone()
                 };

@@ -113,9 +113,10 @@ impl SymbolicStack {
     fn require_u32(&mut self, idx: usize, inst_name: &str) {
         if let Some(entry_pos) = self.top_entry_pos(idx) {
             // Check if we already have this hypothesis
-            let already_has = self.hypotheses.iter().any(|h| {
-                h.kind == HypothesisKind::IsU32 && h.entry_position == entry_pos
-            });
+            let already_has = self
+                .hypotheses
+                .iter()
+                .any(|h| h.kind == HypothesisKind::IsU32 && h.entry_position == entry_pos);
             if !already_has {
                 self.hypotheses.push(Hypothesis {
                     kind: HypothesisKind::IsU32,
@@ -130,9 +131,10 @@ impl SymbolicStack {
     /// Record a val ≤ 63 hypothesis for the element at stack position `idx`.
     fn require_val_leq_63(&mut self, idx: usize, inst_name: &str) {
         if let Some(entry_pos) = self.top_entry_pos(idx) {
-            let already_has = self.hypotheses.iter().any(|h| {
-                h.kind == HypothesisKind::ValLeq63 && h.entry_position == entry_pos
-            });
+            let already_has = self
+                .hypotheses
+                .iter()
+                .any(|h| h.kind == HypothesisKind::ValLeq63 && h.entry_position == entry_pos);
             if !already_has {
                 self.hypotheses.push(Hypothesis {
                     kind: HypothesisKind::ValLeq63,
@@ -485,6 +487,20 @@ impl SymbolicStack {
                 }
             }
 
+            // Advice load word: consumes 4 advice elements and replaces the top word
+            AdvLoadW => {
+                self.advice_consumed += 4;
+                self.hypotheses.push(Hypothesis {
+                    kind: HypothesisKind::AdviceLength(self.advice_consumed),
+                    entry_position: 0,
+                    instruction_index: self.inst_index,
+                    instruction_name: inst_name.clone(),
+                });
+                self.ensure_depth(4);
+                self.pop_n(4);
+                self.push_local(4);
+            }
+
             // Generic unary/binary/etc that don't need hypotheses
             _ => {
                 // For all other instructions, use the generic stack effect
@@ -540,9 +556,7 @@ fn process_op(op: &Op, stack: &mut SymbolicStack) {
             stack.process_instruction(spanned_inst.inner());
         }
         Op::If {
-            then_blk,
-            else_blk,
-            ..
+            then_blk, else_blk, ..
         } => {
             // Pop condition
             stack.ensure_depth(1);
@@ -675,5 +689,20 @@ mod tests {
                 assert_eq!(h.instruction_name, "u32And");
             }
         }
+    }
+
+    #[test]
+    fn test_advloadw_generates_advice_hypothesis() {
+        let block = make_block(vec![Instruction::AdvLoadW]);
+        let result = infer_hypotheses(&block, 4);
+
+        assert_eq!(result.advice_consumed, 4);
+        assert!(
+            result
+                .hypotheses
+                .iter()
+                .any(|h| h.kind == HypothesisKind::AdviceLength(4)
+                    && h.instruction_name == "advLoadW")
+        );
     }
 }
