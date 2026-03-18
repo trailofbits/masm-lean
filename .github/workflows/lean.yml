@@ -10,20 +10,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install elan
-        run: |
-          curl -sSf https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh | sh -s -- -y --default-toolchain none
-          echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
-
-      - name: Cache .lake
-        uses: actions/cache@v4
+      - uses: leanprover/lean-action@v1
         with:
-          path: .lake
-          key: lake-${{ runner.os }}-${{ hashFiles('lean-toolchain', 'lakefile.lean', 'lake-manifest.json') }}
-          restore-keys: lake-${{ runner.os }}-
-
-      - name: lake build
-        run: lake build MidenLean
+          test: false
+          lint: false
+          use-mathlib-cache: true
 
       - name: Check no sorry
         run: |
