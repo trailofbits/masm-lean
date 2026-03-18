@@ -86,9 +86,10 @@ theorem u64_widening_add_correct
     execWithEnv u64ProcEnv 31 s Miden.Core.U64.widening_add =
     some (s.withStack (sorry :: rest))  -- TODO: specify output
     := by
-  miden_setup Miden.Core.U64.widening_add
+  miden_setup_env Miden.Core.U64.widening_add
   -- Instruction 1: exec "overflowing_add"
-  miden_call u64ProcEnv  -- resolves overflowing_add
+  simp only [u64ProcEnv]
+  miden_call Miden.Core.U64.overflowing_add
   -- Instruction 2: movdn 2
   miden_step
   -- TODO: value recovery / remaining goals
@@ -107,9 +108,10 @@ theorem u64_wrapping_add_correct
     execWithEnv u64ProcEnv 31 s Miden.Core.U64.wrapping_add =
     some (s.withStack (sorry :: rest))  -- TODO: specify output
     := by
-  miden_setup Miden.Core.U64.wrapping_add
+  miden_setup_env Miden.Core.U64.wrapping_add
   -- Instruction 1: exec "overflowing_add"
-  miden_call u64ProcEnv  -- resolves overflowing_add
+  simp only [u64ProcEnv]
+  miden_call Miden.Core.U64.overflowing_add
   -- Instruction 2: drop
   miden_step
   -- TODO: value recovery / remaining goals
@@ -278,8 +280,8 @@ theorem u64_widening_mul_correct
     some (s.withStack (sorry :: rest))  -- TODO: specify output
     := by
   miden_setup Miden.Core.U64.widening_mul
-  -- Instruction 1: reversew (no step lemma yet)
-  sorry  -- TODO: manual tactic for this instruction
+  -- Instruction 1: reversew
+  miden_step
   -- Instruction 2: dup 3
   miden_step
   -- Instruction 3: dup 2
@@ -320,10 +322,10 @@ theorem u64_widening_mul_correct
   miden_step
   -- Instruction 21: movup 2
   miden_step
-  -- Instruction 22: add (no step lemma yet)
-  sorry  -- TODO: manual tactic for this instruction
-  -- Instruction 23: reversew (no step lemma yet)
-  sorry  -- TODO: manual tactic for this instruction
+  -- Instruction 22: add
+  miden_step
+  -- Instruction 23: reversew
+  miden_step
   -- TODO: value recovery / remaining goals
   sorry
 
@@ -432,9 +434,10 @@ theorem u64_lte_correct
     execWithEnv u64ProcEnv 31 s Miden.Core.U64.lte =
     some (s.withStack (sorry :: rest))  -- TODO: specify output
     := by
-  miden_setup Miden.Core.U64.lte
+  miden_setup_env Miden.Core.U64.lte
   -- Instruction 1: exec "gt"
-  miden_call u64ProcEnv  -- resolves gt
+  simp only [u64ProcEnv]
+  miden_call Miden.Core.U64.gt
   -- Instruction 2: not
   miden_step
   -- TODO: value recovery / remaining goals
@@ -453,9 +456,10 @@ theorem u64_gte_correct
     execWithEnv u64ProcEnv 31 s Miden.Core.U64.gte =
     some (s.withStack (sorry :: rest))  -- TODO: specify output
     := by
-  miden_setup Miden.Core.U64.gte
+  miden_setup_env Miden.Core.U64.gte
   -- Instruction 1: exec "lt"
-  miden_call u64ProcEnv  -- resolves lt
+  simp only [u64ProcEnv]
+  miden_call Miden.Core.U64.lt
   -- Instruction 2: not
   miden_step
   -- TODO: value recovery / remaining goals
@@ -547,27 +551,28 @@ theorem u64_min_correct
     execWithEnv u64ProcEnv 55 s Miden.Core.U64.min =
     some (s.withStack (sorry :: rest))  -- TODO: specify output
     := by
-  miden_setup Miden.Core.U64.min
+  miden_setup_env Miden.Core.U64.min
   -- Instruction 1: movup 3
   miden_step
   -- Instruction 2: movup 3
   miden_step
-  -- Instruction 3: dupw 0 (no step lemma yet)
-  sorry  -- TODO: manual tactic for this instruction
+  -- Instruction 3: dupw 0
+  miden_step
   -- Instruction 4: exec "gt"
-  miden_call u64ProcEnv  -- resolves gt
+  simp only [u64ProcEnv]
+  miden_call Miden.Core.U64.gt
   -- Instruction 5: movup 4
   miden_step
   -- Instruction 6: movup 3
   miden_step
   -- Instruction 7: dup 2
   miden_step
-  -- Instruction 8: cdrop (no step lemma yet)
-  sorry  -- TODO: manual tactic for this instruction
+  -- Instruction 8: cdrop
+  miden_step
   -- Instruction 9: movdn 3
   miden_step
-  -- Instruction 10: cdrop (no step lemma yet)
-  sorry  -- TODO: manual tactic for this instruction
+  -- Instruction 10: cdrop
+  miden_step
   -- TODO: value recovery / remaining goals
   sorry
 
@@ -584,27 +589,28 @@ theorem u64_max_correct
     execWithEnv u64ProcEnv 55 s Miden.Core.U64.max =
     some (s.withStack (sorry :: rest))  -- TODO: specify output
     := by
-  miden_setup Miden.Core.U64.max
+  miden_setup_env Miden.Core.U64.max
   -- Instruction 1: movup 3
   miden_step
   -- Instruction 2: movup 3
   miden_step
-  -- Instruction 3: dupw 0 (no step lemma yet)
-  sorry  -- TODO: manual tactic for this instruction
+  -- Instruction 3: dupw 0
+  miden_step
   -- Instruction 4: exec "lt"
-  miden_call u64ProcEnv  -- resolves lt
+  simp only [u64ProcEnv]
+  miden_call Miden.Core.U64.lt
   -- Instruction 5: movup 4
   miden_step
   -- Instruction 6: movup 3
   miden_step
   -- Instruction 7: dup 2
   miden_step
-  -- Instruction 8: cdrop (no step lemma yet)
-  sorry  -- TODO: manual tactic for this instruction
+  -- Instruction 8: cdrop
+  miden_step
   -- Instruction 9: movdn 3
   miden_step
-  -- Instruction 10: cdrop (no step lemma yet)
-  sorry  -- TODO: manual tactic for this instruction
+  -- Instruction 10: cdrop
+  miden_step
   -- TODO: value recovery / remaining goals
   sorry
 
@@ -621,9 +627,10 @@ theorem u64_div_correct
     execWithEnv u64ProcEnv 34 s Miden.Core.U64.div =
     some (s.withStack (sorry :: rest))  -- TODO: specify output
     := by
-  miden_setup Miden.Core.U64.div
+  miden_setup_env Miden.Core.U64.div
   -- Instruction 1: exec "divmod"
-  miden_call u64ProcEnv  -- resolves divmod
+  simp only [u64ProcEnv]
+  miden_call Miden.Core.U64.divmod
   -- Instruction 2: drop
   miden_step
   -- Instruction 3: drop
@@ -644,9 +651,10 @@ theorem u64_mod_correct
     execWithEnv u64ProcEnv 40 s Miden.Core.U64.mod =
     some (s.withStack (sorry :: rest))  -- TODO: specify output
     := by
-  miden_setup Miden.Core.U64.mod
+  miden_setup_env Miden.Core.U64.mod
   -- Instruction 1: exec "divmod"
-  miden_call u64ProcEnv  -- resolves divmod
+  simp only [u64ProcEnv]
+  miden_call Miden.Core.U64.divmod
   -- Instruction 2: movup 2
   miden_step
   -- Instruction 3: drop
@@ -675,11 +683,11 @@ theorem u64_divmod_correct
     execWithEnv u64ProcEnv 175 s Miden.Core.U64.divmod =
     some (s.withStack (sorry :: rest))  -- TODO: specify output
     := by
-  miden_setup Miden.Core.U64.divmod with hadv
+  miden_setup_env Miden.Core.U64.divmod with hadv
   -- Instruction 1: emitImm
   miden_step
-  -- Instruction 2: advPush (no step lemma yet)
-  sorry  -- TODO: manual tactic for this instruction
+  -- Instruction 2: advPush (requires hypothesis)
+  miden_step
   -- Instruction 3: u32Assert2 (requires hypothesis)
   miden_step
   -- Instruction 4: dup 2
@@ -700,8 +708,8 @@ theorem u64_divmod_correct
   miden_step
   -- Instruction 12: eqImm
   miden_step
-  -- Instruction 13: assertWithError (no step lemma yet)
-  sorry  -- TODO: manual tactic for this instruction
+  -- Instruction 13: assertWithError (requires hypothesis)
+  miden_step
   -- Instruction 14: dup 4
   miden_step
   -- Instruction 15: dup 4
@@ -712,20 +720,20 @@ theorem u64_divmod_correct
   miden_step
   -- Instruction 18: eqImm
   miden_step
-  -- Instruction 19: assertWithError (no step lemma yet)
-  sorry  -- TODO: manual tactic for this instruction
+  -- Instruction 19: assertWithError (requires hypothesis)
+  miden_step
   -- Instruction 20: dup 5
   miden_step
   -- Instruction 21: dup 4
   miden_step
-  -- Instruction 22: mul (no step lemma yet)
-  sorry  -- TODO: manual tactic for this instruction
+  -- Instruction 22: mul
+  miden_step
   -- Instruction 23: eqImm
   miden_step
-  -- Instruction 24: assertWithError (no step lemma yet)
-  sorry  -- TODO: manual tactic for this instruction
-  -- Instruction 25: advPush (no step lemma yet)
-  sorry  -- TODO: manual tactic for this instruction
+  -- Instruction 24: assertWithError (requires hypothesis)
+  miden_step
+  -- Instruction 25: advPush (requires hypothesis)
+  miden_step
   -- Instruction 26: u32Assert2 (requires hypothesis)
   miden_step
   -- Instruction 27: movup 6
@@ -743,9 +751,10 @@ theorem u64_divmod_correct
   -- Instruction 33: movup 3
   miden_step
   -- Instruction 34: exec "lt"
-  miden_call u64ProcEnv  -- resolves lt
-  -- Instruction 35: assertWithError (no step lemma yet)
-  sorry  -- TODO: manual tactic for this instruction
+  simp only [u64ProcEnv]
+  miden_call Miden.Core.U64.lt
+  -- Instruction 35: assertWithError (requires hypothesis)
+  miden_step
   -- Instruction 36: dup 0
   miden_step
   -- Instruction 37: movup 4
@@ -766,16 +775,16 @@ theorem u64_divmod_correct
   miden_step
   -- Instruction 45: eqImm
   miden_step
-  -- Instruction 46: assertWithError (no step lemma yet)
-  sorry  -- TODO: manual tactic for this instruction
+  -- Instruction 46: assertWithError (requires hypothesis)
+  miden_step
   -- Instruction 47: movup 7
   miden_step
-  -- Instruction 48: assertEqWithError (no step lemma yet)
-  sorry  -- TODO: manual tactic for this instruction
+  -- Instruction 48: assertEqWithError
+  miden_step
   -- Instruction 49: movup 5
   miden_step
-  -- Instruction 50: assertEqWithError (no step lemma yet)
-  sorry  -- TODO: manual tactic for this instruction
+  -- Instruction 50: assertEqWithError
+  miden_step
   -- TODO: value recovery / remaining goals
   sorry
 
@@ -886,11 +895,11 @@ theorem u64_shl_correct
     execWithEnv u64ProcEnv 43 s Miden.Core.U64.shl =
     some (s.withStack (sorry :: rest))  -- TODO: specify output
     := by
-  miden_setup Miden.Core.U64.shl
-  -- Instruction 1: pow2 (no step lemma yet)
-  sorry  -- TODO: manual tactic for this instruction
-  -- Instruction 2: u32Split (no step lemma yet)
-  sorry  -- TODO: manual tactic for this instruction
+  miden_setup_env Miden.Core.U64.shl
+  -- Instruction 1: pow2 (requires hypothesis)
+  miden_step
+  -- Instruction 2: u32Split
+  miden_step
   -- Instruction 3: movup 2
   miden_step
   -- Instruction 4: movup 3
@@ -898,7 +907,8 @@ theorem u64_shl_correct
   -- Instruction 5: swap 1
   miden_step
   -- Instruction 6: exec "wrapping_mul"
-  miden_call u64ProcEnv  -- resolves wrapping_mul
+  simp only [u64ProcEnv]
+  miden_call Miden.Core.U64.wrapping_mul
   -- TODO: value recovery / remaining goals
   sorry
 
@@ -921,16 +931,16 @@ theorem u64_shr_correct
   miden_step
   -- Instruction 2: swap 1
   miden_step
-  -- Instruction 3: pow2 (no step lemma yet)
-  sorry  -- TODO: manual tactic for this instruction
-  -- Instruction 4: u32Split (no step lemma yet)
-  sorry  -- TODO: manual tactic for this instruction
+  -- Instruction 3: pow2 (requires hypothesis)
+  miden_step
+  -- Instruction 4: u32Split
+  miden_step
   -- Instruction 5: swap 1
   miden_step
   -- Instruction 6: dup 1
   miden_step
-  -- Instruction 7: add (no step lemma yet)
-  sorry  -- TODO: manual tactic for this instruction
+  -- Instruction 7: add
+  miden_step
   -- Instruction 8: movup 2
   miden_step
   -- Instruction 9: swap 1
@@ -965,30 +975,30 @@ theorem u64_shr_correct
   miden_step
   -- Instruction 24: drop
   miden_step
-  -- Instruction 25: push (no step lemma yet)
-  sorry  -- TODO: manual tactic for this instruction
+  -- Instruction 25: push
+  miden_step
   -- Instruction 26: dup 5
   miden_step
-  -- Instruction 27: mul (no step lemma yet)
-  sorry  -- TODO: manual tactic for this instruction
+  -- Instruction 27: mul
+  miden_step
   -- Instruction 28: movup 4
   miden_step
   -- Instruction 29: div (no step lemma yet)
   sorry  -- TODO: manual tactic for this instruction
   -- Instruction 30: movup 3
   miden_step
-  -- Instruction 31: mul (no step lemma yet)
-  sorry  -- TODO: manual tactic for this instruction
-  -- Instruction 32: add (no step lemma yet)
-  sorry  -- TODO: manual tactic for this instruction
+  -- Instruction 31: mul
+  miden_step
+  -- Instruction 32: add
+  miden_step
   -- Instruction 33: dup 2
   miden_step
-  -- Instruction 34: cswap (no step lemma yet)
-  sorry  -- TODO: manual tactic for this instruction
+  -- Instruction 34: cswap
+  miden_step
   -- Instruction 35: movup 2
   miden_step
-  -- Instruction 36: mul (no step lemma yet)
-  sorry  -- TODO: manual tactic for this instruction
+  -- Instruction 36: mul
+  miden_step
   -- Instruction 37: swap 1
   miden_step
   -- TODO: value recovery / remaining goals
@@ -1014,8 +1024,8 @@ theorem u64_rotl_correct
   miden_step
   -- Instruction 2: swap 1
   miden_step
-  -- Instruction 3: push (no step lemma yet)
-  sorry  -- TODO: manual tactic for this instruction
+  -- Instruction 3: push
+  miden_step
   -- Instruction 4: dup 1
   miden_step
   -- Instruction 5: u32OverflowSub (requires hypothesis)
@@ -1026,12 +1036,12 @@ theorem u64_rotl_correct
   miden_step
   -- Instruction 8: movdn 3
   miden_step
-  -- Instruction 9: push (no step lemma yet)
-  sorry  -- TODO: manual tactic for this instruction
+  -- Instruction 9: push
+  miden_step
   -- Instruction 10: u32And (requires hypothesis)
   miden_step
-  -- Instruction 11: pow2 (no step lemma yet)
-  sorry  -- TODO: manual tactic for this instruction
+  -- Instruction 11: pow2 (requires hypothesis)
+  miden_step
   -- Instruction 12: dup 0
   miden_step
   -- Instruction 13: movup 3
@@ -1050,14 +1060,14 @@ theorem u64_rotl_correct
   miden_step
   -- Instruction 20: movup 2
   miden_step
-  -- Instruction 21: add (no step lemma yet)
-  sorry  -- TODO: manual tactic for this instruction
+  -- Instruction 21: add
+  miden_step
   -- Instruction 22: swap 1
   miden_step
   -- Instruction 23: movup 2
   miden_step
-  -- Instruction 24: cswap (no step lemma yet)
-  sorry  -- TODO: manual tactic for this instruction
+  -- Instruction 24: cswap
+  miden_step
   -- Instruction 25: swap 1
   miden_step
   -- TODO: value recovery / remaining goals
@@ -1082,60 +1092,60 @@ theorem u64_rotr_correct
   miden_step
   -- Instruction 2: swap 1
   miden_step
-  -- Instruction 3: push (no step lemma yet)
-  sorry  -- TODO: manual tactic for this instruction
+  -- Instruction 3: push
+  miden_step
   -- Instruction 4: dup 1
   miden_step
-  -- Instruction 5: u32Lt (no step lemma yet)
-  sorry  -- TODO: manual tactic for this instruction
+  -- Instruction 5: u32Lt (requires hypothesis)
+  miden_step
   -- Instruction 6: movdn 3
   miden_step
-  -- Instruction 7: push (no step lemma yet)
-  sorry  -- TODO: manual tactic for this instruction
+  -- Instruction 7: push
+  miden_step
   -- Instruction 8: u32And (requires hypothesis)
   miden_step
-  -- Instruction 9: push (no step lemma yet)
-  sorry  -- TODO: manual tactic for this instruction
+  -- Instruction 9: push
+  miden_step
   -- Instruction 10: swap 1
   miden_step
   -- Instruction 11: u32WrappingSub (no step lemma yet)
   sorry  -- TODO: manual tactic for this instruction
-  -- Instruction 12: pow2 (no step lemma yet)
-  sorry  -- TODO: manual tactic for this instruction
+  -- Instruction 12: pow2 (requires hypothesis)
+  miden_step
   -- Instruction 13: dup 0
   miden_step
   -- Instruction 14: movup 3
   miden_step
-  -- Instruction 15: mul (no step lemma yet)
-  sorry  -- TODO: manual tactic for this instruction
-  -- Instruction 16: u32Split (no step lemma yet)
-  sorry  -- TODO: manual tactic for this instruction
+  -- Instruction 15: mul
+  miden_step
+  -- Instruction 16: u32Split
+  miden_step
   -- Instruction 17: swap 1
   miden_step
   -- Instruction 18: movup 3
   miden_step
   -- Instruction 19: movup 3
   miden_step
-  -- Instruction 20: mul (no step lemma yet)
-  sorry  -- TODO: manual tactic for this instruction
-  -- Instruction 21: add (no step lemma yet)
-  sorry  -- TODO: manual tactic for this instruction
-  -- Instruction 22: u32Split (no step lemma yet)
-  sorry  -- TODO: manual tactic for this instruction
+  -- Instruction 20: mul
+  miden_step
+  -- Instruction 21: add
+  miden_step
+  -- Instruction 22: u32Split
+  miden_step
   -- Instruction 23: swap 1
   miden_step
   -- Instruction 24: movup 2
   miden_step
-  -- Instruction 25: add (no step lemma yet)
-  sorry  -- TODO: manual tactic for this instruction
+  -- Instruction 25: add
+  miden_step
   -- Instruction 26: swap 1
   miden_step
   -- Instruction 27: movup 2
   miden_step
   -- Instruction 28: not
   miden_step
-  -- Instruction 29: cswap (no step lemma yet)
-  sorry  -- TODO: manual tactic for this instruction
+  -- Instruction 29: cswap
+  miden_step
   -- Instruction 30: swap 1
   miden_step
   -- TODO: value recovery / remaining goals
@@ -1294,14 +1304,13 @@ theorem u64_cto_correct
   sorry
 
 
--- TODO: Define u64ProcEnv for procedure call resolution.
--- def u64ProcEnv : ProcEnv := fun name =>
---   match name with
---   | "overflowing_add" => some Miden.Core.U64.overflowing_add
---   | "gt" => some Miden.Core.U64.gt
---   | "lt" => some Miden.Core.U64.lt
---   | "divmod" => some Miden.Core.U64.divmod
---   | "wrapping_mul" => some Miden.Core.U64.wrapping_mul
---   | _ => none
+def u64ProcEnv : ProcEnv := fun name =>
+  match name with
+  | "overflowing_add" => some Miden.Core.U64.overflowing_add
+  | "gt" => some Miden.Core.U64.gt
+  | "lt" => some Miden.Core.U64.lt
+  | "divmod" => some Miden.Core.U64.divmod
+  | "wrapping_mul" => some Miden.Core.U64.wrapping_mul
+  | _ => none
 
 end MidenLean.Proofs.Generated

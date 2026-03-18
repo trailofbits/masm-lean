@@ -74,6 +74,14 @@ set_option maxHeartbeats 400000 in
     some ⟨d :: c :: b :: a :: rest, mem, locs, adv⟩ := by
   unfold execInstruction execReversew; rfl
 
+set_option maxHeartbeats 800000 in
+@[miden_dispatch] theorem stepDupw0 (mem locs : Nat → Felt) (adv : List Felt)
+    (a b c d : Felt) (rest : List Felt) :
+    execInstruction ⟨a :: b :: c :: d :: rest, mem, locs, adv⟩ (.dupw 0) =
+    some ⟨a :: b :: c :: d :: a :: b :: c :: d :: rest, mem, locs, adv⟩ := by
+  unfold execInstruction execDupw
+  simp [MidenState.withStack]
+
 -- ============================================================================
 -- Assertions
 -- ============================================================================

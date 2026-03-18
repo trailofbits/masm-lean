@@ -188,6 +188,20 @@ fn inst_has_step_lemma(inst: &Instruction) -> bool {
     crate::instruction_info::instruction_info(inst).has_step_lemma
 }
 
+/// Convert an exec target name (e.g., "overflowing_add") to a fully-qualified Lean name
+/// (e.g., "Miden.Core.U64.overflowing_add") by using the namespace of the calling procedure.
+fn sanitize_lean_target(target: &str, caller_fq_name: &str) -> String {
+    // Extract the namespace prefix from the caller's FQ name
+    // e.g., "Miden.Core.U64.wrapping_add" -> "Miden.Core.U64"
+    if let Some(dot_pos) = caller_fq_name.rfind('.') {
+        let namespace = &caller_fq_name[..dot_pos];
+        let sanitized = crate::module::sanitize_lean_name(target);
+        format!("{}.{}", namespace, sanitized)
+    } else {
+        crate::module::sanitize_lean_name(target)
+    }
+}
+
 /// Generate parameter names for the given input arity.
 /// Uses a/b/c/d for up to 4 parameters, x0..xN for larger arities.
 fn generate_param_names(input_arity: usize) -> Vec<String> {
@@ -325,14 +339,19 @@ fn emit_theorem_statement(skel: &ProcSkeleton) -> String {
 fn emit_proof_body(skel: &ProcSkeleton) -> String {
     let mut out = String::new();
 
-    // Setup tactic
+    // Setup tactic: use miden_setup_env for procedures with calls, miden_setup otherwise
+    let setup_tactic = if skel.needs_proc_env {
+        "miden_setup_env"
+    } else {
+        "miden_setup"
+    };
     if skel.hypotheses.advice_consumed > 0 {
         out.push_str(&format!(
-            "  miden_setup {} with hadv\n",
-            skel.fq_lean_name
+            "  {} {} with hadv\n",
+            setup_tactic, skel.fq_lean_name
         ));
     } else {
-        out.push_str(&format!("  miden_setup {}\n", skel.fq_lean_name));
+        out.push_str(&format!("  {} {}\n", setup_tactic, skel.fq_lean_name));
     }
 
     // Emit tactic calls for each operation
@@ -348,17 +367,23 @@ fn emit_proof_body(skel: &ProcSkeleton) -> String {
                 ..
             } => {
                 if *is_exec {
-                    let target_comment = exec_target
+                    let target_name = exec_target
                         .as_deref()
                         .unwrap_or("unknown");
+                    // Convert MASM target name to Lean qualified name
+                    let lean_target = sanitize_lean_target(target_name, &skel.fq_lean_name);
                     out.push_str(&format!(
                         "  -- Instruction {}: {}\n",
                         index + 1,
                         lean_repr
                     ));
                     out.push_str(&format!(
-                        "  miden_call {}ProcEnv  -- resolves {}\n",
-                        skel.module_prefix, target_comment
+                        "  simp only [{}ProcEnv]\n",
+                        skel.module_prefix
+                    ));
+                    out.push_str(&format!(
+                        "  miden_call {}\n",
+                        lean_target
                     ));
                 } else if *has_step_lemma {
                     if *needs_hypothesis {
@@ -549,16 +574,6 @@ pub fn generate_proof_skeletons(
     // ProcEnv definition if any procedure has calls
     let has_any_calls = skeletons.iter().any(|s| s.needs_proc_env);
     if has_any_calls {
-        out.push_str(&format!(
-            "\n-- TODO: Define {}ProcEnv for procedure call resolution.\n",
-            module_prefix
-        ));
-        out.push_str(&format!(
-            "-- def {}ProcEnv : ProcEnv := fun name =>\n",
-            module_prefix
-        ));
-        out.push_str("--   match name with\n");
-
         // Collect all exec targets
         let mut exec_targets: Vec<String> = Vec::new();
         for skel in &skeletons {
@@ -574,14 +589,20 @@ pub fn generate_proof_skeletons(
                 }
             }
         }
+
+        out.push_str(&format!(
+            "\ndef {}ProcEnv : ProcEnv := fun name =>\n",
+            module_prefix
+        ));
+        out.push_str("  match name with\n");
         for target in &exec_targets {
             let lean_name = sanitize_lean_name(target);
             out.push_str(&format!(
-                "--   | \"{}\" => some {}.{}\n",
+                "  | \"{}\" => some {}.{}\n",
                 target, namespace, lean_name
             ));
         }
-        out.push_str("--   | _ => none\n");
+        out.push_str("  | _ => none\n");
     }
 
     out.push_str(&format!(
