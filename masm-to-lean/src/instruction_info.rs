@@ -8,6 +8,33 @@ use miden_assembly_syntax::parser::PushValue;
 
 use crate::stack_effect::StackEffect;
 
+/// How the proof generator should try to step past an instruction.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ProofStepKind {
+    /// Emit a dedicated structural tactic such as `miden_swap`.
+    StructuralTactic(&'static str),
+    /// Emit a direct rewrite and then normalize the bind.
+    ExplicitRewrite(&'static str),
+    /// Fall back to the generic search tactic.
+    Search,
+    /// Resolve a procedure call.
+    ProcCall,
+    /// Leave the instruction to manual follow-up.
+    ManualOnly,
+}
+
+/// Instructions that are good chunk boundaries in longer straight-line proofs.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BarrierKind {
+    Pow2,
+    U32DivMod,
+    U32OverflowSub,
+    Div,
+    Cswap,
+    Cdrop,
+    ProcCall,
+}
+
 /// Metadata about a single MASM instruction.
 #[derive(Debug, Clone)]
 pub struct InstructionInfo {
@@ -1231,4 +1258,105 @@ pub fn instruction_info(inst: &Instruction) -> InstructionInfo {
     }
 
     info
+}
+
+/// Classify the proof step shape for a specific instruction.
+pub fn proof_step_kind(inst: &Instruction) -> ProofStepKind {
+    use Instruction::*;
+
+    match inst {
+        Dup0 | Dup1 | Dup2 | Dup3 | Dup4 | Dup5 | Dup6 | Dup7 | Dup8 | Dup9 | Dup10 | Dup11
+        | Dup12 | Dup13 | Dup14 | Dup15 => ProofStepKind::StructuralTactic("miden_dup"),
+        Swap1 | Swap2 | Swap3 | Swap4 | Swap5 | Swap6 | Swap7 | Swap8 | Swap9 | Swap10 | Swap11
+        | Swap12 | Swap13 | Swap14 | Swap15 => ProofStepKind::StructuralTactic("miden_swap"),
+        MovUp2 | MovUp3 | MovUp4 | MovUp5 | MovUp6 | MovUp7 | MovUp8 | MovUp9 | MovUp10
+        | MovUp11 | MovUp12 | MovUp13 | MovUp14 | MovUp15 => {
+            ProofStepKind::StructuralTactic("miden_movup")
+        }
+        MovDn2 | MovDn3 | MovDn4 | MovDn5 | MovDn6 | MovDn7 | MovDn8 | MovDn9 | MovDn10
+        | MovDn11 | MovDn12 | MovDn13 | MovDn14 | MovDn15 => {
+            ProofStepKind::StructuralTactic("miden_movdn")
+        }
+        Drop => ProofStepKind::ExplicitRewrite("stepDrop"),
+        DropW => ProofStepKind::ExplicitRewrite("stepDropw"),
+        PadW => ProofStepKind::ExplicitRewrite("stepPadw"),
+        Reversew => ProofStepKind::ExplicitRewrite("stepReversew"),
+        DupW0 => ProofStepKind::ExplicitRewrite("stepDupw0"),
+        Push(_) => ProofStepKind::ExplicitRewrite("stepPush"),
+        Add => ProofStepKind::ExplicitRewrite("stepAdd"),
+        AddImm(_) => ProofStepKind::ExplicitRewrite("stepAddImm"),
+        Sub => ProofStepKind::ExplicitRewrite("stepSub"),
+        Mul => ProofStepKind::ExplicitRewrite("stepMul"),
+        Neg => ProofStepKind::ExplicitRewrite("stepNeg"),
+        Incr => ProofStepKind::ExplicitRewrite("stepIncr"),
+        Eq => ProofStepKind::ExplicitRewrite("stepEq"),
+        EqImm(_) => ProofStepKind::ExplicitRewrite("stepEqImm"),
+        Neq => ProofStepKind::ExplicitRewrite("stepNeq"),
+        Lt => ProofStepKind::ExplicitRewrite("stepLt"),
+        Gt => ProofStepKind::ExplicitRewrite("stepGt"),
+        Lte => ProofStepKind::ExplicitRewrite("stepLte"),
+        Gte => ProofStepKind::ExplicitRewrite("stepGte"),
+        U32Split => ProofStepKind::ExplicitRewrite("stepU32Split"),
+        AssertEq => ProofStepKind::ExplicitRewrite("stepAssertEq"),
+        AssertEqWithError(_) => ProofStepKind::ExplicitRewrite("stepAssertEqWithError"),
+        Exec(_) | Call(_) => ProofStepKind::ProcCall,
+        _ if instruction_info(inst).has_step_lemma => ProofStepKind::Search,
+        _ => ProofStepKind::ManualOnly,
+    }
+}
+
+/// Classify instructions that should trigger a chunk boundary in long proofs.
+pub fn barrier_kind(inst: &Instruction) -> Option<BarrierKind> {
+    use Instruction::*;
+
+    match inst {
+        Pow2 => Some(BarrierKind::Pow2),
+        U32DivMod | U32DivModImm(_) => Some(BarrierKind::U32DivMod),
+        U32OverflowingSub | U32OverflowingSubImm(_) => Some(BarrierKind::U32OverflowSub),
+        Div | DivImm(_) => Some(BarrierKind::Div),
+        CSwap | CSwapW => Some(BarrierKind::Cswap),
+        CDrop | CDropW => Some(BarrierKind::Cdrop),
+        Exec(_) | Call(_) => Some(BarrierKind::ProcCall),
+        _ => None,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use miden_assembly_syntax::ast::Instruction;
+
+    #[test]
+    fn test_proof_step_kind_swap1_is_structural() {
+        assert_eq!(
+            proof_step_kind(&Instruction::Swap1),
+            ProofStepKind::StructuralTactic("miden_swap")
+        );
+    }
+
+    #[test]
+    fn test_proof_step_kind_add_is_explicit_rewrite() {
+        assert_eq!(
+            proof_step_kind(&Instruction::Add),
+            ProofStepKind::ExplicitRewrite("stepAdd")
+        );
+    }
+
+    #[test]
+    fn test_proof_step_kind_u32divmod_uses_search() {
+        assert_eq!(
+            proof_step_kind(&Instruction::U32DivMod),
+            ProofStepKind::Search
+        );
+    }
+
+    #[test]
+    fn test_barrier_kind_pow2() {
+        assert_eq!(barrier_kind(&Instruction::Pow2), Some(BarrierKind::Pow2));
+    }
+
+    #[test]
+    fn test_barrier_kind_cswap() {
+        assert_eq!(barrier_kind(&Instruction::CSwap), Some(BarrierKind::Cswap));
+    }
 }

@@ -102,50 +102,33 @@ fn main() -> Result<()> {
             // Derive the import path for the generated definitions
             let generated_import = format!("MidenLean.Generated.{}", lean_name);
 
-            let proof_code = skeleton::generate_proof_skeletons(
+            let proof_module = skeleton::generate_proof_skeletons(
                 &parsed,
+                &lean_name,
                 &namespace,
                 &module_prefix,
                 &generated_import,
             )?;
 
-            let proof_output_path = proofs_output.join(format!("{}.lean", lean_name));
-            std::fs::write(&proof_output_path, &proof_code)?;
+            let module_dir = proofs_output.join(&lean_name);
+            std::fs::create_dir_all(&module_dir)?;
 
-            // Count classifications (two-pass analysis for accurate results)
-            let mut first_pass: std::collections::HashMap<String, stack_effect::ProcStackEffect> =
-                std::collections::HashMap::new();
-            for proc in parsed.procedures() {
-                let name = proc.name().to_string();
-                let effect = stack_effect::analyze_block(proc.body());
-                first_pass.insert(name, effect);
-            }
-            let mut auto = 0;
-            let mut semi = 0;
-            let mut manual = 0;
-            for proc in parsed.procedures() {
-                let name = proc.name().to_string();
-                let first_effect = first_pass.get(&name).unwrap();
-                let effect = if first_effect.has_calls {
-                    stack_effect::analyze_block_with_callees(proc.body(), Some(&first_pass))
-                } else {
-                    first_effect.clone()
-                };
-                let hyps = hypothesis::infer_hypotheses(proc.body(), effect.input_arity);
-                match classifier::classify(proc.body(), &effect, &hyps) {
-                    classifier::Classification::Auto => auto += 1,
-                    classifier::Classification::Semi => semi += 1,
-                    classifier::Classification::Manual => manual += 1,
+            for generated_file in &proof_module.files {
+                let proof_output_path = proofs_output.join(&generated_file.relative_path);
+                if let Some(parent) = proof_output_path.parent() {
+                    std::fs::create_dir_all(parent)?;
                 }
+                std::fs::write(&proof_output_path, &generated_file.content)?;
             }
 
             eprintln!(
-                "Wrote {} ({} skeletons: {} AUTO, {} SEMI, {} MANUAL)",
-                proof_output_path.display(),
+                "Wrote {} proof files under {} ({} skeletons: {} AUTO, {} SEMI, {} MANUAL)",
+                proof_module.files.len(),
+                module_dir.display(),
                 proc_count,
-                auto,
-                semi,
-                manual
+                proof_module.auto_count,
+                proof_module.semi_count,
+                proof_module.manual_count
             );
         }
     }
