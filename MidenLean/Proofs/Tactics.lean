@@ -40,9 +40,10 @@ macro_rules
     `(tactic| rw [stepMovdn (hn := rfl)]; miden_bind)
 
 /-- Try to apply a step lemma and simplify the bind.
-    Covers all hypothesis-free step lemmas. For lemmas requiring hypotheses
-    (stepU32And, stepU32Or, stepU32Xor, stepU32Assert2), use
-    rw [stepU32And (ha := ...) (hb := ...)]; miden_bind manually. -/
+    Covers hypothesis-free step lemmas and u32 step lemmas whose isU32
+    hypotheses can be resolved by `assumption`. For lemmas requiring
+    hypotheses not in the context (stepU32And, stepU32Or, stepU32Xor,
+    stepU32Assert2), use manual invocation. -/
 syntax "miden_step" : tactic
 macro_rules
   | `(tactic| miden_step) =>
@@ -59,15 +60,15 @@ macro_rules
       | rw [stepOrIte]; miden_bind
       | rw [stepNotIte]; miden_bind
       | rw [stepAddImm]; miden_bind
-      | rw [stepU32WidenAdd]; miden_bind
-      | rw [stepU32WidenAdd3]; miden_bind
-      | rw [stepU32OverflowSub]; miden_bind
-      | rw [stepU32WidenMul]; miden_bind
-      | rw [stepU32WidenMadd]; miden_bind
-      | rw [stepU32Clz]; miden_bind
-      | rw [stepU32Ctz]; miden_bind
-      | rw [stepU32Clo]; miden_bind
-      | rw [stepU32Cto]; miden_bind)
+      | (rw [stepU32WidenAdd (ha := by assumption) (hb := by assumption)]; miden_bind)
+      | (rw [stepU32WidenAdd3 (ha := by assumption) (hb := by assumption) (hc := by assumption)]; miden_bind)
+      | (rw [stepU32OverflowSub (ha := by assumption) (hb := by assumption)]; miden_bind)
+      | (rw [stepU32WidenMul (ha := by assumption) (hb := by assumption)]; miden_bind)
+      | (rw [stepU32WidenMadd (ha := by assumption) (hb := by assumption) (hc := by assumption)]; miden_bind)
+      | (rw [stepU32Clz (ha := by assumption)]; miden_bind)
+      | (rw [stepU32Ctz (ha := by assumption)]; miden_bind)
+      | (rw [stepU32Clo (ha := by assumption)]; miden_bind)
+      | (rw [stepU32Cto (ha := by assumption)]; miden_bind))
 
 /-- Step through all remaining instructions, finishing with pure. -/
 syntax "miden_steps" : tactic

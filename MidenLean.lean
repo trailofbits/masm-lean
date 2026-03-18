@@ -29,3 +29,4 @@ import MidenLean.Proofs.U64WideningAdd
 import MidenLean.Proofs.U64U32Assert4
 import MidenLean.Proofs.U64WrappingMul
 import MidenLean.Proofs.WordTestz
+import MidenLean.Tests.Semantics
