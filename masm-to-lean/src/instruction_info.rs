@@ -637,6 +637,8 @@ pub fn instruction_info(inst: &Instruction) -> InstructionInfo {
         Div => {
             info.stack_effect = Some(StackEffect::new(2, 1));
             info.comment_name = "div".into();
+            info.has_step_lemma = true;
+            info.needs_hypothesis = true;  // needs nonzero divisor
             info.is_known = true;
         }
         DivImm(_) => {
@@ -1082,6 +1084,8 @@ pub fn instruction_info(inst: &Instruction) -> InstructionInfo {
         U32DivMod => {
             info.stack_effect = Some(StackEffect::new(2, 2));
             info.comment_name = "u32DivMod".into();
+            info.has_step_lemma = true;
+            info.needs_hypothesis = true;  // needs isU32 + nonzero divisor
             info.needs_value_recovery = true;
             info.is_known = true;
         }

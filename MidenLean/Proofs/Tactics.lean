@@ -91,10 +91,14 @@ macro_rules
       | rw [stepAddImm]; miden_bind
       | rw [stepNeg]; miden_bind
       | rw [stepIncr]; miden_bind
+      -- Field div (with nonzero hypothesis via assumption)
+      | (rw [stepDiv (hb := by assumption)]; miden_bind)
       -- Pow2
       | (rw [stepPow2 (ha := by assumption)]; miden_bind)
       -- U32 split
       | rw [stepU32Split]; miden_bind
+      -- U32 divmod (with isU32 + nonzero hypotheses via assumption)
+      | (rw [stepU32DivMod (ha := by assumption) (hb := by assumption) (hbnz := by assumption)]; miden_bind)
       -- U32 arithmetic (with isU32 hypotheses via assumption)
       | (rw [stepU32WidenAdd (ha := by assumption) (hb := by assumption)]; miden_bind)
       | (rw [stepU32WidenAdd3 (ha := by assumption) (hb := by assumption) (hc := by assumption)]; miden_bind)
