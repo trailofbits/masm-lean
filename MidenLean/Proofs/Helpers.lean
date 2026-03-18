@@ -1,5 +1,4 @@
 import MidenLean.Semantics
-import MidenLean.Proofs.SimpAttrs
 
 namespace MidenLean
 
@@ -7,19 +6,19 @@ namespace MidenLean
 -- MidenState projection lemmas
 -- ============================================================================
 
-@[simp, miden_simp] theorem MidenState.withStack_stack (s : MidenState) (stk : List Felt) :
+@[simp] theorem MidenState.withStack_stack (s : MidenState) (stk : List Felt) :
     (s.withStack stk).stack = stk := rfl
 
-@[simp, miden_simp] theorem MidenState.withStack_memory (s : MidenState) (stk : List Felt) :
+@[simp] theorem MidenState.withStack_memory (s : MidenState) (stk : List Felt) :
     (s.withStack stk).memory = s.memory := rfl
 
-@[simp, miden_simp] theorem MidenState.withStack_locals (s : MidenState) (stk : List Felt) :
+@[simp] theorem MidenState.withStack_locals (s : MidenState) (stk : List Felt) :
     (s.withStack stk).locals = s.locals := rfl
 
-@[simp, miden_simp] theorem MidenState.withStack_advice (s : MidenState) (stk : List Felt) :
+@[simp] theorem MidenState.withStack_advice (s : MidenState) (stk : List Felt) :
     (s.withStack stk).advice = s.advice := rfl
 
-@[simp, miden_simp] theorem MidenState.withStack_withStack (s : MidenState) (stk1 stk2 : List Felt) :
+@[simp] theorem MidenState.withStack_withStack (s : MidenState) (stk1 stk2 : List Felt) :
     (s.withStack stk1).withStack stk2 = s.withStack stk2 := rfl
 
 -- ============================================================================
@@ -38,20 +37,58 @@ theorem exec_append (fuel : Nat) (s : MidenState) (xs ys : List Op) :
 -- Felt value lemmas
 -- ============================================================================
 
-@[simp, miden_simp] theorem Felt.val_zero' : (0 : Felt).val = 0 := rfl
+@[simp] theorem Felt.val_zero' : (0 : Felt).val = 0 := rfl
 
 set_option maxHeartbeats 400000 in
-@[simp, miden_simp] theorem Felt.val_one' : (1 : Felt).val = 1 := by native_decide
+@[simp] theorem Felt.val_one' : (1 : Felt).val = 1 := by native_decide
 
 -- ============================================================================
 -- Felt boolean lemmas
 -- ============================================================================
 
-@[simp, miden_simp] theorem Felt.isBool_ite_bool (p : Bool) :
+@[simp] theorem Felt.isBool_ite_bool (p : Bool) :
     Felt.isBool (if p then (1 : Felt) else 0) = true := by
   cases p <;> simp [Felt.isBool, Felt.val_one']
 
-@[simp, miden_simp] theorem Felt.ite_mul_ite (p q : Bool) :
+/-- A Prop-ite of (1 : Felt) / 0 is also boolean. -/
+theorem Felt.isBool_ite_prop (P : Prop) [Decidable P] :
+    Felt.isBool (if P then (1 : Felt) else 0) = true := by
+  unfold Felt.isBool; split_ifs <;> simp [Felt.val_one']
+
+/-- The Nat.beq-equality of an ite-(1:Felt)/0 with 1 equals the Bool condition. -/
+theorem Felt.ite_val_eq_one (p : Bool) :
+    ((if p then (1 : Felt) else 0).val == 1) = p := by
+  cases p <;> simp [Felt.val_one', Felt.val_zero']
+
+/-- For a Prop, (if P then (1:Felt) else 0).val == 1 = decide P. -/
+theorem Felt.ite_prop_val_eq_one (P : Prop) [Decidable P] :
+    ((if P then (1 : Felt) else 0).val == 1) = decide P := by
+  by_cases h : P
+  · simp [h, Felt.val_one', decide_eq_true h]
+  · simp [h, Felt.val_zero', decide_eq_false h]
+
+/-- A boolean Felt equals an ite on (val == 1). -/
+theorem Felt.isBool_eq_ite (a : Felt) (h : a.isBool = true) :
+    a = if (a.val == 1) then (1 : Felt) else 0 := by
+  simp only [Felt.isBool, Bool.or_eq_true, beq_iff_eq] at h
+  have hcast : (↑(a.val) : Felt) = a := ZMod.natCast_zmod_val a
+  rcases h with h | h
+  · have ha0 : a = 0 := by rw [← hcast, h, Nat.cast_zero]
+    simp [ha0]
+  · have ha1 : a = 1 := by rw [← hcast, h, Nat.cast_one]
+    simp [ha1]
+
+/-- Converts a Prop-ite of Felt to a Bool decide-ite. -/
+theorem Felt.ite_prop_eq_ite_bool (P : Prop) [Decidable P] :
+    (if P then (1 : Felt) else 0) = if decide P then (1 : Felt) else 0 := by
+  by_cases h : P <;> simp [h]
+
+/-- Normalizes (if b = true then ...) to (if b then ...) for Bool b. -/
+@[simp] theorem Felt.ite_beq_true (b : Bool) :
+    (if (b = true) then (1 : Felt) else 0) = if b then (1 : Felt) else 0 := by
+  cases b <;> simp
+
+@[simp] theorem Felt.ite_mul_ite (p q : Bool) :
     (if p then (1 : Felt) else 0) * (if q then (1 : Felt) else 0) =
     if (p && q) then (1 : Felt) else 0 := by
   cases p <;> cases q <;> simp
@@ -75,38 +112,38 @@ theorem u32OverflowingSub_borrow_ite (a b : Nat) :
 -- ============================================================================
 
 /-- Felt.ofNat n has val = n when n < GOLDILOCKS_PRIME. -/
-@[miden_bound] theorem felt_ofNat_val_lt (n : Nat) (h : n < GOLDILOCKS_PRIME) :
+theorem felt_ofNat_val_lt (n : Nat) (h : n < GOLDILOCKS_PRIME) :
     (Felt.ofNat n).val = n := by
   unfold Felt.ofNat
   simp only [Felt, GOLDILOCKS_PRIME] at *
   rw [ZMod.val_natCast]
   exact Nat.mod_eq_of_lt h
 
-@[miden_bound] theorem felt_val_lt_prime (a : Felt) : a.val < GOLDILOCKS_PRIME :=
+theorem felt_val_lt_prime (a : Felt) : a.val < GOLDILOCKS_PRIME :=
   ZMod.val_lt a
 
 -- ============================================================================
 -- u32 bounds lemmas (all values < 2^32 are < GOLDILOCKS_PRIME)
 -- ============================================================================
 
-@[miden_bound] theorem u32_val_lt_prime (n : Nat) (h : n < 2^32) : n < GOLDILOCKS_PRIME := by
+theorem u32_val_lt_prime (n : Nat) (h : n < 2^32) : n < GOLDILOCKS_PRIME := by
   unfold GOLDILOCKS_PRIME; omega
 
-@[miden_bound] theorem u32_mod_lt_prime (n : Nat) : n % 2^32 < GOLDILOCKS_PRIME := by
+theorem u32_mod_lt_prime (n : Nat) : n % 2^32 < GOLDILOCKS_PRIME := by
   unfold GOLDILOCKS_PRIME; omega
 
-@[miden_bound] theorem sum_div_2_32_lt_prime (a b : Felt) :
+theorem sum_div_2_32_lt_prime (a b : Felt) :
     (a.val + b.val) / 2^32 < GOLDILOCKS_PRIME := by
   have ha := felt_val_lt_prime a
   have hb := felt_val_lt_prime b
   unfold GOLDILOCKS_PRIME at *; omega
 
-@[miden_bound] theorem u32_overflow_sub_fst_lt (a b : Nat) :
+theorem u32_overflow_sub_fst_lt (a b : Nat) :
     (u32OverflowingSub a b).1 < GOLDILOCKS_PRIME := by
   unfold u32OverflowingSub
   split <;> simp [GOLDILOCKS_PRIME]
 
-@[miden_bound] theorem u32_overflow_sub_snd_lt (a b : Nat)
+theorem u32_overflow_sub_snd_lt (a b : Nat)
     (ha : a < GOLDILOCKS_PRIME) (hb : b < GOLDILOCKS_PRIME) :
     (u32OverflowingSub a b).2 < GOLDILOCKS_PRIME := by
   unfold u32OverflowingSub
@@ -118,34 +155,34 @@ theorem u32OverflowingSub_borrow_ite (a b : Nat) :
 -- isU32 lemmas for intermediate Felt.ofNat values
 -- ============================================================================
 
-@[miden_bound] theorem felt_ofNat_isU32_of_lt (n : Nat) (h : n < 2^32) :
+theorem felt_ofNat_isU32_of_lt (n : Nat) (h : n < 2^32) :
     (Felt.ofNat n).isU32 = true := by
   simp only [Felt.isU32, decide_eq_true_eq]
   have hp : n < GOLDILOCKS_PRIME := by unfold GOLDILOCKS_PRIME; omega
   rw [felt_ofNat_val_lt n hp]; exact h
 
-@[miden_bound] theorem u32OverflowingSub_fst_isU32 (a b : Nat) :
+theorem u32OverflowingSub_fst_isU32 (a b : Nat) :
     (Felt.ofNat (u32OverflowingSub a b).1).isU32 = true := by
-  unfold u32OverflowingSub
-  split <;> simp [felt_ofNat_isU32_of_lt]
+  apply felt_ofNat_isU32_of_lt
+  unfold u32OverflowingSub; split <;> simp <;> omega
 
-@[miden_bound] theorem u32OverflowingSub_snd_isU32 (a b : Nat)
+theorem u32OverflowingSub_snd_isU32 (a b : Nat)
     (ha : a < 2^32) (hb : b < 2^32) :
     (Felt.ofNat (u32OverflowingSub a b).2).isU32 = true := by
   apply felt_ofNat_isU32_of_lt
   unfold u32OverflowingSub u32Max; split <;> omega
 
-@[miden_bound] theorem u32_mod_isU32 (n : Nat) :
+theorem u32_mod_isU32 (n : Nat) :
     (Felt.ofNat (n % 2^32)).isU32 = true := by
   apply felt_ofNat_isU32_of_lt; omega
 
-@[miden_bound] theorem u32_div_2_32_isU32 (a b : Felt)
+theorem u32_div_2_32_isU32 (a b : Felt)
     (ha : a.isU32 = true) (hb : b.isU32 = true) :
     (Felt.ofNat ((a.val + b.val) / 2^32)).isU32 = true := by
   apply felt_ofNat_isU32_of_lt
   simp only [Felt.isU32, decide_eq_true_eq] at ha hb; omega
 
-@[miden_bound] theorem u32_prod_div_isU32 (a b : Felt)
+theorem u32_prod_div_isU32 (a b : Felt)
     (ha : a.isU32 = true) (hb : b.isU32 = true) :
     (Felt.ofNat (a.val * b.val / 2^32)).isU32 = true := by
   apply felt_ofNat_isU32_of_lt
@@ -156,7 +193,7 @@ theorem u32OverflowingSub_borrow_ite (a b : Nat) :
       ≤ (2^32 - 1) * (2^32 - 1) / 2^32 := Nat.div_le_div_right h3
     _ < 2^32 := by native_decide
 
-@[miden_bound] theorem u32_prod_div_lt_prime (a b : Felt)
+theorem u32_prod_div_lt_prime (a b : Felt)
     (ha : a.isU32 = true) (hb : b.isU32 = true) :
     a.val * b.val / 2^32 < GOLDILOCKS_PRIME := by
   simp only [Felt.isU32, decide_eq_true_eq] at ha hb
