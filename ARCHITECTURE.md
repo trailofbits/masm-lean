@@ -14,45 +14,20 @@ The project has two components:
 ```
 ├── MidenLean.lean                  Root import file
 ├── MidenLean/
-│   ├── Felt.lean                   Goldilocks field (ZMod (2^64 - 2^32 + 1))
-│   ├── State.lean                  VM state: stack, memory, locals, advice
-│   ├── Instruction.lean            Inductive type for ~130 MASM instructions
-│   ├── Op.lean                     Control flow: ifElse, repeat, whileTrue
-│   ├── Semantics.lean              exec* handlers, execInstruction dispatch, execWithEnv, exec
-│   ├── Generated/
-│   │   ├── Word.lean               11 word procedures as List Op
-│   │   └── U64.lean                31 u64 procedures as List Op
+│   ├── Felt.lean                   Goldilocks field implementation
+│   ├── State.lean                  Miden VM state definition
+│   ├── Instruction.lean            Inductive type with ~130 MASM instructions
+│   ├── Op.lean                     Control flow and procedure call operations
+│   ├── Semantics.lean              Executable semantics for MASM instructions and procedures
+│   ├── Generated/                  Auto-generated MASM procedure definitions (do not edit)
 │   └── Proofs/
-│       ├── Helpers.lean            MidenState simp lemmas and Felt bounds lemmas
+│       ├── Helpers.lean            Reusable helper lemmas for state projections and boolean normalization
+│       ├── SimpAttrs.lean          `@[simp]` attributes for helper lemmas
 │       ├── StepLemmas.lean         Reusable single-instruction lemmas
-│       ├── Tactics.lean            miden_step / miden_steps tactic macros
-│       ├── Word.lean               word::eqz proof
-│       ├── WordTestz.lean          word::testz proof
-│       ├── U64.lean                u64::eqz, overflowing_add, wrapping_add proofs
-│       ├── U64Sub.lean             u64::wrapping_sub proof
-│       ├── U64OverflowingSub.lean  u64::overflowing_sub proof
-│       ├── U64WideningAdd.lean     u64::widening_add proof
-│       ├── U64WrappingMul.lean     u64::wrapping_mul proof
-│       ├── U64Eq.lean              u64::eq proof
-│       ├── U64Neq.lean             u64::neq proof
-│       ├── U64Lt.lean              u64::lt proof
-│       ├── U64Gt.lean              u64::gt proof
-│       ├── U64Lte.lean             u64::lte proof
-│       ├── U64Gte.lean             u64::gte proof
-│       ├── U64And.lean             u64::and proof
-│       ├── U64Or.lean              u64::or proof
-│       ├── U64Xor.lean             u64::xor proof
-│       ├── U64Clz.lean             u64::clz proof
-│       ├── U64Ctz.lean             u64::ctz proof
-│       ├── U64Clo.lean             u64::clo proof
-│       ├── U64Cto.lean             u64::cto proof
-│       └── U64U32Assert4.lean      u64::u32assert4 proof
-├── masm-to-lean/                   Rust translator
-│   └── src/
-│       ├── main.rs                 CLI entry point
-│       ├── translate.rs            AST → Lean code generation
-│       ├── instruction.rs          Instruction → Lean constructor mapping
-│       └── module.rs               Module/procedure → namespace/def
+│       ├── Tactics.lean            Reusable proof tactics
+│       ├── Generated/              Auto-generated proof scaffolding (do not edit)
+│       └── ...                     Per-module manual proofs for individual procedures
+├── masm-to-lean/                   Rust translator from MASM to Lean
 └── README.md                       Quick-start and proof inventory
 ```
 
@@ -119,7 +94,7 @@ Following Lean 4 / Mathlib style:
 | Category          | Convention     | Examples                                          |
 | ----------------- | -------------- | ------------------------------------------------- |
 | Types, structures | UpperCamelCase | `MidenState`, `Instruction`, `Op`                 |
-| Definitions       | lowerCamelCase | `execInstruction`, `execWithEnv`, `zeroMemory`        |
+| Definitions       | lowerCamelCase | `execInstruction`, `execWithEnv`, `zeroMemory`    |
 | Theorems          | lowerCamelCase | `stepDup`, `stepSwap`, `u64_eq_correct`           |
 | Namespaces        | UpperCamelCase | `MidenLean`, `MidenLean.StepLemmas`               |
 | Generated procs   | dot-separated  | `Miden.Core.Math.U64.eq`, `Miden.Core.Word.testz` |
