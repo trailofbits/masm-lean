@@ -101,6 +101,48 @@ theorem u32_overflow_sub_snd_lt (a b : Nat)
   · simp; omega
   · simp [u32Max, GOLDILOCKS_PRIME] at *; omega
 
+-- ============================================================================
+-- isU32 lemmas for intermediate Felt.ofNat values
+-- ============================================================================
+
+theorem felt_ofNat_isU32_of_lt (n : Nat) (h : n < 2^32) :
+    (Felt.ofNat n).isU32 = true := by
+  simp only [Felt.isU32, decide_eq_true_eq]
+  have hp : n < GOLDILOCKS_PRIME := by unfold GOLDILOCKS_PRIME; omega
+  rw [felt_ofNat_val_lt n hp]; exact h
+
+theorem u32OverflowingSub_fst_isU32 (a b : Nat) :
+    (Felt.ofNat (u32OverflowingSub a b).1).isU32 = true := by
+  apply felt_ofNat_isU32_of_lt
+  unfold u32OverflowingSub; split <;> simp <;> omega
+
+theorem u32OverflowingSub_snd_isU32 (a b : Nat)
+    (ha : a < 2^32) (hb : b < 2^32) :
+    (Felt.ofNat (u32OverflowingSub a b).2).isU32 = true := by
+  apply felt_ofNat_isU32_of_lt
+  unfold u32OverflowingSub u32Max; split <;> omega
+
+theorem u32_mod_isU32 (n : Nat) :
+    (Felt.ofNat (n % 2^32)).isU32 = true := by
+  apply felt_ofNat_isU32_of_lt; omega
+
+theorem u32_div_2_32_isU32 (a b : Felt)
+    (ha : a.isU32 = true) (hb : b.isU32 = true) :
+    (Felt.ofNat ((a.val + b.val) / 2^32)).isU32 = true := by
+  apply felt_ofNat_isU32_of_lt
+  simp only [Felt.isU32, decide_eq_true_eq] at ha hb; omega
+
+theorem u32_prod_div_isU32 (a b : Felt)
+    (ha : a.isU32 = true) (hb : b.isU32 = true) :
+    (Felt.ofNat (a.val * b.val / 2^32)).isU32 = true := by
+  apply felt_ofNat_isU32_of_lt
+  simp only [Felt.isU32, decide_eq_true_eq] at ha hb
+  have h3 : a.val * b.val ≤ (2^32 - 1) * (2^32 - 1) :=
+    Nat.mul_le_mul (by omega) (by omega)
+  calc a.val * b.val / 2^32
+      ≤ (2^32 - 1) * (2^32 - 1) / 2^32 := Nat.div_le_div_right h3
+    _ < 2^32 := by native_decide
+
 theorem u32_prod_div_lt_prime (a b : Felt)
     (ha : a.isU32 = true) (hb : b.isU32 = true) :
     a.val * b.val / 2^32 < GOLDILOCKS_PRIME := by

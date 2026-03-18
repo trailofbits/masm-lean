@@ -152,44 +152,54 @@ theorem stepAddImm (mem locs : Nat → Felt) (adv : List Felt)
 
 set_option maxHeartbeats 4000000 in
 theorem stepU32WidenAdd (mem locs : Nat → Felt) (adv : List Felt)
-    (a b : Felt) (rest : List Felt) :
+    (a b : Felt) (rest : List Felt)
+    (ha : a.isU32 = true) (hb : b.isU32 = true) :
     execInstruction ⟨b :: a :: rest, mem, locs, adv⟩ .u32WidenAdd =
     some ⟨Felt.ofNat ((a.val + b.val) % 2^32) ::
           Felt.ofNat ((a.val + b.val) / 2^32) :: rest, mem, locs, adv⟩ := by
-  unfold execInstruction execU32WidenAdd; rfl
+  unfold execInstruction execU32WidenAdd u32WideAdd u32Max
+  simp [ha, hb, MidenState.withStack]
 
 set_option maxHeartbeats 4000000 in
 theorem stepU32WidenAdd3 (mem locs : Nat → Felt) (adv : List Felt)
-    (a b c : Felt) (rest : List Felt) :
+    (a b c : Felt) (rest : List Felt)
+    (ha : a.isU32 = true) (hb : b.isU32 = true) (hc : c.isU32 = true) :
     execInstruction ⟨c :: b :: a :: rest, mem, locs, adv⟩ .u32WidenAdd3 =
     some ⟨Felt.ofNat ((a.val + b.val + c.val) % 2^32) ::
           Felt.ofNat ((a.val + b.val + c.val) / 2^32) :: rest, mem, locs, adv⟩ := by
-  unfold execInstruction execU32WidenAdd3; rfl
+  unfold execInstruction execU32WidenAdd3 u32WideAdd3 u32Max
+  simp [ha, hb, hc, MidenState.withStack]
 
 set_option maxHeartbeats 4000000 in
 theorem stepU32OverflowSub (mem locs : Nat → Felt) (adv : List Felt)
-    (a b : Felt) (rest : List Felt) :
+    (a b : Felt) (rest : List Felt)
+    (ha : a.isU32 = true) (hb : b.isU32 = true) :
     execInstruction ⟨b :: a :: rest, mem, locs, adv⟩ .u32OverflowSub =
     some ⟨Felt.ofNat (u32OverflowingSub a.val b.val).1 ::
           Felt.ofNat (u32OverflowingSub a.val b.val).2 ::
           rest, mem, locs, adv⟩ := by
-  unfold execInstruction execU32OverflowSub; rfl
+  unfold execInstruction execU32OverflowSub
+  simp [ha, hb, MidenState.withStack]
 
 set_option maxHeartbeats 4000000 in
 theorem stepU32WidenMul (mem locs : Nat → Felt) (adv : List Felt)
-    (a b : Felt) (rest : List Felt) :
+    (a b : Felt) (rest : List Felt)
+    (ha : a.isU32 = true) (hb : b.isU32 = true) :
     execInstruction ⟨b :: a :: rest, mem, locs, adv⟩ .u32WidenMul =
     some ⟨Felt.ofNat ((a.val * b.val) % 2^32) ::
           Felt.ofNat ((a.val * b.val) / 2^32) :: rest, mem, locs, adv⟩ := by
-  unfold execInstruction execU32WidenMul; rfl
+  unfold execInstruction execU32WidenMul u32WideMul u32Max
+  simp [ha, hb, MidenState.withStack]
 
 set_option maxHeartbeats 4000000 in
 theorem stepU32WidenMadd (mem locs : Nat → Felt) (adv : List Felt)
-    (a b c : Felt) (rest : List Felt) :
+    (a b c : Felt) (rest : List Felt)
+    (ha : a.isU32 = true) (hb : b.isU32 = true) (hc : c.isU32 = true) :
     execInstruction ⟨b :: a :: c :: rest, mem, locs, adv⟩ .u32WidenMadd =
     some ⟨Felt.ofNat ((a.val * b.val + c.val) % 2^32) ::
           Felt.ofNat ((a.val * b.val + c.val) / 2^32) :: rest, mem, locs, adv⟩ := by
-  unfold execInstruction execU32WidenMadd; rfl
+  unfold execInstruction execU32WidenMadd u32WideMadd u32Max
+  simp [ha, hb, hc, MidenState.withStack]
 
 -- U32 bitwise (require isU32 preconditions)
 
@@ -224,34 +234,42 @@ theorem stepU32Xor (mem locs : Nat → Felt) (adv : List Felt)
 
 set_option maxHeartbeats 4000000 in
 theorem stepU32Clz (mem locs : Nat → Felt) (adv : List Felt)
-    (a : Felt) (rest : List Felt) :
+    (a : Felt) (rest : List Felt)
+    (ha : a.isU32 = true) :
     execInstruction ⟨a :: rest, mem, locs, adv⟩ .u32Clz =
     some ⟨Felt.ofNat (u32CountLeadingZeros a.val) :: rest, mem, locs, adv⟩ := by
-  unfold execInstruction execU32Clz; rfl
+  unfold execInstruction execU32Clz
+  simp [ha, MidenState.withStack]
 
 set_option maxHeartbeats 4000000 in
 theorem stepU32Ctz (mem locs : Nat → Felt) (adv : List Felt)
-    (a : Felt) (rest : List Felt) :
+    (a : Felt) (rest : List Felt)
+    (ha : a.isU32 = true) :
     execInstruction ⟨a :: rest, mem, locs, adv⟩ .u32Ctz =
     some ⟨Felt.ofNat (u32CountTrailingZeros a.val) :: rest, mem, locs, adv⟩ := by
-  unfold execInstruction execU32Ctz; rfl
+  unfold execInstruction execU32Ctz
+  simp [ha, MidenState.withStack]
 
 set_option maxHeartbeats 4000000 in
 /-- u32Clo: count leading ones, expressed via u32CountLeadingZeros on the bitwise complement.
     (u32CountLeadingOnes is private in Semantics.) -/
 theorem stepU32Clo (mem locs : Nat → Felt) (adv : List Felt)
-    (a : Felt) (rest : List Felt) :
+    (a : Felt) (rest : List Felt)
+    (ha : a.isU32 = true) :
     execInstruction ⟨a :: rest, mem, locs, adv⟩ .u32Clo =
     some ⟨Felt.ofNat (u32CountLeadingZeros (u32Max - 1 - a.val)) :: rest, mem, locs, adv⟩ := by
-  unfold execInstruction execU32Clo; rfl
+  unfold execInstruction execU32Clo u32CountLeadingOnes
+  simp [ha, MidenState.withStack]
 
 set_option maxHeartbeats 4000000 in
 /-- u32Cto: count trailing ones, expressed via u32CountTrailingZeros on the XOR complement.
     (u32CountTrailingOnes is private in Semantics.) -/
 theorem stepU32Cto (mem locs : Nat → Felt) (adv : List Felt)
-    (a : Felt) (rest : List Felt) :
+    (a : Felt) (rest : List Felt)
+    (ha : a.isU32 = true) :
     execInstruction ⟨a :: rest, mem, locs, adv⟩ .u32Cto =
     some ⟨Felt.ofNat (u32CountTrailingZeros (a.val ^^^ (u32Max - 1))) :: rest, mem, locs, adv⟩ := by
-  unfold execInstruction execU32Cto; rfl
+  unfold execInstruction execU32Cto u32CountTrailingOnes
+  simp [ha, MidenState.withStack]
 
 end MidenLean.StepLemmas
