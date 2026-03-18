@@ -1,0 +1,33 @@
+name: Lean Build
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install elan
+        run: |
+          curl -sSf https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh | sh -s -- -y --default-toolchain none
+          echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
+
+      - name: Cache .lake
+        uses: actions/cache@v4
+        with:
+          path: .lake
+          key: lake-${{ runner.os }}-${{ hashFiles('lean-toolchain', 'lakefile.lean', 'lake-manifest.json') }}
+          restore-keys: lake-${{ runner.os }}-
+
+      - name: lake build
+        run: lake build MidenLean
+
+      - name: Check no sorry
+        run: |
+          if grep -rn 'sorry' MidenLean/ --include='*.lean' | grep -v '\.lake' | grep -v -- '--.*sorry'; then
+            echo "Found sorry in source files"
+            exit 1
+          fi
