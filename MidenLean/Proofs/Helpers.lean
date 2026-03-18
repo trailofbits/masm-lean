@@ -114,8 +114,8 @@ theorem u32OverflowingSub_borrow_ite (a b : Nat) :
 
 @[miden_bound] theorem u32OverflowingSub_fst_isU32 (a b : Nat) :
     (Felt.ofNat (u32OverflowingSub a b).1).isU32 = true := by
-  apply felt_ofNat_isU32_of_lt
-  unfold u32OverflowingSub; split <;> simp <;> omega
+  unfold u32OverflowingSub
+  split <;> simp [felt_ofNat_isU32_of_lt]
 
 @[miden_bound] theorem u32OverflowingSub_snd_isU32 (a b : Nat)
     (ha : a < 2^32) (hb : b < 2^32) :

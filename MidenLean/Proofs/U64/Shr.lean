@@ -4,26 +4,33 @@ import MidenLean.Generated.U64
 namespace MidenLean.Proofs
 
 open MidenLean
+open MidenLean.StepLemmas
+open MidenLean.Tactics
 
 -- ============================================================================
 -- Helper lemmas for u64.shr
 -- ============================================================================
 
-/-- pow2 value for shift ≤ 63: hi32.val + lo32.val < GOLDILOCKS_PRIME. -/
+/-- pow2 value for shift <= 63: hi32.val + lo32.val < GOLDILOCKS_PRIME. -/
 private theorem pow2_hi32_add_lo32_val (shift : Felt) (hshift : shift.val ≤ 63) :
     ((Felt.ofNat (2 ^ shift.val)).hi32.val + (Felt.ofNat (2 ^ shift.val)).lo32.val) <
       GOLDILOCKS_PRIME := by
-  have hlo := lo32_val (Felt.ofNat (2 ^ shift.val))
-  have hhi := hi32_val (Felt.ofNat (2 ^ shift.val))
+  simp only [Felt.lo32, Felt.hi32]
   have hpow_val : (Felt.ofNat (2 ^ shift.val)).val = 2 ^ shift.val := by
     apply felt_ofNat_val_lt
     calc 2 ^ shift.val ≤ 2 ^ 63 := Nat.pow_le_pow_right (by omega) hshift
       _ < GOLDILOCKS_PRIME := by unfold GOLDILOCKS_PRIME; native_decide
-  rw [hlo, hhi, hpow_val]
+  rw [felt_ofNat_val_lt _ (u32_mod_lt_prime _)]
+  have hdiv_lt_prime : (Felt.ofNat (2 ^ shift.val)).val / 2 ^ 32 < GOLDILOCKS_PRIME := by
+    rw [hpow_val]
+    calc 2 ^ shift.val / 2 ^ 32 ≤ 2 ^ 63 / 2 ^ 32 :=
+      Nat.div_le_div_right (Nat.pow_le_pow_right (by omega) hshift)
+      _ < GOLDILOCKS_PRIME := by unfold GOLDILOCKS_PRIME; native_decide
+  rw [felt_ofNat_val_lt _ hdiv_lt_prime, hpow_val]
   have hmod : 2 ^ shift.val % 2 ^ 32 < 2 ^ 32 := Nat.mod_lt _ (by decide)
   have hdiv : 2 ^ shift.val / 2 ^ 32 < 2 ^ 32 := by
     calc 2 ^ shift.val / 2 ^ 32 ≤ (2 ^ 63) / 2 ^ 32 :=
-        Nat.div_le_div_right (Nat.pow_le_pow_right (by omega) hshift)
+      Nat.div_le_div_right (Nat.pow_le_pow_right (by omega) hshift)
       _ < 2 ^ 32 := by native_decide
   unfold GOLDILOCKS_PRIME; omega
 
@@ -34,17 +41,57 @@ private theorem pow2_denom_val (shift : Felt) (hshift : shift.val ≤ 63) :
   simp only [ZMod.val_add]
   exact Nat.mod_eq_of_lt (pow2_hi32_add_lo32_val shift hshift)
 
-/-- denom.val ≠ 0 for pow2 shift with shift ≤ 63. -/
-private theorem pow2_denom_ne_zero (shift : Felt) (hshift : shift.val ≤ 63) :
-    (((Felt.ofNat (2 ^ shift.val)).hi32 + (Felt.ofNat (2 ^ shift.val)).lo32).val == 0) = false := by
+/-- denom is u32 for pow2 shift with shift <= 63. -/
+private theorem pow2_denom_isU32 (shift : Felt) (hshift : shift.val ≤ 63) :
+    ((Felt.ofNat (2 ^ shift.val)).hi32 + (Felt.ofNat (2 ^ shift.val)).lo32).isU32 = true := by
+  simp only [Felt.isU32, decide_eq_true_eq]
   rw [pow2_denom_val shift hshift]
+  simp only [Felt.lo32, Felt.hi32]
   have hpow_val : (Felt.ofNat (2 ^ shift.val)).val = 2 ^ shift.val := by
     apply felt_ofNat_val_lt
     calc 2 ^ shift.val ≤ 2 ^ 63 := Nat.pow_le_pow_right (by omega) hshift
       _ < GOLDILOCKS_PRIME := by unfold GOLDILOCKS_PRIME; native_decide
-  have hhi := hi32_val (Felt.ofNat (2 ^ shift.val))
-  have hlo := lo32_val (Felt.ofNat (2 ^ shift.val))
-  rw [hhi, hlo, hpow_val]
+  rw [felt_ofNat_val_lt _ (u32_mod_lt_prime _)]
+  have hdiv_lt_prime : (Felt.ofNat (2 ^ shift.val)).val / 2 ^ 32 < GOLDILOCKS_PRIME := by
+    rw [hpow_val]
+    calc 2 ^ shift.val / 2 ^ 32 ≤ 2 ^ 63 / 2 ^ 32 :=
+      Nat.div_le_div_right (Nat.pow_le_pow_right (by omega) hshift)
+      _ < GOLDILOCKS_PRIME := by unfold GOLDILOCKS_PRIME; native_decide
+  have hdiv_val : (Felt.ofNat (2 ^ shift.val)).val / 2 ^ 32 = 2 ^ shift.val / 2 ^ 32 := by
+    rw [hpow_val]
+  rw [felt_ofNat_val_lt _ hdiv_lt_prime, hdiv_val]
+  have hmod : 2 ^ shift.val % 2 ^ 32 < 2 ^ 32 := Nat.mod_lt _ (by decide)
+  have hdiv : 2 ^ shift.val / 2 ^ 32 < 2 ^ 32 := by
+    calc 2 ^ shift.val / 2 ^ 32 ≤ (2 ^ 63) / 2 ^ 32 :=
+      Nat.div_le_div_right (Nat.pow_le_pow_right (by omega) hshift)
+      _ < 2 ^ 32 := by native_decide
+  by_cases hlt : shift.val < 32
+  · have hdiv_zero : 2 ^ shift.val / 2 ^ 32 = 0 := by
+      apply Nat.div_eq_of_lt
+      calc 2 ^ shift.val ≤ 2 ^ 31 := Nat.pow_le_pow_right (by omega) (by omega)
+        _ < 2 ^ 32 := by native_decide
+    omega
+  · have hle : 32 ≤ shift.val := by omega
+    have hmod_zero : 2 ^ shift.val % 2 ^ 32 = 0 := by
+      exact Nat.mod_eq_zero_of_dvd (Nat.pow_dvd_pow 2 hle)
+    omega
+
+/-- denom.val != 0 for pow2 shift with shift <= 63. -/
+private theorem pow2_denom_val_ne_zero (shift : Felt) (hshift : shift.val ≤ 63) :
+    (((Felt.ofNat (2 ^ shift.val)).hi32 + (Felt.ofNat (2 ^ shift.val)).lo32).val == 0) = false := by
+  rw [pow2_denom_val shift hshift]
+  simp only [Felt.hi32, Felt.lo32]
+  have hpow_val : (Felt.ofNat (2 ^ shift.val)).val = 2 ^ shift.val := by
+    apply felt_ofNat_val_lt
+    calc 2 ^ shift.val ≤ 2 ^ 63 := Nat.pow_le_pow_right (by omega) hshift
+      _ < GOLDILOCKS_PRIME := by unfold GOLDILOCKS_PRIME; native_decide
+  have hdiv_lt_prime : (Felt.ofNat (2 ^ shift.val)).val / 2 ^ 32 < GOLDILOCKS_PRIME := by
+    rw [hpow_val]
+    calc 2 ^ shift.val / 2 ^ 32 ≤ 2 ^ 63 / 2 ^ 32 :=
+      Nat.div_le_div_right (Nat.pow_le_pow_right (by omega) hshift)
+      _ < GOLDILOCKS_PRIME := by unfold GOLDILOCKS_PRIME; native_decide
+  rw [felt_ofNat_val_lt _ hdiv_lt_prime, hpow_val]
+  rw [felt_ofNat_val_lt _ (u32_mod_lt_prime _)]
   have hpow_pos : 2 ^ shift.val ≥ 1 := Nat.one_le_pow _ _ (by omega)
   have : 2 ^ shift.val / 2 ^ 32 + 2 ^ shift.val % 2 ^ 32 ≥ 1 := by
     by_contra h
@@ -55,6 +102,20 @@ private theorem pow2_denom_ne_zero (shift : Felt) (hshift : shift.val ≤ 63) :
       (Nat.div_add_mod _ _).symm
     omega
   exact Bool.eq_false_iff.mpr (mt beq_iff_eq.mp (by omega))
+
+/-- pow_lo is u32. -/
+private theorem pow_lo_isU32 (shift : Felt) :
+    (Felt.ofNat (2 ^ shift.val)).lo32.isU32 = true := by
+  simp only [Felt.lo32, Felt.isU32, decide_eq_true_eq]
+  rw [felt_ofNat_val_lt _ (u32_mod_lt_prime _)]
+  exact Nat.mod_lt _ (by decide)
+
+/-- (if pow_lo == 0 then 1 else 0) is u32 -/
+private theorem eq0_isU32 (pow_lo : Felt) :
+    (if pow_lo == (0 : Felt) then (1 : Felt) else (0 : Felt)).isU32 = true := by
+  by_cases h : pow_lo == (0 : Felt)
+  · simp [h, Felt.isU32, Felt.val_one']
+  · simp [h, Felt.isU32]
 
 /-- The diff from u32OverflowingSub in the shr procedure has nonzero val. -/
 private theorem shr_diff_val_ne_zero (pow_lo : Felt) :
@@ -67,9 +128,7 @@ private theorem shr_diff_val_ne_zero (pow_lo : Felt) :
     have hval : pow_lo.val = 0 := by rw [h]; rfl
     unfold u32OverflowingSub
     simp only [hval, Felt.val_one']
-    -- 0 ≥ 1 is false, so we take the else branch
     simp only [show ¬(0 ≥ 1) from by omega, ↓reduceIte]
-    -- diff = u32Max - 1 + 0 = u32Max - 1
     have hlt : u32Max - 1 + 0 < GOLDILOCKS_PRIME := by simp [u32Max, GOLDILOCKS_PRIME]
     rw [felt_ofNat_val_lt _ hlt]
     simp [u32Max]
@@ -84,143 +143,132 @@ private theorem shr_diff_val_ne_zero (pow_lo : Felt) :
       exact h ((ZMod.val_eq_zero pow_lo).mp heq2)
     omega
 
-/-- The diff Felt from shr is nonzero. -/
+/-- The diff Felt from shr is nonzero (as Felt equality). -/
 private theorem shr_diff_ne_zero_felt (pow_lo : Felt) :
     let eq0 : Felt := if pow_lo == (0 : Felt) then 1 else 0
     (Felt.ofNat (u32OverflowingSub pow_lo.val eq0.val).2 == (0 : Felt)) = false := by
   simp only []
-  have h := shr_diff_val_ne_zero pow_lo
-  simp only [] at h
+  have h := shr_diff_val_ne_zero pow_lo; simp only [] at h
   exact Bool.eq_false_iff.mpr fun hbeq =>
     h ((ZMod.val_eq_zero _).mpr (beq_iff_eq.mp hbeq))
 
+/-- The diff is u32. -/
+private theorem shr_diff_isU32 (pow_lo : Felt) (hpow_lo : pow_lo.isU32 = true) :
+    let eq0 : Felt := if pow_lo == (0 : Felt) then 1 else 0
+    (Felt.ofNat (u32OverflowingSub pow_lo.val eq0.val).2).isU32 = true := by
+  simp only []
+  apply u32OverflowingSub_snd_isU32
+  · simp only [Felt.isU32, decide_eq_true_eq] at hpow_lo; exact hpow_lo
+  · by_cases h : pow_lo == (0 : Felt)
+    · simp [h, Felt.val_one']
+    · simp [h]
+
+/-- The diff.val is nonzero (for u32DivMod hypothesis). -/
+private theorem shr_diff_val_ne_zero_beq (pow_lo : Felt) :
+    let eq0 : Felt := if pow_lo == (0 : Felt) then 1 else 0
+    ((Felt.ofNat (u32OverflowingSub pow_lo.val eq0.val).2).val == 0) = false := by
+  simp only []
+  have h := shr_diff_val_ne_zero pow_lo; simp only [] at h
+  exact Bool.eq_false_iff.mpr (mt beq_iff_eq.mp h)
+
 -- ============================================================================
--- Instruction sublists for phase splitting
+-- Main theorem
 -- ============================================================================
 
-private def shr_phase1_instrs : List Instruction :=
-  [.movup 2, .swap 1, .pow2, .u32Split, .swap 1, .dup 1, .add, .movup 2, .swap 1, .u32DivMod]
+/-- Execute a concatenation of straight-line op lists in two phases. -/
+private theorem exec_append (fuel : Nat) (s : MidenState) (xs ys : List Op) :
+    exec fuel s (xs ++ ys) = (do
+      let s' ← exec fuel s xs
+      exec fuel s' ys) := by
+  unfold exec execWithEnv
+  cases fuel <;> simp [List.foldlM_append]
 
-private def shr_phase2_instrs : List Instruction :=
-  [.swap 1, .movup 3, .movup 3, .dup 0, .eqImm 0, .u32OverflowSub, .not, .movdn 4,
-   .dup 0, .movdn 4, .u32DivMod, .swap 1, .swap 1, .drop]
+private def shr_chunk1 : List Op := [
+  .inst (.movup 2),
+  .inst (.swap 1),
+  .inst (.pow2),
+  .inst (.u32Split),
+  .inst (.swap 1),
+  .inst (.dup 1),
+  .inst (.add),
+  .inst (.movup 2),
+  .inst (.swap 1),
+  .inst (.u32DivMod)
+]
 
-private def shr_phase3_instrs : List Instruction :=
-  [.push 4294967296, .dup 5, .mul, .movup 4, .div, .movup 3, .mul, .add,
-   .dup 2, .cswap, .movup 2, .mul, .swap 1]
+private def shr_chunk2 : List Op := [
+  .inst (.swap 1),
+  .inst (.movup 3),
+  .inst (.movup 3),
+  .inst (.dup 0),
+  .inst (.eqImm 0),
+  .inst (.u32OverflowSub),
+  .inst (.not),
+  .inst (.movdn 4),
+  .inst (.dup 0),
+  .inst (.movdn 4),
+  .inst (.u32DivMod)
+]
 
--- ============================================================================
--- Phase 1: Setup + hi divmod (10 steps)
--- ============================================================================
+private def shr_chunk3 : List Op := [
+  .inst (.swap 1),
+  .inst (.swap 1),
+  .inst (.drop),
+  .inst (.push 4294967296),
+  .inst (.dup 5),
+  .inst (.mul),
+  .inst (.movup 4),
+  .inst (.div),
+  .inst (.movup 3),
+  .inst (.mul),
+  .inst (.add),
+  .inst (.dup 2),
+  .inst (.cswap)
+]
 
-set_option maxHeartbeats 4000000 in
-private theorem shr_phase1
-    (lo hi shift : Felt) (rest : List Felt)
-    (mem locs : Nat → Felt) (adv : List Felt)
-    (hshift : shift.val ≤ 63) :
+private def shr_chunk4 : List Op := [
+  .inst (.movup 2),
+  .inst (.mul),
+  .inst (.swap 1)
+]
+
+private theorem shr_decomp :
+    Miden.Core.U64.shr = shr_chunk1 ++ (shr_chunk2 ++ (shr_chunk3 ++ shr_chunk4)) := by
+  simp [Miden.Core.U64.shr, shr_chunk1, shr_chunk2, shr_chunk3, shr_chunk4]
+
+private theorem shr_chunk1_correct
+    (lo hi shift : Felt) (rest : List Felt) (mem locs : Nat → Felt) (adv : List Felt)
+    (hshift : shift.val ≤ 63) (hhi : hi.isU32 = true) :
     let pow := Felt.ofNat (2 ^ shift.val)
     let pow_lo := pow.lo32
     let pow_hi := pow.hi32
     let denom := pow_hi + pow_lo
-    execInstructions ⟨shift :: lo :: hi :: rest, mem, locs, adv⟩ shr_phase1_instrs =
-    some ⟨Felt.ofNat (hi.val % denom.val) ::
-          Felt.ofNat (hi.val / denom.val) ::
-          pow_lo :: lo :: rest, mem, locs, adv⟩ := by
-  unfold shr_phase1_instrs
-  simp only [execInstructions]
-  miden_movup; miden_swap
-  rw [execInstruction_pow2]; unfold execPow2
-  simp only [show ¬(shift.val > 63) from by omega, MidenState.withStack, ↓reduceIte]
+    exec 42 ⟨shift :: lo :: hi :: rest, mem, locs, adv⟩ shr_chunk1 =
+      some ⟨Felt.ofNat (hi.val % denom.val) ::
+        Felt.ofNat (hi.val / denom.val) :: pow_lo :: lo :: rest, mem, locs, adv⟩ := by
+  unfold exec shr_chunk1 execWithEnv
+  simp only [List.foldlM]
+  miden_movup
+  miden_swap
+  rw [stepPow2 (ha := hshift)]
   miden_bind
-  rw [execInstruction_u32Split]; unfold execU32Split; miden_bind
-  miden_swap; miden_dup
-  rw [execInstruction_add]; unfold execAdd; miden_bind
-  miden_movup; miden_swap
-  rw [execInstruction_u32DivMod, execU32DivMod_concrete _ _ _ _ _ _ (pow2_denom_ne_zero shift hshift)]
-
--- ============================================================================
--- Phase 2: Condition flag + lo divmod + cleanup (14 steps)
--- ============================================================================
-
-set_option maxHeartbeats 4000000 in
-private theorem shr_phase2
-    (lo hi_rem hi_quot pow_lo : Felt) (rest : List Felt)
-    (mem locs : Nat → Felt) (adv : List Felt) :
-    let pow_lo_eq0 : Felt := if pow_lo == (0 : Felt) then 1 else 0
-    let borrow := decide (pow_lo.val < pow_lo_eq0.val)
-    let cond := !borrow
-    let diff := Felt.ofNat (u32OverflowingSub pow_lo.val pow_lo_eq0.val).2
-    execInstructions ⟨hi_rem :: hi_quot :: pow_lo :: lo :: rest, mem, locs, adv⟩ shr_phase2_instrs =
-    some ⟨Felt.ofNat (lo.val / diff.val) :: hi_quot :: hi_rem ::
-          diff :: (if cond then (1 : Felt) else 0) :: rest,
-          mem, locs, adv⟩ := by
-  unfold shr_phase2_instrs
-  simp only [execInstructions]
-  miden_swap; miden_movup; miden_movup; miden_dup
-  rw [execInstruction_eqImm]; unfold execEqImm; miden_bind
-  rw [execInstruction_u32OverflowSub]; unfold execU32OverflowSub; miden_bind
-  rw [u32OverflowingSub_borrow_ite]
-  rw [execInstruction_not, execNot_ite]; miden_bind
-  miden_movdn; miden_dup; miden_movdn
-  have hb : ((Felt.ofNat (u32OverflowingSub pow_lo.val
-    (if pow_lo == 0 then (1 : Felt) else 0).val).2).val == 0) = false := by
-    have h := shr_diff_val_ne_zero pow_lo; simp only [] at h
-    exact Bool.eq_false_iff.mpr (mt beq_iff_eq.mp h)
-  rw [execInstruction_u32DivMod, execU32DivMod_concrete _ _ _ _ _ _ hb]; miden_bind
-  miden_swap; miden_swap
-  rw [execInstruction_drop]; unfold execDrop; miden_bind
-
--- ============================================================================
--- Phase 3: Cross term, combine, cswap (13 steps)
--- ============================================================================
-
-set_option maxHeartbeats 4000000 in
-private theorem shr_phase3
-    (lo_quot hi_quot hi_rem diff : Felt) (cond : Bool) (rest : List Felt)
-    (mem locs : Nat → Felt) (adv : List Felt)
-    (hb : (diff == (0 : Felt)) = false) :
-    let cf : Felt := if cond then 1 else 0
-    execInstructions ⟨lo_quot :: hi_quot :: hi_rem :: diff :: cf :: rest,
-                      mem, locs, adv⟩ shr_phase3_instrs =
-    some ⟨(if cond then
-             (lo_quot + (4294967296 : Felt) * diff⁻¹ * hi_rem) :: hi_quot :: rest
-           else hi_quot :: (0 : Felt) :: rest),
-          mem, locs, adv⟩ := by
-  unfold shr_phase3_instrs
-  simp only [execInstructions]
-  rw [execInstruction_push]; unfold execPush; miden_bind
+  rw [stepU32Split]
+  miden_bind
+  miden_swap
   miden_dup
-  rw [execInstruction_mul]; unfold execMul; miden_bind
+  rw [stepAdd]
+  miden_bind
   miden_movup
-  rw [execInstruction_div, execDiv_concrete _ _ _ _ _ _ hb]; miden_bind
-  miden_movup
-  rw [execInstruction_mul]; unfold execMul; miden_bind
-  rw [execInstruction_add]; unfold execAdd; miden_bind
-  miden_dup
-  rw [execInstruction_cswap, execCswap_ite]
-  cases cond
-  · -- cond = false
-    simp only [Bool.false_eq_true, ↓reduceIte]
-    miden_movup
-    rw [execInstruction_mul]; unfold execMul; miden_bind
-    miden_swap
-    simp only [mul_zero]
-  · -- cond = true
-    simp only [↓reduceIte]
-    miden_movup
-    rw [execInstruction_mul]; unfold execMul; miden_bind
-    miden_swap
-    simp only [mul_one]
+  miden_swap
+  have h_denom_isU32 := pow2_denom_isU32 shift hshift
+  have h_denom_ne_zero := pow2_denom_val_ne_zero shift hshift
+  rw [stepU32DivMod (ha := hhi) (hb := h_denom_isU32) (hbnz := h_denom_ne_zero)]
+  miden_bind
+  rfl
 
--- ============================================================================
--- Chaining: compose phases using execInstructions_append
--- ============================================================================
-
-set_option maxHeartbeats 4000000 in
-private theorem u64_shr_steps
-    (lo hi shift : Felt) (rest : List Felt)
-    (mem locs : Nat → Felt) (adv : List Felt)
-    (hshift : shift.val ≤ 63) :
+private theorem shr_chunk2_correct
+    (lo hi shift : Felt) (rest : List Felt) (mem locs : Nat → Felt) (adv : List Felt)
+    (hlo : lo.isU32 = true) :
     let pow := Felt.ofNat (2 ^ shift.val)
     let pow_lo := pow.lo32
     let pow_hi := pow.hi32
@@ -228,57 +276,82 @@ private theorem u64_shr_steps
     let hi_rem := Felt.ofNat (hi.val % denom.val)
     let hi_quot := Felt.ofNat (hi.val / denom.val)
     let pow_lo_eq0 : Felt := if pow_lo == (0 : Felt) then 1 else 0
-    let borrow := decide (pow_lo.val < pow_lo_eq0.val)
-    let cond := !borrow
+    let cond := !decide (pow_lo.val < pow_lo_eq0.val)
     let diff := Felt.ofNat (u32OverflowingSub pow_lo.val pow_lo_eq0.val).2
-    let lo_quot := Felt.ofNat (lo.val / diff.val)
-    execInstructions ⟨shift :: lo :: hi :: rest, mem, locs, adv⟩
-      (shr_phase1_instrs ++ shr_phase2_instrs ++ shr_phase3_instrs) =
-    some ⟨(if cond then
-             (lo_quot + (4294967296 : Felt) * diff⁻¹ * hi_rem) :: hi_quot :: rest
-           else
-             hi_quot :: (0 : Felt) :: rest),
-          mem, locs, adv⟩ := by
-  -- Split (phase1 ++ phase2) ++ phase3 using two applications of append
-  rw [execInstructions_append]     -- split at outer ++
-  rw [execInstructions_append]     -- split phase1 ++ phase2 inside bind
-  rw [shr_phase1 lo hi shift rest mem locs adv hshift]
-  dsimp only [Option.bind]
-  rw [shr_phase2 lo
-    (Felt.ofNat (hi.val % ((Felt.ofNat (2 ^ shift.val)).hi32 +
-      (Felt.ofNat (2 ^ shift.val)).lo32).val))
-    (Felt.ofNat (hi.val / ((Felt.ofNat (2 ^ shift.val)).hi32 +
-      (Felt.ofNat (2 ^ shift.val)).lo32).val))
-    (Felt.ofNat (2 ^ shift.val)).lo32 rest mem locs adv]
-  dsimp only [Option.bind]
-  have hb := shr_diff_ne_zero_felt (Felt.ofNat (2 ^ shift.val)).lo32
-  simp only [] at hb
-  exact shr_phase3 _ _ _ _ _ rest mem locs adv hb
-
--- ============================================================================
--- Bridge: exec on shr ↔ execInstructions on phase lists
--- ============================================================================
-
-set_option maxHeartbeats 4000000 in
-private theorem shr_exec_eq_execInstructions (s : MidenState) :
-    exec 40 s Miden.Core.U64.shr =
-    execInstructions s (shr_phase1_instrs ++ shr_phase2_instrs ++ shr_phase3_instrs) := by
-  unfold exec Miden.Core.U64.shr shr_phase1_instrs shr_phase2_instrs shr_phase3_instrs
-    execWithEnv
+    exec 42 ⟨hi_rem :: hi_quot :: pow_lo :: lo :: rest, mem, locs, adv⟩ shr_chunk2 =
+      some ⟨Felt.ofNat (lo.val % diff.val) :: Felt.ofNat (lo.val / diff.val) ::
+        hi_quot :: hi_rem :: diff :: (if cond then (1 : Felt) else 0) :: rest,
+        mem, locs, adv⟩ := by
+  unfold exec shr_chunk2 execWithEnv
+  simp only [List.foldlM]
+  miden_swap
+  miden_movup
+  miden_movup
+  miden_dup
+  rw [stepEqImm]
+  miden_bind
+  have h_pow_lo_isU32 := pow_lo_isU32 shift
+  have h_eq0_isU32 := eq0_isU32 (Felt.ofNat (2 ^ shift.val)).lo32
+  rw [stepU32OverflowSub (ha := h_pow_lo_isU32) (hb := h_eq0_isU32)]
+  miden_bind
+  rw [u32OverflowingSub_borrow_ite (Felt.ofNat (2 ^ shift.val)).lo32.val
+    ((if (Felt.ofNat (2 ^ shift.val)).lo32 == 0 then (1 : Felt) else 0).val)]
+  rw [stepNotIte]
+  miden_bind
+  miden_movdn
+  miden_dup
+  miden_movdn
+  have h_diff_isU32 := shr_diff_isU32 (Felt.ofNat (2 ^ shift.val)).lo32 h_pow_lo_isU32
+  simp only [] at h_diff_isU32
+  have h_diff_ne_zero := shr_diff_val_ne_zero_beq (Felt.ofNat (2 ^ shift.val)).lo32
+  simp only [] at h_diff_ne_zero
+  rw [stepU32DivMod (ha := hlo) (hb := h_diff_isU32) (hbnz := h_diff_ne_zero)]
+  miden_bind
   rfl
 
--- ============================================================================
--- Main theorem: just unfold and delegate
--- ============================================================================
+private theorem shr_chunk3_correct
+    (lo_rem lo_quot hi_quot hi_rem diff : Felt) (cond : Bool)
+    (rest : List Felt) (mem locs : Nat → Felt) (adv : List Felt)
+    (hdiff_ne_zero : (diff == (0 : Felt)) = false) :
+    let cond_felt : Felt := if cond then 1 else 0
+    let mix := lo_quot + (((4294967296 : Felt) * cond_felt) * diff⁻¹) * hi_rem
+    exec 42 ⟨lo_rem :: lo_quot :: hi_quot :: hi_rem :: diff :: cond_felt :: rest, mem, locs, adv⟩
+        shr_chunk3 =
+      some ⟨(if cond then hi_quot else mix) :: (if cond then mix else hi_quot) ::
+        cond_felt :: rest, mem, locs, adv⟩ := by
+  unfold exec shr_chunk3 execWithEnv
+  simp only [List.foldlM]
+  miden_swap
+  miden_swap
+  rw [stepDrop]
+  miden_bind
+  rw [stepPush]
+  miden_bind
+  miden_dup
+  rw [stepMul]
+  miden_bind
+  miden_movup
+  rw [stepDiv (hb := hdiff_ne_zero)]
+  miden_bind
+  miden_movup
+  rw [stepMul]
+  miden_bind
+  rw [stepAdd]
+  miden_bind
+  miden_dup
+  rw [stepCswapIte]
+  miden_bind
+  rfl
 
-set_option maxHeartbeats 8000000 in
+set_option maxHeartbeats 16000000 in
 /-- u64.shr correctly right-shifts a u64 value.
     Input stack:  [shift, lo, hi] ++ rest
     Output stack: [result_lo, result_hi] ++ rest -/
 theorem u64_shr_correct
     (lo hi shift : Felt) (rest : List Felt) (s : MidenState)
     (hs : s.stack = shift :: lo :: hi :: rest)
-    (hshift : shift.val ≤ 63) :
+    (hshift : shift.val ≤ 63)
+    (hlo : lo.isU32 = true) (hhi : hi.isU32 = true) :
     let pow := Felt.ofNat (2 ^ shift.val)
     let pow_lo := pow.lo32
     let pow_hi := pow.hi32
@@ -290,7 +363,7 @@ theorem u64_shr_correct
     let cond := !borrow
     let diff := Felt.ofNat (u32OverflowingSub pow_lo.val pow_lo_eq0.val).2
     let lo_quot := Felt.ofNat (lo.val / diff.val)
-    exec 40 s Miden.Core.U64.shr =
+    exec 42 s Miden.Core.U64.shr =
     some (s.withStack (
       if cond then
         (lo_quot + (4294967296 : Felt) * diff⁻¹ * hi_rem) :: hi_quot :: rest
@@ -298,7 +371,55 @@ theorem u64_shr_correct
   obtain ⟨stk, mem, locs, adv⟩ := s
   simp only [MidenState.withStack] at hs ⊢
   subst hs
-  rw [shr_exec_eq_execInstructions]
-  exact u64_shr_steps lo hi shift rest mem locs adv hshift
+  rw [shr_decomp, exec_append]
+  rw [shr_chunk1_correct (mem := mem) (locs := locs) (adv := adv) (hshift := hshift) (hhi := hhi)]
+  simp only [bind, Bind.bind, Option.bind]
+  rw [exec_append]
+  rw [shr_chunk2_correct (mem := mem) (locs := locs) (adv := adv) (hlo := hlo)]
+  simp only [bind, Bind.bind, Option.bind]
+  rw [exec_append]
+  have h_diff_ne_zero_felt := shr_diff_ne_zero_felt (Felt.ofNat (2 ^ shift.val)).lo32
+  simp only [] at h_diff_ne_zero_felt
+  rw [shr_chunk3_correct
+    (lo_rem := Felt.ofNat
+      (lo.val %
+        (Felt.ofNat
+          (u32OverflowingSub (Felt.ofNat (2 ^ shift.val)).lo32.val
+            (if (Felt.ofNat (2 ^ shift.val)).lo32 == 0 then (1 : Felt) else 0).val).2).val))
+    (lo_quot := Felt.ofNat
+      (lo.val /
+        (Felt.ofNat
+          (u32OverflowingSub (Felt.ofNat (2 ^ shift.val)).lo32.val
+            (if (Felt.ofNat (2 ^ shift.val)).lo32 == 0 then (1 : Felt) else 0).val).2).val))
+    (hi_quot := Felt.ofNat
+      (hi.val / ((Felt.ofNat (2 ^ shift.val)).hi32 + (Felt.ofNat (2 ^ shift.val)).lo32).val))
+    (hi_rem := Felt.ofNat
+      (hi.val % ((Felt.ofNat (2 ^ shift.val)).hi32 + (Felt.ofNat (2 ^ shift.val)).lo32).val))
+    (diff := Felt.ofNat
+      (u32OverflowingSub (Felt.ofNat (2 ^ shift.val)).lo32.val
+        (if (Felt.ofNat (2 ^ shift.val)).lo32 == 0 then (1 : Felt) else 0).val).2)
+    (cond := !decide
+      ((Felt.ofNat (2 ^ shift.val)).lo32.val <
+        (if (Felt.ofNat (2 ^ shift.val)).lo32 == 0 then (1 : Felt) else 0).val))
+    (mem := mem) (locs := locs) (adv := adv) (rest := rest)
+    (hdiff_ne_zero := h_diff_ne_zero_felt)]
+  simp only [bind, Bind.bind, Option.bind]
+  unfold exec shr_chunk4 execWithEnv
+  simp only [List.foldlM]
+  cases hcond : !decide
+    ((Felt.ofNat (2 ^ shift.val)).lo32.val <
+      (if (Felt.ofNat (2 ^ shift.val)).lo32 == 0 then (1 : Felt) else 0).val)
+  · simp
+    miden_movup
+    rw [stepMul]
+    miden_bind
+    miden_swap
+    simp
+  · simp
+    miden_movup
+    rw [stepMul]
+    miden_bind
+    miden_swap
+    simp
 
 end MidenLean.Proofs
