@@ -16,14 +16,14 @@ theorem u64_xor_correct
     (hs : s.stack = b_lo :: b_hi :: a_lo :: a_hi :: rest)
     (ha_lo : a_lo.isU32 = true) (ha_hi : a_hi.isU32 = true)
     (hb_lo : b_lo.isU32 = true) (hb_hi : b_hi.isU32 = true) :
-    exec 10 s Miden.Core.Math.U64.xor =
+    exec 10 s Miden.Core.U64.xor =
     some (s.withStack (
       Felt.ofNat (b_lo.val ^^^ a_lo.val) ::
       Felt.ofNat (b_hi.val ^^^ a_hi.val) :: rest)) := by
   obtain ⟨stk, mem, locs, adv⟩ := s
   simp only [MidenState.withStack] at hs ⊢
   subst hs
-  unfold exec Miden.Core.Math.U64.xor execWithEnv
+  unfold exec Miden.Core.U64.xor execWithEnv
   simp only [List.foldlM]
   change (do
     let s' ← execInstruction ⟨b_lo :: b_hi :: a_lo :: a_hi :: rest, mem, locs, adv⟩ (.movup 2)

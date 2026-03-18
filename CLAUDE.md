@@ -24,5 +24,5 @@ Lean 4 v4.28.0 via elan. A clean build with zero `sorry` means all theorems are 
 
 - Do not commit without explicit permission.
 - Do not use git worktrees or branches unless asked.
-- Use `lake build` with a 10-minute timeout for verification — Mathlib-heavy files can be slow.
+- Always run `lake build` with strict timeouts. Default to 3-5 minutes. Otherwise you risk getting stuck or causing the entire system to run out of memory.
 - When writing new proofs, follow the existing pattern in the closest existing proof file.

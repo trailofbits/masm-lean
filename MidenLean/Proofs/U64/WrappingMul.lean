@@ -18,7 +18,7 @@ theorem u64_wrapping_mul_correct
     (hs : s.stack = b_lo :: b_hi :: a_lo :: a_hi :: rest)
     (ha_lo : a_lo.isU32 = true) (ha_hi : a_hi.isU32 = true)
     (hb_lo : b_lo.isU32 = true) (hb_hi : b_hi.isU32 = true) :
-    exec 20 s Miden.Core.Math.U64.wrapping_mul =
+    exec 20 s Miden.Core.U64.wrapping_mul =
     some (s.withStack (
       let prod_lo := a_lo.val * b_lo.val
       let cross1 := b_hi.val * a_lo.val + prod_lo / 2^32
@@ -27,7 +27,7 @@ theorem u64_wrapping_mul_correct
   obtain ⟨stk, mem, locs, adv⟩ := s
   simp only [MidenState.withStack] at hs ⊢
   subst hs
-  unfold exec Miden.Core.Math.U64.wrapping_mul execWithEnv
+  unfold exec Miden.Core.U64.wrapping_mul execWithEnv
   simp only [List.foldlM]
   change (do
     let s' ← execInstruction ⟨b_lo :: b_hi :: a_lo :: a_hi :: rest, mem, locs, adv⟩ (.dup 2)

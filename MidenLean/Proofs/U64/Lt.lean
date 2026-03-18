@@ -18,7 +18,7 @@ theorem u64_lt_correct
     (hs : s.stack = b_lo :: b_hi :: a_lo :: a_hi :: rest)
     (ha_lo : a_lo.isU32 = true) (ha_hi : a_hi.isU32 = true)
     (hb_lo : b_lo.isU32 = true) (hb_hi : b_hi.isU32 = true) :
-    exec 20 s Miden.Core.Math.U64.lt =
+    exec 20 s Miden.Core.U64.lt =
     some (s.withStack (
       let borrow_lo := decide (a_lo.val < b_lo.val)
       let borrow_hi := decide (a_hi.val < b_hi.val)
@@ -27,7 +27,7 @@ theorem u64_lt_correct
   obtain ⟨stk, mem, locs, adv⟩ := s
   simp only [MidenState.withStack] at hs ⊢
   subst hs
-  unfold exec Miden.Core.Math.U64.lt execWithEnv
+  unfold exec Miden.Core.U64.lt execWithEnv
   simp only [List.foldlM]
   change (do
     let s' ← execInstruction ⟨b_lo :: b_hi :: a_lo :: a_hi :: rest, mem, locs, adv⟩ (.movup 3)

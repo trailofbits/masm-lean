@@ -18,7 +18,7 @@ theorem u64_widening_add_correct
     (hs : s.stack = b_lo :: b_hi :: a_lo :: a_hi :: rest)
     (ha_lo : a_lo.isU32 = true) (ha_hi : a_hi.isU32 = true)
     (hb_lo : b_lo.isU32 = true) (hb_hi : b_hi.isU32 = true) :
-    execWithEnv u64ProcEnv 10 s Miden.Core.Math.U64.widening_add =
+    execWithEnv u64ProcEnv 10 s Miden.Core.U64.widening_add =
     some (s.withStack (
       let lo_sum := b_lo.val + a_lo.val
       let carry := lo_sum / 2^32
@@ -30,7 +30,7 @@ theorem u64_widening_add_correct
   obtain ⟨stk, mem, locs, adv⟩ := s
   simp only [MidenState.withStack] at hs ⊢
   subst hs
-  unfold Miden.Core.Math.U64.widening_add execWithEnv
+  unfold Miden.Core.U64.widening_add execWithEnv
   simp only [List.foldlM]
   change (do
     let s' ← (match u64ProcEnv "overflowing_add" with
@@ -40,7 +40,7 @@ theorem u64_widening_add_correct
     pure s') = _
   simp only [u64ProcEnv]
   dsimp only [bind, Bind.bind, Option.bind]
-  unfold Miden.Core.Math.U64.overflowing_add execWithEnv
+  unfold Miden.Core.U64.overflowing_add execWithEnv
   simp only [List.foldlM, bind, Bind.bind, Option.bind, MidenState.withStack]
   simp (config := { decide := true }) only [
     execInstruction, execMovup, removeNth, execU32WidenAdd, u32WideAdd, u32Max,

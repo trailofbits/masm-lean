@@ -17,12 +17,12 @@ theorem u64_u32assert4_correct
     (hs : s.stack = a :: b :: c :: d :: rest)
     (ha : a.isU32 = true) (hb : b.isU32 = true)
     (hc : c.isU32 = true) (hd : d.isU32 = true) :
-    exec 10 s Miden.Core.Math.U64.u32assert4 =
+    exec 10 s Miden.Core.U64.u32assert4 =
     some (s.withStack (a :: b :: c :: d :: rest)) := by
   obtain ⟨stk, mem, locs, adv⟩ := s
   simp only [MidenState.withStack] at hs ⊢
   subst hs
-  unfold exec Miden.Core.Math.U64.u32assert4 execWithEnv
+  unfold exec Miden.Core.U64.u32assert4 execWithEnv
   simp only [List.foldlM]
   change (do
     let s' ← execInstruction ⟨a :: b :: c :: d :: rest, mem, locs, adv⟩ .u32Assert2

@@ -15,7 +15,7 @@ set_option maxHeartbeats 8000000 in
 theorem u64_clz_correct (lo hi : Felt) (rest : List Felt) (s : MidenState)
     (hs : s.stack = lo :: hi :: rest)
     (hlo : lo.isU32 = true) (hhi : hi.isU32 = true) :
-    exec 20 s Miden.Core.Math.U64.clz =
+    exec 20 s Miden.Core.U64.clz =
     some (s.withStack (
       (if hi == (0 : Felt)
        then Felt.ofNat (u32CountLeadingZeros lo.val) + 32
@@ -23,7 +23,7 @@ theorem u64_clz_correct (lo hi : Felt) (rest : List Felt) (s : MidenState)
   obtain ⟨stk, mem, locs, adv⟩ := s
   simp only [MidenState.withStack] at hs ⊢
   subst hs
-  unfold exec Miden.Core.Math.U64.clz execWithEnv
+  unfold exec Miden.Core.U64.clz execWithEnv
   simp only [List.foldlM]
   change (do
     let s' ← execInstruction ⟨lo :: hi :: rest, mem, locs, adv⟩ (.swap 1)
