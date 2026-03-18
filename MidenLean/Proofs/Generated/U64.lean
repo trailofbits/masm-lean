@@ -945,8 +945,8 @@ theorem u64_shr_correct
   miden_step
   -- Instruction 9: swap 1
   miden_step
-  -- Instruction 10: u32DivMod (no step lemma yet)
-  sorry  -- TODO: manual tactic for this instruction
+  -- Instruction 10: u32DivMod (requires hypothesis)
+  miden_step
   -- Instruction 11: swap 1
   miden_step
   -- Instruction 12: movup 3
@@ -967,8 +967,8 @@ theorem u64_shr_correct
   miden_step
   -- Instruction 20: movdn 4
   miden_step
-  -- Instruction 21: u32DivMod (no step lemma yet)
-  sorry  -- TODO: manual tactic for this instruction
+  -- Instruction 21: u32DivMod (requires hypothesis)
+  miden_step
   -- Instruction 22: swap 1
   miden_step
   -- Instruction 23: swap 1
@@ -983,8 +983,8 @@ theorem u64_shr_correct
   miden_step
   -- Instruction 28: movup 4
   miden_step
-  -- Instruction 29: div (no step lemma yet)
-  sorry  -- TODO: manual tactic for this instruction
+  -- Instruction 29: div (requires hypothesis)
+  miden_step
   -- Instruction 30: movup 3
   miden_step
   -- Instruction 31: mul

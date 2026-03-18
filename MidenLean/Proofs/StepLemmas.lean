@@ -518,6 +518,33 @@ set_option maxHeartbeats 400000 in
   unfold execInstruction execU32Split; rfl
 
 -- ============================================================================
+-- Field div (requires nonzero divisor)
+-- ============================================================================
+
+set_option maxHeartbeats 400000 in
+@[miden_dispatch] theorem stepDiv (mem locs : Nat → Felt) (adv : List Felt)
+    (a b : Felt) (rest : List Felt)
+    (hb : (b == (0 : Felt)) = false) :
+    execInstruction ⟨b :: a :: rest, mem, locs, adv⟩ .div =
+    some ⟨(a * b⁻¹) :: rest, mem, locs, adv⟩ := by
+  unfold execInstruction execDiv
+  simp [hb, MidenState.withStack]
+
+-- ============================================================================
+-- U32 divmod (requires isU32 and nonzero divisor)
+-- ============================================================================
+
+set_option maxHeartbeats 4000000 in
+@[miden_dispatch] theorem stepU32DivMod (mem locs : Nat → Felt) (adv : List Felt)
+    (a b : Felt) (rest : List Felt)
+    (ha : a.isU32 = true) (hb : b.isU32 = true)
+    (hbnz : (b.val == 0) = false) :
+    execInstruction ⟨b :: a :: rest, mem, locs, adv⟩ .u32DivMod =
+    some ⟨Felt.ofNat (a.val % b.val) :: Felt.ofNat (a.val / b.val) :: rest, mem, locs, adv⟩ := by
+  unfold execInstruction execU32DivMod
+  simp [ha, hb, hbnz, MidenState.withStack]
+
+-- ============================================================================
 -- Emit (no-op)
 -- ============================================================================
 
