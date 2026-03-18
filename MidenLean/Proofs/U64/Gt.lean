@@ -69,7 +69,7 @@ theorem u64_gt_semantic
     (hs : s.stack = b_lo :: b_hi :: a_lo :: a_hi :: rest)
     (ha_lo : a_lo.isU32 = true) (ha_hi : a_hi.isU32 = true)
     (hb_lo : b_lo.isU32 = true) (hb_hi : b_hi.isU32 = true) :
-    exec 20 s Miden.Core.Math.U64.gt =
+    exec 20 s Miden.Core.U64.gt =
     some (s.withStack (
       (if decide (toU64 b_lo b_hi < toU64 a_lo a_hi)
        then (1 : Felt) else 0) :: rest)) := by
