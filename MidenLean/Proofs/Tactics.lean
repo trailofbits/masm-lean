@@ -66,6 +66,7 @@ macro_rules
       | miden_movup
       | miden_movdn
       | rw [stepReversew]; miden_bind
+      | rw [stepDupw0]; miden_bind
       | rw [stepPush]; miden_bind
       | rw [stepPadw]; miden_bind
       -- Field comparison
@@ -120,6 +121,11 @@ macro_rules
       | (rw [stepAssert (h := by assumption)]; miden_bind)
       | (rw [stepAssertWithError (h := by assumption)]; miden_bind)
       | (rw [stepAssertz (ha := by assumption)]; miden_bind)
+      | rw [stepAssertEq]; miden_bind
+      | (rw [stepAssertEqWithError]; miden_bind)
+      -- Advice stack (with advice hypotheses via assumption)
+      | (rw [stepAdvPush1 (hadv := by assumption)]; miden_bind)
+      | (rw [stepAdvPush2 (hadv := by assumption)]; miden_bind)
       -- No-ops
       | rw [stepEmitImm]; miden_bind)
 

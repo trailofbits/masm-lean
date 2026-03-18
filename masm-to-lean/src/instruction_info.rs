@@ -51,16 +51,22 @@ pub fn instruction_info(inst: &Instruction) -> InstructionInfo {
         Assert => {
             info.stack_effect = Some(StackEffect::with_depth(1, 0, 1));
             info.comment_name = "assert".into();
+            info.has_step_lemma = true;
+            info.needs_hypothesis = true;
             info.is_known = true;
         }
         AssertWithError(_) => {
             info.stack_effect = Some(StackEffect::with_depth(1, 0, 1));
             info.comment_name = "assertWithError".into();
+            info.has_step_lemma = true;
+            info.needs_hypothesis = true;
             info.is_known = true;
         }
         Assertz => {
             info.stack_effect = Some(StackEffect::with_depth(1, 0, 1));
             info.comment_name = "assertz".into();
+            info.has_step_lemma = true;
+            info.needs_hypothesis = true;
             info.is_known = true;
         }
         AssertzWithError(_) => {
@@ -71,11 +77,13 @@ pub fn instruction_info(inst: &Instruction) -> InstructionInfo {
         AssertEq => {
             info.stack_effect = Some(StackEffect::with_depth(2, 0, 2));
             info.comment_name = "assertEq".into();
+            info.has_step_lemma = true;
             info.is_known = true;
         }
         AssertEqWithError(_) => {
             info.stack_effect = Some(StackEffect::with_depth(2, 0, 2));
             info.comment_name = "assertEqWithError".into();
+            info.has_step_lemma = true;
             info.is_known = true;
         }
         AssertEqw => {
@@ -99,6 +107,7 @@ pub fn instruction_info(inst: &Instruction) -> InstructionInfo {
         DropW => {
             info.stack_effect = Some(StackEffect::new(4, 0));
             info.comment_name = "dropw".into();
+            info.has_step_lemma = true;
             info.is_known = true;
         }
 
@@ -106,6 +115,7 @@ pub fn instruction_info(inst: &Instruction) -> InstructionInfo {
         PadW => {
             info.stack_effect = Some(StackEffect::new(0, 4));
             info.comment_name = "padw".into();
+            info.has_step_lemma = true;
             info.is_known = true;
         }
 
@@ -211,6 +221,7 @@ pub fn instruction_info(inst: &Instruction) -> InstructionInfo {
         DupW0 => {
             info.stack_effect = Some(StackEffect::with_depth(0, 4, 4));
             info.comment_name = "dupw 0".into();
+            info.has_step_lemma = true;
             info.is_known = true;
         }
         DupW1 => {
@@ -541,6 +552,7 @@ pub fn instruction_info(inst: &Instruction) -> InstructionInfo {
         Reversew => {
             info.stack_effect = Some(StackEffect::with_depth(4, 4, 4));
             info.comment_name = "reversew".into();
+            info.has_step_lemma = true;
             info.is_known = true;
         }
 
@@ -548,6 +560,7 @@ pub fn instruction_info(inst: &Instruction) -> InstructionInfo {
         CSwap => {
             info.stack_effect = Some(StackEffect::with_depth(3, 2, 3));
             info.comment_name = "cswap".into();
+            info.has_step_lemma = true;
             info.is_known = true;
         }
         CSwapW => {
@@ -558,6 +571,7 @@ pub fn instruction_info(inst: &Instruction) -> InstructionInfo {
         CDrop => {
             info.stack_effect = Some(StackEffect::with_depth(3, 1, 3));
             info.comment_name = "cdrop".into();
+            info.has_step_lemma = true;
             info.is_known = true;
         }
         CDropW => {
@@ -576,6 +590,7 @@ pub fn instruction_info(inst: &Instruction) -> InstructionInfo {
                 Immediate::Constant(_) => Some(StackEffect::new(0, 1)),
             };
             info.comment_name = "push".into();
+            info.has_step_lemma = true;
             info.is_known = true;
         }
         PushFeltList(values) => {
@@ -588,6 +603,7 @@ pub fn instruction_info(inst: &Instruction) -> InstructionInfo {
         Add => {
             info.stack_effect = Some(StackEffect::new(2, 1));
             info.comment_name = "add".into();
+            info.has_step_lemma = true;
             info.is_known = true;
         }
         AddImm(_) => {
@@ -599,6 +615,7 @@ pub fn instruction_info(inst: &Instruction) -> InstructionInfo {
         Sub => {
             info.stack_effect = Some(StackEffect::new(2, 1));
             info.comment_name = "sub".into();
+            info.has_step_lemma = true;
             info.is_known = true;
         }
         SubImm(_) => {
@@ -609,6 +626,7 @@ pub fn instruction_info(inst: &Instruction) -> InstructionInfo {
         Mul => {
             info.stack_effect = Some(StackEffect::new(2, 1));
             info.comment_name = "mul".into();
+            info.has_step_lemma = true;
             info.is_known = true;
         }
         MulImm(_) => {
@@ -629,6 +647,7 @@ pub fn instruction_info(inst: &Instruction) -> InstructionInfo {
         Neg => {
             info.stack_effect = Some(StackEffect::new(1, 1));
             info.comment_name = "neg".into();
+            info.has_step_lemma = true;
             info.is_known = true;
         }
         Inv => {
@@ -639,12 +658,14 @@ pub fn instruction_info(inst: &Instruction) -> InstructionInfo {
         Pow2 => {
             info.stack_effect = Some(StackEffect::new(1, 1));
             info.comment_name = "pow2".into();
+            info.has_step_lemma = true;
             info.needs_hypothesis = true;
             info.is_known = true;
         }
         Incr => {
             info.stack_effect = Some(StackEffect::new(1, 1));
             info.comment_name = "incr".into();
+            info.has_step_lemma = true;
             info.is_known = true;
         }
 
@@ -676,21 +697,25 @@ pub fn instruction_info(inst: &Instruction) -> InstructionInfo {
         Lt => {
             info.stack_effect = Some(StackEffect::new(2, 1));
             info.comment_name = "lt".into();
+            info.has_step_lemma = true;
             info.is_known = true;
         }
         Lte => {
             info.stack_effect = Some(StackEffect::new(2, 1));
             info.comment_name = "lte".into();
+            info.has_step_lemma = true;
             info.is_known = true;
         }
         Gt => {
             info.stack_effect = Some(StackEffect::new(2, 1));
             info.comment_name = "gt".into();
+            info.has_step_lemma = true;
             info.is_known = true;
         }
         Gte => {
             info.stack_effect = Some(StackEffect::new(2, 1));
             info.comment_name = "gte".into();
+            info.has_step_lemma = true;
             info.is_known = true;
         }
         IsOdd => {
@@ -769,6 +794,7 @@ pub fn instruction_info(inst: &Instruction) -> InstructionInfo {
         U32Split => {
             info.stack_effect = Some(StackEffect::new(1, 2));
             info.comment_name = "u32Split".into();
+            info.has_step_lemma = true;
             info.needs_value_recovery = true;
             info.is_known = true;
         }
@@ -888,21 +914,29 @@ pub fn instruction_info(inst: &Instruction) -> InstructionInfo {
         U32Lt => {
             info.stack_effect = Some(StackEffect::new(2, 1));
             info.comment_name = "u32Lt".into();
+            info.has_step_lemma = true;
+            info.needs_hypothesis = true;
             info.is_known = true;
         }
         U32Lte => {
             info.stack_effect = Some(StackEffect::new(2, 1));
             info.comment_name = "u32Lte".into();
+            info.has_step_lemma = true;
+            info.needs_hypothesis = true;
             info.is_known = true;
         }
         U32Gt => {
             info.stack_effect = Some(StackEffect::new(2, 1));
             info.comment_name = "u32Gt".into();
+            info.has_step_lemma = true;
+            info.needs_hypothesis = true;
             info.is_known = true;
         }
         U32Gte => {
             info.stack_effect = Some(StackEffect::new(2, 1));
             info.comment_name = "u32Gte".into();
+            info.has_step_lemma = true;
+            info.needs_hypothesis = true;
             info.is_known = true;
         }
         U32Min => {
@@ -1135,6 +1169,8 @@ pub fn instruction_info(inst: &Instruction) -> InstructionInfo {
                 Immediate::Constant(_) => None,
             };
             info.comment_name = "advPush".into();
+            info.has_step_lemma = true;
+            info.needs_hypothesis = true;  // needs advice hypothesis
             info.is_known = true;
         }
         AdvLoadW => {
