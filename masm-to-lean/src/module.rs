@@ -45,11 +45,21 @@ pub fn sanitize_lean_name(name: &str) -> String {
     // Replace any problematic characters with underscores.
     let sanitized: String = name
         .chars()
-        .map(|c| if c.is_alphanumeric() || c == '_' { c } else { '_' })
+        .map(|c| {
+            if c.is_alphanumeric() || c == '_' {
+                c
+            } else {
+                '_'
+            }
+        })
         .collect();
 
     // If it starts with a digit, prefix with underscore
-    if sanitized.chars().next().map_or(false, |c| c.is_ascii_digit()) {
+    if sanitized
+        .chars()
+        .next()
+        .map_or(false, |c| c.is_ascii_digit())
+    {
         format!("_{}", sanitized)
     } else {
         sanitized

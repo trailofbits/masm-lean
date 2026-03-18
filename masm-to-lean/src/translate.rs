@@ -1,4 +1,4 @@
-use anyhow::{Result, anyhow};
+use anyhow::{anyhow, Result};
 use miden_assembly_syntax::ast::{Block, Immediate, Op};
 
 use crate::instruction::translate_instruction;
@@ -39,9 +39,7 @@ fn translate_op(op: &Op, indent: usize, items: &mut Vec<String>) -> Result<()> {
             }
         }
         Op::If {
-            then_blk,
-            else_blk,
-            ..
+            then_blk, else_blk, ..
         } => {
             let then_items = translate_block(then_blk, indent + 2)?;
             let else_items = translate_block(else_blk, indent + 2)?;
@@ -59,10 +57,7 @@ fn translate_op(op: &Op, indent: usize, items: &mut Vec<String>) -> Result<()> {
                 format!("[\n{}\n{}]", else_items.join(",\n"), inner_pad.trim_end())
             };
 
-            items.push(format!(
-                "{}.ifElse {} {}",
-                pad, then_body, else_body
-            ));
+            items.push(format!("{}.ifElse {} {}", pad, then_body, else_body));
         }
         Op::Repeat { count, body, .. } => {
             let n = match count {

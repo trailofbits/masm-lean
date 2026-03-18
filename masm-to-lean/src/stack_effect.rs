@@ -199,7 +199,9 @@ impl<'a> StackSimulator<'a> {
 
                 // Try inter-procedural analysis for exec calls
                 let callee_effect = match inst {
-                    Instruction::Exec(target) | Instruction::Call(target) | Instruction::SysCall(target) => {
+                    Instruction::Exec(target)
+                    | Instruction::Call(target)
+                    | Instruction::SysCall(target) => {
                         if let Some(callee_map) = self.callee_effects {
                             let name = match target {
                                 InvocationTarget::Symbol(id) => Some(id.as_str().to_string()),
@@ -235,9 +237,7 @@ impl<'a> StackSimulator<'a> {
                 }
             }
             Op::If {
-                then_blk,
-                else_blk,
-                ..
+                then_blk, else_blk, ..
             } => {
                 self.has_branches = true;
                 // Pop the condition
@@ -471,9 +471,7 @@ mod tests {
         // Block with exec that calls a known procedure
         use miden_assembly_syntax::ast::InvocationTarget;
         let ident = miden_assembly_syntax::ast::Ident::new("callee").unwrap();
-        let block = make_block(vec![
-            Instruction::Exec(InvocationTarget::Symbol(ident)),
-        ]);
+        let block = make_block(vec![Instruction::Exec(InvocationTarget::Symbol(ident))]);
 
         // Without callee info: imprecise
         let effect = analyze_block(&block);
