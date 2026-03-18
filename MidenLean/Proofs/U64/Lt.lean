@@ -1,4 +1,5 @@
 import MidenLean.Proofs.Tactics
+import MidenLean.Proofs.Interp
 import MidenLean.Generated.U64
 
 namespace MidenLean.Proofs
@@ -59,5 +60,18 @@ theorem u64_lt_correct
   -- Convert borrow_hi to boolean ite form for stepOrIte
   rw [u32OverflowingSub_borrow_ite a_hi.val b_hi.val]
   rw [stepOrIte]; dsimp only [bind, Bind.bind, Option.bind, pure, Pure.pure]
+
+/-- Semantic version: u64.lt computes (toU64 a < toU64 b). -/
+theorem u64_lt_semantic
+    (a_lo a_hi b_lo b_hi : Felt) (rest : List Felt) (s : MidenState)
+    (hs : s.stack = b_lo :: b_hi :: a_lo :: a_hi :: rest)
+    (ha_lo : a_lo.isU32 = true) (ha_hi : a_hi.isU32 = true)
+    (hb_lo : b_lo.isU32 = true) (hb_hi : b_hi.isU32 = true) :
+    exec 20 s Miden.Core.Math.U64.lt =
+    some (s.withStack (
+      (if decide (toU64 a_lo a_hi < toU64 b_lo b_hi)
+       then (1 : Felt) else 0) :: rest)) := by
+  rw [u64_lt_correct a_lo a_hi b_lo b_hi rest s hs ha_lo ha_hi hb_lo hb_hi]
+  simp_rw [u64_lt_condition_eq a_lo a_hi b_lo b_hi ha_lo ha_hi hb_lo hb_hi]
 
 end MidenLean.Proofs

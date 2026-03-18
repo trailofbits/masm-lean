@@ -111,12 +111,13 @@ miden-vm (processor/src/execution/operations/). Produce:
   on all limbs)
 
 ### Tier 6: Semantic u64 theorems
-- [ ] AC-26: u64_lt_correct, u64_lte_correct,
+- [x] AC-26: u64_lt_correct, u64_lte_correct,
   u64_gt_correct, u64_gte_correct each state result
   in terms of <, <=, >, >= on toU64
 - [ ] AC-27: u64_eq_correct, u64_neq_correct,
   u64_eqz_correct each state result in terms of
   equality on toU64 (or toU64 == 0)
+  (u64_eq_semantic done; neq and eqz pending)
 - [ ] AC-28: u64_wrapping_add_correct and
   u64_wrapping_sub_correct state output encodes
   (toU64 a +/- toU64 b) % 2^64
