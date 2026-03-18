@@ -1,5 +1,13 @@
 # claude-notes.md
 
+## 2026-03-18: Fixed all unused simp argument lint warnings
+
+Removed unused simp arguments from two files:
+- `MidenLean/Proofs/U64.lean`: 24 unused arguments across 3 simp calls (lines 125, 126-134, 140-145)
+- `MidenLean/Proofs/U64/WideningAdd.lean`: 17 unused arguments across 3 simp calls (lines 44, 45-53, 58-63)
+
+Build passes with zero errors and zero non-.lake warnings.
+
 ## 2026-03-18: Vivisect analysis completed
 
 ### Output files

@@ -277,7 +277,7 @@ theorem stepU32Cto (mem locs : Nat → Felt) (adv : List Felt)
 -- ============================================================================
 
 set_option maxHeartbeats 400000 in
-theorem stepReverseW (mem locs : Nat → Felt) (adv : List Felt)
+theorem stepReversew (mem locs : Nat → Felt) (adv : List Felt)
     (a b c d : Felt) (rest : List Felt) :
     execInstruction ⟨a :: b :: c :: d :: rest, mem, locs, adv⟩ .reversew =
     some ⟨d :: c :: b :: a :: rest, mem, locs, adv⟩ := by
@@ -393,5 +393,14 @@ theorem stepDupw (n : Fin 4) (stk : List Felt) (mem locs : Nat → Felt) (adv : 
     some ⟨a :: b :: c :: d :: stk, mem, locs, adv⟩ := by
   unfold execInstruction execDupw
   simp [h0, h1, h2, h3, MidenState.withStack]
+
+set_option maxHeartbeats 400000 in
+theorem stepDiv (mem locs : Nat → Felt) (adv : List Felt)
+    (a b : Felt) (rest : List Felt)
+    (hb : (b == (0 : Felt)) = false) :
+    execInstruction ⟨b :: a :: rest, mem, locs, adv⟩ .div =
+    some ⟨(a * b⁻¹) :: rest, mem, locs, adv⟩ := by
+  unfold execInstruction execDiv
+  simp [hb, MidenState.withStack]
 
 end MidenLean.StepLemmas
