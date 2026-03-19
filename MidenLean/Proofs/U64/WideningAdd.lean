@@ -1,5 +1,6 @@
 import MidenLean.Proofs.U64
 import MidenLean.Proofs.Tactics
+import MidenLean.Proofs.Interp
 import MidenLean.Generated.U64
 
 namespace MidenLean.Proofs
@@ -63,5 +64,20 @@ theorem u64_widening_add_correct
   have hcarry : (Felt.ofNat ((b_lo.val + a_lo.val) / 2 ^ 32)).val = (b_lo.val + a_lo.val) / 2 ^ 32 :=
     felt_ofNat_val_lt _ (sum_div_2_32_lt_prime b_lo a_lo)
   rw [hcarry]
+
+/-- Semantic: widening_add computes
+    toU64 a + toU64 b exactly (no truncation).
+    Result is overflow * 2^64 + c_hi * 2^32 + c_lo. -/
+theorem u64_widening_add_semantic
+    (a_lo a_hi b_lo b_hi : Felt) :
+    let lo_sum := b_lo.val + a_lo.val
+    let carry := lo_sum / 2 ^ 32
+    let hi_sum := a_hi.val + b_hi.val + carry
+    (hi_sum / 2 ^ 32) * 2 ^ 64 +
+      (hi_sum % 2 ^ 32) * 2 ^ 32 +
+      (lo_sum % 2 ^ 32) =
+    toU64 a_lo a_hi + toU64 b_lo b_hi := by
+  simp only [toU64]
+  omega
 
 end MidenLean.Proofs
