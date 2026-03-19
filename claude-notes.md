@@ -1,5 +1,25 @@
 # claude-notes.md
 
+## 2026-03-18: Build fixes and divmod setup
+
+### Completed
+- Fixed 9 build failures (missing tactics, step lemmas,
+  naming issues)
+- Added miden_setup/miden_setup_env/miden_call macros
+- Added stepDiv, stepReversew rename, equation lemmas
+- Fixed all lint warnings (0 errors, 0 warnings)
+- Excluded incomplete Divmod/Div/Mod from build
+- Committed: 7bea017
+
+### Current focus: u64.divmod proof
+- Goal in .galvanize/goal.md
+- Divmod is 50 instructions, advice-tape procedure
+- Div.lean and Mod.lean already complete (call divmod)
+- Need: step lemmas for emitImm, advPush, u32Assert2,
+  assertWithError, assertEqWithError
+- Proof structure: 4 phases tracking b*q product cross
+  terms, r < b check, a == b*q+r verification
+
 ## 2026-03-18: Fixed all unused simp argument lint warnings
 
 Removed unused simp arguments from two files:

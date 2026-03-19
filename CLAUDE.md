@@ -18,7 +18,6 @@ Lean 4 v4.28.0 via elan. A clean build with zero `sorry` means all theorems are 
 - **Step lemmas** (`StepLemmas.lean`): parametric where possible (`stepDup`, `stepSwap`), with explicit range hypotheses for `movup`/`movdn`. Proved by `unfold execInstruction execFoo; rfl` or `simp`.
 - **Proof pattern**: destructure state, unfold procedure, rewrite to monadic `do`-form, step through with exact `rw [stepFoo]`, structural tactics (`miden_swap`, `miden_dup`, `miden_movup`, `miden_movdn`), and `miden_bind`. Use `miden_step` mainly for short residual steps, not as the default for long proofs. See `MidenLean/Proofs/U64/Min.lean`, `MidenLean/Proofs/U64/Max.lean`, and `MidenLean/Proofs/U64/Shr.lean`.
 - **Correctness theorems**: named `<procedure>_correct` in snake_case matching the MASM name (e.g., `u64_wrapping_sub_correct`).
-- **Theorem descriptions for README generation**: place a doc comment immediately above the main `*_correct` theorem with no intervening text other than whitespace. The first sentence should be a short high-level English summary of what the procedure proves, and it should be at least a few words long. The README table generator uses this doc comment directly, so avoid leaving only placeholder text. If you include extra lines like `Input stack:` or `Output stack:`, put the high-level summary first.
 - **Generated code** (`MidenLean/Generated/`): produced by the Rust translator. Do not edit by hand.
 - **Generated proof scaffolding** (`MidenLean/Proofs/Generated/`): produced by `masm-to-lean`. Do not edit by hand; copy the relevant scaffold into the manual proof file and complete it there.
 
@@ -57,7 +56,6 @@ timeout 180s cargo run --manifest-path masm-to-lean/Cargo.toml -- \
 - Prefer exact step rewrites and structural tactics over repeated `miden_step`.
 - Add helper lemmas only for real side conditions such as `isU32`, nonzero divisors, boolean normalization, or small arithmetic identities.
 - Remove helper lemmas that are no longer used.
-- Before finishing the file, replace the scaffold's placeholder theorem comment with a real high-level correctness description for the main `*_correct` theorem. Keep that doc comment directly attached to the theorem so `scripts/generate_verified_tables.py` can extract it.
 
 5. Validate with targeted Lean checks before broader builds.
 
@@ -67,17 +65,6 @@ timeout 180s lake build MidenLean.Proofs.U64.Shr
 ```
 
 Use the smallest relevant target first. Only run broader builds when the local proof checks.
-
-6. Regenerate the verified-procedures tables and update `README.md`.
-
-```bash
-python3 scripts/generate_verified_tables.py > /tmp/verified_tables.md
-```
-
-- The script builds each manual proof module componentwise, with strict per-module `timeout 180s lake build` checks.
-- It writes progress messages to stderr such as `starting proof ...` and `proof ... completed`.
-- Fix any emitted warnings before updating the README.
-- Replace the verified-procedures section in `README.md` with the generated markdown if it changed.
 
 ## Scaffolding Expectations
 
@@ -95,4 +82,89 @@ python3 scripts/generate_verified_tables.py > /tmp/verified_tables.md
 - Always run Lean checks and `lake build` with strict timeouts. Default to 3-5 minutes. Otherwise you risk getting stuck or causing the entire system to run out of memory.
 - Prefer targeted proof checks such as `timeout 180s lake build MidenLean.Proofs.U64.Shr` over whole-project builds while iterating.
 - When writing new proofs, follow the existing pattern in the closest existing proof file.
-- After completing or updating manual proofs, rerun `scripts/generate_verified_tables.py` and keep the README proof tables in sync with the checked proofs.
+
+## Lean Proof Principles
+
+General Lean 4 proof guidance that applies to any contributor.
+
+### Goal inspection
+
+Always use `lean_goal` (MCP) or `lake env lean <file>` with error
+output to read the actual proof state before writing tactics. The
+elaborator rewrites types in ways not visible in source -- never guess
+the goal from reading the .lean file.
+
+### No-sorry invariant
+
+Never leave `sorry` in committed code. If a goal cannot be proved,
+move the blocking condition into the type signature as an explicit
+hypothesis parameter. Sorrys hide proof gaps; explicit hypotheses
+expose them. Check before every commit:
+```bash
+grep -rn 'sorry' --include='*.lean' | grep -v '/\.lake/' \
+  | grep -v 'Proofs/Generated/' | grep -v '\-\-.*sorry'
+```
+
+### Lint discipline
+
+Treat all warnings as errors. When `simp only [...]` triggers "unused
+argument" warnings, remove the flagged arguments rather than
+suppressing the linter. Run the full build and check for warnings
+after any proof change.
+
+### Step lemma architecture
+
+Each instruction/opcode has a dedicated step lemma in
+`StepLemmas.lean` that rewrites `execInstruction <state> <instr>` to
+`some <result>`. The `miden_step` tactic in `Tactics.lean` dispatches
+across all step lemmas automatically.
+
+- Never unfold `execInstruction` directly in a proof. It is a large
+  match that produces huge, slow goals. Always go through step lemmas
+  or equation lemmas (e.g., `execInstruction_u32OverflowSub`).
+- When a step lemma requires hypotheses not in context (e.g.,
+  `isU32`), prove them as `have` before the `rw`. Common helpers:
+  `u32_mod_isU32`, `felt_ofNat_isU32_of_lt`, `by native_decide` for
+  constants.
+- The pattern is always: `rw [stepFoo ...]; miden_bind`.
+
+### Proof setup macros
+
+- `miden_setup Proc.name` -- for theorems using `exec` (no
+  sub-procedure calls). Destructures state, substs hypotheses,
+  unfolds the procedure, normalizes binds.
+- `miden_setup_env Proc.name` -- same but for `execWithEnv`
+  (procedures that call sub-procedures via ProcEnv).
+- `miden_call Proc.name` -- unfolds a sub-procedure call inside an
+  existing proof.
+
+These macros assume the state is named `s` and the stack hypothesis
+is named `hs`.
+
+### Chunked proofs for long programs
+
+For procedures with 20+ instructions, decompose the program into
+chunks (segments of `List Op`), prove each chunk separately with
+concrete stack types, then compose with an append lemma:
+```lean
+theorem exec_append (fuel : Nat) (s : MidenState)
+    (xs ys : List Op) :
+    exec fuel s (xs ++ ys) = (do
+      let s' <- exec fuel s xs
+      exec fuel s' ys)
+```
+See `Shr.lean` for the reference implementation of this pattern.
+
+### Macro hygiene
+
+If a tactic macro needs to reference variables from the caller's
+scope (like `s` or `hs`), use `set_option hygiene false in` before
+the `syntax`/`macro_rules` definitions. Without this, Lean's hygienic
+scoping renames the variables and the macro silently fails.
+
+### Generated scaffolding isolation
+
+Files under `Proofs/Generated/` must never be imported into the
+build. They contain `sorry` placeholders by design and exist only as
+starting-point templates. Only the manually completed proofs under
+`Proofs/U64/` and `Proofs/Word/` are imported via `MidenLean.lean`.
