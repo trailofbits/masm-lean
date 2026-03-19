@@ -11,27 +11,34 @@ open MidenLean.Tactics
 -- Helper lemmas for u64.shr
 -- ============================================================================
 
+private theorem pow2_val_eq (shift : Felt) (hshift : shift.val ≤ 63) :
+    (Felt.ofNat (2 ^ shift.val)).val = 2 ^ shift.val := by
+  apply felt_ofNat_val_lt
+  calc 2 ^ shift.val ≤ 2 ^ 63 := Nat.pow_le_pow_right (by omega) hshift
+    _ < GOLDILOCKS_PRIME := by unfold GOLDILOCKS_PRIME; native_decide
+
+private theorem pow2_div_lt_prime (shift : Felt) (hshift : shift.val ≤ 63) :
+    (Felt.ofNat (2 ^ shift.val)).val / 2 ^ 32 < GOLDILOCKS_PRIME := by
+  rw [pow2_val_eq shift hshift]
+  calc 2 ^ shift.val / 2 ^ 32 ≤ 2 ^ 63 / 2 ^ 32 :=
+    Nat.div_le_div_right (Nat.pow_le_pow_right (by omega) hshift)
+    _ < GOLDILOCKS_PRIME := by unfold GOLDILOCKS_PRIME; native_decide
+
+private theorem pow2_div_lt_u32 (shift : Felt) (hshift : shift.val ≤ 63) :
+    2 ^ shift.val / 2 ^ 32 < 2 ^ 32 := by
+  calc 2 ^ shift.val / 2 ^ 32 ≤ (2 ^ 63) / 2 ^ 32 :=
+    Nat.div_le_div_right (Nat.pow_le_pow_right (by omega) hshift)
+    _ < 2 ^ 32 := by native_decide
+
 /-- pow2 value for shift <= 63: hi32.val + lo32.val < GOLDILOCKS_PRIME. -/
 private theorem pow2_hi32_add_lo32_val (shift : Felt) (hshift : shift.val ≤ 63) :
     ((Felt.ofNat (2 ^ shift.val)).hi32.val + (Felt.ofNat (2 ^ shift.val)).lo32.val) <
       GOLDILOCKS_PRIME := by
   simp only [Felt.lo32, Felt.hi32]
-  have hpow_val : (Felt.ofNat (2 ^ shift.val)).val = 2 ^ shift.val := by
-    apply felt_ofNat_val_lt
-    calc 2 ^ shift.val ≤ 2 ^ 63 := Nat.pow_le_pow_right (by omega) hshift
-      _ < GOLDILOCKS_PRIME := by unfold GOLDILOCKS_PRIME; native_decide
   rw [felt_ofNat_val_lt _ (u32_mod_lt_prime _)]
-  have hdiv_lt_prime : (Felt.ofNat (2 ^ shift.val)).val / 2 ^ 32 < GOLDILOCKS_PRIME := by
-    rw [hpow_val]
-    calc 2 ^ shift.val / 2 ^ 32 ≤ 2 ^ 63 / 2 ^ 32 :=
-      Nat.div_le_div_right (Nat.pow_le_pow_right (by omega) hshift)
-      _ < GOLDILOCKS_PRIME := by unfold GOLDILOCKS_PRIME; native_decide
-  rw [felt_ofNat_val_lt _ hdiv_lt_prime, hpow_val]
+  rw [felt_ofNat_val_lt _ (pow2_div_lt_prime shift hshift), pow2_val_eq shift hshift]
   have hmod : 2 ^ shift.val % 2 ^ 32 < 2 ^ 32 := Nat.mod_lt _ (by decide)
-  have hdiv : 2 ^ shift.val / 2 ^ 32 < 2 ^ 32 := by
-    calc 2 ^ shift.val / 2 ^ 32 ≤ (2 ^ 63) / 2 ^ 32 :=
-      Nat.div_le_div_right (Nat.pow_le_pow_right (by omega) hshift)
-      _ < 2 ^ 32 := by native_decide
+  have hdiv : 2 ^ shift.val / 2 ^ 32 < 2 ^ 32 := pow2_div_lt_u32 shift hshift
   unfold GOLDILOCKS_PRIME; omega
 
 /-- The field addition hi32 + lo32 of pow2 has the expected val. -/
@@ -47,24 +54,10 @@ private theorem pow2_denom_isU32 (shift : Felt) (hshift : shift.val ≤ 63) :
   simp only [Felt.isU32, decide_eq_true_eq]
   rw [pow2_denom_val shift hshift]
   simp only [Felt.lo32, Felt.hi32]
-  have hpow_val : (Felt.ofNat (2 ^ shift.val)).val = 2 ^ shift.val := by
-    apply felt_ofNat_val_lt
-    calc 2 ^ shift.val ≤ 2 ^ 63 := Nat.pow_le_pow_right (by omega) hshift
-      _ < GOLDILOCKS_PRIME := by unfold GOLDILOCKS_PRIME; native_decide
   rw [felt_ofNat_val_lt _ (u32_mod_lt_prime _)]
-  have hdiv_lt_prime : (Felt.ofNat (2 ^ shift.val)).val / 2 ^ 32 < GOLDILOCKS_PRIME := by
-    rw [hpow_val]
-    calc 2 ^ shift.val / 2 ^ 32 ≤ 2 ^ 63 / 2 ^ 32 :=
-      Nat.div_le_div_right (Nat.pow_le_pow_right (by omega) hshift)
-      _ < GOLDILOCKS_PRIME := by unfold GOLDILOCKS_PRIME; native_decide
-  have hdiv_val : (Felt.ofNat (2 ^ shift.val)).val / 2 ^ 32 = 2 ^ shift.val / 2 ^ 32 := by
-    rw [hpow_val]
-  rw [felt_ofNat_val_lt _ hdiv_lt_prime, hdiv_val]
+  rw [felt_ofNat_val_lt _ (pow2_div_lt_prime shift hshift), pow2_val_eq shift hshift]
   have hmod : 2 ^ shift.val % 2 ^ 32 < 2 ^ 32 := Nat.mod_lt _ (by decide)
-  have hdiv : 2 ^ shift.val / 2 ^ 32 < 2 ^ 32 := by
-    calc 2 ^ shift.val / 2 ^ 32 ≤ (2 ^ 63) / 2 ^ 32 :=
-      Nat.div_le_div_right (Nat.pow_le_pow_right (by omega) hshift)
-      _ < 2 ^ 32 := by native_decide
+  have hdiv : 2 ^ shift.val / 2 ^ 32 < 2 ^ 32 := pow2_div_lt_u32 shift hshift
   by_cases hlt : shift.val < 32
   · have hdiv_zero : 2 ^ shift.val / 2 ^ 32 = 0 := by
       apply Nat.div_eq_of_lt
@@ -81,16 +74,7 @@ private theorem pow2_denom_val_ne_zero (shift : Felt) (hshift : shift.val ≤ 63
     (((Felt.ofNat (2 ^ shift.val)).hi32 + (Felt.ofNat (2 ^ shift.val)).lo32).val == 0) = false := by
   rw [pow2_denom_val shift hshift]
   simp only [Felt.hi32, Felt.lo32]
-  have hpow_val : (Felt.ofNat (2 ^ shift.val)).val = 2 ^ shift.val := by
-    apply felt_ofNat_val_lt
-    calc 2 ^ shift.val ≤ 2 ^ 63 := Nat.pow_le_pow_right (by omega) hshift
-      _ < GOLDILOCKS_PRIME := by unfold GOLDILOCKS_PRIME; native_decide
-  have hdiv_lt_prime : (Felt.ofNat (2 ^ shift.val)).val / 2 ^ 32 < GOLDILOCKS_PRIME := by
-    rw [hpow_val]
-    calc 2 ^ shift.val / 2 ^ 32 ≤ 2 ^ 63 / 2 ^ 32 :=
-      Nat.div_le_div_right (Nat.pow_le_pow_right (by omega) hshift)
-      _ < GOLDILOCKS_PRIME := by unfold GOLDILOCKS_PRIME; native_decide
-  rw [felt_ofNat_val_lt _ hdiv_lt_prime, hpow_val]
+  rw [felt_ofNat_val_lt _ (pow2_div_lt_prime shift hshift), pow2_val_eq shift hshift]
   rw [felt_ofNat_val_lt _ (u32_mod_lt_prime _)]
   have hpow_pos : 2 ^ shift.val ≥ 1 := Nat.one_le_pow _ _ (by omega)
   have : 2 ^ shift.val / 2 ^ 32 + 2 ^ shift.val % 2 ^ 32 ≥ 1 := by
@@ -174,14 +158,6 @@ private theorem shr_diff_val_ne_zero_beq (pow_lo : Felt) :
 -- ============================================================================
 -- Main theorem
 -- ============================================================================
-
-/-- Execute a concatenation of straight-line op lists in two phases. -/
-private theorem exec_append (fuel : Nat) (s : MidenState) (xs ys : List Op) :
-    exec fuel s (xs ++ ys) = (do
-      let s' ← exec fuel s xs
-      exec fuel s' ys) := by
-  unfold exec execWithEnv
-  cases fuel <;> simp [List.foldlM_append]
 
 private def shr_chunk1 : List Op := [
   .inst (.movup 2),
@@ -371,13 +347,13 @@ theorem u64_shr_correct
   obtain ⟨stk, mem, locs, adv⟩ := s
   simp only [MidenState.withStack] at hs ⊢
   subst hs
-  rw [shr_decomp, exec_append]
+  rw [shr_decomp, MidenLean.exec_append]
   rw [shr_chunk1_correct (mem := mem) (locs := locs) (adv := adv) (hshift := hshift) (hhi := hhi)]
   simp only [bind, Bind.bind, Option.bind]
-  rw [exec_append]
+  rw [MidenLean.exec_append]
   rw [shr_chunk2_correct (mem := mem) (locs := locs) (adv := adv) (hlo := hlo)]
   simp only [bind, Bind.bind, Option.bind]
-  rw [exec_append]
+  rw [MidenLean.exec_append]
   have h_diff_ne_zero_felt := shr_diff_ne_zero_felt (Felt.ofNat (2 ^ shift.val)).lo32
   simp only [] at h_diff_ne_zero_felt
   rw [shr_chunk3_correct

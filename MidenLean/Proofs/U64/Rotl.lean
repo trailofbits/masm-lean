@@ -7,13 +7,6 @@ open MidenLean
 open MidenLean.StepLemmas
 open MidenLean.Tactics
 
-private theorem exec_append (fuel : Nat) (s : MidenState) (xs ys : List Op) :
-    exec fuel s (xs ++ ys) = (do
-      let s' ← exec fuel s xs
-      exec fuel s' ys) := by
-  unfold exec execWithEnv
-  cases fuel <;> simp [List.foldlM_append]
-
 private theorem felt31_val : (31 : Felt).val = 31 :=
   felt_ofNat_val_lt 31 (by unfold GOLDILOCKS_PRIME; omega)
 
@@ -227,13 +220,13 @@ theorem u64_rotl_correct
   obtain ⟨stk, mem, locs, adv⟩ := s
   simp only [MidenState.withStack] at hs ⊢
   subst hs
-  rw [rotl_decomp, exec_append]
+  rw [rotl_decomp, MidenLean.exec_append]
   rw [rotl_chunk1_correct shift lo hi rest mem locs adv hshift_u32]
   miden_bind
-  rw [exec_append]
+  rw [MidenLean.exec_append]
   rw [rotl_chunk2_correct shift lo hi rest mem locs adv hshift_u32]
   miden_bind
-  rw [exec_append]
+  rw [MidenLean.exec_append]
   rw [rotl_chunk3_correct shift lo hi rest mem locs adv hlo hhi]
   miden_bind
   rw [rotl_chunk4_correct shift lo hi rest mem locs adv]
