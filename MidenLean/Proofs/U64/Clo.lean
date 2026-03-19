@@ -1,4 +1,5 @@
 import MidenLean.Proofs.Tactics
+import MidenLean.Proofs.Interp
 import MidenLean.Generated.U64
 
 namespace MidenLean.Proofs
@@ -59,5 +60,37 @@ theorem u64_clo_correct (lo hi : Felt) (rest : List Felt) (s : MidenState)
     rw [stepSwap (hn := by decide) (htop := rfl) (hnth := rfl)]; miden_bind
     rw [stepDrop]; miden_bind
     rw [stepU32Clo (ha := hhi)]
+
+/-- clo computes u64CountLeadingOnes. -/
+theorem u64_clo_semantic (lo hi : Felt)
+    (_hlo : lo.isU32 = true) (_hhi : hi.isU32 = true) :
+    (if hi == (4294967295 : Felt)
+     then Felt.ofNat (u32CountLeadingZeros
+       (lo.val ^^^ (u32Max - 1))) + 32
+     else Felt.ofNat (u32CountLeadingZeros
+       (hi.val ^^^ (u32Max - 1)))) =
+    Felt.ofNat (u64CountLeadingOnes lo.val hi.val) := by
+  simp only [u64CountLeadingOnes, u64CountLeadingZeros]
+  have hval4 : (4294967295 : Felt).val = u32Max - 1 := by
+    simp [GOLDILOCKS_PRIME, u32Max]; native_decide
+  by_cases h : hi == (4294967295 : Felt)
+  · simp only [h, ite_true]
+    have heq : hi.val = u32Max - 1 := by
+      rw [beq_iff_eq] at h; rw [h]; exact hval4
+    rw [show hi.val ^^^ (u32Max - 1) = 0 from by
+      rw [heq]; exact Nat.xor_self _]
+    simp only [ite_true, Felt.ofNat]; push_cast; ring
+  · simp only [Bool.not_eq_true] at h; simp only [h]
+    have hne : hi.val ≠ u32Max - 1 := by
+      intro heq; apply Bool.eq_false_iff.mp h
+      rw [beq_iff_eq]
+      exact ZMod.val_injective _ (by rw [heq, hval4])
+    have hxor_ne : hi.val ^^^ (u32Max - 1) ≠ 0 := by
+      intro habs; apply hne
+      exact Nat.eq_of_testBit_eq fun j => by
+        have := congrArg (·.testBit j) habs
+        simp [Nat.testBit_xor] at this
+        exact this
+    simp [hxor_ne]
 
 end MidenLean.Proofs

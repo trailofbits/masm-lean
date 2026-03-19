@@ -382,4 +382,171 @@ def u64CountTrailingOnes (lo hi : Nat) : Nat :=
   u64CountTrailingZeros (lo ^^^ (u32Max - 1))
     (hi ^^^ (u32Max - 1))
 
+/-- The schoolbook carry chain for widening multiplication
+    reconstructs the full 128-bit product. -/
+theorem widening_mul_carry_chain
+    (a_lo a_hi b_lo b_hi : Nat) :
+    let pp := b_lo * a_lo
+    let c1 := b_hi * a_lo + pp / 2^32
+    let c2 := b_lo * a_hi + c1 % 2^32
+    let hi := b_hi * a_hi + c2 / 2^32
+    let wa := c1 / 2^32 + hi % 2^32
+    (wa / 2^32 + hi / 2^32) * 2^96 +
+    (wa % 2^32) * 2^64 +
+    (c2 % 2^32) * 2^32 +
+    pp % 2^32 =
+    (a_hi * 2^32 + a_lo) *
+    (b_hi * 2^32 + b_lo) := by
+  simp only
+  -- Name the elementary products for linearity
+  set pp := b_lo * a_lo
+  set ph := b_hi * a_lo
+  set pl := b_lo * a_hi
+  set hh := b_hi * a_hi
+  have h_rhs :
+      (a_hi * 2^32 + a_lo) * (b_hi * 2^32 + b_lo) =
+      hh * 2^64 + pl * 2^32 + ph * 2^32 + pp := by
+    simp [pp, pl, ph, hh]; ring
+  rw [h_rhs]
+  have d0 := Nat.div_add_mod pp (2^32)
+  have d1 := Nat.div_add_mod (ph + pp / 2^32) (2^32)
+  have d2 := Nat.div_add_mod
+    (pl + (ph + pp / 2^32) % 2^32) (2^32)
+  have d3 := Nat.div_add_mod
+    (hh + (pl + (ph + pp / 2^32) % 2^32) /
+      2^32) (2^32)
+  have d4 := Nat.div_add_mod
+    ((ph + pp / 2^32) / 2^32 +
+      (hh + (pl + (ph + pp / 2^32) % 2^32) /
+        2^32) % 2^32) (2^32)
+  omega
+
+/-- The divmod carry chain: given that the cross-product
+    assertions and a == b*q + r checks all pass, the
+    u64-level identity holds. This is a Nat-level lemma
+    that omega can close. -/
+theorem divmod_carry_chain
+    (a_lo a_hi b_lo b_hi q_lo q_hi r_lo r_hi : Nat)
+    -- Cross-product b*q fits in 64 bits
+    (hp2 : (b_hi * q_lo + (b_lo * q_lo) / 2^32) /
+      2^32 = 0)
+    (hp3 : (b_lo * q_hi + (b_hi * q_lo +
+      (b_lo * q_lo) / 2^32) % 2^32) / 2^32 = 0)
+    (hqb : b_hi * q_hi = 0)
+    -- a == b*q + r verification
+    (hcarry : (r_hi + (b_lo * q_hi + (b_hi * q_lo +
+      (b_lo * q_lo) / 2^32) % 2^32) % 2^32 +
+      (r_lo + (b_lo * q_lo) % 2^32) / 2^32) /
+      2^32 = 0)
+    (hahi : a_hi = (r_hi + (b_lo * q_hi +
+      (b_hi * q_lo + (b_lo * q_lo) / 2^32) % 2^32) %
+      2^32 + (r_lo + (b_lo * q_lo) % 2^32) /
+      2^32) % 2^32)
+    (halo : a_lo = (r_lo +
+      (b_lo * q_lo) % 2^32) % 2^32) :
+    a_hi * 2^32 + a_lo =
+    (b_hi * 2^32 + b_lo) * (q_hi * 2^32 + q_lo) +
+    (r_hi * 2^32 + r_lo) := by
+  -- Name the elementary products
+  set p0 := b_lo * q_lo
+  set c1 := b_hi * q_lo + p0 / 2^32
+  set c2 := b_lo * q_hi + c1 % 2^32
+  -- Decompose all div/mod pairs
+  have d0 := Nat.div_add_mod p0 (2^32)
+  have d1 := Nat.div_add_mod c1 (2^32)
+  have d2 := Nat.div_add_mod c2 (2^32)
+  have d3 := Nat.div_add_mod
+    (r_lo + p0 % 2^32) (2^32)
+  have d4 := Nat.div_add_mod
+    (r_hi + c2 % 2^32 +
+      (r_lo + p0 % 2^32) / 2^32) (2^32)
+  -- Ring-expand the RHS product
+  set ph := b_hi * q_lo
+  set pl := b_lo * q_hi
+  set hh := b_hi * q_hi
+  have h_rhs :
+      (b_hi * 2^32 + b_lo) * (q_hi * 2^32 + q_lo) =
+      hh * 2^64 + pl * 2^32 + ph * 2^32 + p0 := by
+    simp [p0, pl, ph, hh]; ring
+  rw [halo, hahi, h_rhs]
+  omega
+
+/-- For shift >= 32, integer division of a 64-bit value
+    by 2^shift reduces to dividing the high limb by
+    2^(shift-32). -/
+theorem shr_hi_only (lo hi shift : Nat)
+    (hlo : lo < 2^32) (hge : 32 ≤ shift) :
+    (hi * 2^32 + lo) / 2^shift =
+    hi / 2^(shift - 32) := by
+  have h2 : 2^shift = 2^32 * 2^(shift - 32) := by
+    rw [← Nat.pow_add]; congr 1; omega
+  rw [h2, ← Nat.div_div_eq_div_mul]
+  have : (hi * 2^32 + lo) / 2^32 = hi := by
+    rw [show hi * 2^32 + lo = lo + hi * 2^32 from
+      by ring, Nat.add_mul_div_right lo hi (by omega)]
+    omega
+  rw [this]
+
+/-- For shift < 32, the right-shift of a 64-bit value
+    decomposes into hi/2^shift (high limb), lo/2^shift
+    (low limb) plus (hi%2^shift)*2^(32-shift) (spillover
+    from high to low). -/
+theorem shr_lo_decomp (lo hi shift : Nat)
+    (_hlo : lo < 2^32) (_hhi : hi < 2^32)
+    (hlt : shift < 32) (_hpos : 0 < shift) :
+    (hi / 2^shift) * 2^32 +
+    (lo / 2^shift + (hi % 2^shift) *
+      2^(32 - shift)) =
+    (hi * 2^32 + lo) / 2^shift := by
+  set k := 2^shift with hk_def
+  set m := 2^(32 - shift) with hm_def
+  have hkm : m * k = 2^32 := by
+    rw [hm_def, hk_def, ← Nat.pow_add]; congr 1; omega
+  have hk_pos : 0 < k := hk_def ▸ Nat.two_pow_pos _
+  -- Step 1: rewrite to expose k factor
+  rw [show hi * 2^32 + lo = lo + hi * m * k from
+    by rw [← hkm]; ring,
+    Nat.add_mul_div_right lo (hi * m) hk_pos]
+  -- Goal: (hi/k)*2^32 + (lo/k + hi%k*m) = lo/k + hi*m
+  -- Step 2: hi*m = (hi/k)*k*m + (hi%k)*m
+  --             = (hi/k)*2^32 + (hi%k)*m
+  have hd := Nat.div_add_mod hi k
+  have h2 : hi * m = hi / k * (m * k) + hi % k * m :=
+    by rw [Nat.mul_comm (hi / k) (m * k)]; nlinarith
+  rw [hkm] at h2; omega
+
+/-- In the Goldilocks field, 2^32 * (2^shift)^(-1) =
+    2^(32-shift) for shift < 32. -/
+theorem felt_pow2_inv_mul (shift : Nat)
+    (hlt : shift < 32) :
+    (4294967296 : Felt) *
+    (Felt.ofNat (2^shift) : Felt)⁻¹ =
+    Felt.ofNat (2^(32 - shift)) := by
+  have hne : (Felt.ofNat (2^shift) : Felt) ≠ 0 := by
+    simp only [Felt.ofNat, ne_eq]
+    intro h
+    have hval := congrArg ZMod.val h
+    rw [ZMod.val_zero, ZMod.val_natCast_of_lt (by
+      unfold GOLDILOCKS_PRIME
+      calc 2^shift ≤ 2^31 :=
+        Nat.pow_le_pow_right (by omega) (by omega)
+      _ < _ := by omega)] at hval
+    exact absurd hval (Nat.ne_of_gt
+      (Nat.two_pow_pos shift))
+  have hmul : Felt.ofNat (2^shift) *
+      Felt.ofNat (2^(32-shift)) =
+      (4294967296 : Felt) := by
+    simp only [Felt.ofNat]
+    push_cast
+    show (2 : ZMod GOLDILOCKS_PRIME)^shift *
+      (2 : ZMod GOLDILOCKS_PRIME)^(32-shift) =
+      4294967296
+    rw [← pow_add]
+    show (2 : ZMod GOLDILOCKS_PRIME)^(shift + (32 - shift))
+      = 4294967296
+    rw [show shift + (32 - shift) = 32 from by omega]
+    native_decide
+  rw [← hmul, mul_comm (Felt.ofNat (2^shift)) _,
+    mul_assoc, mul_inv_cancel₀ hne, mul_one]
+
 end MidenLean

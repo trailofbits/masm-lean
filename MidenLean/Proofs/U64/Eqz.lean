@@ -1,4 +1,5 @@
 import MidenLean.Proofs.Tactics
+import MidenLean.Proofs.Interp
 import MidenLean.Generated.U64
 
 namespace MidenLean.Proofs
@@ -31,5 +32,15 @@ theorem u64_eqz_correct
   miden_bind
   rw [stepAndIte]
   dsimp only [bind, Bind.bind, Option.bind, pure, Pure.pure]
+
+/-- The condition computed by eqz corresponds to
+    toU64 lo hi = 0. -/
+theorem u64_eqz_semantic (lo hi : Felt) :
+    ((lo == (0 : Felt)) && (hi == (0 : Felt))) =
+    decide (toU64 lo hi = 0) := by
+  unfold toU64
+  simp only [Bool.beq_eq_decide_eq]
+  by_cases hlo : lo = 0 <;> by_cases hhi : hi = 0 <;>
+    simp_all [ZMod.val_zero]
 
 end MidenLean.Proofs

@@ -87,7 +87,7 @@ private theorem rotl_h1_ok
   have h_pow_u32 :
     (Felt.ofNat (2 ^ (shift.val &&& 31))).isU32 =
       true := by
-    simp only [Felt.isU32, decide_eq_true_eq, u32Max]
+    simp only [Felt.isU32, decide_eq_true_eq]
     rw [felt_ofNat_val_lt _ (by
       have : 2 ^ (shift.val &&& 31) ≤ 2 ^ 31 :=
         Nat.pow_le_pow_right (by omega) h_eff_bound
@@ -112,14 +112,14 @@ private theorem rotl_h1_ok
 
 -- Helper: carry is u32
 private theorem rotl_carry_u32 (lo shift : Felt)
-    (hshift_u32 : shift.isU32 = true)
+    (_hshift_u32 : shift.isU32 = true)
     (hlo : lo.isU32 = true) :
     (Felt.ofNat (2 ^ (shift.val &&& 31) * lo.val /
       2 ^ 32)).isU32 = true := by
   have h_pow_u32 :
     (Felt.ofNat (2 ^ (shift.val &&& 31))).isU32 =
       true := by
-    simp only [Felt.isU32, decide_eq_true_eq, u32Max]
+    simp only [Felt.isU32, decide_eq_true_eq]
     rw [felt_ofNat_val_lt _ (by
       have : 2 ^ (shift.val &&& 31) ≤ 2 ^ 31 :=
         Nat.pow_le_pow_right (by omega)
@@ -219,7 +219,7 @@ theorem u64_rotl_correct
     rest mem locs adv
     hhi
     (by
-      simp only [Felt.isU32, decide_eq_true_eq, u32Max]
+      simp only [Felt.isU32, decide_eq_true_eq]
       rw [felt_ofNat_val_lt _ (by
         have : 2 ^ (shift.val &&& 31) ≤ 2 ^ 31 :=
           Nat.pow_le_pow_right (by omega)
@@ -246,7 +246,7 @@ theorem u64_rotl_correct
     have h_pow_u32 :
       (Felt.ofNat (2 ^ (shift.val &&& 31))).isU32 =
         true := by
-      simp only [Felt.isU32, decide_eq_true_eq, u32Max]
+      simp only [Felt.isU32, decide_eq_true_eq]
       rw [h_pow_val]
       have : 2 ^ (shift.val &&& 31) ≤ 2 ^ 31 :=
         Nat.pow_le_pow_right (by omega) Nat.and_le_right

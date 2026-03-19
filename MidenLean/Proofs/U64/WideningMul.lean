@@ -1,4 +1,5 @@
 import MidenLean.Proofs.Tactics
+import MidenLean.Proofs.Interp
 import MidenLean.Generated.U64
 
 namespace MidenLean.Proofs
@@ -42,7 +43,7 @@ private theorem wmul_c1hi_u32 (a_lo b_lo b_hi : Felt)
       b_lo.val * a_lo.val / 2^32) / 2^32)).isU32 =
     true := by
   apply felt_ofNat_isU32_of_lt
-  simp only [Felt.isU32, decide_eq_true_eq, u32Max] at *
+  simp only [Felt.isU32, decide_eq_true_eq] at *
   have hbhi : b_hi.val ≤ 2^32 - 1 := by omega
   have halo : a_lo.val ≤ 2^32 - 1 := by omega
   have hblo : b_lo.val ≤ 2^32 - 1 := by omega
@@ -57,14 +58,14 @@ private theorem wmul_c1hi_u32 (a_lo b_lo b_hi : Felt)
     _ < 2^32 := by native_decide
 
 private theorem wmul_c2hi_u32 (a_lo a_hi b_lo b_hi : Felt)
-    (h1 : a_lo.isU32 = true) (h2 : a_hi.isU32 = true)
-    (h3 : b_lo.isU32 = true) (h4 : b_hi.isU32 = true) :
+    (_h1 : a_lo.isU32 = true) (h2 : a_hi.isU32 = true)
+    (h3 : b_lo.isU32 = true) (_h4 : b_hi.isU32 = true) :
     (Felt.ofNat ((b_lo.val * a_hi.val +
       (b_hi.val * a_lo.val +
         b_lo.val * a_lo.val / 2^32) % 2^32) /
       2^32)).isU32 = true := by
   apply felt_ofNat_isU32_of_lt
-  simp only [Felt.isU32, decide_eq_true_eq, u32Max] at *
+  simp only [Felt.isU32, decide_eq_true_eq] at *
   calc (b_lo.val * a_hi.val +
       (b_hi.val * a_lo.val +
         b_lo.val * a_lo.val / 2^32) % 2^32) / 2^32
@@ -75,8 +76,8 @@ private theorem wmul_c2hi_u32 (a_lo a_hi b_lo b_hi : Felt)
     _ < 2^32 := by native_decide
 
 private theorem wmul_c2hi_val (a_lo a_hi b_lo b_hi : Felt)
-    (h1 : a_lo.isU32 = true) (h2 : a_hi.isU32 = true)
-    (h3 : b_lo.isU32 = true) (h4 : b_hi.isU32 = true) :
+    (_h1 : a_lo.isU32 = true) (h2 : a_hi.isU32 = true)
+    (h3 : b_lo.isU32 = true) (_h4 : b_hi.isU32 = true) :
     (Felt.ofNat ((b_lo.val * a_hi.val +
       (b_hi.val * a_lo.val +
         b_lo.val * a_lo.val / 2^32) % 2^32) /
@@ -85,7 +86,7 @@ private theorem wmul_c2hi_val (a_lo a_hi b_lo b_hi : Felt)
         b_lo.val * a_lo.val / 2^32) % 2^32) /
       2^32 := by
   apply felt_ofNat_val_lt
-  simp only [Felt.isU32, decide_eq_true_eq, u32Max] at *
+  simp only [Felt.isU32, decide_eq_true_eq] at *
   calc (b_lo.val * a_hi.val +
       (b_hi.val * a_lo.val +
         b_lo.val * a_lo.val / 2^32) % 2^32) / 2^32
@@ -104,7 +105,7 @@ private theorem wmul_c1hi_val (a_lo b_lo b_hi : Felt)
     (b_hi.val * a_lo.val +
       b_lo.val * a_lo.val / 2^32) / 2^32 := by
   apply felt_ofNat_val_lt
-  simp only [Felt.isU32, decide_eq_true_eq, u32Max] at *
+  simp only [Felt.isU32, decide_eq_true_eq] at *
   have hbhi : b_hi.val ≤ 2^32 - 1 := by omega
   have halo : a_lo.val ≤ 2^32 - 1 := by omega
   have hblo : b_lo.val ≤ 2^32 - 1 := by omega
@@ -248,5 +249,154 @@ theorem u64_widening_mul_correct
   simp only [wmul_c2hi_val a_lo a_hi b_lo b_hi
     ha_lo ha_hi hb_lo hb_hi,
     wmul_c1hi_val a_lo b_lo b_hi ha_lo hb_lo hb_hi]
+
+/-- widening_mul computes toU64 a * toU64 b as a
+    128-bit (toU128) result. -/
+theorem u64_widening_mul_semantic
+    (a_lo a_hi b_lo b_hi : Felt)
+    (ha_lo : a_lo.isU32 = true)
+    (ha_hi : a_hi.isU32 = true)
+    (hb_lo : b_lo.isU32 = true)
+    (hb_hi : b_hi.isU32 = true) :
+    let prod0 := b_lo.val * a_lo.val
+    let cross1 := b_hi.val * a_lo.val + prod0 / 2^32
+    let cross2 := b_lo.val * a_hi.val + cross1 % 2^32
+    let high := b_hi.val * a_hi.val + cross2 / 2^32
+    let widenAdd := cross1 / 2^32 + high % 2^32
+    toU128 (Felt.ofNat (prod0 % 2^32))
+           (Felt.ofNat (cross2 % 2^32))
+           (Felt.ofNat (widenAdd % 2^32))
+           (Felt.ofNat (widenAdd / 2^32) +
+             Felt.ofNat (high / 2^32)) =
+    toU64 a_lo a_hi * toU64 b_lo b_hi := by
+  simp only [toU128, toU64]
+  -- Show all Felt.ofNat vals are small enough for roundtrip
+  simp only [Felt.isU32, decide_eq_true_eq] at *
+  have hmod0 : (b_lo.val * a_lo.val) % 2^32 <
+      GOLDILOCKS_PRIME := by unfold GOLDILOCKS_PRIME; omega
+  have hmod1 : (b_lo.val * a_hi.val +
+      (b_hi.val * a_lo.val +
+        b_lo.val * a_lo.val / 2^32) % 2^32) % 2^32 <
+      GOLDILOCKS_PRIME := by unfold GOLDILOCKS_PRIME; omega
+  have hmod2 : ((b_hi.val * a_lo.val +
+      b_lo.val * a_lo.val / 2^32) / 2^32 +
+      (b_hi.val * a_hi.val + (b_lo.val * a_hi.val +
+        (b_hi.val * a_lo.val +
+          b_lo.val * a_lo.val / 2^32) % 2^32) /
+        2^32) % 2^32) % 2^32 <
+      GOLDILOCKS_PRIME := by unfold GOLDILOCKS_PRIME; omega
+  -- Limb3 Felt sum doesn't overflow
+  -- Explicit bounds for omega
+  have halo : a_lo.val ≤ 2^32 - 1 := by omega
+  have hahi : a_hi.val ≤ 2^32 - 1 := by omega
+  have hblo : b_lo.val ≤ 2^32 - 1 := by omega
+  have hbhi : b_hi.val ≤ 2^32 - 1 := by omega
+  have hprod_bound : b_lo.val * a_lo.val ≤
+      (2^32-1) * (2^32-1) :=
+    Nat.mul_le_mul hblo halo
+  have hc1_bound : b_hi.val * a_lo.val +
+      b_lo.val * a_lo.val / 2^32 ≤
+      (2^32-1)*(2^32-1) + (2^32-1) := by
+    apply Nat.add_le_add (Nat.mul_le_mul hbhi halo)
+    exact Nat.le_trans (Nat.div_le_div_right hprod_bound)
+      (by native_decide)
+  have hc2_inner : b_lo.val * a_hi.val +
+      (b_hi.val * a_lo.val +
+        b_lo.val * a_lo.val / 2^32) % 2^32 ≤
+      (2^32-1)*(2^32-1) + (2^32-1) := by
+    have hmod := Nat.mod_lt
+      (b_hi.val * a_lo.val +
+        b_lo.val * a_lo.val / 2^32)
+      (show 0 < 2^32 from by omega)
+    have := Nat.mul_le_mul hblo hahi; omega
+  have hhi_inner : b_hi.val * a_hi.val +
+      (b_lo.val * a_hi.val +
+        (b_hi.val * a_lo.val +
+          b_lo.val * a_lo.val / 2^32) % 2^32) /
+        2^32 ≤
+      (2^32-1)*(2^32-1) + (2^32-1) := by
+    apply Nat.add_le_add (Nat.mul_le_mul hbhi hahi)
+    exact Nat.le_trans (Nat.div_le_div_right hc2_inner)
+      (by native_decide)
+  have hwa_bound : (b_hi.val * a_lo.val +
+      b_lo.val * a_lo.val / 2^32) / 2^32 +
+      (b_hi.val * a_hi.val + (b_lo.val * a_hi.val +
+        (b_hi.val * a_lo.val +
+          b_lo.val * a_lo.val / 2^32) % 2^32) /
+        2^32) % 2^32 < 2^33 := by
+    have h1 : (b_hi.val * a_lo.val +
+        b_lo.val * a_lo.val / 2^32) / 2^32 ≤
+        ((2^32-1)*(2^32-1) + (2^32-1)) / 2^32 :=
+      Nat.div_le_div_right hc1_bound
+    have h2 := Nat.mod_lt
+      (b_hi.val * a_hi.val + (b_lo.val * a_hi.val +
+        (b_hi.val * a_lo.val +
+          b_lo.val * a_lo.val / 2^32) % 2^32) /
+        2^32) (show 0 < 2^32 from by omega)
+    have : ((2^32-1)*(2^32-1) + (2^32-1)) / 2^32 <
+        2^32 := by native_decide
+    omega
+  have hhi_div_bound : (b_hi.val * a_hi.val +
+      (b_lo.val * a_hi.val + (b_hi.val * a_lo.val +
+        b_lo.val * a_lo.val / 2^32) % 2^32) /
+        2^32) / 2^32 < 2^32 := by
+    have h := Nat.div_le_div_right (c := 2^32)
+      hhi_inner
+    have : ((2^32-1)*(2^32-1) + (2^32-1)) / 2^32 <
+        2^32 := by native_decide
+    omega
+  have hsum_lt : (b_hi.val * a_lo.val +
+      b_lo.val * a_lo.val / 2^32) / 2^32 +
+      (b_hi.val * a_hi.val + (b_lo.val * a_hi.val +
+        (b_hi.val * a_lo.val +
+          b_lo.val * a_lo.val / 2^32) % 2^32) /
+        2^32) % 2^32 < 2^33 := hwa_bound
+  -- wa/2^32 < 2 + hi/2^32 < 2^32 + 2 < GOLDILOCKS_PRIME
+  have hsum3_lt : ((b_hi.val * a_lo.val +
+      b_lo.val * a_lo.val / 2^32) / 2^32 +
+      (b_hi.val * a_hi.val + (b_lo.val * a_hi.val +
+        (b_hi.val * a_lo.val +
+          b_lo.val * a_lo.val / 2^32) % 2^32) /
+        2^32) % 2^32) / 2^32 +
+      (b_hi.val * a_hi.val + (b_lo.val * a_hi.val +
+        (b_hi.val * a_lo.val +
+          b_lo.val * a_lo.val / 2^32) % 2^32) /
+        2^32) / 2^32 <
+      GOLDILOCKS_PRIME := by
+    have h1 := Nat.div_le_div_right (c := 2^32)
+      hwa_bound
+    have : (2^33 : Nat) / 2^32 = 2 := by native_decide
+    unfold GOLDILOCKS_PRIME; omega
+  rw [felt_ofNat_val_lt _ hmod0,
+    felt_ofNat_val_lt _ hmod1,
+    felt_ofNat_val_lt _ hmod2]
+  -- Limb3 val: Felt addition doesn't overflow
+  have hwa_d_lt : ((b_hi.val * a_lo.val +
+      b_lo.val * a_lo.val / 2^32) / 2^32 +
+      (b_hi.val * a_hi.val + (b_lo.val * a_hi.val +
+        (b_hi.val * a_lo.val +
+          b_lo.val * a_lo.val / 2^32) % 2^32) /
+        2^32) % 2^32) / 2^32 <
+      GOLDILOCKS_PRIME := by
+    have := Nat.div_le_div_right (c := 2^32) hwa_bound
+    unfold GOLDILOCKS_PRIME; omega
+  have hhi_d_lt : (b_hi.val * a_hi.val +
+      (b_lo.val * a_hi.val + (b_hi.val * a_lo.val +
+        b_lo.val * a_lo.val / 2^32) % 2^32) /
+        2^32) / 2^32 <
+      GOLDILOCKS_PRIME := by
+    unfold GOLDILOCKS_PRIME; omega
+  rw [show (Felt.ofNat _ + Felt.ofNat _).val =
+      (Felt.ofNat _ : Felt).val +
+      (Felt.ofNat _ : Felt).val from by
+    rw [ZMod.val_add,
+      Nat.mod_eq_of_lt (by
+        rw [felt_ofNat_val_lt _ hwa_d_lt,
+          felt_ofNat_val_lt _ hhi_d_lt]
+        exact hsum3_lt)],
+    felt_ofNat_val_lt _ hwa_d_lt,
+    felt_ofNat_val_lt _ hhi_d_lt]
+  exact widening_mul_carry_chain a_lo.val a_hi.val
+    b_lo.val b_hi.val
 
 end MidenLean.Proofs
