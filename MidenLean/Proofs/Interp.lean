@@ -251,4 +251,91 @@ theorem toU64_xor (a_lo a_hi b_lo b_hi : Felt)
     felt_ofNat_val _ hlo_p, felt_ofNat_val _ hhi_p]
   split <;> simp [Nat.testBit_xor]
 
+/-- The cross-product carry chain used by wrapping_mul,
+    shl, and other procedures correctly computes the
+    low 64 bits of the full product.
+    This is the key bridge between limb-level
+    u32WidenMul accumulation and u64-level
+    multiplication. -/
+theorem cross_product_mod_2_64
+    (a_lo a_hi b_lo b_hi : Nat) :
+    let prod_lo := a_lo * b_lo
+    let cross1 := b_hi * a_lo + prod_lo / 2 ^ 32
+    let cross2 := b_lo * a_hi + cross1 % 2 ^ 32
+    (cross2 % 2 ^ 32) * 2 ^ 32 + prod_lo % 2 ^ 32 =
+    ((a_hi * 2 ^ 32 + a_lo) *
+     (b_hi * 2 ^ 32 + b_lo)) % 2 ^ 64 := by
+  -- The full product expands as:
+  -- a_hi*b_hi*2^64 + (a_hi*b_lo + a_lo*b_hi)*2^32
+  --   + a_lo*b_lo
+  -- Mod 2^64, the a_hi*b_hi*2^64 term vanishes.
+  -- The remaining low 64 bits decompose as:
+  --   hi32 = ((a_hi*b_lo + a_lo*b_hi)*2^32
+  --           + a_lo*b_lo) / 2^32 % 2^32
+  --   lo32 = a_lo*b_lo % 2^32
+  -- The carry chain computes exactly this.
+  simp only
+  -- Step 1: show the full product mod 2^64 equals
+  -- the reduced product mod 2^64
+  have h_expand : (a_hi * 2^32 + a_lo) *
+      (b_hi * 2^32 + b_lo) =
+      a_hi * b_hi * 2^64 +
+      (a_hi * b_lo + a_lo * b_hi) * 2^32 +
+      a_lo * b_lo := by ring
+  rw [h_expand]
+  -- Step 2: eliminate the 2^64 multiple
+  have h_mod : (a_hi * b_hi * 2^64 +
+      (a_hi * b_lo + a_lo * b_hi) * 2^32 +
+      a_lo * b_lo) % 2^64 =
+      ((a_hi * b_lo + a_lo * b_hi) * 2^32 +
+       a_lo * b_lo) % 2^64 := by omega
+  rw [h_mod]
+  -- Decompose a_lo*b_lo via div/mod
+  set p := a_lo * b_lo
+  have hp := Nat.div_add_mod p (2^32)
+  -- Rewrite the reduced product using carry chain
+  have h3 : (a_hi * b_lo + a_lo * b_hi) * 2^32 +
+      p = (a_hi * b_lo + a_lo * b_hi +
+      p / 2^32) * 2^32 + p % 2^32 := by omega
+  rw [h3]
+  -- cross1 = b_hi*a_lo + p/2^32
+  -- a_hi*b_lo + a_lo*b_hi + p/2^32
+  --   = b_lo*a_hi + cross1  (by ring on first two)
+  set c1 := b_hi * a_lo + p / 2^32
+  have hc1_eq : a_hi * b_lo + a_lo * b_hi +
+      p / 2^32 = b_lo * a_hi + c1 := by
+    simp [c1]; ring
+  rw [hc1_eq]
+  -- Decompose c1 via div/mod
+  have hc1 := Nat.div_add_mod c1 (2^32)
+  -- b_lo*a_hi + c1
+  -- = b_lo*a_hi + (c1/2^32)*2^32 + c1%2^32
+  -- = (c1/2^32)*2^32 + (b_lo*a_hi + c1%2^32)
+  -- = (c1/2^32)*2^32 + cross2
+  set c2 := b_lo * a_hi + c1 % 2^32
+  have h4 : (b_lo * a_hi + c1) * 2^32 +
+      p % 2^32 = c1 / 2^32 * 2^64 +
+      c2 * 2^32 + p % 2^32 := by omega
+  rw [h4]
+  -- Mod 2^64 eliminates the c1/2^32 * 2^64 term
+  have h5 : (c1 / 2^32 * 2^64 + c2 * 2^32 +
+      p % 2^32) % 2^64 =
+      (c2 * 2^32 + p % 2^32) % 2^64 := by omega
+  rw [h5]
+  -- c2*2^32 = (c2%2^32)*2^32 + (c2/2^32)*2^64
+  -- so mod 2^64 gives (c2%2^32)*2^32 + p%2^32
+  -- which is < 2^64, so mod is identity
+  have hc2_bound : c2 % 2^32 * 2^32 +
+      p % 2^32 < 2^64 := by
+    have := Nat.mod_lt c2 (show 0 < 2^32 by omega)
+    have := Nat.mod_lt p (show 0 < 2^32 by omega)
+    omega
+  have h6 : (c2 * 2^32 + p % 2^32) % 2^64 =
+      c2 % 2^32 * 2^32 + p % 2^32 := by
+    have hc2dm := Nat.div_add_mod c2 (2^32)
+    have : c2 * 2^32 = c2 / 2^32 * 2^64 +
+        c2 % 2^32 * 2^32 := by omega
+    rw [this]; omega
+  rw [h6]
+
 end MidenLean
