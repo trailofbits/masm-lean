@@ -12,6 +12,7 @@ set_option linter.unreachableTactic false
 set_option linter.unusedTactic false
 -- Classification: MANUAL | Style: MANUAL | Instructions: 8 | Inputs: 2 | Calls: false | Branches: true | Loops: false | Advice: false
 set_option maxHeartbeats 4000000 in
+-- TODO: replace the theorem doc comment below with a high-level correctness description for README table generation.
 /-- u64.cto: (auto-generated skeleton)
     Input stack:  [a, b] ++ rest
     Output stack: [sorry] ++ rest -/

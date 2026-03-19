@@ -3,7 +3,8 @@ use clap::Parser;
 use miden_assembly_syntax::ast::ModuleKind;
 use miden_assembly_syntax::debuginfo::DefaultSourceManager;
 use miden_assembly_syntax::{ModuleParser, PathBuf as MasmPathBuf};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
+use std::process::Command;
 use std::sync::Arc;
 
 mod classifier;
@@ -81,8 +82,10 @@ fn main() -> Result<()> {
             None => lean_name.clone(),
         };
 
+        let source_commit = resolve_source_commit(path);
+
         // Generate definitions (existing behavior)
-        let lean_code = module::translate_module(&parsed, &namespace)?;
+        let lean_code = module::translate_module(&parsed, &namespace, source_commit.as_deref())?;
 
         let output_path = cli.output.join(format!("{}.lean", lean_name));
         std::fs::write(&output_path, &lean_code)?;
@@ -141,5 +144,28 @@ fn capitalize(s: &str) -> String {
     match chars.next() {
         None => String::new(),
         Some(c) => c.to_uppercase().collect::<String>() + chars.as_str(),
+    }
+}
+
+fn resolve_source_commit(path: &Path) -> Option<String> {
+    let cwd = path.parent().unwrap_or(path);
+    let output = Command::new("git")
+        .arg("-C")
+        .arg(cwd)
+        .arg("rev-parse")
+        .arg("HEAD")
+        .output()
+        .ok()?;
+
+    if !output.status.success() {
+        return None;
+    }
+
+    let commit = String::from_utf8(output.stdout).ok()?;
+    let commit = commit.trim();
+    if commit.is_empty() {
+        None
+    } else {
+        Some(commit.to_string())
     }
 }

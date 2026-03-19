@@ -354,6 +354,10 @@ fn emit_theorem_statement(skel: &ProcSkeleton) -> String {
     let param_names = generate_param_names(skel.hypotheses.input_arity);
     let fuel = compute_fuel(&skel.stack_effect);
 
+    out.push_str(
+        "-- TODO: replace the theorem doc comment below with a high-level correctness description for README table generation.\n",
+    );
+
     // Docstring
     out.push_str(&format!(
         "/-- {}.{}: (auto-generated skeleton)\n",
@@ -1058,6 +1062,32 @@ mod tests {
 
         let body = emit_proof_body(&skel);
         assert!(body.contains("try miden_swap"));
+    }
+
+    #[test]
+    fn test_emit_theorem_statement_includes_metadata_todo_comment() {
+        let skel = ProcSkeleton {
+            masm_name: "eqz".into(),
+            lean_def_name: "eqz".into(),
+            theorem_name: "word_eqz_correct".into(),
+            fq_lean_name: "Miden.Core.Word.eqz".into(),
+            stack_effect: dummy_stack_effect(),
+            hypotheses: ProcHypotheses {
+                input_arity: 4,
+                hypotheses: vec![],
+                advice_consumed: 0,
+            },
+            classification: Classification::Auto,
+            scaffold_style: ScaffoldStyle::FlatExplicit,
+            body_ops: vec![],
+            needs_proc_env: false,
+            module_prefix: "word".into(),
+        };
+
+        let stmt = emit_theorem_statement(&skel);
+        assert!(stmt.starts_with(
+            "-- TODO: replace the theorem doc comment below with a high-level correctness description for README table generation.\n"
+        ));
     }
 
     #[test]

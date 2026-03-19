@@ -12,6 +12,7 @@ set_option linter.unreachableTactic false
 set_option linter.unusedTactic false
 -- Classification: SEMI | Style: CHUNKED | Instructions: 57 | Inputs: 8 | Calls: true | Branches: false | Loops: false | Advice: false
 set_option maxHeartbeats 8000000 in
+-- TODO: replace the theorem doc comment below with a high-level correctness description for README table generation.
 /-- word.gt: (auto-generated skeleton)
     Input stack:  [x0, x1, x2, x3, x4, x5, x6, x7] ++ rest
     Output stack: [sorry] ++ rest -/
