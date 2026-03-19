@@ -796,13 +796,13 @@ theorem u128_mul_low_chunk_run
       rest,
       mem, locs, adv, evts⟩ := by
   rw [u128_mul_low_chunk_decomp, execWithEnv_append]
-  rw [u128_mul_low_chunk1_run env fuel a0 a1 a2 a3 b0 b1 b2 b3 rest mem locs adv ha0 ha1 hb0]
+  rw [u128_mul_low_chunk1_run env fuel a0 a1 a2 a3 b0 b1 b2 b3 rest mem locs adv evts ha0 ha1 hb0]
   miden_bind
   rw [execWithEnv_append]
-  rw [u128_mul_low_chunk2_run env fuel a0 a1 a2 a3 b0 b1 b2 b3 rest mem locs adv
+  rw [u128_mul_low_chunk2_run env fuel a0 a1 a2 a3 b0 b1 b2 b3 rest mem locs adv evts
     ha0 ha1 ha2 hb0 hb1]
   miden_bind
-  rw [u128_mul_low_chunk3_run env fuel a0 a1 a2 a3 b0 b1 b2 b3 rest mem locs adv
+  rw [u128_mul_low_chunk3_run env fuel a0 a1 a2 a3 b0 b1 b2 b3 rest mem locs adv evts
     ha0 ha1 ha2 hb0 hb1 hb2]
 
 theorem u128_overflowing_mul_c3_chunk_run
@@ -1094,14 +1094,14 @@ theorem u128_overflowing_mul_overflow_products_chunk_run
       rest,
       mem, locs, adv, evts⟩ := by
   rw [u128_overflowing_mul_overflow_products_chunk_decomp, execWithEnv_append]
-  rw [u128_overflowing_mul_overflow_products_chunk1_run env fuel a0 a1 a2 a3 b0 b1 b2 b3 rest mem locs adv
+  rw [u128_overflowing_mul_overflow_products_chunk1_run env fuel a0 a1 a2 a3 b0 b1 b2 b3 rest mem locs adv evts
     ha1 ha2 ha3 hb1 hb2]
   miden_bind
   rw [execWithEnv_append]
-  rw [u128_overflowing_mul_overflow_products_chunk2_run env fuel a0 a1 a2 a3 b0 b1 b2 b3 rest mem locs adv
+  rw [u128_overflowing_mul_overflow_products_chunk2_run env fuel a0 a1 a2 a3 b0 b1 b2 b3 rest mem locs adv evts
     ha1 ha3 hb2 hb3]
   miden_bind
-  rw [u128_overflowing_mul_overflow_products_chunk3_run env fuel a0 a1 a2 a3 b0 b1 b2 b3 rest mem locs adv
+  rw [u128_overflowing_mul_overflow_products_chunk3_run env fuel a0 a1 a2 a3 b0 b1 b2 b3 rest mem locs adv evts
     ha2 ha3 hb3]
 
 theorem u128_overflowing_mul_cleanup_chunk_run
@@ -1137,18 +1137,18 @@ theorem u128_overflowing_mul_run
       rest,
       mem, locs, adv, evts⟩ := by
   rw [overflowing_mul_decomp, execWithEnv_append]
-  rw [u128_mul_low_chunk_run env fuel a0 a1 a2 a3 b0 b1 b2 b3 rest mem locs adv
+  rw [u128_mul_low_chunk_run env fuel a0 a1 a2 a3 b0 b1 b2 b3 rest mem locs adv evts
     ha0 ha1 ha2 ha3 hb0 hb1 hb2 hb3]
   miden_bind
   rw [execWithEnv_append]
-  rw [u128_overflowing_mul_c3_chunk_run env fuel a0 a1 a2 a3 b0 b1 b2 b3 rest mem locs adv
+  rw [u128_overflowing_mul_c3_chunk_run env fuel a0 a1 a2 a3 b0 b1 b2 b3 rest mem locs adv evts
     ha0 ha1 ha2 ha3 hb0 hb1 hb2 hb3]
   miden_bind
   rw [execWithEnv_append]
   rw [u128_overflowing_mul_overflow_acc_chunk_run env fuel a0 a1 a2 a3 b0 b1 b2 b3 rest mem locs adv]
   miden_bind
   rw [execWithEnv_append]
-  rw [u128_overflowing_mul_overflow_products_chunk_run env fuel a0 a1 a2 a3 b0 b1 b2 b3 rest mem locs adv
+  rw [u128_overflowing_mul_overflow_products_chunk_run env fuel a0 a1 a2 a3 b0 b1 b2 b3 rest mem locs adv evts
     ha0 ha1 ha2 ha3 hb0 hb1 hb2 hb3]
   miden_bind
   rw [u128_overflowing_mul_cleanup_chunk_run env fuel]
@@ -1177,7 +1177,7 @@ theorem u128_overflowing_mul_correct
   simp only [MidenState.withStack] at hs ⊢
   subst hs
   simpa [exec] using
-    u128_overflowing_mul_run (fun _ => none) 115 a0 a1 a2 a3 b0 b1 b2 b3 rest mem locs adv
+    u128_overflowing_mul_run (fun _ => none) 115 a0 a1 a2 a3 b0 b1 b2 b3 rest mem locs adv evts
       ha0 ha1 ha2 ha3 hb0 hb1 hb2 hb3
 
 end MidenLean.Proofs

@@ -24,7 +24,7 @@ theorem u128_lt_run
   unfold Miden.Core.U128.lt execWithEnv
   simp only [List.foldlM, u128ProcEnv]
   dsimp only [bind, Bind.bind, Option.bind]
-  rw [u128_overflowing_sub_run u128ProcEnv fuel a0 a1 a2 a3 b0 b1 b2 b3 rest mem locs adv
+  rw [u128_overflowing_sub_run u128ProcEnv fuel a0 a1 a2 a3 b0 b1 b2 b3 rest mem locs adv evts
     ha0 ha1 ha2 ha3 hb0 hb1 hb2 hb3]
   miden_bind
   unfold u128OverflowingSubResult
@@ -55,7 +55,7 @@ theorem u128_lt_correct
   obtain ⟨stk, mem, locs, adv, evts⟩ := s
   simp only [MidenState.withStack] at hs ⊢
   subst hs
-  simpa using u128_lt_run 41 a0 a1 a2 a3 b0 b1 b2 b3 rest mem locs adv
+  simpa using u128_lt_run 41 a0 a1 a2 a3 b0 b1 b2 b3 rest mem locs adv evts
     ha0 ha1 ha2 ha3 hb0 hb1 hb2 hb3
 
 end MidenLean.Proofs

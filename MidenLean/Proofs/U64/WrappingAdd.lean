@@ -41,7 +41,7 @@ theorem u64_wrapping_add_correct
         Felt.ofNat ((a_hi.val + b_hi.val + (b_lo.val + a_lo.val) / 2 ^ 32) % 2 ^ 32) ::
         rest,
         mem, locs, adv, evts⟩
-      from u64_overflowing_add_run u64ProcEnv 8 a_lo a_hi b_lo b_hi rest mem locs adv
+      from u64_overflowing_add_run u64ProcEnv 8 a_lo a_hi b_lo b_hi rest mem locs adv evts
         ha_lo ha_hi hb_lo hb_hi]
   miden_bind
   rw [stepDrop]

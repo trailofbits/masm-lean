@@ -145,7 +145,7 @@ theorem u128_overflowing_add_correct
   simp only [MidenState.withStack] at hs ⊢
   subst hs
   simpa [exec] using
-    u128_overflowing_add_run (fun _ => none) 19 a0 a1 a2 a3 b0 b1 b2 b3 rest mem locs adv
+    u128_overflowing_add_run (fun _ => none) 19 a0 a1 a2 a3 b0 b1 b2 b3 rest mem locs adv evts
       ha0 ha1 ha2 ha3 hb0 hb1 hb2 hb3
 
 end MidenLean.Proofs

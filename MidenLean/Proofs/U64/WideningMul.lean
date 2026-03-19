@@ -235,10 +235,10 @@ theorem u64_widening_mul_correct
   subst hs
   rw [wmul_split, exec_append,
     wmul_h1_ok a_lo a_hi b_lo b_hi rest
-      mem locs adv ha_lo ha_hi hb_lo hb_hi]
+      mem locs adv evts ha_lo ha_hi hb_lo hb_hi]
   simp only [bind, Bind.bind, Option.bind]
   rw [wmul_h2_ok a_hi b_hi _ _ _ _
-    rest mem locs adv ha_hi hb_hi
+    rest mem locs adv evts ha_hi hb_hi
     (wmul_c2hi_u32 a_lo a_hi b_lo b_hi
       ha_lo ha_hi hb_lo hb_hi)
     (wmul_c1hi_u32 a_lo b_lo b_hi

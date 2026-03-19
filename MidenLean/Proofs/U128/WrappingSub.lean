@@ -32,7 +32,7 @@ theorem u128_wrapping_sub_correct
       ⟨b0 :: b1 :: b2 :: b3 :: a0 :: a1 :: a2 :: a3 :: rest, mem, locs, adv, evts⟩
       Miden.Core.U128.overflowing_sub =
       some ⟨u128OverflowingSubResult a0 a1 a2 a3 b0 b1 b2 b3 rest, mem, locs, adv, evts⟩
-      from u128_overflowing_sub_run u128ProcEnv 29 a0 a1 a2 a3 b0 b1 b2 b3 rest mem locs adv
+      from u128_overflowing_sub_run u128ProcEnv 29 a0 a1 a2 a3 b0 b1 b2 b3 rest mem locs adv evts
         ha0 ha1 ha2 ha3 hb0 hb1 hb2 hb3]
   miden_bind
   unfold u128OverflowingSubResult u128WrappingSubResult

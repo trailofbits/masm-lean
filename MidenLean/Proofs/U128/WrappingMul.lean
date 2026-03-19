@@ -168,7 +168,7 @@ private theorem u128_wrapping_mul_tail_run
       rest,
       mem, locs, adv, evts⟩ := by
   rw [u128_wrapping_mul_tail_decomp, execWithEnv_append]
-  rw [u128_wrapping_mul_tail_arith_run env fuel a0 a1 a2 a3 b0 b1 b2 b3 rest mem locs adv
+  rw [u128_wrapping_mul_tail_arith_run env fuel a0 a1 a2 a3 b0 b1 b2 b3 rest mem locs adv evts
     ha0 ha1 ha2 ha3 hb0 hb1 hb2 hb3]
   miden_bind
   rw [u128_wrapping_mul_tail_cleanup_run env fuel
@@ -194,10 +194,10 @@ theorem u128_wrapping_mul_run
       rest,
       mem, locs, adv, evts⟩ := by
   rw [wrapping_mul_decomp, execWithEnv_append]
-  rw [u128_mul_low_chunk_run env fuel a0 a1 a2 a3 b0 b1 b2 b3 rest mem locs adv
+  rw [u128_mul_low_chunk_run env fuel a0 a1 a2 a3 b0 b1 b2 b3 rest mem locs adv evts
     ha0 ha1 ha2 ha3 hb0 hb1 hb2 hb3]
   miden_bind
-  rw [u128_wrapping_mul_tail_run env fuel a0 a1 a2 a3 b0 b1 b2 b3 rest mem locs adv
+  rw [u128_wrapping_mul_tail_run env fuel a0 a1 a2 a3 b0 b1 b2 b3 rest mem locs adv evts
     ha0 ha1 ha2 ha3 hb0 hb1 hb2 hb3]
 
 /-- `u128::wrapping_mul` correctly computes the low 128 bits of the product of two 128-bit values.
@@ -222,7 +222,7 @@ theorem u128_wrapping_mul_correct
   simp only [MidenState.withStack] at hs ⊢
   subst hs
   simpa [exec] using
-    u128_wrapping_mul_run (fun _ => none) 64 a0 a1 a2 a3 b0 b1 b2 b3 rest mem locs adv
+    u128_wrapping_mul_run (fun _ => none) 64 a0 a1 a2 a3 b0 b1 b2 b3 rest mem locs adv evts
       ha0 ha1 ha2 ha3 hb0 hb1 hb2 hb3
 
 end MidenLean.Proofs

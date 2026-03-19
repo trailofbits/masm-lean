@@ -417,27 +417,27 @@ theorem u128_overflowing_sub_run
       Miden.Core.U128.overflowing_sub =
     some ⟨u128OverflowingSubResult a0 a1 a2 a3 b0 b1 b2 b3 rest, mem, locs, adv, evts⟩ := by
   rw [overflowing_sub_decomp, execWithEnv_append]
-  rw [chunk1_correct env fuel a0 a1 a2 a3 b0 b1 b2 b3 rest mem locs adv ha0 hb0]
+  rw [chunk1_correct env fuel a0 a1 a2 a3 b0 b1 b2 b3 rest mem locs adv evts ha0 hb0]
   miden_bind
   rw [execWithEnv_append]
-  rw [chunk2_correct env fuel a0 a1 a2 a3 b0 b1 b2 b3 rest mem locs adv ha1 hb1]
+  rw [chunk2_correct env fuel a0 a1 a2 a3 b0 b1 b2 b3 rest mem locs adv evts ha1 hb1]
   miden_bind
   rw [execWithEnv_append]
-  rw [chunk3_correct env fuel a0 a1 a2 a3 b0 b1 b2 b3 rest mem locs adv ha1 hb1]
+  rw [chunk3_correct env fuel a0 a1 a2 a3 b0 b1 b2 b3 rest mem locs adv evts ha1 hb1]
   miden_bind
   rw [execWithEnv_append]
-  rw [chunk4_correct env fuel a0 a1 a2 a3 b0 b1 b2 b3 rest mem locs adv ha2 hb2]
+  rw [chunk4_correct env fuel a0 a1 a2 a3 b0 b1 b2 b3 rest mem locs adv evts ha2 hb2]
   miden_bind
   rw [execWithEnv_append]
-  rw [chunk5_correct env fuel a0 a1 a2 a3 b0 b1 b2 b3 rest mem locs adv ha2 hb2]
+  rw [chunk5_correct env fuel a0 a1 a2 a3 b0 b1 b2 b3 rest mem locs adv evts ha2 hb2]
   miden_bind
   rw [execWithEnv_append]
-  rw [chunk6_correct env fuel a0 a1 a2 a3 b0 b1 b2 b3 rest mem locs adv ha3 hb3]
+  rw [chunk6_correct env fuel a0 a1 a2 a3 b0 b1 b2 b3 rest mem locs adv evts ha3 hb3]
   miden_bind
   rw [execWithEnv_append]
-  rw [chunk7_correct env fuel a0 a1 a2 a3 b0 b1 b2 b3 rest mem locs adv ha3 hb3]
+  rw [chunk7_correct env fuel a0 a1 a2 a3 b0 b1 b2 b3 rest mem locs adv evts ha3 hb3]
   miden_bind
-  exact chunk8_correct env fuel a0 a1 a2 a3 b0 b1 b2 b3 rest mem locs adv
+  exact chunk8_correct env fuel a0 a1 a2 a3 b0 b1 b2 b3 rest mem locs adv evts
 
 /-- `u128::overflowing_sub` correctly computes subtraction of two 128-bit values with borrow.
     Input stack:  [b0, b1, b2, b3, a0, a1, a2, a3] ++ rest
@@ -457,7 +457,7 @@ theorem u128_overflowing_sub_correct
   simp only [MidenState.withStack] at hs ⊢
   subst hs
   simpa [exec] using
-    u128_overflowing_sub_run (fun _ => none) 48 a0 a1 a2 a3 b0 b1 b2 b3 rest mem locs adv
+    u128_overflowing_sub_run (fun _ => none) 48 a0 a1 a2 a3 b0 b1 b2 b3 rest mem locs adv evts
       ha0 ha1 ha2 ha3 hb0 hb1 hb2 hb3
 
 end MidenLean.Proofs

@@ -26,7 +26,7 @@ theorem u128_gt_run
   dsimp only [bind, Bind.bind, Option.bind]
   rw [stepSwapw1]
   miden_bind
-  rw [u128_overflowing_sub_run u128ProcEnv fuel b0 b1 b2 b3 a0 a1 a2 a3 rest mem locs adv
+  rw [u128_overflowing_sub_run u128ProcEnv fuel b0 b1 b2 b3 a0 a1 a2 a3 rest mem locs adv evts
     hb0 hb1 hb2 hb3 ha0 ha1 ha2 ha3]
   miden_bind
   unfold u128OverflowingSubResult
@@ -57,7 +57,7 @@ theorem u128_gt_correct
   obtain ⟨stk, mem, locs, adv, evts⟩ := s
   simp only [MidenState.withStack] at hs ⊢
   subst hs
-  simpa using u128_gt_run 44 a0 a1 a2 a3 b0 b1 b2 b3 rest mem locs adv
+  simpa using u128_gt_run 44 a0 a1 a2 a3 b0 b1 b2 b3 rest mem locs adv evts
     ha0 ha1 ha2 ha3 hb0 hb1 hb2 hb3
 
 end MidenLean.Proofs

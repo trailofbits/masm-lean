@@ -190,7 +190,7 @@ theorem u64_rotr_correct
   simp only [MidenState.withStack] at hs ⊢
   subst hs
   rw [rotr_split, exec_append,
-    rotr_h1_ok lo hi shift rest mem locs adv
+    rotr_h1_ok lo hi shift rest mem locs adv evts
       hshift_u32]
   simp only [bind, Bind.bind, Option.bind]
   rw [rotr_h2_ok (decide ((31 : Felt).val < shift.val))
