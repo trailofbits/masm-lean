@@ -37,7 +37,6 @@ private theorem rotl_split :
     Miden.Core.U64.rotl = rotl_h1 ++ rotl_h2 := by
   simp [Miden.Core.U64.rotl, rotl_h1, rotl_h2]
 
-set_option maxHeartbeats 4000000 in
 private theorem rotl_h1_ok
     (lo hi shift : Felt) (rest : List Felt)
     (mem locs : Nat → Felt) (adv : List Felt)
@@ -141,7 +140,6 @@ private theorem rotl_carry_u32 (lo shift : Felt)
     unfold GOLDILOCKS_PRIME; omega
   rwa [h_pow_val] at h
 
-set_option maxHeartbeats 4000000 in
 private theorem rotl_h2_ok (b : Bool)
     (hi pow carry lo_mod : Felt)
     (rest : List Felt)
@@ -179,7 +177,6 @@ private theorem rotl_h2_ok (b : Bool)
   · miden_swap; dsimp only [pure, Pure.pure]; simp
   · miden_swap; dsimp only [pure, Pure.pure]; simp
 
-set_option maxHeartbeats 4000000 in
 /-- u64.rotl correctly left-rotates a u64 value. -/
 theorem u64_rotl_correct
     (lo hi shift : Felt) (rest : List Felt)

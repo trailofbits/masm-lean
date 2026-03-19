@@ -9,7 +9,6 @@ open MidenLean
 open MidenLean.StepLemmas
 open MidenLean.Tactics
 
-set_option maxHeartbeats 8000000 in
 theorem u128_gt_run
     (fuel : Nat)
     (a0 a1 a2 a3 b0 b1 b2 b3 : Felt) (rest : List Felt)
@@ -42,7 +41,6 @@ theorem u128_gt_run
   miden_bind
   simp [u128GtBool, u128LtBool, u128Borrow1, u128Borrow2, u128Sub0, u128Sub1, u128Sub2, u128Sub3]
 
-set_option maxHeartbeats 8000000 in
 /-- `u128::gt` correctly compares two u128 values.
     Input stack:  [b0, b1, b2, b3, a0, a1, a2, a3] ++ rest
     Output stack: [result] ++ rest

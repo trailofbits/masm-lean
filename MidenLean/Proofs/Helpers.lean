@@ -39,7 +39,6 @@ theorem exec_append (fuel : Nat) (s : MidenState) (xs ys : List Op) :
 
 @[simp] theorem Felt.val_zero' : (0 : Felt).val = 0 := rfl
 
-set_option maxHeartbeats 400000 in
 @[simp] theorem Felt.val_one' : (1 : Felt).val = 1 := by native_decide
 
 -- ============================================================================

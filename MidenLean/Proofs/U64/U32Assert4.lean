@@ -7,7 +7,6 @@ open MidenLean
 open MidenLean.StepLemmas
 open MidenLean.Tactics
 
-set_option maxHeartbeats 8000000 in
 /-- `u64::u32assert4` validates that four stack elements are u32 values.
     Input stack:  [a, b, c, d] ++ rest
     Output stack: [a, b, c, d] ++ rest (unchanged)

@@ -71,7 +71,6 @@ private theorem rotr_split :
     Miden.Core.U64.rotr = rotr_h1 ++ rotr_h2 := by
   simp [Miden.Core.U64.rotr, rotr_h1, rotr_h2]
 
-set_option maxHeartbeats 4000000 in
 private theorem rotr_h1_ok
     (lo hi shift : Felt) (rest : List Felt)
     (mem locs : Nat → Felt) (adv : List Felt)
@@ -132,7 +131,6 @@ private theorem rotr_h1_ok
   miden_swap
   dsimp only [pure, Pure.pure]
 
-set_option maxHeartbeats 4000000 in
 private theorem rotr_h2_ok (b : Bool)
     (hi pow prod1_hi prod1_lo : Felt)
     (rest : List Felt)
@@ -165,7 +163,6 @@ private theorem rotr_h2_ok (b : Bool)
   · miden_swap; dsimp only [pure, Pure.pure]; simp
   · miden_swap; dsimp only [pure, Pure.pure]; simp
 
-set_option maxHeartbeats 4000000 in
 /-- u64.rotr correctly right-rotates a u64 value. -/
 theorem u64_rotr_correct
     (lo hi shift : Felt) (rest : List Felt)

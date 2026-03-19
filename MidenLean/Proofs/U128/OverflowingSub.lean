@@ -404,7 +404,6 @@ private theorem chunk8_correct
     u128Sub2, u128Sub3, sub3Adj, sub3, borrow2, sub2Adj, sub2, borrow1, sub1Adj, sub1, sub0]
   dsimp only [pure, Pure.pure]
 
-set_option maxHeartbeats 12000000 in
 theorem u128_overflowing_sub_run
     (env : ProcEnv) (fuel : Nat)
     (a0 a1 a2 a3 b0 b1 b2 b3 : Felt) (rest : List Felt)
@@ -440,7 +439,6 @@ theorem u128_overflowing_sub_run
   miden_bind
   exact chunk8_correct env fuel a0 a1 a2 a3 b0 b1 b2 b3 rest mem locs adv
 
-set_option maxHeartbeats 8000000 in
 /-- `u128::overflowing_sub` correctly computes subtraction of two 128-bit values with borrow.
     Input stack:  [b0, b1, b2, b3, a0, a1, a2, a3] ++ rest
     Output stack: [borrow, d0, d1, d2, d3] ++ rest

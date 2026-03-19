@@ -47,7 +47,6 @@ private theorem u128_wrapping_mul_tail_decomp :
     u128_wrapping_mul_tail = u128_wrapping_mul_tail_arith ++ u128_wrapping_mul_tail_cleanup := by
   simp [u128_wrapping_mul_tail, u128_wrapping_mul_tail_arith, u128_wrapping_mul_tail_cleanup]
 
-set_option maxHeartbeats 12000000 in
 private theorem u128_wrapping_mul_tail_arith_run
     (env : ProcEnv) (fuel : Nat)
     (a0 a1 a2 a3 b0 b1 b2 b3 : Felt) (rest : List Felt)
@@ -143,7 +142,6 @@ private theorem u128_wrapping_mul_tail_cleanup_run
   miden_swap
   simp [pure, Pure.pure]
 
-set_option maxHeartbeats 12000000 in
 private theorem u128_wrapping_mul_tail_run
     (env : ProcEnv) (fuel : Nat)
     (a0 a1 a2 a3 b0 b1 b2 b3 : Felt) (rest : List Felt)
@@ -177,7 +175,6 @@ private theorem u128_wrapping_mul_tail_run
     (u128MulC3 a0 a1 a2 a3 b0 b1 b2 b3) a0 a1 a2 a3 b0 b1 b2 b3
     (u128MulC0 a0 b0) (u128MulC1 a0 a1 b0 b1) (u128MulC2 a0 a1 a2 b0 b1 b2) rest mem locs adv]
 
-set_option maxHeartbeats 12000000 in
 theorem u128_wrapping_mul_run
     (env : ProcEnv) (fuel : Nat)
     (a0 a1 a2 a3 b0 b1 b2 b3 : Felt) (rest : List Felt)
@@ -203,7 +200,6 @@ theorem u128_wrapping_mul_run
   rw [u128_wrapping_mul_tail_run env fuel a0 a1 a2 a3 b0 b1 b2 b3 rest mem locs adv
     ha0 ha1 ha2 ha3 hb0 hb1 hb2 hb3]
 
-set_option maxHeartbeats 12000000 in
 /-- `u128::wrapping_mul` correctly computes the low 128 bits of the product of two 128-bit values.
     Input stack:  [b0, b1, b2, b3, a0, a1, a2, a3] ++ rest
     Output stack: [c0, c1, c2, c3] ++ rest

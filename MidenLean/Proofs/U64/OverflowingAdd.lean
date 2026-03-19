@@ -40,7 +40,6 @@ theorem u64_overflowing_add_run
     felt_ofNat_val_lt _ (sum_div_2_32_lt_prime b_lo a_lo)
   rw [hcarry]
 
-set_option maxHeartbeats 4000000 in
 /-- `u64::overflowing_add` correctly computes addition of two u64 values with carry.
     Input stack:  [b_lo, b_hi, a_lo, a_hi] ++ rest
     Output stack: [overflow, c_lo, c_hi] ++ rest

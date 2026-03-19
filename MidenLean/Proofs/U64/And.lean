@@ -8,7 +8,6 @@ open MidenLean
 open MidenLean.StepLemmas
 open MidenLean.Tactics
 
-set_option maxHeartbeats 4000000 in
 /-- `u64::and` correctly computes bitwise AND of two u64 values.
     Input stack:  [b_lo, b_hi, a_lo, a_hi] ++ rest
     Output stack: [b_lo &&& a_lo, b_hi &&& a_hi] ++ rest -/

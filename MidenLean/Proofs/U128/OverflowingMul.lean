@@ -1,5 +1,6 @@
 import MidenLean.Proofs.U128.Common
 import MidenLean.Proofs.Tactics
+import MidenLean.Proofs.SimpAttrs
 import MidenLean.Generated.U128
 
 namespace MidenLean.Proofs
@@ -427,7 +428,6 @@ private theorem u128_overflowing_mul_overflow_products_chunk_decomp :
     u128_overflowing_mul_overflow_products_chunk2,
     u128_overflowing_mul_overflow_products_chunk3]
 
-set_option maxHeartbeats 12000000 in
 private theorem u128_mul_low_chunk1_run
     (env : ProcEnv) (fuel : Nat)
     (a0 a1 a2 a3 b0 b1 b2 b3 : Felt) (rest : List Felt)
@@ -469,7 +469,6 @@ private theorem u128_mul_low_chunk1_run
   miden_dup
   simp [pure, Pure.pure, u128MulC0, u128MulO0, u128MulP1, u128MulO1a]
 
-set_option maxHeartbeats 12000000 in
 private theorem u128_mul_low_chunk2_run
     (env : ProcEnv) (fuel : Nat)
     (a0 a1 a2 a3 b0 b1 b2 b3 : Felt) (rest : List Felt)
@@ -555,7 +554,6 @@ private theorem u128_mul_low_chunk2_run
   simp [pure, Pure.pure, u128MulC0, u128MulO0, u128MulP1, u128MulO1a, u128MulC1, u128MulO1b,
     u128MulO1Sum, u128MulO1Carry, u128MulP2a, u128MulO2a, u128MulP2b, u128MulO2b]
 
-set_option maxHeartbeats 12000000 in
 private theorem u128_mul_low_chunk3_add3_step
     (a0 a1 a2 a3 b0 b1 b2 b3 : Felt) (rest : List Felt)
     (mem locs : Nat → Felt) (adv : List Felt)
@@ -629,7 +627,6 @@ private theorem u128_mul_low_chunk3_add_step
         u128MulC0 a0 b0 :: u128MulC1 a0 a1 b0 b1 :: u128MulC2 a0 a1 a2 b0 b1 b2 :: rest)
       (ha := hO2Partial_u32) (hb := hO1Carry_u32))
 
-set_option maxHeartbeats 12000000 in
 private theorem u128_mul_low_chunk3_run
     (env : ProcEnv) (fuel : Nat)
     (a0 a1 a2 a3 b0 b1 b2 b3 : Felt) (rest : List Felt)
@@ -778,7 +775,6 @@ private theorem u128_mul_low_chunk3_run
   miden_swap
   simp [pure, Pure.pure, u128MulO2Carry, add_comm]
 
-set_option maxHeartbeats 12000000 in
 theorem u128_mul_low_chunk_run
     (env : ProcEnv) (fuel : Nat)
     (a0 a1 a2 a3 b0 b1 b2 b3 : Felt) (rest : List Felt)
@@ -809,7 +805,6 @@ theorem u128_mul_low_chunk_run
   rw [u128_mul_low_chunk3_run env fuel a0 a1 a2 a3 b0 b1 b2 b3 rest mem locs adv
     ha0 ha1 ha2 hb0 hb1 hb2]
 
-set_option maxHeartbeats 8000000 in
 theorem u128_overflowing_mul_c3_chunk_run
     (env : ProcEnv) (fuel : Nat)
     (a0 a1 a2 a3 b0 b1 b2 b3 : Felt) (rest : List Felt)
@@ -912,7 +907,6 @@ theorem u128_overflowing_mul_overflow_acc_chunk_run
     execSwap execMovup execAdd execNeqImm removeNth
   simp [MidenState.withStack, u128MulCarryOverflowBool]
 
-set_option maxHeartbeats 8000000 in
 private theorem u128_overflowing_mul_overflow_products_chunk1_run
     (env : ProcEnv) (fuel : Nat)
     (a0 a1 a2 a3 b0 b1 b2 b3 : Felt) (rest : List Felt)
@@ -964,7 +958,6 @@ private theorem u128_overflowing_mul_overflow_products_chunk1_run
   simp [pure, Pure.pure, u128MulCarryOverflowBool, u128MulP41Bool, u128MulP42Bool, add_comm,
     Bool.or_assoc]
 
-set_option maxHeartbeats 8000000 in
 private theorem u128_overflowing_mul_overflow_products_chunk2_run
     (env : ProcEnv) (fuel : Nat)
     (a0 a1 a2 a3 b0 b1 b2 b3 : Felt) (rest : List Felt)
@@ -1019,7 +1012,6 @@ private theorem u128_overflowing_mul_overflow_products_chunk2_run
   simp [pure, Pure.pure, u128MulCarryOverflowBool, u128MulP41Bool, u128MulP42Bool, u128MulP43Bool,
     u128MulP52Bool, add_comm, Bool.or_assoc]
 
-set_option maxHeartbeats 8000000 in
 private theorem u128_overflowing_mul_overflow_products_chunk3_run
     (env : ProcEnv) (fuel : Nat)
     (a0 a1 a2 a3 b0 b1 b2 b3 : Felt) (rest : List Felt)
@@ -1074,7 +1066,6 @@ private theorem u128_overflowing_mul_overflow_products_chunk3_run
     u128MulP42Bool, u128MulP43Bool, u128MulP52Bool, u128MulP53Bool, u128MulP63Bool, add_comm,
     Bool.or_assoc]
 
-set_option maxHeartbeats 8000000 in
 theorem u128_overflowing_mul_overflow_products_chunk_run
     (env : ProcEnv) (fuel : Nat)
     (a0 a1 a2 a3 b0 b1 b2 b3 : Felt) (rest : List Felt)
@@ -1126,7 +1117,6 @@ theorem u128_overflowing_mul_cleanup_chunk_run
     execMovup execDrop execSwap execMovdn removeNth insertAt
   simp [MidenState.withStack]
 
-set_option maxHeartbeats 12000000 in
 theorem u128_overflowing_mul_run
     (env : ProcEnv) (fuel : Nat)
     (a0 a1 a2 a3 b0 b1 b2 b3 : Felt) (rest : List Felt)
@@ -1163,7 +1153,6 @@ theorem u128_overflowing_mul_run
   miden_bind
   rw [u128_overflowing_mul_cleanup_chunk_run env fuel]
 
-set_option maxHeartbeats 12000000 in
 /-- `u128::overflowing_mul` correctly computes the low 128 bits of the product and an overflow flag.
     Input stack:  [b0, b1, b2, b3, a0, a1, a2, a3] ++ rest
     Output stack: [overflow, c0, c1, c2, c3] ++ rest

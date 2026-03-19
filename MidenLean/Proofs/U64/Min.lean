@@ -10,7 +10,6 @@ open MidenLean.StepLemmas
 open MidenLean.Tactics
 
 -- Based on generated skeleton: SEMI | Instructions: 10 | Calls: true (gt)
-set_option maxHeartbeats 16000000 in
 /-- `u64::min` correctly computes the minimum of two u64 values.
     Input stack:  [b_lo, b_hi, a_lo, a_hi] ++ rest
     Output stack: [min_lo, min_hi] ++ rest

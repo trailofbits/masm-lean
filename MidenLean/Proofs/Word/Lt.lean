@@ -13,7 +13,6 @@ private theorem felt_ite_gt_decide (a b : Felt) :
   cases h : decide (a.val > b.val) <;> simp_all [decide_eq_true_eq, decide_eq_false_iff_not]
 
 -- One iteration of the word.lt comparison loop (uses .gt instead of .lt).
-set_option maxHeartbeats 4000000 in
 private theorem lt_iteration
     (result undecided : Bool) (b_i a_i : Felt) (tail : List Felt)
     (mem locs : Nat → Felt) (adv : List Felt) :
@@ -58,7 +57,6 @@ private theorem lt_iteration_init
           (if (b_i == a_i) then (1:Felt) else 0) :: tail, mem, locs, adv⟩ :=
   lt_iteration false true b_i a_i tail mem locs adv
 
-set_option maxHeartbeats 16000000 in
 /-- `word::lt` correctly compares two words lexicographically. -/
 theorem word_lt_correct
     (a0 a1 a2 a3 b0 b1 b2 b3 : Felt) (rest : List Felt) (s : MidenState)

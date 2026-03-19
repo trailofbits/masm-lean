@@ -9,7 +9,6 @@ open MidenLean
 open MidenLean.StepLemmas
 open MidenLean.Tactics
 
-set_option maxHeartbeats 4000000 in
 /-- u64.mod computes the remainder of two u64 values by calling divmod,
     then rearranging the stack to keep only the remainder.
     Input stack:  [b_lo, b_hi, a_lo, a_hi] ++ rest
