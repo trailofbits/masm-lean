@@ -1,0 +1,25 @@
+import MidenLean.Generated.U128
+
+namespace MidenLean.Proofs
+
+open MidenLean
+
+/-- Procedure environment for manual u128 proofs that call other u128 procedures. -/
+def u128ProcEnv : ProcEnv := fun name =>
+  match name with
+  | "overflowing_add" => some Miden.Core.U128.overflowing_add
+  | "overflowing_sub" => some Miden.Core.U128.overflowing_sub
+  | "overflowing_mul" => some Miden.Core.U128.overflowing_mul
+  | "gt" => some Miden.Core.U128.gt
+  | "lt" => some Miden.Core.U128.lt
+  | "wrapping_mul" => some Miden.Core.U128.wrapping_mul
+  | "shr_k0" => some Miden.Core.U128.shr_k0
+  | "shr_k1" => some Miden.Core.U128.shr_k1
+  | "shr_k2" => some Miden.Core.U128.shr_k2
+  | "shr_k3" => some Miden.Core.U128.shr_k3
+  | "shl" => some Miden.Core.U128.shl
+  | "shr" => some Miden.Core.U128.shr
+  | "divmod" => some Miden.Core.U128.divmod
+  | _ => none
+
+end MidenLean.Proofs

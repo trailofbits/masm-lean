@@ -82,6 +82,22 @@ set_option maxHeartbeats 800000 in
   unfold execInstruction execDupw
   simp [MidenState.withStack]
 
+set_option maxHeartbeats 800000 in
+@[miden_dispatch] theorem stepDupw1 (mem locs : Nat → Felt) (adv : List Felt)
+    (a0 a1 a2 a3 b0 b1 b2 b3 : Felt) (rest : List Felt) :
+    execInstruction ⟨a0 :: a1 :: a2 :: a3 :: b0 :: b1 :: b2 :: b3 :: rest, mem, locs, adv⟩ (.dupw 1) =
+    some ⟨b0 :: b1 :: b2 :: b3 :: a0 :: a1 :: a2 :: a3 :: b0 :: b1 :: b2 :: b3 :: rest, mem, locs, adv⟩ := by
+  unfold execInstruction execDupw
+  simp [MidenState.withStack]
+
+set_option maxHeartbeats 800000 in
+@[miden_dispatch] theorem stepSwapw1 (mem locs : Nat → Felt) (adv : List Felt)
+    (a0 a1 a2 a3 b0 b1 b2 b3 : Felt) (rest : List Felt) :
+    execInstruction ⟨a0 :: a1 :: a2 :: a3 :: b0 :: b1 :: b2 :: b3 :: rest, mem, locs, adv⟩ (.swapw 1) =
+    some ⟨b0 :: b1 :: b2 :: b3 :: a0 :: a1 :: a2 :: a3 :: rest, mem, locs, adv⟩ := by
+  unfold execInstruction execSwapw
+  simp [MidenState.withStack]
+
 -- ============================================================================
 -- Assertions
 -- ============================================================================
@@ -263,6 +279,26 @@ set_option maxHeartbeats 800000 in
   simp only [MidenState.withStack]
   cases p <;> simp
 
+set_option maxHeartbeats 800000 in
+/-- cdropw on a boolean condition (as ite): if true, keep the word `b`; if false, keep the word `a`. -/
+@[miden_dispatch] theorem stepCdropwIte (mem locs : Nat → Felt) (adv : List Felt)
+    (rest : List Felt)
+    (a0 a1 a2 a3 b0 b1 b2 b3 : Felt) (p : Bool) :
+    execInstruction
+      ⟨(if p then (1 : Felt) else 0) ::
+          b0 :: b1 :: b2 :: b3 ::
+          a0 :: a1 :: a2 :: a3 :: rest, mem, locs, adv⟩
+      .cdropw =
+    some ⟨
+      (if p then b0 else a0) ::
+      (if p then b1 else a1) ::
+      (if p then b2 else a2) ::
+      (if p then b3 else a3) ::
+      rest, mem, locs, adv⟩ := by
+  unfold execInstruction execCdropw
+  simp only [MidenState.withStack]
+  cases p <;> simp
+
 -- ============================================================================
 -- Field arithmetic
 -- ============================================================================
@@ -430,6 +466,15 @@ set_option maxHeartbeats 4000000 in
     some ⟨Felt.ofNat (a.val ^^^ b.val) :: rest, mem, locs, adv⟩ := by
   unfold execInstruction execU32Xor
   simp [ha, hb, MidenState.withStack]
+
+set_option maxHeartbeats 4000000 in
+@[miden_dispatch] theorem stepU32Not (mem locs : Nat → Felt) (adv : List Felt)
+    (a : Felt) (rest : List Felt)
+    (ha : a.isU32 = true) :
+    execInstruction ⟨a :: rest, mem, locs, adv⟩ .u32Not =
+    some ⟨Felt.ofNat (u32Max - 1 - a.val) :: rest, mem, locs, adv⟩ := by
+  unfold execInstruction execU32Not u32Max
+  simp [ha, MidenState.withStack]
 
 -- ============================================================================
 -- U32 comparison (require isU32 preconditions)

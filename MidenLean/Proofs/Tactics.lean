@@ -106,6 +106,7 @@ macro_rules
       | (rw [stepU32WidenMul (ha := by assumption) (hb := by assumption)]; miden_bind)
       | (rw [stepU32WidenMadd (ha := by assumption) (hb := by assumption) (hc := by assumption)]; miden_bind)
       -- U32 bitwise (with isU32 hypotheses via assumption)
+      | (rw [stepU32Not (ha := by assumption)]; miden_bind)
       | (rw [stepU32And (ha := by assumption) (hb := by assumption)]; miden_bind)
       | (rw [stepU32Or (ha := by assumption) (hb := by assumption)]; miden_bind)
       | (rw [stepU32Xor (ha := by assumption) (hb := by assumption)]; miden_bind)

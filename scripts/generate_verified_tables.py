@@ -30,8 +30,10 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 PROOFS_ROOT = REPO_ROOT / "MidenLean" / "Proofs"
 MODULE_DIRS = {
     "u64": PROOFS_ROOT / "U64",
+    "u128": PROOFS_ROOT / "U128",
     "word": PROOFS_ROOT / "Word",
 }
+MODULE_ORDER = ("u64", "u128", "word")
 SUPPORT_FILES = {"Common.lean"}
 
 THEOREM_RE = re.compile(r"(?m)^theorem\s+([A-Za-z0-9_]+_correct)\b")
@@ -69,7 +71,7 @@ def parse_args() -> argparse.Namespace:
         nargs="*",
         choices=tuple(MODULE_DIRS.keys()),
         default=list(MODULE_DIRS.keys()),
-        help="Subset of proof modules to inspect (default: u64 word).",
+        help="Subset of proof modules to inspect (default: u64 u128 word).",
     )
     return parser.parse_args()
 
@@ -273,13 +275,13 @@ def format_tables(rows_by_module: dict[str, list[ProofRow]]) -> str:
     parts: list[str] = []
     module_counts = ", ".join(
         f"{len(rows_by_module[module])} in `{module}`"
-        for module in ("u64", "word")
+        for module in MODULE_ORDER
         if module in rows_by_module
     )
     parts.append(
         f"The current checked manual proofs cover {total} procedures: {module_counts}."
     )
-    for module in ("u64", "word"):
+    for module in MODULE_ORDER:
         rows = rows_by_module.get(module)
         if rows is None:
             continue
