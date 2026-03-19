@@ -844,6 +844,13 @@ pub fn instruction_info(inst: &Instruction) -> InstructionInfo {
             info.comment_name = "u32WrappingMul".into();
             info.is_known = true;
         }
+        U32WrappingMadd => {
+            info.stack_effect = Some(StackEffect::new(3, 1));
+            info.comment_name = "u32WrappingMadd".into();
+            info.has_step_lemma = true;
+            info.needs_hypothesis = true;
+            info.is_known = true;
+        }
 
         // === U32 arithmetic (unary Imm variants: 1->1) ===
         U32WrappingAddImm(_) => {

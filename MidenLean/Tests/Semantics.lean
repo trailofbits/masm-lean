@@ -511,6 +511,20 @@ private def u32max : Nat := 2^32
   -- 3*4 + 10 = 22; lo=22, hi=0
   unless checkStack r [22, 0] do panic! "u32WidenMadd: 3*4+10 failed"
 
+-- u32WrappingMadd: basic (a*b+c) mod 2^32
+#eval do
+  let s := mkState [4, 3, 10]
+  let r := runInst s .u32WrappingMadd
+  unless checkStack r [22] do panic! "u32WrappingMadd: 3*4+10 failed"
+
+-- u32WrappingMadd: overflow wraps mod 2^32
+#eval do
+  let a : Felt := Felt.ofNat (u32max / 2)
+  let s := mkState [2, a, 1]
+  let r := runInst s .u32WrappingMadd
+  -- (2^31 * 2 + 1) mod 2^32 = 1
+  unless checkStack r [1] do panic! "u32WrappingMadd: overflow wrap failed"
+
 -- ============================================================================
 -- Tier 2: U32 Precondition Enforcement (AC-11)
 -- Regression tests: non-u32 inputs must fail
@@ -536,6 +550,13 @@ private def u32max : Nat := 2^32
   let s := mkState [big, 1]
   let r := runInst s .u32WidenMul
   unless checkNone r do panic! "REGRESSION(u32-precond): u32WidenMul should reject non-u32"
+
+-- u32WrappingMadd rejects non-u32 input
+#eval do
+  let big : Felt := Felt.ofNat (u32max + 1)
+  let s := mkState [1, 2, big]
+  let r := runInst s .u32WrappingMadd
+  unless checkNone r do panic! "REGRESSION(u32-precond): u32WrappingMadd should reject non-u32"
 
 -- u32DivMod rejects non-u32 input
 #eval do
