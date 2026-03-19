@@ -20,7 +20,6 @@ private theorem lo32_isU32 (a : Felt) : a.lo32.isU32 = true := by
   rw [felt_ofNat_val_lt _ (u32_mod_lt_prime _)]
   exact Nat.mod_lt _ (by decide)
 
-set_option maxHeartbeats 16000000 in
 /-- `u64::shl` correctly left-shifts a u64 value.
     Input stack:  [shift, lo, hi] ++ rest
     Output stack: [result_lo, result_hi] ++ rest

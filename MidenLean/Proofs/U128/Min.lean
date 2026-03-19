@@ -9,7 +9,6 @@ open MidenLean
 open MidenLean.StepLemmas
 open MidenLean.Tactics
 
-set_option maxHeartbeats 8000000 in
 theorem u128_min_run
     (fuel : Nat)
     (a0 a1 a2 a3 b0 b1 b2 b3 : Felt) (rest : List Felt)
@@ -42,7 +41,6 @@ theorem u128_min_run
   rw [stepCdropwIte]
   simp [pure, Pure.pure]
 
-set_option maxHeartbeats 8000000 in
 /-- `u128::min` correctly computes the minimum of two u128 values.
     Input stack:  [b0, b1, b2, b3, a0, a1, a2, a3] ++ rest
     Output stack: [m0, m1, m2, m3] ++ rest

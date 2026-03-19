@@ -6,7 +6,6 @@ namespace MidenLean.Proofs
 
 open MidenLean
 
-set_option maxHeartbeats 8000000 in
 /-- `word::testz` correctly tests whether a word is zero without consuming the input. -/
 theorem word_testz_correct (a b c d : Felt) (rest : List Felt) (s : MidenState)
     (hs : s.stack = a :: b :: c :: d :: rest) :

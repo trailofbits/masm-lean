@@ -7,7 +7,6 @@ open MidenLean
 open MidenLean.StepLemmas
 open MidenLean.Tactics
 
-set_option maxHeartbeats 4000000 in
 /-- `u128::eqz` correctly tests whether a 128-bit value is zero.
     Input stack:  [a, b, c, d] ++ rest
     Output stack: [is_zero] ++ rest

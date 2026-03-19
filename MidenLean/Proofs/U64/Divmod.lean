@@ -9,7 +9,6 @@ open MidenLean
 open MidenLean.StepLemmas
 open MidenLean.Tactics
 
-set_option maxHeartbeats 32000000 in
 /-- u64.divmod verifies that advice-provided quotient and remainder
     satisfy the division identity a = b * q + r with r < b.
     Input stack:  [b_lo, b_hi, a_lo, a_hi] ++ rest

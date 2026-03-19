@@ -7,7 +7,6 @@ open MidenLean
 open MidenLean.StepLemmas
 open MidenLean.Tactics
 
-set_option maxHeartbeats 8000000 in
 /-- word.store_word_u32s_le: splits 4 felts into 8 u32
     limbs via u32Split and stores them as two words in
     memory at addr and addr+4. -/

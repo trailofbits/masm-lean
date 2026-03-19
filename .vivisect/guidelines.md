@@ -10,11 +10,11 @@
 
 ## Format References (read when writing output)
 - Findings:
-  /home/parallels/.claude/skills/vivisect/references/vivisect-findings-format.md
+/home/parallels/.claude/skills/vivisect/references/vivisect-findings-format.md
 - Analysis:
-  /home/parallels/.claude/skills/vivisect/references/vivisect-analysis-format.md
+/home/parallels/.claude/skills/vivisect/references/vivisect-analysis-format.md
 - Cross-check:
-  /home/parallels/.claude/skills/vivisect/references/vivisect-cross-check-format.md
+/home/parallels/.claude/skills/vivisect/references/vivisect-cross-check-format.md
 - Rationalizations:
   /home/parallels/.claude/skills/vivisect/references/rationalizations.md
 

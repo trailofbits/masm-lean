@@ -7,7 +7,6 @@ open MidenLean
 open MidenLean.StepLemmas
 open MidenLean.Tactics
 
-set_option maxHeartbeats 12000000 in
 /-- `u128::cto` correctly counts trailing ones of a u128 value.
     Input stack:  [a, b, c, d] ++ rest
     Output stack: [result] ++ rest

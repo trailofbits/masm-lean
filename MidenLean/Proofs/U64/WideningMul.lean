@@ -120,7 +120,6 @@ private theorem wmul_c1hi_val (a_lo b_lo b_hi : Felt)
     _ < GOLDILOCKS_PRIME := by
         unfold GOLDILOCKS_PRIME; native_decide
 
-set_option maxHeartbeats 4000000 in
 private theorem wmul_h1_ok
     (a_lo a_hi b_lo b_hi : Felt)
     (rest : List Felt)
@@ -165,7 +164,6 @@ private theorem wmul_h1_ok
   miden_swap
   dsimp only [pure, Pure.pure]
 
-set_option maxHeartbeats 4000000 in
 private theorem wmul_h2_ok
     (a_hi b_hi c2hi c2lo c1hi prod0 : Felt)
     (rest : List Felt)
@@ -211,7 +209,6 @@ private theorem wmul_h2_ok
   rw [stepReversew]
   dsimp only [pure, Pure.pure]
 
-set_option maxHeartbeats 4000000 in
 /-- u64.widening_mul computes the full 128-bit product. -/
 theorem u64_widening_mul_correct
     (a_lo a_hi b_lo b_hi : Felt)

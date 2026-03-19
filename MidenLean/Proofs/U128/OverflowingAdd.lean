@@ -116,7 +116,6 @@ theorem u128_overflowing_add_run
   miden_movdn
   simp only [pure, Pure.pure]
 
-set_option maxHeartbeats 8000000 in
 /-- `u128::overflowing_add` correctly computes addition of two 128-bit values with carry.
     Input stack:  [b0, b1, b2, b3, a0, a1, a2, a3] ++ rest
     Output stack: [overflow, c0, c1, c2, c3] ++ rest
