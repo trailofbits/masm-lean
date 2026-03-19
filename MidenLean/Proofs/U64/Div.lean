@@ -59,7 +59,8 @@ theorem u64_div_correct
           (b_hi.val * q_lo.val + (b_lo.val * q_lo.val) / 2^32) % 2^32) % 2^32 +
         (r_lo.val + (b_lo.val * q_lo.val) % 2^32) / 2^32) % 2^32))
     (h_a_lo_eq : a_lo = Felt.ofNat ((r_lo.val +
-        (b_lo.val * q_lo.val) % 2^32) % 2^32)) :
+        (b_lo.val * q_lo.val) % 2^32) % 2^32))
+    (hlen : rest.length + 30 ≤ MAX_STACK_DEPTH) :
     execWithEnv u64ProcEnv 51 s Miden.Core.U64.div =
     some { stack := q_lo :: q_hi :: rest,
            memory := s.memory,
@@ -81,7 +82,7 @@ theorem u64_div_correct
            events := 14153021663962350784 :: evts }
     from u64_divmod_correct a_lo a_hi b_lo b_hi rest q_lo q_hi r_lo r_hi adv_rest
       ⟨b_lo :: b_hi :: a_lo :: a_hi :: rest, mem, locs, q_hi :: q_lo :: r_hi :: r_lo :: adv_rest, evts⟩
-      rfl rfl hq_hi_u32 hq_lo_u32 hr_hi_u32 hr_lo_u32 hb_lo_u32 hb_hi_u32
+      rfl rfl hq_hi_u32 hq_lo_u32 hr_hi_u32 hr_lo_u32 hlen hb_lo_u32 hb_hi_u32
       p1_hi_val h_p2_hi_zero p2_lo_val h_p3_hi_zero h_qhi_bhi_zero
       p1_lo_val p3_lo_val h_lt_result h_carry_hi_zero h_a_hi_eq h_a_lo_eq]
   simp only []

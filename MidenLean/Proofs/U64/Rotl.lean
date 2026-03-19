@@ -41,7 +41,8 @@ private theorem rotl_h1_ok
     (lo hi shift : Felt) (rest : List Felt)
     (mem locs : Nat → Word) (adv : List Felt) (evts : List Felt)
     (hshift_u32 : shift.isU32 = true)
-    (hlo : lo.isU32 = true) :
+    (hlo : lo.isU32 = true)
+    (hlen : rest.length + 30 ≤ MAX_STACK_DEPTH) :
     let eff := shift.val &&& 31
     let pow := 2 ^ eff
     let lo_prod := pow * lo.val
@@ -60,14 +61,14 @@ private theorem rotl_h1_ok
   unfold exec rotl_h1 execWithEnv
   simp only [List.foldlM]
   miden_movup; miden_swap
-  rw [stepPush]; miden_bind
+  rw [stepPush (hov := by simp [List.length_cons]; omega)]; miden_bind
   miden_dup
   have h31_u32 : Felt.isU32 (31 : Felt) = true := by
     native_decide
   rw [stepU32OverflowSub (ha := h31_u32)
     (hb := hshift_u32)]; miden_bind
   miden_swap; rw [stepDrop]; miden_bind
-  miden_movdn; rw [stepPush]; miden_bind
+  miden_movdn; rw [stepPush (hov := by simp [List.length_cons]; omega)]; miden_bind
   rw [stepU32And (ha := hshift_u32)
     (hb := h31_u32)]; miden_bind
   have h31_val : (31 : Felt).val = 31 :=
@@ -184,7 +185,8 @@ theorem u64_rotl_correct
     (hs : s.stack = shift :: lo :: hi :: rest)
     (hshift_u32 : shift.isU32 = true)
     (hlo : lo.isU32 = true)
-    (hhi : hi.isU32 = true) :
+    (hhi : hi.isU32 = true)
+    (hlen : rest.length + 30 ≤ MAX_STACK_DEPTH) :
     let eff := shift.val &&& 31
     let pow := 2 ^ eff
     let lo_prod := pow * lo.val
@@ -204,7 +206,7 @@ theorem u64_rotl_correct
   subst hs
   rw [rotl_split, exec_append,
     rotl_h1_ok lo hi shift rest mem locs adv evts
-      hshift_u32 hlo]
+      hshift_u32 hlo hlen]
   simp only [bind, Bind.bind, Option.bind]
   rw [u32OverflowingSub_borrow_ite 31 shift.val]
   rw [rotl_h2_ok (decide (31 < shift.val))

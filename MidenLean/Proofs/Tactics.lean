@@ -25,7 +25,7 @@ macro_rules
 syntax "miden_dup" : tactic
 macro_rules
   | `(tactic| miden_dup) =>
-    `(tactic| rw [stepDup (h := rfl)]; miden_bind)
+    `(tactic| rw [stepDup (h := rfl) (hov := by simp [List.length_cons]; omega)]; miden_bind)
 
 /-- Apply stepMovup with automatic element resolution. -/
 syntax "miden_movup" : tactic
@@ -51,7 +51,7 @@ macro_rules
       | rw [stepDrop]; miden_bind
       | rw [stepReversew]; miden_bind
       | rw [stepDropw]; miden_bind
-      | rw [stepPush]; miden_bind
+      | rw [stepPush (hov := by simp [List.length_cons]; omega)]; miden_bind
       | rw [stepAdd]; miden_bind
       | rw [stepMul]; miden_bind
       | miden_dup
@@ -65,7 +65,7 @@ macro_rules
       | rw [stepOrIte]; miden_bind
       | rw [stepNotIte]; miden_bind
       | rw [stepAddImm]; miden_bind
-      | rw [stepU32Split]; miden_bind
+      | rw [stepU32Split (hov := by simp [List.length_cons]; omega)]; miden_bind
       | rw [stepLt]; miden_bind
       | rw [stepGt]; miden_bind
       | (rw [stepPow2 (ha := by omega)]; miden_bind)
@@ -81,16 +81,16 @@ macro_rules
       | (rw [stepU32Ctz (ha := by assumption)]; miden_bind)
       | (rw [stepU32Clo (ha := by assumption)]; miden_bind)
       | (rw [stepU32Cto (ha := by assumption)]; miden_bind)
-      | (rw [stepDupw (h0 := rfl) (h1 := rfl) (h2 := rfl) (h3 := rfl)]; miden_bind)
+      | (rw [stepDupw (h0 := rfl) (h1 := rfl) (h2 := rfl) (h3 := rfl) (hov := by simp [List.length_cons]; omega)]; miden_bind)
       | (rw [stepDiv (hb := by assumption)]; miden_bind)
       | (rw [stepCdropIte]; miden_bind)
       | (rw [stepCswapIte]; miden_bind)
       | (rw [stepEmitImm]; miden_bind)
-      | (rw [stepAdvPush2]; miden_bind)
+      | (rw [stepAdvPush2 (hov := by simp [List.length_cons]; omega)]; miden_bind)
       | (rw [stepU32Assert2 (ha := by assumption) (hb := by assumption)]; miden_bind)
       | (rw [stepAssertWithError (ha := by assumption)]; miden_bind)
       | (rw [stepAssertEqWithError (hab := by assumption)]; miden_bind)
-      | (rw [stepMemStorewLe (ha_lt := by assumption) (ha_align := by assumption)]; miden_bind))
+      | (rw [stepMemStorewLe (ha_lt := by assumption)]; miden_bind))
 
 /-- Step through all remaining instructions, finishing with pure. -/
 syntax "miden_steps" : tactic

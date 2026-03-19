@@ -13,7 +13,8 @@ open MidenLean.Tactics
     where result = 1 iff all corresponding elements are equal, else 0. -/
 theorem word_test_eq_correct (a0 a1 a2 a3 b0 b1 b2 b3 : Felt) (rest : List Felt)
     (s : MidenState)
-    (hs : s.stack = a0 :: a1 :: a2 :: a3 :: b0 :: b1 :: b2 :: b3 :: rest) :
+    (hs : s.stack = a0 :: a1 :: a2 :: a3 :: b0 :: b1 :: b2 :: b3 :: rest)
+    (hlen : rest.length + 30 ≤ MAX_STACK_DEPTH) :
     exec 20 s Miden.Core.Word.test_eq =
     some (s.withStack (
       (if (b3 == a3) && (b2 == a2) && (b1 == a1) && (b0 == a0)

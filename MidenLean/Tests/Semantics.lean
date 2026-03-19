@@ -1411,6 +1411,73 @@ private def u32max : Nat := 2^32
     panic! "movdn 3: should push top to position 3"
 
 -- ============================================================================
+-- Tier 11: Stack depth enforcement
+-- ============================================================================
+
+-- Test that push on a full stack returns none (overflow)
+#eval do
+  let maxStk := List.replicate MAX_STACK_DEPTH (0 : Felt)
+  let s := MidenState.ofStack maxStk
+  let r := execInstruction s (.push 42)
+  unless r.isNone do
+    panic! "push on full stack should return none"
+
+-- Test that push on a stack with room succeeds
+#eval do
+  let stk := List.replicate (MAX_STACK_DEPTH - 1) (0 : Felt)
+  let s := MidenState.ofStack stk
+  let r := execInstruction s (.push 42)
+  unless r.isSome do
+    panic! "push on stack with room should succeed"
+
+-- Test that dup on a full stack returns none
+#eval do
+  let maxStk := List.replicate MAX_STACK_DEPTH (7 : Felt)
+  let s := MidenState.ofStack maxStk
+  let r := execInstruction s (.dup 0)
+  unless r.isNone do
+    panic! "dup on full stack should return none"
+
+-- Test that padw on a near-full stack returns none
+#eval do
+  let stk := List.replicate (MAX_STACK_DEPTH - 3) (0 : Felt)
+  let s := MidenState.ofStack stk
+  let r := execInstruction s .padw
+  unless r.isNone do
+    panic! "padw when only 3 slots left should return none"
+
+-- Test that padw with exactly 4 slots succeeds
+#eval do
+  let stk := List.replicate (MAX_STACK_DEPTH - 4) (0 : Felt)
+  let s := MidenState.ofStack stk
+  let r := execInstruction s .padw
+  unless r.isSome do
+    panic! "padw with exactly 4 slots should succeed"
+
+-- Test that advPush on a full stack returns none
+#eval do
+  let maxStk := List.replicate MAX_STACK_DEPTH (0 : Felt)
+  let s := MidenState.ofStackAdvice maxStk [1, 2]
+  let r := execInstruction s (.advPush 2)
+  unless r.isNone do
+    panic! "advPush on full stack should return none"
+
+-- Test that u32Split on a full stack returns none
+#eval do
+  let maxStk := List.replicate MAX_STACK_DEPTH (5 : Felt)
+  let s := MidenState.ofStack maxStk
+  let r := execInstruction s .u32Split
+  unless r.isNone do
+    panic! "u32Split on full stack should return none"
+
+-- Test that drop on an empty stack returns none
+#eval do
+  let s := MidenState.ofStack []
+  let r := execInstruction s .drop
+  unless r.isNone do
+    panic! "drop on empty stack should return none"
+
+-- ============================================================================
 -- Summary
 -- ============================================================================
 

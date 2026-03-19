@@ -14,7 +14,8 @@ open MidenLean.Tactics
     where result = if lo == 0 then ctz(hi) + 32 else ctz(lo). -/
 theorem u64_ctz_correct (lo hi : Felt) (rest : List Felt) (s : MidenState)
     (hs : s.stack = lo :: hi :: rest)
-    (hlo : lo.isU32 = true) (hhi : hi.isU32 = true) :
+    (hlo : lo.isU32 = true) (hhi : hi.isU32 = true)
+    (hlen : rest.length + 30 ≤ MAX_STACK_DEPTH) :
     exec 20 s Miden.Core.U64.ctz =
     some (s.withStack (
       (if lo == (0 : Felt)

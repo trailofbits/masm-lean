@@ -16,7 +16,8 @@ open MidenLean.Tactics
     u32CountTrailingOnes is private to Semantics. -/
 theorem u64_cto_correct (lo hi : Felt) (rest : List Felt) (s : MidenState)
     (hs : s.stack = lo :: hi :: rest)
-    (hlo : lo.isU32 = true) (hhi : hi.isU32 = true) :
+    (hlo : lo.isU32 = true) (hhi : hi.isU32 = true)
+    (hlen : rest.length + 30 ≤ MAX_STACK_DEPTH) :
     exec 20 s Miden.Core.U64.cto =
     some (s.withStack (
       (if lo == (4294967295 : Felt)

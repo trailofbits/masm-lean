@@ -74,7 +74,8 @@ private theorem rotr_split :
 private theorem rotr_h1_ok
     (lo hi shift : Felt) (rest : List Felt)
     (mem locs : Nat → Word) (adv : List Felt) (evts : List Felt)
-    (hshift_u32 : shift.isU32 = true) :
+    (hshift_u32 : shift.isU32 = true)
+    (hlen : rest.length + 30 ≤ MAX_STACK_DEPTH) :
     let cmp := decide ((31 : Felt).val < shift.val)
     let shiftAnd31 :=
       Felt.ofNat (shift.val &&& (31 : Felt).val)
@@ -93,7 +94,7 @@ private theorem rotr_h1_ok
   unfold exec rotr_h1 execWithEnv
   simp only [List.foldlM]
   miden_movup; miden_swap
-  rw [stepPush]; miden_bind
+  rw [stepPush (hov := by simp [List.length_cons]; omega)]; miden_bind
   miden_dup
   have h31_u32 : Felt.isU32 (31 : Felt) = true := by
     native_decide
@@ -102,10 +103,10 @@ private theorem rotr_h1_ok
   rw [ite_prop_to_decide
     (p := (31 : Felt).val < shift.val)]
   miden_movdn
-  rw [stepPush]; miden_bind
+  rw [stepPush (hov := by simp [List.length_cons]; omega)]; miden_bind
   rw [stepU32And (ha := hshift_u32) (hb := h31_u32)]
   miden_bind
-  rw [stepPush]; miden_bind
+  rw [stepPush (hov := by simp [List.length_cons]; omega)]; miden_bind
   miden_swap
   have h32_u32 : (32 : Felt).isU32 = true := by
     native_decide
@@ -127,14 +128,15 @@ private theorem rotr_h1_ok
     hshift_u32)]; miden_bind
   miden_dup; miden_movup
   rw [stepMul]; miden_bind
-  rw [stepU32Split]; miden_bind
+  rw [stepU32Split (hov := by simp [List.length_cons]; omega)]; miden_bind
   miden_swap
   dsimp only [pure, Pure.pure]
 
 private theorem rotr_h2_ok (b : Bool)
     (hi pow prod1_hi prod1_lo : Felt)
     (rest : List Felt)
-    (mem locs : Nat → Word) (adv : List Felt) (evts : List Felt) :
+    (mem locs : Nat → Word) (adv : List Felt) (evts : List Felt)
+    (hlen : rest.length + 30 ≤ MAX_STACK_DEPTH) :
     let cross := prod1_hi + hi * pow
     exec 35
       ⟨prod1_hi :: prod1_lo :: pow :: hi ::
@@ -153,7 +155,7 @@ private theorem rotr_h2_ok (b : Bool)
   miden_movup; miden_movup
   rw [stepMul]; miden_bind
   rw [stepAdd]; miden_bind
-  rw [stepU32Split]; miden_bind
+  rw [stepU32Split (hov := by simp [List.length_cons]; omega)]; miden_bind
   miden_swap; miden_movup
   rw [stepAdd]; miden_bind
   miden_swap; miden_movup
@@ -168,7 +170,8 @@ theorem u64_rotr_correct
     (lo hi shift : Felt) (rest : List Felt)
     (s : MidenState)
     (hs : s.stack = shift :: lo :: hi :: rest)
-    (hshift_u32 : shift.isU32 = true) :
+    (hshift_u32 : shift.isU32 = true)
+    (hlen : rest.length + 30 ≤ MAX_STACK_DEPTH) :
     let cmp := decide ((31 : Felt).val < shift.val)
     let shiftAnd31 :=
       Felt.ofNat (shift.val &&& (31 : Felt).val)
@@ -191,10 +194,10 @@ theorem u64_rotr_correct
   subst hs
   rw [rotr_split, exec_append,
     rotr_h1_ok lo hi shift rest mem locs adv evts
-      hshift_u32]
+      hshift_u32 hlen]
   simp only [bind, Bind.bind, Option.bind]
   rw [rotr_h2_ok (decide ((31 : Felt).val < shift.val))
-    hi _ _ _ rest mem locs adv]
+    hi _ _ _ rest mem locs adv (hlen := hlen)]
 
 /-- The cross-product in rotr computes the full product
     toU64 lo hi * 2^reff, where reff = 32 - (shift & 31).
