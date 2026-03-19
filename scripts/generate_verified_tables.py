@@ -28,10 +28,16 @@ from typing import Iterable
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 PROOFS_ROOT = REPO_ROOT / "MidenLean" / "Proofs"
+GENERATED_ROOT = REPO_ROOT / "MidenLean" / "Generated"
 MODULE_DIRS = {
     "u64": PROOFS_ROOT / "U64",
     "u128": PROOFS_ROOT / "U128",
     "word": PROOFS_ROOT / "Word",
+}
+GENERATED_MODULE_FILES = {
+    "u64": GENERATED_ROOT / "U64.lean",
+    "u128": GENERATED_ROOT / "U128.lean",
+    "word": GENERATED_ROOT / "Word.lean",
 }
 MODULE_ORDER = ("u64", "u128", "word")
 SUPPORT_FILES = {"Common.lean"}
@@ -39,6 +45,7 @@ SUPPORT_FILES = {"Common.lean"}
 THEOREM_RE = re.compile(r"(?m)^theorem\s+([A-Za-z0-9_]+_correct)\b")
 DOC_COMMENT_RE = re.compile(r"/--(.*?)-/", re.DOTALL)
 BUILD_WARNING_RE = re.compile(r"(?m)^warning:")
+PROCEDURE_DEF_RE = re.compile(r"(?m)^def\s+([A-Za-z0-9_]+)\s*:\s*List Op\s*:=\s*\[")
 
 
 @dataclass
@@ -270,7 +277,15 @@ def iter_module_files(module_dir: Path) -> Iterable[Path]:
         yield path
 
 
-def format_tables(rows_by_module: dict[str, list[ProofRow]]) -> str:
+def count_total_procedures(module: str) -> int:
+    generated_file = GENERATED_MODULE_FILES[module]
+    content = generated_file.read_text(encoding="utf-8")
+    return len(PROCEDURE_DEF_RE.findall(content))
+
+
+def format_tables(
+    rows_by_module: dict[str, list[ProofRow]], total_procedures_by_module: dict[str, int]
+) -> str:
     total = sum(len(rows) for rows in rows_by_module.values())
     parts: list[str] = []
     module_counts = ", ".join(
@@ -285,8 +300,9 @@ def format_tables(rows_by_module: dict[str, list[ProofRow]]) -> str:
         rows = rows_by_module.get(module)
         if rows is None:
             continue
+        total_procedures = total_procedures_by_module[module]
         parts.append("")
-        parts.append(f"### `{module}`")
+        parts.append(f"### `{module}` ({len(rows)} / {total_procedures})")
         parts.append("")
         parts.append("| Procedure | Theorem | Summary | Manual proof file |")
         parts.append("| --- | --- | --- | --- |")
@@ -305,6 +321,9 @@ def main() -> int:
     args = parse_args()
     warnings: list[WarningMessage] = []
     rows_by_module: dict[str, list[ProofRow]] = {module: [] for module in args.modules}
+    total_procedures_by_module = {
+        module: count_total_procedures(module) for module in args.modules
+    }
     build_failures = False
 
     for module in args.modules:
@@ -328,7 +347,7 @@ def main() -> int:
             else:
                 build_failures = True
 
-    print(format_tables(rows_by_module))
+    print(format_tables(rows_by_module, total_procedures_by_module))
 
     for warning in warnings:
         print(f"warning[{warning.kind}]: {warning.message}", file=sys.stderr)
