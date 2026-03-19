@@ -1,4 +1,5 @@
 import MidenLean.Proofs.Tactics
+import MidenLean.Proofs.Interp
 import MidenLean.Generated.U64
 
 namespace MidenLean.Proofs
@@ -399,5 +400,42 @@ theorem u64_shr_correct
     miden_bind
     miden_swap
     simp
+
+/-- Semantic: shr computes toU64 lo hi / 2^shift.val.
+    For shift >= 32: the result is hi / 2^(shift-32).
+    For 0 < shift < 32: the result decomposes into
+    hi_quot * 2^32 + lo_quot + spillover.
+    For shift = 0: identity. -/
+theorem u64_shr_semantic
+    (lo hi shift : Felt)
+    (hlo : lo.isU32 = true) (hhi : hi.isU32 = true)
+    (hshift : shift.val ≤ 63) :
+    if shift.val ≥ 32 then
+      hi.val / 2 ^ (shift.val - 32) =
+        toU64 lo hi / 2 ^ shift.val
+    else
+      (hi.val / 2 ^ shift.val) * 2 ^ 32 +
+        (lo.val / 2 ^ shift.val +
+         (hi.val % 2 ^ shift.val) *
+          2 ^ (32 - shift.val)) =
+        toU64 lo hi / 2 ^ shift.val := by
+  simp only [Felt.isU32, decide_eq_true_eq] at hlo hhi
+  split
+  · -- shift >= 32
+    rw [show toU64 lo hi = hi.val * 2 ^ 32 +
+        lo.val from rfl]
+    exact (shr_hi_only lo.val hi.val
+      shift.val hlo ‹_›).symm
+  · -- shift < 32
+    rename_i hlt
+    push_neg at hlt
+    by_cases h0 : shift.val = 0
+    · simp only [h0, Nat.pow_zero, Nat.div_one,
+        Nat.mod_one, Nat.zero_mul, Nat.add_zero,
+        Nat.sub_zero, toU64]
+    · rw [show toU64 lo hi = hi.val * 2 ^ 32 +
+          lo.val from rfl]
+      exact shr_lo_decomp lo.val hi.val
+        shift.val hlo hhi hlt (by omega)
 
 end MidenLean.Proofs
