@@ -207,19 +207,19 @@ theorem u32_prod_div_lt_prime (a b : Felt)
 -- execInstruction equation lemmas
 -- ============================================================================
 
-@[simp] theorem execInstruction_u32OverflowSub (s : MidenState) :
+theorem execInstruction_u32OverflowSub (s : MidenState) :
     execInstruction s .u32OverflowSub = execU32OverflowSub s := by
   unfold execInstruction; rfl
 
-@[simp] theorem execInstruction_u32WrappingSub (s : MidenState) :
+theorem execInstruction_u32WrappingSub (s : MidenState) :
     execInstruction s .u32WrappingSub = execU32WrappingSub s := by
   unfold execInstruction; rfl
 
-@[simp] theorem execInstruction_u32WidenMul (s : MidenState) :
+theorem execInstruction_u32WidenMul (s : MidenState) :
     execInstruction s .u32WidenMul = execU32WidenMul s := by
   unfold execInstruction; rfl
 
-@[simp] theorem execInstruction_u32WidenMadd (s : MidenState) :
+theorem execInstruction_u32WidenMadd (s : MidenState) :
     execInstruction s .u32WidenMadd = execU32WidenMadd s := by
   unfold execInstruction; rfl
 
