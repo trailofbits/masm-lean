@@ -12,6 +12,7 @@ set_option linter.unreachableTactic false
 set_option linter.unusedTactic false
 -- Classification: AUTO | Style: FLAT_AUTO | Instructions: 5 | Inputs: 4 | Calls: false | Branches: false | Loops: false | Advice: false
 set_option maxHeartbeats 4000000 in
+-- TODO: replace the theorem doc comment below with a high-level correctness description for README table generation.
 /-- u64.neq: (auto-generated skeleton)
     Input stack:  [a, b, c, d] ++ rest
     Output stack: [sorry] ++ rest -/

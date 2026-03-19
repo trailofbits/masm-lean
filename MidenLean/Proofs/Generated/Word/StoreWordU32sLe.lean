@@ -12,6 +12,7 @@ set_option linter.unreachableTactic false
 set_option linter.unusedTactic false
 -- Classification: SEMI | Style: FLAT_EXPLICIT | Instructions: 15 | Inputs: 5 | Calls: false | Branches: false | Loops: false | Advice: false
 set_option maxHeartbeats 4000000 in
+-- TODO: replace the theorem doc comment below with a high-level correctness description for README table generation.
 /-- word.store_word_u32s_le: (auto-generated skeleton)
     Input stack:  [x0, x1, x2, x3, x4] ++ rest
     Output stack: [sorry] ++ rest -/
