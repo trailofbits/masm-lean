@@ -50,7 +50,7 @@ private theorem u128_wrapping_mul_tail_decomp :
 private theorem u128_wrapping_mul_tail_arith_run
     (env : ProcEnv) (fuel : Nat)
     (a0 a1 a2 a3 b0 b1 b2 b3 : Felt) (rest : List Felt)
-    (mem locs : Nat → Felt) (adv : List Felt) (evts : List Felt)
+    (mem locs : Nat → Word) (adv : List Felt) (evts : List Felt)
     (ha0 : a0.isU32 = true) (ha1 : a1.isU32 = true)
     (ha2 : a2.isU32 = true) (ha3 : a3.isU32 = true)
     (hb0 : b0.isU32 = true) (hb1 : b1.isU32 = true)
@@ -118,7 +118,7 @@ private theorem u128_wrapping_mul_tail_arith_run
 private theorem u128_wrapping_mul_tail_cleanup_run
     (env : ProcEnv) (fuel : Nat)
     (c3 a0 a1 a2 a3 b0 b1 b2 b3 c0 c1 c2 : Felt) (rest : List Felt)
-    (mem locs : Nat → Felt) (adv : List Felt) (evts : List Felt) :
+    (mem locs : Nat → Word) (adv : List Felt) (evts : List Felt) :
     execWithEnv env (fuel + 1)
       ⟨c3 :: a0 :: a1 :: a2 :: a3 :: b0 :: b1 :: b2 :: b3 :: c0 :: c1 :: c2 :: rest, mem, locs, adv, evts⟩
       u128_wrapping_mul_tail_cleanup =
@@ -145,7 +145,7 @@ private theorem u128_wrapping_mul_tail_cleanup_run
 private theorem u128_wrapping_mul_tail_run
     (env : ProcEnv) (fuel : Nat)
     (a0 a1 a2 a3 b0 b1 b2 b3 : Felt) (rest : List Felt)
-    (mem locs : Nat → Felt) (adv : List Felt) (evts : List Felt)
+    (mem locs : Nat → Word) (adv : List Felt) (evts : List Felt)
     (ha0 : a0.isU32 = true) (ha1 : a1.isU32 = true)
     (ha2 : a2.isU32 = true) (ha3 : a3.isU32 = true)
     (hb0 : b0.isU32 = true) (hb1 : b1.isU32 = true)
@@ -178,7 +178,7 @@ private theorem u128_wrapping_mul_tail_run
 theorem u128_wrapping_mul_run
     (env : ProcEnv) (fuel : Nat)
     (a0 a1 a2 a3 b0 b1 b2 b3 : Felt) (rest : List Felt)
-    (mem locs : Nat → Felt) (adv : List Felt) (evts : List Felt)
+    (mem locs : Nat → Word) (adv : List Felt) (evts : List Felt)
     (ha0 : a0.isU32 = true) (ha1 : a1.isU32 = true)
     (ha2 : a2.isU32 = true) (ha3 : a3.isU32 = true)
     (hb0 : b0.isU32 = true) (hb1 : b1.isU32 = true)

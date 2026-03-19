@@ -496,3 +496,40 @@ spec.md (assert semantics text fix).
 + doc correction). No semantic changes to code.
 Re-running vivisect for these would produce identical
 findings. PASS (final gate).
+
+## Iteration 12
+**Date:** 2026-03-19
+
+### Goal Revision
+**User said:** "make sure everything is pushed, save
+a checkpoint, then do the hard work"
+**Classification:** modification (un-defer AC-44)
+**Changes to goal.md:**
+- AC-44 un-deferred, brought back in scope
+**Effect on iteration:** new iteration for AC-44
+
+### Changes Made (Phases 2-3)
+- State.lean: memory/locals changed from Nat -> Felt
+  to Nat -> Word. Added writeMemoryElem0,
+  writeLocalElem0. Removed zeroMemory, readWord,
+  writeWord (now trivial). Moved Word defs before
+  MidenState for dependency ordering.
+- Semantics.lean: all 12 memory ops + 2 local ops
+  rewritten for word-addressed model. memLoad reads
+  element 0 of word. memStore writes element 0.
+  memStorew/memLoadw read/write full words. Removed
+  alignment checks (addr % 4) from word ops.
+- StepLemmas.lean: all 48 step lemma signatures
+  updated (Nat -> Word). stepMemStorewLe rewritten
+  to output single word write, removed alignment
+  hypothesis.
+- Helpers.lean: 2 concrete expansion theorems updated.
+- 19 proof files: bulk Nat -> Felt to Nat -> Word.
+- StoreWordU32sLe.lean: theorem statement simplified
+  from 8-level if/then/else to 2 word writes. Removed
+  haddr_align hypothesis.
+- Tests/Semantics.lean: memory tests updated to check
+  word elements instead of raw Felt values.
+- Git: checkpoint tag pushed, commit + push before work.
+- Build: EXIT 0, 0 errors, 0 warnings, 0 sorry (1913)
+- ACs completed: AC-44 (51/51 total)

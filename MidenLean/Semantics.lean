@@ -802,139 +802,133 @@ def execU32Max (s : MidenState) : Option MidenState :=
 -- mstorew: op_mstorew (116-147), mstore: op_mstore (187-210)
 -- locLoad/locStore: compiled to absolute address + mload/mstore
 
+-- Word-addressed memory: each address maps to a Word.
+-- mem_load reads element 0; mem_store writes element 0.
+-- mem_loadw/mem_storew read/write the full word.
+
 def execMemLoad (s : MidenState) : Option MidenState :=
   match s.stack with
   | a :: rest =>
     if a.val >= u32Max then none
-    else some (s.withStack (s.memory a.val :: rest))
+    else some (s.withStack ((s.memory a.val).1 :: rest))
   | _ => none
 
-def execMemLoadImm (addr : Nat) (s : MidenState) : Option MidenState :=
+def execMemLoadImm (addr : Nat) (s : MidenState) :
+    Option MidenState :=
   if addr >= u32Max then none
-  else some (s.withStack (s.memory addr :: s.stack))
+  else some (s.withStack ((s.memory addr).1 :: s.stack))
 
 def execMemStore (s : MidenState) : Option MidenState :=
   match s.stack with
   | a :: v :: rest =>
     if a.val >= u32Max then none
-    else some ((s.writeMemory a.val v).withStack rest)
+    else some ((s.writeMemoryElem0 a.val v).withStack rest)
   | _ => none
 
-def execMemStoreImm (addr : Nat) (s : MidenState) : Option MidenState :=
+def execMemStoreImm (addr : Nat) (s : MidenState) :
+    Option MidenState :=
   match s.stack with
   | v :: rest =>
     if addr >= u32Max then none
-    else some ((s.writeMemory addr v).withStack rest)
+    else some ((s.writeMemoryElem0 addr v).withStack rest)
   | _ => none
 
 def execMemStorewBe (s : MidenState) : Option MidenState :=
   match s.stack with
   | a :: e0 :: e1 :: e2 :: e3 :: rest =>
-    if a.val >= u32Max || a.val % 4 != 0 then none
+    if a.val >= u32Max then none
     else
-      let addr := a.val
-      let s' := s.writeMemory addr e3
-        |>.writeMemory (addr+1) e2
-        |>.writeMemory (addr+2) e1
-        |>.writeMemory (addr+3) e0
-      some (s'.withStack (e0 :: e1 :: e2 :: e3 :: rest))
+      let w : Word := (e3, e2, e1, e0)
+      some ((s.writeMemory a.val w).withStack
+        (e0 :: e1 :: e2 :: e3 :: rest))
   | _ => none
 
-def execMemStorewBeImm (addr : Nat) (s : MidenState) : Option MidenState :=
+def execMemStorewBeImm (addr : Nat) (s : MidenState) :
+    Option MidenState :=
   match s.stack with
   | e0 :: e1 :: e2 :: e3 :: rest =>
-    if addr >= u32Max || addr % 4 != 0 then none
+    if addr >= u32Max then none
     else
-      let s' := s.writeMemory addr e3
-        |>.writeMemory (addr+1) e2
-        |>.writeMemory (addr+2) e1
-        |>.writeMemory (addr+3) e0
-      some (s'.withStack (e0 :: e1 :: e2 :: e3 :: rest))
+      let w : Word := (e3, e2, e1, e0)
+      some ((s.writeMemory addr w).withStack
+        (e0 :: e1 :: e2 :: e3 :: rest))
   | _ => none
 
 def execMemStorewLe (s : MidenState) : Option MidenState :=
   match s.stack with
   | a :: e0 :: e1 :: e2 :: e3 :: rest =>
-    if a.val >= u32Max || a.val % 4 != 0 then none
+    if a.val >= u32Max then none
     else
-      let addr := a.val
-      let s' := s.writeMemory addr e0
-        |>.writeMemory (addr+1) e1
-        |>.writeMemory (addr+2) e2
-        |>.writeMemory (addr+3) e3
-      some (s'.withStack (e0 :: e1 :: e2 :: e3 :: rest))
+      let w : Word := (e0, e1, e2, e3)
+      some ((s.writeMemory a.val w).withStack
+        (e0 :: e1 :: e2 :: e3 :: rest))
   | _ => none
 
-def execMemStorewLeImm (addr : Nat) (s : MidenState) : Option MidenState :=
+def execMemStorewLeImm (addr : Nat) (s : MidenState) :
+    Option MidenState :=
   match s.stack with
   | e0 :: e1 :: e2 :: e3 :: rest =>
-    if addr >= u32Max || addr % 4 != 0 then none
+    if addr >= u32Max then none
     else
-      let s' := s.writeMemory addr e0
-        |>.writeMemory (addr+1) e1
-        |>.writeMemory (addr+2) e2
-        |>.writeMemory (addr+3) e3
-      some (s'.withStack (e0 :: e1 :: e2 :: e3 :: rest))
+      let w : Word := (e0, e1, e2, e3)
+      some ((s.writeMemory addr w).withStack
+        (e0 :: e1 :: e2 :: e3 :: rest))
   | _ => none
 
 def execMemLoadwBe (s : MidenState) : Option MidenState :=
   match s.stack with
   | a :: _ :: _ :: _ :: _ :: rest =>
-    if a.val >= u32Max || a.val % 4 != 0 then none
+    if a.val >= u32Max then none
     else
-      let addr := a.val
-      let e3 := s.memory addr
-      let e2 := s.memory (addr+1)
-      let e1 := s.memory (addr+2)
-      let e0 := s.memory (addr+3)
-      some (s.withStack (e0 :: e1 :: e2 :: e3 :: rest))
+      let w := s.memory a.val
+      some (s.withStack
+        (w.2.2.2 :: w.2.2.1 :: w.2.1 :: w.1 :: rest))
   | _ => none
 
-def execMemLoadwBeImm (addr : Nat) (s : MidenState) : Option MidenState :=
+def execMemLoadwBeImm (addr : Nat) (s : MidenState) :
+    Option MidenState :=
   match s.stack with
   | _ :: _ :: _ :: _ :: rest =>
-    if addr >= u32Max || addr % 4 != 0 then none
+    if addr >= u32Max then none
     else
-      let e3 := s.memory addr
-      let e2 := s.memory (addr+1)
-      let e1 := s.memory (addr+2)
-      let e0 := s.memory (addr+3)
-      some (s.withStack (e0 :: e1 :: e2 :: e3 :: rest))
+      let w := s.memory addr
+      some (s.withStack
+        (w.2.2.2 :: w.2.2.1 :: w.2.1 :: w.1 :: rest))
   | _ => none
 
 def execMemLoadwLe (s : MidenState) : Option MidenState :=
   match s.stack with
   | a :: _ :: _ :: _ :: _ :: rest =>
-    if a.val >= u32Max || a.val % 4 != 0 then none
+    if a.val >= u32Max then none
     else
-      let addr := a.val
-      let e0 := s.memory addr
-      let e1 := s.memory (addr+1)
-      let e2 := s.memory (addr+2)
-      let e3 := s.memory (addr+3)
-      some (s.withStack (e0 :: e1 :: e2 :: e3 :: rest))
+      let w := s.memory a.val
+      some (s.withStack
+        (w.1 :: w.2.1 :: w.2.2.1 :: w.2.2.2 :: rest))
   | _ => none
 
-def execMemLoadwLeImm (addr : Nat) (s : MidenState) : Option MidenState :=
+def execMemLoadwLeImm (addr : Nat) (s : MidenState) :
+    Option MidenState :=
   match s.stack with
   | _ :: _ :: _ :: _ :: rest =>
-    if addr >= u32Max || addr % 4 != 0 then none
+    if addr >= u32Max then none
     else
-      let e0 := s.memory addr
-      let e1 := s.memory (addr+1)
-      let e2 := s.memory (addr+2)
-      let e3 := s.memory (addr+3)
-      some (s.withStack (e0 :: e1 :: e2 :: e3 :: rest))
+      let w := s.memory addr
+      some (s.withStack
+        (w.1 :: w.2.1 :: w.2.2.1 :: w.2.2.2 :: rest))
   | _ => none
 
--- Procedure locals
+-- Procedure locals (word-addressed)
+-- loc_load reads element 0; loc_store writes element 0.
 
-def execLocLoad (idx : Nat) (s : MidenState) : Option MidenState :=
-  some (s.withStack (s.locals idx :: s.stack))
+def execLocLoad (idx : Nat) (s : MidenState) :
+    Option MidenState :=
+  some (s.withStack ((s.locals idx).1 :: s.stack))
 
-def execLocStore (idx : Nat) (s : MidenState) : Option MidenState :=
+def execLocStore (idx : Nat) (s : MidenState) :
+    Option MidenState :=
   match s.stack with
-  | v :: rest => some ((s.writeLocal idx v).withStack rest)
+  | v :: rest =>
+    some ((s.writeLocalElem0 idx v).withStack rest)
   | _ => none
 
 -- Advice stack

@@ -107,11 +107,10 @@ types (toU64, toU128) rather than raw field elements.
 - [x] AC-49: Word type and word-addressed accessors --
   add Word type, readWord/writeWord accessors on
   element-addressed memory, zeroWordMemory
-- [ ] AC-44: [deferred: AC-49] Word-addressed memory --
-  refactor memory model from Nat -> Felt to
-  Nat -> Word (4-element) to match Rust
-  BTreeMap<u32, [Felt; 4]>. Requires rewriting all
-  memory handlers and their proofs.
+- [x] AC-44: Word-addressed memory -- refactor memory
+  model from Nat -> Felt to Nat -> Word (4-element)
+  to match Rust BTreeMap<u32, [Felt; 4]>. Rewrite
+  all memory handlers and their proofs.
 
 ## Default Quality Requirements
 
@@ -148,3 +147,5 @@ proofs, modifying miden-vm.
   accessors, achievable) and deferred AC-44 (full
   memory model refactor, requires rewriting all
   memory handlers).
+- 2026-03-19: Modification: un-deferred AC-44.
+  Full word-addressed memory refactor now in scope.

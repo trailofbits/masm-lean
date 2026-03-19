@@ -1,5 +1,35 @@
 # Claude Notes: audit-0xmiden/masm-lean
 
+## 2026-03-19: AC-44 Word-addressed memory refactor
+
+### Plan
+Change memory model from `Nat -> Felt` (element-addressed)
+to `Nat -> Word` (word-addressed, matching Rust VM).
+
+**Files to change:**
+1. State.lean: memory/locals type, write helpers
+2. Semantics.lean: all memory/local instructions
+3. StepLemmas.lean: step lemma signatures + proofs
+4. Helpers.lean: withStack_memory/locals helpers
+5. EquationLemmas.lean: should auto-update
+6. Proofs/U64/Div,Mod,Divmod.lean: thread mem/locs
+7. Proofs/Word/StoreWordU32sLe.lean: full rewrite
+8. Tests/Semantics.lean: memory test states
+
+**Key semantic changes:**
+- memLoad: read `(s.memory addr).1` (element 0 of word)
+- memStore: write element 0 via Word.set
+- memStorew/memLoadw: read/write full Word directly
+- Remove alignment checks (addr % 4) from word ops
+- locLoad/locStore: same pattern as memLoad/memStore
+- Output of writeMemory is cleaner (one if/then/else
+  per word write, not per element)
+
+**Risk:** StoreWordU32sLe proof needs full rewrite.
+Currently outputs 8-level if/then/else; word model
+outputs 2-level. Should be simpler but proof steps
+change entirely.
+
 ## 2026-03-19: Galvanize CONVERGED (iteration 11)
 
 ### Final state

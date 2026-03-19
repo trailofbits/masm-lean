@@ -39,7 +39,7 @@ private theorem rotl_split :
 
 private theorem rotl_h1_ok
     (lo hi shift : Felt) (rest : List Felt)
-    (mem locs : Nat → Felt) (adv : List Felt) (evts : List Felt)
+    (mem locs : Nat → Word) (adv : List Felt) (evts : List Felt)
     (hshift_u32 : shift.isU32 = true)
     (hlo : lo.isU32 = true) :
     let eff := shift.val &&& 31
@@ -143,7 +143,7 @@ private theorem rotl_carry_u32 (lo shift : Felt)
 private theorem rotl_h2_ok (b : Bool)
     (hi pow carry lo_mod : Felt)
     (rest : List Felt)
-    (mem locs : Nat → Felt) (adv : List Felt) (evts : List Felt)
+    (mem locs : Nat → Word) (adv : List Felt) (evts : List Felt)
     (hhi : hi.isU32 = true)
     (hpow_u32 : pow.isU32 = true)
     (hcarry_u32 : carry.isU32 = true) :

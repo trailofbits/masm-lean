@@ -15,7 +15,7 @@ private theorem felt_ite_gt_decide (a b : Felt) :
 -- One iteration of the word.lt comparison loop (uses .gt instead of .lt).
 private theorem lt_iteration
     (result undecided : Bool) (b_i a_i : Felt) (tail : List Felt)
-    (mem locs : Nat → Felt) (adv : List Felt) (evts : List Felt) :
+    (mem locs : Nat → Word) (adv : List Felt) (evts : List Felt) :
     let eq_flag := (b_i == a_i)
     let gt_flag := decide (a_i.val > b_i.val)
     let new_result := result || (undecided && gt_flag)
@@ -47,7 +47,7 @@ private theorem lt_iteration
 
 private theorem lt_iteration_init
     (b_i a_i : Felt) (tail : List Felt)
-    (mem locs : Nat → Felt) (adv : List Felt) (evts : List Felt) :
+    (mem locs : Nat → Word) (adv : List Felt) (evts : List Felt) :
     execWithEnv wordProcEnv 2
       ⟨(0:Felt) :: (1:Felt) :: b_i :: a_i :: tail, mem, locs, adv, evts⟩
       [.inst (.movup 3), .inst (.movup 3), .inst (.dup 0), .inst (.dup 2),
