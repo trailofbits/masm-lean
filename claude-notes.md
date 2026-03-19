@@ -1,46 +1,40 @@
 # claude-notes.md
 
-## 2026-03-19: Galvanize iteration 3-4 (semantic theorems)
+## 2026-03-19: Galvanize semantic theorems session
 
-### Completed in iteration 3
-- AC-19: u64_neq_semantic (Neq.lean)
-- AC-30: u64_and_toU64 (And.lean) via toU64_and bridge
-- AC-31: u64_or_toU64 (Or.lean) via toU64_or bridge
-- AC-32: u64_xor_toU64 (Xor.lean) via toU64_xor bridge
-- AC-41: u64_min_semantic (Min.lean)
-- AC-42: u64_max_semantic (Max.lean)
+### Summary
+33/49 ACs completed (67%). Added 15 semantic theorems
+and bridge lemmas for u64 procedures.
 
-### Bridge infrastructure added to Interp.lean
-- toU64_neq_iff: neq bridge
-- toU64_testBit: testBit decomposition at 32-bit
-  boundary using Nat.testBit_two_pow_mul_add
-- toU64_and/or/xor: bitwise bridge via
-  Nat.eq_of_testBit_eq extensionality
-- Helper lemmas: felt_ofNat_val, isU32_lt,
-  felt_ofNat_isU32, bitwise_u32_lt_prime
+### Key bridge infrastructure (Interp.lean)
+- toU64_neq_iff, toU64_testBit (32-bit boundary)
+- toU64_and/or/xor (via Nat.eq_of_testBit_eq)
+- cross_product_mod_2_64: carry chain identity for
+  limb-level multiplication (manual Nat.div_add_mod
+  decomposition). Unblocks wrapping_mul, shl, and
+  potentially shr/rotl/rotr.
+- felt_lo32_hi32_toU64: lo32/hi32 split-rejoin = id
+- u64_lt_condition_eq: comparison bridge (pre-existing)
 
-### Working on (iteration 4)
-Remaining 22 unchecked ACs:
-- AC-20: eqz (needs _correct theorem first)
-- AC-21-29: arithmetic semantic theorems
-  - wrapping_add has no _correct theorem yet
-  - wrapping_sub uses cascaded u32OverflowingSub
-  - wrapping_mul uses cross-product chain
-  - widening_add/mul: could use toU128
-  - div/mod/divmod: complex advice-tape hypotheses
-- AC-33-36: shift/rotation (complex theorem shapes)
-- AC-37-40: counting (need u64-level counting defs)
-- AC-43-46: Bad fixes (stretch)
+### Semantic theorems added
+- Tier 5: neq_semantic
+- Tier 6: wrapping_sub, overflowing_sub, widening_add,
+  wrapping_mul
+- Tier 7: and/or/xor_toU64, shl_semantic
+- Tier 8: min/max_semantic
+- Tier 9: NOT style fix (AC-46)
 
-### Key decisions
-- Bitwise semantic theorems use `_toU64` naming
-  (separate bridge lemma) rather than restating the
-  full execution in semantic terms
-- Memory cap constraint added to CLAUDE.md after
-  previous session OOM'd the machine
+### Remaining (16 ACs)
+- AC-20: eqz (needs _correct theorem)
+- AC-21: wrapping_add (needs _correct theorem)
+- AC-26: widening_mul (128-bit carry chain)
+- AC-27-29: div/mod/divmod (advice tape extraction)
+- AC-34: shr (uses field inverse, complex)
+- AC-35-36: rotl/rotr (conditional cross-product)
+- AC-37-40: counting (needs u64-level definitions)
+- AC-43-45: stretch (structural changes)
 
-### Build status
-0 errors, 0 warnings, 0 sorry
-
-## Previous sessions
-(see below for detailed history from earlier sessions)
+### Build constraints
+- MANDATORY: all lake build commands must use
+  systemd-run --user --scope -p MemoryMax=10G
+- Previous session OOM'd machine by removing this

@@ -289,3 +289,14 @@ Not converged -- 18 unchecked ACs remain.
 Divergence guard check: same ACs blocked since
 iteration 4, but a concrete sub-goal (carry chain
 bridge lemma) was identified. Resetting counter.
+
+### Iteration 5 continued
+- Proved cross_product_mod_2_64 bridge lemma
+  (manual Nat.div_add_mod decomposition, 7 have
+  steps, each closed by omega)
+- u64_wrapping_mul_semantic: one-line application
+  of cross_product_mod_2_64
+- felt_lo32_hi32_toU64 bridge lemma
+- u64_shl_semantic: via cross_product + lo32/hi32
+  bridge
+- ACs completed: AC-23, AC-33 (2 new, 33/49 total)
