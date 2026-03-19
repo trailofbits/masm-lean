@@ -403,4 +403,69 @@ theorem stepDiv (mem locs : Nat → Felt) (adv : List Felt)
   unfold execInstruction execDiv
   simp [hb, MidenState.withStack]
 
+-- ============================================================================
+-- Equation lemmas (must come before step lemmas that use them)
+-- ============================================================================
+
+set_option maxHeartbeats 800000 in
+@[simp] theorem execInstruction_advPush (n : Nat) (s : MidenState) :
+    execInstruction s (.advPush n) = execAdvPush n s := by
+  unfold execInstruction; rfl
+
+set_option maxHeartbeats 800000 in
+@[simp] theorem execInstruction_emitImm (v : Felt) (s : MidenState) :
+    execInstruction s (.emitImm v) = some s := by
+  unfold execInstruction; rfl
+
+-- ============================================================================
+-- Assertion, advice, and emit step lemmas
+-- ============================================================================
+
+theorem stepEmitImm (v : Felt) (stk : List Felt) (mem locs : Nat → Felt) (adv : List Felt) :
+    execInstruction ⟨stk, mem, locs, adv⟩ (.emitImm v) =
+    some ⟨stk, mem, locs, adv⟩ := by
+  rw [execInstruction_emitImm]
+
+theorem stepAssert (mem locs : Nat → Felt) (adv : List Felt)
+    (a : Felt) (rest : List Felt) (ha : a.val == 1) :
+    execInstruction ⟨a :: rest, mem, locs, adv⟩ .assert =
+    some ⟨rest, mem, locs, adv⟩ := by
+  unfold execInstruction execAssert
+  simp [ha, MidenState.withStack]
+
+theorem stepAssertWithError (msg : String) (mem locs : Nat → Felt) (adv : List Felt)
+    (a : Felt) (rest : List Felt) (ha : a.val == 1) :
+    execInstruction ⟨a :: rest, mem, locs, adv⟩ (.assertWithError msg) =
+    some ⟨rest, mem, locs, adv⟩ := by
+  unfold execInstruction execAssert
+  simp [ha, MidenState.withStack]
+
+theorem stepAssertEq (mem locs : Nat → Felt) (adv : List Felt)
+    (a b : Felt) (rest : List Felt) (hab : a == b) :
+    execInstruction ⟨b :: a :: rest, mem, locs, adv⟩ .assertEq =
+    some ⟨rest, mem, locs, adv⟩ := by
+  unfold execInstruction execAssertEq
+  simp [hab, MidenState.withStack]
+
+theorem stepAssertEqWithError (msg : String) (mem locs : Nat → Felt) (adv : List Felt)
+    (a b : Felt) (rest : List Felt) (hab : a == b) :
+    execInstruction ⟨b :: a :: rest, mem, locs, adv⟩ (.assertEqWithError msg) =
+    some ⟨rest, mem, locs, adv⟩ := by
+  unfold execInstruction execAssertEq
+  simp [hab, MidenState.withStack]
+
+set_option maxHeartbeats 800000 in
+theorem stepAdvPush2 (stk : List Felt) (mem locs : Nat → Felt)
+    (v0 v1 : Felt) (adv_rest : List Felt) :
+    execInstruction ⟨stk, mem, locs, v0 :: v1 :: adv_rest⟩ (.advPush 2) =
+    some ⟨v1 :: v0 :: stk, mem, locs, adv_rest⟩ := by
+  rw [execInstruction_advPush]
+  unfold execAdvPush
+  dsimp only [MidenState.withStack, MidenState.withAdvice,
+    MidenState.advice, MidenState.stack, MidenState.memory,
+    MidenState.locals,
+    List.take, List.drop, List.reverse, List.length,
+    List.reverseAux, List.append]
+  rfl
+
 end MidenLean.StepLemmas

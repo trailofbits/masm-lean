@@ -84,7 +84,12 @@ macro_rules
       | (rw [stepDupw (h0 := rfl) (h1 := rfl) (h2 := rfl) (h3 := rfl)]; miden_bind)
       | (rw [stepDiv (hb := by assumption)]; miden_bind)
       | (rw [stepCdropIte]; miden_bind)
-      | (rw [stepCswapIte]; miden_bind))
+      | (rw [stepCswapIte]; miden_bind)
+      | (rw [stepEmitImm]; miden_bind)
+      | (rw [stepAdvPush2]; miden_bind)
+      | (rw [stepU32Assert2 (ha := by assumption) (hb := by assumption)]; miden_bind)
+      | (rw [stepAssertWithError (ha := by assumption)]; miden_bind)
+      | (rw [stepAssertEqWithError (hab := by assumption)]; miden_bind))
 
 /-- Step through all remaining instructions, finishing with pure. -/
 syntax "miden_steps" : tactic
