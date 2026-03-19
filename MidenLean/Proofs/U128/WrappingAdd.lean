@@ -55,7 +55,7 @@ theorem u128_wrapping_add_correct
         Felt.ofNat (sum1 % 2 ^ 32) ::
         Felt.ofNat (sum2 % 2 ^ 32) ::
         Felt.ofNat (sum3 % 2 ^ 32) :: rest,
-        mem, locs, adv⟩
+        mem, locs, adv, evts⟩
       from u128_overflowing_add_run u128ProcEnv 29 a0 a1 a2 a3 b0 b1 b2 b3 rest mem locs adv
         ha0 ha1 ha2 ha3 hb0 hb1 hb2 hb3]
   miden_bind

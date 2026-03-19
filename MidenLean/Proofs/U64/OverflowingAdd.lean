@@ -10,7 +10,7 @@ open MidenLean.Tactics
 theorem u64_overflowing_add_run
     (env : ProcEnv) (fuel : Nat)
     (a_lo a_hi b_lo b_hi : Felt) (rest : List Felt)
-    (mem locs : Nat → Felt) (adv : List Felt)
+    (mem locs : Nat → Felt) (adv : List Felt) (evts : List Felt)
     (ha_lo : a_lo.isU32 = true) (ha_hi : a_hi.isU32 = true)
     (hb_lo : b_lo.isU32 = true) (hb_hi : b_hi.isU32 = true) :
     execWithEnv env (fuel + 1) ⟨b_lo :: b_hi :: a_lo :: a_hi :: rest, mem, locs, adv, evts⟩
@@ -20,7 +20,7 @@ theorem u64_overflowing_add_run
       Felt.ofNat ((b_lo.val + a_lo.val) % 2 ^ 32) ::
       Felt.ofNat ((a_hi.val + b_hi.val + (b_lo.val + a_lo.val) / 2 ^ 32) % 2 ^ 32) ::
       rest,
-      mem, locs, adv⟩ := by
+      mem, locs, adv, evts⟩ := by
   unfold Miden.Core.U64.overflowing_add execWithEnv
   simp only [List.foldlM]
   miden_movup

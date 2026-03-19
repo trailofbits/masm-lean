@@ -193,7 +193,7 @@ private theorem overflowing_sub_decomp :
 private theorem chunk1_correct
     (env : ProcEnv) (fuel : Nat)
     (a0 a1 a2 a3 b0 b1 b2 b3 : Felt) (rest : List Felt)
-    (mem locs : Nat → Felt) (adv : List Felt)
+    (mem locs : Nat → Felt) (adv : List Felt) (evts : List Felt)
     (ha0 : a0.isU32 = true) (hb0 : b0.isU32 = true) :
     execWithEnv env (fuel + 1)
       ⟨b0 :: b1 :: b2 :: b3 :: a0 :: a1 :: a2 :: a3 :: rest, mem, locs, adv, evts⟩
@@ -214,7 +214,7 @@ private theorem chunk1_correct
 private theorem chunk2_correct
     (env : ProcEnv) (fuel : Nat)
     (a0 a1 a2 a3 b0 b1 b2 b3 : Felt) (rest : List Felt)
-    (mem locs : Nat → Felt) (adv : List Felt)
+    (mem locs : Nat → Felt) (adv : List Felt) (evts : List Felt)
     (ha1 : a1.isU32 = true) (hb1 : b1.isU32 = true) :
     execWithEnv env (fuel + 1)
       ⟨stage1a a0 a1 a2 a3 b0 b1 b2 b3 rest, mem, locs, adv, evts⟩
@@ -234,7 +234,7 @@ private theorem chunk2_correct
 private theorem chunk3_correct
     (env : ProcEnv) (fuel : Nat)
     (a0 a1 a2 a3 b0 b1 b2 b3 : Felt) (rest : List Felt)
-    (mem locs : Nat → Felt) (adv : List Felt)
+    (mem locs : Nat → Felt) (adv : List Felt) (evts : List Felt)
     (ha1 : a1.isU32 = true) (hb1 : b1.isU32 = true) :
     execWithEnv env (fuel + 1)
       ⟨stage1b a0 a1 a2 a3 b0 b1 b2 b3 rest, mem, locs, adv, evts⟩
@@ -266,7 +266,7 @@ private theorem chunk3_correct
 private theorem chunk4_correct
     (env : ProcEnv) (fuel : Nat)
     (a0 a1 a2 a3 b0 b1 b2 b3 : Felt) (rest : List Felt)
-    (mem locs : Nat → Felt) (adv : List Felt)
+    (mem locs : Nat → Felt) (adv : List Felt) (evts : List Felt)
     (ha2 : a2.isU32 = true) (hb2 : b2.isU32 = true) :
     execWithEnv env (fuel + 1)
       ⟨stage1c a0 a1 a2 a3 b0 b1 b2 b3 rest, mem, locs, adv, evts⟩
@@ -293,7 +293,7 @@ private theorem chunk4_correct
 private theorem chunk5_correct
     (env : ProcEnv) (fuel : Nat)
     (a0 a1 a2 a3 b0 b1 b2 b3 : Felt) (rest : List Felt)
-    (mem locs : Nat → Felt) (adv : List Felt)
+    (mem locs : Nat → Felt) (adv : List Felt) (evts : List Felt)
     (ha2 : a2.isU32 = true) (hb2 : b2.isU32 = true) :
     execWithEnv env (fuel + 1)
       ⟨stage2a a0 a1 a2 a3 b0 b1 b2 b3 rest, mem, locs, adv, evts⟩
@@ -323,7 +323,7 @@ private theorem chunk5_correct
 private theorem chunk6_correct
     (env : ProcEnv) (fuel : Nat)
     (a0 a1 a2 a3 b0 b1 b2 b3 : Felt) (rest : List Felt)
-    (mem locs : Nat → Felt) (adv : List Felt)
+    (mem locs : Nat → Felt) (adv : List Felt) (evts : List Felt)
     (ha3 : a3.isU32 = true) (hb3 : b3.isU32 = true) :
     execWithEnv env (fuel + 1)
       ⟨stage2b a0 a1 a2 a3 b0 b1 b2 b3 rest, mem, locs, adv, evts⟩
@@ -350,7 +350,7 @@ private theorem chunk6_correct
 private theorem chunk7_correct
     (env : ProcEnv) (fuel : Nat)
     (a0 a1 a2 a3 b0 b1 b2 b3 : Felt) (rest : List Felt)
-    (mem locs : Nat → Felt) (adv : List Felt)
+    (mem locs : Nat → Felt) (adv : List Felt) (evts : List Felt)
     (ha3 : a3.isU32 = true) (hb3 : b3.isU32 = true) :
     execWithEnv env (fuel + 1)
       ⟨stage3a a0 a1 a2 a3 b0 b1 b2 b3 rest, mem, locs, adv, evts⟩
@@ -381,7 +381,7 @@ private theorem chunk7_correct
 private theorem chunk8_correct
     (env : ProcEnv) (fuel : Nat)
     (a0 a1 a2 a3 b0 b1 b2 b3 : Felt) (rest : List Felt)
-    (mem locs : Nat → Felt) (adv : List Felt) :
+    (mem locs : Nat → Felt) (adv : List Felt) (evts : List Felt) :
     execWithEnv env (fuel + 1)
       ⟨stage3b a0 a1 a2 a3 b0 b1 b2 b3 rest, mem, locs, adv, evts⟩
       chunk8 =
@@ -407,7 +407,7 @@ private theorem chunk8_correct
 theorem u128_overflowing_sub_run
     (env : ProcEnv) (fuel : Nat)
     (a0 a1 a2 a3 b0 b1 b2 b3 : Felt) (rest : List Felt)
-    (mem locs : Nat → Felt) (adv : List Felt)
+    (mem locs : Nat → Felt) (adv : List Felt) (evts : List Felt)
     (ha0 : a0.isU32 = true) (ha1 : a1.isU32 = true)
     (ha2 : a2.isU32 = true) (ha3 : a3.isU32 = true)
     (hb0 : b0.isU32 = true) (hb1 : b1.isU32 = true)

@@ -50,7 +50,7 @@ private theorem u128_wrapping_mul_tail_decomp :
 private theorem u128_wrapping_mul_tail_arith_run
     (env : ProcEnv) (fuel : Nat)
     (a0 a1 a2 a3 b0 b1 b2 b3 : Felt) (rest : List Felt)
-    (mem locs : Nat → Felt) (adv : List Felt)
+    (mem locs : Nat → Felt) (adv : List Felt) (evts : List Felt)
     (ha0 : a0.isU32 = true) (ha1 : a1.isU32 = true)
     (ha2 : a2.isU32 = true) (ha3 : a3.isU32 = true)
     (hb0 : b0.isU32 = true) (hb1 : b1.isU32 = true)
@@ -63,7 +63,7 @@ private theorem u128_wrapping_mul_tail_arith_run
         u128MulC1 a0 a1 b0 b1 ::
         u128MulC2 a0 a1 a2 b0 b1 b2 ::
         rest,
-        mem, locs, adv⟩
+        mem, locs, adv, evts⟩
       u128_wrapping_mul_tail_arith =
     some ⟨
       u128MulC3 a0 a1 a2 a3 b0 b1 b2 b3 ::
@@ -72,7 +72,7 @@ private theorem u128_wrapping_mul_tail_arith_run
       u128MulC1 a0 a1 b0 b1 ::
       u128MulC2 a0 a1 a2 b0 b1 b2 ::
       rest,
-      mem, locs, adv⟩ := by
+      mem, locs, adv, evts⟩ := by
   unfold execWithEnv u128_wrapping_mul_tail_arith
   simp only [List.foldlM]
   have hO2Sum_u32 : (u128MulO2Sum a0 a1 a2 b0 b1 b2).isU32 = true := by
@@ -118,7 +118,7 @@ private theorem u128_wrapping_mul_tail_arith_run
 private theorem u128_wrapping_mul_tail_cleanup_run
     (env : ProcEnv) (fuel : Nat)
     (c3 a0 a1 a2 a3 b0 b1 b2 b3 c0 c1 c2 : Felt) (rest : List Felt)
-    (mem locs : Nat → Felt) (adv : List Felt) :
+    (mem locs : Nat → Felt) (adv : List Felt) (evts : List Felt) :
     execWithEnv env (fuel + 1)
       ⟨c3 :: a0 :: a1 :: a2 :: a3 :: b0 :: b1 :: b2 :: b3 :: c0 :: c1 :: c2 :: rest, mem, locs, adv, evts⟩
       u128_wrapping_mul_tail_cleanup =
@@ -145,7 +145,7 @@ private theorem u128_wrapping_mul_tail_cleanup_run
 private theorem u128_wrapping_mul_tail_run
     (env : ProcEnv) (fuel : Nat)
     (a0 a1 a2 a3 b0 b1 b2 b3 : Felt) (rest : List Felt)
-    (mem locs : Nat → Felt) (adv : List Felt)
+    (mem locs : Nat → Felt) (adv : List Felt) (evts : List Felt)
     (ha0 : a0.isU32 = true) (ha1 : a1.isU32 = true)
     (ha2 : a2.isU32 = true) (ha3 : a3.isU32 = true)
     (hb0 : b0.isU32 = true) (hb1 : b1.isU32 = true)
@@ -158,7 +158,7 @@ private theorem u128_wrapping_mul_tail_run
         u128MulC1 a0 a1 b0 b1 ::
         u128MulC2 a0 a1 a2 b0 b1 b2 ::
         rest,
-        mem, locs, adv⟩
+        mem, locs, adv, evts⟩
       u128_wrapping_mul_tail =
     some ⟨
       u128MulC0 a0 b0 ::
@@ -166,7 +166,7 @@ private theorem u128_wrapping_mul_tail_run
       u128MulC2 a0 a1 a2 b0 b1 b2 ::
       u128MulC3 a0 a1 a2 a3 b0 b1 b2 b3 ::
       rest,
-      mem, locs, adv⟩ := by
+      mem, locs, adv, evts⟩ := by
   rw [u128_wrapping_mul_tail_decomp, execWithEnv_append]
   rw [u128_wrapping_mul_tail_arith_run env fuel a0 a1 a2 a3 b0 b1 b2 b3 rest mem locs adv
     ha0 ha1 ha2 ha3 hb0 hb1 hb2 hb3]
@@ -178,7 +178,7 @@ private theorem u128_wrapping_mul_tail_run
 theorem u128_wrapping_mul_run
     (env : ProcEnv) (fuel : Nat)
     (a0 a1 a2 a3 b0 b1 b2 b3 : Felt) (rest : List Felt)
-    (mem locs : Nat → Felt) (adv : List Felt)
+    (mem locs : Nat → Felt) (adv : List Felt) (evts : List Felt)
     (ha0 : a0.isU32 = true) (ha1 : a1.isU32 = true)
     (ha2 : a2.isU32 = true) (ha3 : a3.isU32 = true)
     (hb0 : b0.isU32 = true) (hb1 : b1.isU32 = true)
@@ -192,7 +192,7 @@ theorem u128_wrapping_mul_run
       u128MulC2 a0 a1 a2 b0 b1 b2 ::
       u128MulC3 a0 a1 a2 a3 b0 b1 b2 b3 ::
       rest,
-      mem, locs, adv⟩ := by
+      mem, locs, adv, evts⟩ := by
   rw [wrapping_mul_decomp, execWithEnv_append]
   rw [u128_mul_low_chunk_run env fuel a0 a1 a2 a3 b0 b1 b2 b3 rest mem locs adv
     ha0 ha1 ha2 ha3 hb0 hb1 hb2 hb3]

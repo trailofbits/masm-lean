@@ -214,7 +214,7 @@ private theorem shr_decomp :
   simp [Miden.Core.U64.shr, shr_chunk1, shr_chunk2, shr_chunk3, shr_chunk4]
 
 private theorem shr_chunk1_correct
-    (lo hi shift : Felt) (rest : List Felt) (mem locs : Nat → Felt) (adv : List Felt)
+    (lo hi shift : Felt) (rest : List Felt) (mem locs : Nat → Felt) (adv : List Felt) (evts : List Felt)
     (hshift : shift.val ≤ 63) (hhi : hi.isU32 = true) :
     let pow := Felt.ofNat (2 ^ shift.val)
     let pow_lo := pow.lo32
@@ -245,7 +245,7 @@ private theorem shr_chunk1_correct
   rfl
 
 private theorem shr_chunk2_correct
-    (lo hi shift : Felt) (rest : List Felt) (mem locs : Nat → Felt) (adv : List Felt)
+    (lo hi shift : Felt) (rest : List Felt) (mem locs : Nat → Felt) (adv : List Felt) (evts : List Felt)
     (hlo : lo.isU32 = true) :
     let pow := Felt.ofNat (2 ^ shift.val)
     let pow_lo := pow.lo32
@@ -259,7 +259,7 @@ private theorem shr_chunk2_correct
     exec 42 ⟨hi_rem :: hi_quot :: pow_lo :: lo :: rest, mem, locs, adv, evts⟩ shr_chunk2 =
       some ⟨Felt.ofNat (lo.val % diff.val) :: Felt.ofNat (lo.val / diff.val) ::
         hi_quot :: hi_rem :: diff :: (if cond then (1 : Felt) else 0) :: rest,
-        mem, locs, adv⟩ := by
+        mem, locs, adv, evts⟩ := by
   unfold exec shr_chunk2 execWithEnv
   simp only [List.foldlM]
   miden_swap
@@ -290,7 +290,7 @@ private theorem shr_chunk2_correct
 
 private theorem shr_chunk3_correct
     (lo_rem lo_quot hi_quot hi_rem diff : Felt) (cond : Bool)
-    (rest : List Felt) (mem locs : Nat → Felt) (adv : List Felt)
+    (rest : List Felt) (mem locs : Nat → Felt) (adv : List Felt) (evts : List Felt)
     (hdiff_ne_zero : (diff == (0 : Felt)) = false) :
     let cond_felt : Felt := if cond then 1 else 0
     let mix := lo_quot + (((4294967296 : Felt) * cond_felt) * diff⁻¹) * hi_rem
