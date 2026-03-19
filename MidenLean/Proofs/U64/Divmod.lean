@@ -1,5 +1,6 @@
 import MidenLean.Proofs.U64.Common
 import MidenLean.Proofs.Tactics
+import MidenLean.Proofs.Interp
 import MidenLean.Generated.U64
 
 namespace MidenLean.Proofs
@@ -245,5 +246,171 @@ theorem u64_divmod_correct
   miden_movup
   -- 50: assertEqWithError (a_lo == sum_lo)
   rw [stepAssertEqWithError (hab := by rw [h_a_lo_eq]; simp)]
+
+/-- Extract Nat value 0 from Felt.ofNat n == 0. -/
+private theorem felt_beq_zero_val {n : Nat}
+    (hlt : n < GOLDILOCKS_PRIME)
+    (h : (Felt.ofNat n == (0 : Felt)) = true) :
+    n = 0 := by
+  rw [beq_iff_eq] at h
+  have hval : (Felt.ofNat n).val = 0 := by
+    rw [h]; simp
+  simp only [Felt.ofNat] at hval
+  rwa [ZMod.val_natCast_of_lt hlt] at hval
+
+/-- Extract Nat product = 0 from Felt product == 0. -/
+private theorem felt_mul_beq_zero_val
+    (a b : Felt)
+    (hlt : a.val * b.val < GOLDILOCKS_PRIME)
+    (h : ((a * b : Felt) == (0 : Felt)) = true) :
+    a.val * b.val = 0 := by
+  rw [beq_iff_eq] at h
+  have hval := congrArg ZMod.val h
+  simp only [ZMod.val_zero] at hval
+  rwa [ZMod.val_mul_of_lt hlt] at hval
+
+/-- Sub-lemma: h_lt_result implies toU64 r < toU64 b. -/
+theorem divmod_lt_bridge
+    (r_lo r_hi b_lo b_hi : Felt)
+    (hr_lo : r_lo.isU32 = true)
+    (hr_hi : r_hi.isU32 = true)
+    (hb_lo : b_lo.isU32 = true)
+    (hb_hi : b_hi.isU32 = true)
+    (h : (decide (r_hi.val < b_hi.val) ||
+      ((Felt.ofNat (u32OverflowingSub r_hi.val
+        b_hi.val).2 == (0 : Felt)) &&
+        decide (r_lo.val < b_lo.val))) = true) :
+    toU64 r_lo r_hi < toU64 b_lo b_hi := by
+  rw [u64_lt_condition_eq r_lo r_hi b_lo b_hi
+    hr_lo hr_hi hb_lo hb_hi] at h
+  exact decide_eq_true_eq.mp h
+
+/-- Sub-lemma: carry chain hypotheses imply the u64
+    division identity a = b*q + r. -/
+theorem divmod_eq_bridge
+    (a_lo a_hi b_lo b_hi q_lo q_hi r_lo r_hi : Felt)
+    (hq_lo : q_lo.isU32 = true)
+    (hq_hi : q_hi.isU32 = true)
+    (hr_lo : r_lo.isU32 = true)
+    (hr_hi : r_hi.isU32 = true)
+    (hb_lo : b_lo.isU32 = true)
+    (hb_hi : b_hi.isU32 = true)
+    (hp2 : (Felt.ofNat ((b_hi.val * q_lo.val +
+      (b_lo.val * q_lo.val) / 2^32) / 2^32) ==
+      (0 : Felt)) = true)
+    (hp3 : (Felt.ofNat ((b_lo.val * q_hi.val +
+      (b_hi.val * q_lo.val +
+        (b_lo.val * q_lo.val) / 2^32) % 2^32) /
+      2^32) == (0 : Felt)) = true)
+    (hqb : ((b_hi * q_hi : Felt) ==
+      (0 : Felt)) = true)
+    (hcarry : (Felt.ofNat ((r_hi.val +
+      (b_lo.val * q_hi.val + (b_hi.val * q_lo.val +
+        (b_lo.val * q_lo.val) / 2^32) % 2^32) %
+        2^32 +
+      (r_lo.val + (b_lo.val * q_lo.val) % 2^32) /
+        2^32) / 2^32) == (0 : Felt)) = true)
+    (hahi : a_hi = Felt.ofNat ((r_hi.val +
+      (b_lo.val * q_hi.val + (b_hi.val * q_lo.val +
+        (b_lo.val * q_lo.val) / 2^32) % 2^32) %
+        2^32 +
+      (r_lo.val + (b_lo.val * q_lo.val) % 2^32) /
+        2^32) % 2^32))
+    (halo : a_lo = Felt.ofNat ((r_lo.val +
+      (b_lo.val * q_lo.val) % 2^32) % 2^32)) :
+    toU64 a_lo a_hi =
+    toU64 b_lo b_hi * toU64 q_lo q_hi +
+    toU64 r_lo r_hi := by
+  simp only [toU64]
+  simp only [Felt.isU32, decide_eq_true_eq] at *
+  -- Explicit nonlinear bounds for omega
+  have hbq : b_lo.val * q_lo.val ≤
+      (2^32-1)*(2^32-1) :=
+    Nat.mul_le_mul (by omega) (by omega)
+  have hbhq : b_hi.val * q_lo.val ≤
+      (2^32-1)*(2^32-1) :=
+    Nat.mul_le_mul (by omega) (by omega)
+  have hblqh : b_lo.val * q_hi.val ≤
+      (2^32-1)*(2^32-1) :=
+    Nat.mul_le_mul (by omega) (by omega)
+  have hbhqh : b_hi.val * q_hi.val ≤
+      (2^32-1)*(2^32-1) :=
+    Nat.mul_le_mul (by omega) (by omega)
+  -- Extract Nat equalities from Felt assertions
+  have hp2_nat := felt_beq_zero_val
+    (by unfold GOLDILOCKS_PRIME; omega) hp2
+  have hp3_nat := felt_beq_zero_val
+    (by unfold GOLDILOCKS_PRIME; omega) hp3
+  have hqb_nat := felt_mul_beq_zero_val b_hi q_hi
+    (by unfold GOLDILOCKS_PRIME; omega) hqb
+  have hcarry_nat := felt_beq_zero_val
+    (by unfold GOLDILOCKS_PRIME; omega) hcarry
+  -- Extract a_lo.val and a_hi.val
+  have halo_val : a_lo.val =
+      (r_lo.val + (b_lo.val * q_lo.val) % 2^32) %
+      2^32 := by
+    rw [halo, felt_ofNat_val_lt _ (by
+      unfold GOLDILOCKS_PRIME; omega)]
+  have hahi_val : a_hi.val =
+      (r_hi.val + (b_lo.val * q_hi.val +
+        (b_hi.val * q_lo.val +
+          (b_lo.val * q_lo.val) / 2^32) % 2^32) %
+        2^32 +
+      (r_lo.val + (b_lo.val * q_lo.val) % 2^32) /
+        2^32) % 2^32 := by
+    rw [hahi, felt_ofNat_val_lt _ (by
+      unfold GOLDILOCKS_PRIME; omega)]
+  exact divmod_carry_chain a_lo.val a_hi.val
+    b_lo.val b_hi.val q_lo.val q_hi.val
+    r_lo.val r_hi.val
+    hp2_nat hp3_nat hqb_nat hcarry_nat
+    hahi_val halo_val
+
+/-- divmod: the operational hypotheses collectively
+    establish the standard division relationship. -/
+theorem u64_divmod_semantic
+    (a_lo a_hi b_lo b_hi q_lo q_hi r_lo r_hi : Felt)
+    (hq_lo : q_lo.isU32 = true)
+    (hq_hi : q_hi.isU32 = true)
+    (hr_lo : r_lo.isU32 = true)
+    (hr_hi : r_hi.isU32 = true)
+    (hb_lo : b_lo.isU32 = true)
+    (hb_hi : b_hi.isU32 = true)
+    (hp2 : (Felt.ofNat ((b_hi.val * q_lo.val +
+      (b_lo.val * q_lo.val) / 2^32) / 2^32) ==
+      (0 : Felt)) = true)
+    (hp3 : (Felt.ofNat ((b_lo.val * q_hi.val +
+      (b_hi.val * q_lo.val +
+        (b_lo.val * q_lo.val) / 2^32) % 2^32) /
+      2^32) == (0 : Felt)) = true)
+    (hqb : ((b_hi * q_hi : Felt) ==
+      (0 : Felt)) = true)
+    (hcarry : (Felt.ofNat ((r_hi.val +
+      (b_lo.val * q_hi.val + (b_hi.val * q_lo.val +
+        (b_lo.val * q_lo.val) / 2^32) % 2^32) %
+        2^32 +
+      (r_lo.val + (b_lo.val * q_lo.val) % 2^32) /
+        2^32) / 2^32) == (0 : Felt)) = true)
+    (hahi : a_hi = Felt.ofNat ((r_hi.val +
+      (b_lo.val * q_hi.val + (b_hi.val * q_lo.val +
+        (b_lo.val * q_lo.val) / 2^32) % 2^32) %
+        2^32 +
+      (r_lo.val + (b_lo.val * q_lo.val) % 2^32) /
+        2^32) % 2^32))
+    (halo : a_lo = Felt.ofNat ((r_lo.val +
+      (b_lo.val * q_lo.val) % 2^32) % 2^32))
+    (hlt : (decide (r_hi.val < b_hi.val) ||
+      ((Felt.ofNat (u32OverflowingSub r_hi.val
+        b_hi.val).2 == (0 : Felt)) &&
+        decide (r_lo.val < b_lo.val))) = true) :
+    toU64 r_lo r_hi < toU64 b_lo b_hi ∧
+    toU64 a_lo a_hi =
+      toU64 b_lo b_hi * toU64 q_lo q_hi +
+      toU64 r_lo r_hi :=
+  ⟨divmod_lt_bridge r_lo r_hi b_lo b_hi
+    hr_lo hr_hi hb_lo hb_hi hlt,
+   divmod_eq_bridge a_lo a_hi b_lo b_hi q_lo q_hi
+    r_lo r_hi hq_lo hq_hi hr_lo hr_hi hb_lo hb_hi
+    hp2 hp3 hqb hcarry hahi halo⟩
 
 end MidenLean.Proofs

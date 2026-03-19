@@ -50,21 +50,20 @@ types (toU64, toU128) rather than raw field elements.
 - [x] AC-17: u64_gte_semantic (not (toU64 a < toU64 b))
 - [x] AC-18: u64_eq_semantic (toU64 a = toU64 b)
 - [x] AC-19: u64_neq_semantic
-- [ ] AC-20: u64_eqz_semantic (needs _correct first)
+- [x] AC-20: u64_eqz_semantic
 
 ### Tier 6: Semantic U64 Arithmetic
 
-- [ ] AC-21: u64_wrapping_add_semantic [blocked:
-  needs wrapping_add _correct theorem first]
+- [x] AC-21: u64_wrapping_add_semantic
 - [x] AC-22: u64_wrapping_sub_semantic
 - [x] AC-23: u64_wrapping_mul_semantic (via
   cross_product_mod_2_64 bridge)
 - [x] AC-24: u64_overflowing_sub_semantic
 - [x] AC-25: u64_widening_add_semantic
-- [ ] AC-26: u64_widening_mul_semantic (toU128 result)
-- [ ] AC-27: u64_div_semantic
-- [ ] AC-28: u64_mod_semantic
-- [ ] AC-29: u64_divmod_semantic
+- [x] AC-26: u64_widening_mul_semantic (toU128 result)
+- [x] AC-27: u64_div_semantic (via divmod_semantic)
+- [x] AC-28: u64_mod_semantic (via divmod_semantic)
+- [x] AC-29: u64_divmod_semantic
 
 ### Tier 7: Semantic U64 Bitwise & Shifts
 
@@ -80,10 +79,8 @@ types (toU64, toU128) rather than raw field elements.
 
 - [x] AC-37: u64_clz_semantic
 - [x] AC-38: u64_ctz_semantic
-- [ ] AC-39: u64_clo_semantic [blocked: needs u64
-  clo definition]
-- [ ] AC-40: u64_cto_semantic [blocked: needs u64
-  cto definition]
+- [x] AC-39: u64_clo_semantic
+- [x] AC-40: u64_cto_semantic
 - [x] AC-41: u64_min_semantic
 - [x] AC-42: u64_max_semantic
 

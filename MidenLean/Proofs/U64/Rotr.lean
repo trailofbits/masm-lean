@@ -22,11 +22,10 @@ private theorem ite_prop_to_decide {p : Prop}
   cases ‹Decidable p› <;> rfl
 
 private theorem rotr_eff_shift_le_63
-    (shift : Felt) (hshift_u32 : shift.isU32 = true) :
+    (shift : Felt) (_hshift_u32 : shift.isU32 = true) :
     (Felt.ofNat (u32OverflowingSub (32 : Felt).val
         (Felt.ofNat (shift.val &&& (31 : Felt).val
           )).val).2).val ≤ 63 := by
-  simp only [Felt.isU32, decide_eq_true_eq] at hshift_u32
   have h31_val : (31 : Felt).val = 31 :=
     felt_ofNat_val_lt 31
       (by unfold GOLDILOCKS_PRIME; omega)
