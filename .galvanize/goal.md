@@ -1,98 +1,77 @@
-# Galvanize Goal: u64.divmod Correctness Proof
+# Galvanize Goal: Semantics Reference Mapping & Test
+# Coverage
 
 **Date:** 2026-03-18
-**Initial prompt:** Prove u64.divmod correct, then re-enable
-Divmod/Div/Mod imports so the build includes them with zero
-sorry.
+**Initial prompt:** Do the mapping before more proving. The
+mapping should be incorporated as comments in the files
+defining semantics. Also investigate why the existing test
+suite didn't catch the advPush ordering bug. Extend tests.
 
 ## Clarified Goal
 
-The u64.divmod procedure is a 50-instruction advice-tape
-procedure that performs 64-bit unsigned division. Given
-dividend a = (a_hi, a_lo) and divisor b = (b_lo, b_hi) on
-the stack, it reads quotient q and remainder r from the
-advice tape, then verifies:
+Add inline reference comments to Semantics.lean mapping
+each instruction handler to its miden-vm Rust source, so
+that semantic correctness can be verified by inspection
+against the reference implementation. Then investigate the
+test gap that allowed the divmod advPush ordering bug to
+ship, and extend the test suite to catch such issues.
 
-1. b * q fits in 64 bits (cross-term checks)
-2. r < b (via exec "lt")
-3. b * q + r == a (wide addition + equality assertions)
-
-The output stack is [r_lo, r_hi, q_lo, q_hi | rest].
-
-The proof is elementary number theory over u32 limbs -- no
-advanced math, just careful tracking of carries and cross
-products through 50 instructions.
+The divmod bug was: advPush.2 reverses elements from the
+advice tape, but the theorem assumed they weren't reversed.
+The existing #eval tests in Tests/Semantics.lean didn't
+exercise advPush with multi-element pushes in a way that
+would expose ordering errors.
 
 ## Acceptance Criteria
 
-### Tier 1: Infrastructure
+### Tier 1: Semantics Reference Comments
 
-- [ ] AC-1: Step lemma `stepEmitImm` added
-  (emitImm is a no-op: `some s`)
-- [ ] AC-2: Step lemma `stepAdvPush2` added for advPush 2
-  (takes 2 values from advice, reverses onto stack;
-  requires `advice.length >= 2` hypothesis)
-- [ ] AC-3: Step lemma `stepU32Assert2` added
-  (asserts top two stack elements are u32; requires
-  isU32 hypotheses)
-- [ ] AC-4: Step lemma `stepAssertWithError` added
-  (same as assert: pops top, requires val == 1)
-- [ ] AC-5: Step lemma `stepAssertEqWithError` added
-  (same as assertEq: pops two, requires equality)
-- [ ] AC-6: All new step lemmas added to `miden_step`
-  tactic
+- [x] AC-1: Each instruction handler in Semantics.lean has
+  a comment citing the miden-vm source file and line range
+  for its reference implementation
+- [x] AC-2: advPush handler comment explicitly documents
+  the reversal semantics with a concrete example
+- [x] AC-3: Any semantic discrepancy found during the
+  mapping is documented in a comment (even if not fixed,
+  the discrepancy is visible)
 
-### Tier 2: Theorem Statement
+### Tier 2: Test Gap Investigation
 
-- [ ] AC-7: `u64_divmod_correct` theorem statement
-  completed with:
-  - Correct output stack: `r_lo :: r_hi :: q_lo ::
-    q_hi :: rest`
-  - All necessary hypotheses (isU32 for all 8 limbs,
-    cross-product carry conditions, r < b, a == b*q+r
-    decomposition)
-  - Advice stack hypothesis
-  - Match the hypothesis set from Div.lean/Mod.lean
+- [x] AC-4: Root cause documented: why the existing
+  Tests/Semantics.lean #eval tests did not catch the
+  advPush ordering issue in divmod
+- [x] AC-5: Classification of which instructions have
+  order-sensitive semantics (advPush, advLoadW, movup,
+  movdn, swap, etc.) vs order-insensitive
 
-### Tier 3: Proof Body
+### Tier 3: Extended Tests
 
-- [ ] AC-8: Phase 1 proved (instructions 1-13):
-  read q from advice, verify first cross product
-  b_lo * q_hi and accumulate b_hi * q_hi + carry,
-  assert high word is zero
-- [ ] AC-9: Phase 2 proved (instructions 14-24):
-  verify second cross product b_lo * q_lo + cross_lo,
-  assert high word is zero; verify b_hi * q_lo == 0
-- [ ] AC-10: Phase 3 proved (instructions 25-35):
-  read r from advice, rearrange stack, exec "lt" to
-  verify r < b, assert result
-- [ ] AC-11: Phase 4 proved (instructions 36-50):
-  wide-add r + (b*q cross terms), assert no carry
-  overflow, assert equality with a_hi and a_lo
-
-### Tier 4: Integration
-
-- [ ] AC-12: Div.lean and Mod.lean build successfully
-  (they already have complete proofs that call
-  u64_divmod_correct)
-- [ ] AC-13: All three files re-imported in
-  MidenLean.lean; `lake build MidenLean` passes
-  with 0 errors, 0 warnings, 0 sorry
+- [x] AC-6: advPush ordering test: #eval test that pushes
+  [a, b] from advice and verifies stack order is [b, a]
+  (the reversal)
+- [x] AC-7: advPush N>2 ordering test if advPush supports
+  N>2 in the model
+- [x] AC-8: For each order-sensitive instruction, at least
+  one #eval test that would fail if the operand order were
+  swapped
+- [x] AC-9: All tests pass (`lake build MidenLean` clean)
 
 ## Default Quality Requirements
 
-- [ ] No sorry in any proof file
-- [ ] lake build passes with 0 errors
-- [ ] 0 lint warnings
+- [x] lake build passes with 0 errors
+- [x] 0 lint warnings
+- [x] No sorry in any proof file
 
 ## Scope Boundaries
 
-**In scope:** u64.divmod proof, supporting step lemmas,
-Div/Mod integration.
+**In scope:** Reference comments in Semantics.lean,
+test investigation and extension in Tests/Semantics.lean.
 
-**Out of scope:** Semantic theorem strengthening (toU64
-interpretation of divmod result); other unproved procedures.
+**Out of scope:** Fixing semantic discrepancies found
+during mapping (document only); new proofs; refactoring
+Semantics.lean structure.
 
 ## Revision History
 
-- 2026-03-18: Initial goal (focused divmod session)
+- 2026-03-18: Initial goal (semantics mapping + tests)
+- 2026-03-18: All ACs completed
