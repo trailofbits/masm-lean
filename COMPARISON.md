@@ -94,6 +94,14 @@ is an implementation detail not relevant to procedure correctness.
 depend on the zero-initialized padding below the 16th element would need
 explicit hypotheses.
 
+**Soundness for proven theorems:** All proven procedure theorems take
+the initial stack as an explicit hypothesis (e.g.,
+`hs : s.stack = a :: b :: c :: rest`). This fixes the stack depth to
+at least the number of named elements. No proven theorem relies on
+accessing zero-padded positions below its explicitly stated inputs,
+so the unbounded model produces identical results to the Rust model
+for all proven theorems.
+
 ### S-2: Element-addressed memory vs word-addressed memory
 
 **Lean:** `Nat -> Felt` (one felt per address, total function)
@@ -120,6 +128,14 @@ address goes to the stack top.
 **Impact:** Proofs using word memory operations must specify which
 variant (Be or Le) is being used. For fidelity with the Rust VM, the Le
 variants should be preferred.
+
+**Soundness for proven theorems:** The only memory-writing procedure
+proved is `word.store_word_u32s_le`, which uses `memStorewLe` (the Le
+variant matching Rust's element ordering). Its theorem states the
+exact memory addresses written and their values. The per-element
+memory model gives identical results to the per-word model when
+accessed through word-aligned Le operations, which is the only
+pattern used in proven theorems.
 
 ### S-3: No execution contexts
 
@@ -151,6 +167,15 @@ hypotheses: the advice stack must contain `[q_hi, q_lo, r_hi, r_lo]`
 satisfying the division relation `divisor * q + r = n` with
 `r < divisor`. This makes the host's role explicit in the theorem
 statement rather than modeling it in the semantics.
+
+**Soundness for proven theorems:** `emitImm` is a pure no-op in both
+the Lean model and the Rust VM (neither modifies stack, memory, or
+locals). The only functional effect is the host pushing advice values,
+which the Lean model captures via explicit theorem hypotheses
+(the advice stack must contain specific values). This is strictly
+stronger than the Rust model: the theorem specifies exactly what
+the host must provide, rather than relying on an implicit host
+protocol.
 
 ### S-5: Error codes as strings
 
