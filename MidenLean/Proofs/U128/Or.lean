@@ -9,7 +9,7 @@ open MidenLean.StepLemmas
 open MidenLean.Tactics
 
 set_option maxHeartbeats 4000000 in
-/-- u128.or correctly computes bitwise OR of two 128-bit values.
+/-- `u128::or` correctly computes bitwise OR of two 128-bit values.
     Input stack:  [b0, b1, b2, b3, a0, a1, a2, a3] ++ rest
     Output stack: [b0 ||| a0, b1 ||| a1, b2 ||| a2, b3 ||| a3] ++ rest. -/
 theorem u128_or_correct

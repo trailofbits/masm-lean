@@ -10,7 +10,7 @@ open MidenLean.StepLemmas
 open MidenLean.Tactics
 
 set_option maxHeartbeats 8000000 in
-/-- u128.wrapping_sub correctly computes wrapping subtraction of two 128-bit values.
+/-- `u128::wrapping_sub` correctly computes wrapping subtraction of two 128-bit values.
     Input stack:  [b0, b1, b2, b3, a0, a1, a2, a3] ++ rest
     Output stack: [d0, d1, d2, d3] ++ rest
     where `d0..d3` are the low-to-high limbs of `(a - b) mod 2^128`. -/

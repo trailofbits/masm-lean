@@ -8,7 +8,7 @@ open MidenLean.StepLemmas
 open MidenLean.Tactics
 
 set_option maxHeartbeats 8000000 in
-/-- u64.ctz correctly counts trailing zeros of a u64 value.
+/-- `u64::ctz` correctly counts trailing zeros of a u64 value.
     Input stack:  [lo, hi] ++ rest
     Output stack: [result] ++ rest
     where result = if lo == 0 then ctz(hi) + 32 else ctz(lo). -/

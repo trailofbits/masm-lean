@@ -16,7 +16,7 @@ private theorem stepU32NotLocal (mem locs : Nat → Felt) (adv : List Felt)
   simp [ha, MidenState.withStack]
 
 set_option maxHeartbeats 4000000 in
-/-- u128.not correctly computes the bitwise complement of a 128-bit value.
+/-- `u128::not` correctly computes the bitwise complement of a 128-bit value.
     Input stack:  [a0, a1, a2, a3] ++ rest
     Output stack: [~~~a0, ~~~a1, ~~~a2, ~~~a3] ++ rest, limbwise over u32 values. -/
 theorem u128_not_correct

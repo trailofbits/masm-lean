@@ -8,7 +8,7 @@ open MidenLean.StepLemmas
 open MidenLean.Tactics
 
 set_option maxHeartbeats 4000000 in
-/-- word.arrange_words_adjacent_le correctly interleaves two words for comparison.
+/-- `word::arrange_words_adjacent_le` correctly interleaves two words for comparison.
     Input stack:  [a0, a1, a2, a3, b0, b1, b2, b3] ++ rest
     Output stack: [b3, a3, b2, a2, b1, a1, b0, a0] ++ rest -/
 theorem word_arrange_words_adjacent_le_correct
