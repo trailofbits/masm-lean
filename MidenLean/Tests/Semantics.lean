@@ -933,10 +933,172 @@ private def u32max : Nat := 2^32
   unless checkStack r [] do panic! "whileTrue: basic failed"
 
 -- ============================================================================
+-- Tier 4: Order-sensitive instruction tests (AC-6 through AC-8)
+-- ============================================================================
+-- These tests verify that operand ordering is correct for
+-- instructions where swapping operands would change the result.
+-- Motivated by the divmod advPush ordering bug: the theorem
+-- hypothesis assumed advice values appeared in a different order
+-- than advPush actually produces. The semantic model was correct,
+-- but the bug was invisible because no test exercised advPush
+-- with distinguishable values in a way that would connect to
+-- the proof's assumptions.
+--
+-- Root cause analysis (AC-4): The existing advPush test at line
+-- ~771 correctly tests reversal with 3 distinct values. The
+-- divmod bug was NOT in Semantics.lean -- it was in the theorem
+-- statement's hypothesis about what values the advice tape
+-- contains. This test tier adds:
+-- (a) More advPush ordering tests with 2-element pushes (the
+--     exact case used by divmod)
+-- (b) End-to-end procedure execution tests on concrete inputs
+-- (c) Additional order-sensitive instruction regression tests
+
+-- advPush.2 reversal: the most common case in practice
+#eval do
+  let s := mkStateAdv [99] [10, 20]
+  let r := runInst s (.advPush 2)
+  -- advice [10, 20]: take [10,20], reverse to [20,10]
+  -- stack becomes [20, 10, 99]
+  unless checkStack r [20, 10, 99] do
+    panic! "advPush.2: [10,20] should produce stack [20,10,...] (reversed)"
+
+-- advPush.1: single element, no reversal effect
+#eval do
+  let s := mkStateAdv [99] [42]
+  let r := runInst s (.advPush 1)
+  unless checkStack r [42, 99] do
+    panic! "advPush.1: single element should just push"
+
+-- advPush.4: 4-element reversal
+#eval do
+  let s := mkStateAdv [] [1, 2, 3, 4]
+  let r := runInst s (.advPush 4)
+  unless checkStack r [4, 3, 2, 1] do
+    panic! "advPush.4: [1,2,3,4] should produce [4,3,2,1]"
+
+-- advPush.2 then advPush.2: simulate divmod's two advice reads
+-- Advice: [q_hi=10, q_lo=20, r_hi=30, r_lo=40]
+-- First advPush.2: stack gets [q_lo=20, q_hi=10]
+-- Second advPush.2: stack gets [r_lo=40, r_hi=30, q_lo=20, q_hi=10]
+#eval do
+  let s := mkStateAdv [] [10, 20, 30, 40]
+  let r1 := runInst s (.advPush 2)
+  match r1 with
+  | some s1 =>
+    unless s1.stack == [20, 10] do
+      panic! "advPush.2 first: expected [q_lo=20, q_hi=10]"
+    let r2 := runInst s1 (.advPush 2)
+    match r2 with
+    | some s2 =>
+      unless s2.stack == [40, 30, 20, 10] do
+        panic! "advPush.2 second: expected [r_lo=40, r_hi=30, q_lo=20, q_hi=10]"
+    | none => panic! "second advPush.2 should not fail"
+  | none => panic! "first advPush.2 should not fail"
+
+-- Order-sensitive: sub (a - b, not b - a)
+-- stack [b, a] -> a - b
+#eval do
+  let s := mkState [3, 10]
+  let r := runInst s .sub
+  unless checkStack r [7] do panic! "sub order: 10-3=7"
+
+-- Order-sensitive: u32OverflowSub
+-- stack [b, a] -> (borrow, a-b)
+#eval do
+  let s := mkState [3, 10]
+  let r := runInst s .u32OverflowSub
+  unless checkStack r [0, 7] do
+    panic! "u32OverflowSub: 10-3 should give borrow=0, diff=7"
+
+#eval do
+  let s := mkState [10, 3]
+  let r := runInst s .u32OverflowSub
+  -- 3-10: borrow=1, result = 2^32 - 10 + 3
+  match r with
+  | some s' =>
+    unless s'.stack[0]! == (1 : Felt) do
+      panic! "u32OverflowSub: 3-10 should have borrow=1"
+  | none => panic! "u32OverflowSub should not fail on u32 inputs"
+
+-- Order-sensitive: u32WidenMul
+-- stack [b, a] -> [lo(a*b), hi(a*b)]
+#eval do
+  let s := mkState [3, 100000]
+  let r := runInst s .u32WidenMul
+  -- 100000 * 3 = 300000; lo = 300000, hi = 0
+  unless checkStack r [300000, 0] do
+    panic! "u32WidenMul: 100000*3 should give [300000, 0]"
+
+-- Order-sensitive: u32WidenMadd
+-- stack [b, a, c] -> [lo(a*b+c), hi(a*b+c)]
+#eval do
+  let s := mkState [3, 7, 100]
+  let r := runInst s .u32WidenMadd
+  -- a=7, b=3, c=100 -> 7*3+100 = 121; lo=121, hi=0
+  unless checkStack r [121, 0] do
+    panic! "u32WidenMadd: 7*3+100 should give [121, 0]"
+
+-- Order-sensitive: movup brings nth element to top
+#eval do
+  let s := mkState [10, 20, 30, 40]
+  let r := runInst s (.movup 3)
+  unless checkStack r [40, 10, 20, 30] do
+    panic! "movup 3: should bring position 3 to top"
+
+-- Order-sensitive: movdn pushes top to nth position
+#eval do
+  let s := mkState [10, 20, 30, 40]
+  let r := runInst s (.movdn 3)
+  unless checkStack r [20, 30, 40, 10] do
+    panic! "movdn 3: should push top to position 3"
+
+-- ============================================================================
+-- Tier 5: End-to-end procedure tests (divmod smoke test)
+-- ============================================================================
+-- Execute the full divmod procedure on concrete inputs to verify
+-- the advice tape ordering and output stack are correct.
+
+-- divmod: 10 / 3 = q=3, r=1
+-- q_lo=3, q_hi=0, r_lo=1, r_hi=0
+-- Advice tape (matching Miden handler): [q_hi, q_lo, r_hi, r_lo]
+-- = [0, 3, 0, 1]
+#eval do
+  open Miden.Core.U64 in
+  open MidenLean.Proofs in
+  let b_lo : Felt := 3; let b_hi : Felt := 0
+  let a_lo : Felt := 10; let a_hi : Felt := 0
+  let stk := [b_lo, b_hi, a_lo, a_hi]
+  let adv := [(0 : Felt), 3, 0, 1]  -- [q_hi, q_lo, r_hi, r_lo]
+  let s := mkStateAdv stk adv
+  let r := execWithEnv u64ProcEnv 50 s divmod
+  match r with
+  | some s' =>
+    -- Output should be [r_lo, r_hi, q_lo, q_hi] = [1, 0, 3, 0]
+    unless s'.stack == [1, 0, 3, 0] do
+      panic! s!"divmod 10/3: expected [1,0,3,0] got {s'.stack}"
+  | none => panic! "divmod 10/3 should not fail"
+
+-- divmod: 100 / 7 = q=14, r=2
+#eval do
+  open Miden.Core.U64 in
+  open MidenLean.Proofs in
+  let b_lo : Felt := 7; let b_hi : Felt := 0
+  let a_lo : Felt := 100; let a_hi : Felt := 0
+  let stk := [b_lo, b_hi, a_lo, a_hi]
+  let adv := [(0 : Felt), 14, 0, 2]  -- [q_hi, q_lo, r_hi, r_lo]
+  let s := mkStateAdv stk adv
+  let r := execWithEnv u64ProcEnv 50 s divmod
+  match r with
+  | some s' =>
+    unless s'.stack == [2, 0, 14, 0] do
+      panic! s!"divmod 100/7: expected [2,0,14,0] got {s'.stack}"
+  | none => panic! "divmod 100/7 should not fail"
+
+-- ============================================================================
 -- Summary
 -- ============================================================================
 
 -- If we reach here, all tests passed.
--- Total test count: ~100 tests covering all instruction categories.
 
 end MidenLean.Tests

@@ -104,8 +104,20 @@ def u32PopCount (n : Nat) : Nat :=
 -- ============================================================================
 -- Instruction execution handlers
 -- ============================================================================
+-- Reference: miden-vm processor/src/execution/operations/
+--   Dispatch:   mod.rs (execute_op)
+--   Stack ops:  stack_ops/mod.rs
+--   Field ops:  field_ops/mod.rs
+--   U32 ops:    u32_ops/mod.rs
+--   IO ops:     io_ops/mod.rs
+--   Sys ops:    sys_ops/mod.rs
+--
+-- Many high-level MASM instructions are compiled to sequences of
+-- low-level VM operations. Where this applies, the comment notes
+-- "compiled" and the compilation source file.
 
 -- Assertions
+-- Ref: sys_ops/mod.rs op_assert (lines 20-34)
 
 def execAssert (s : MidenState) : Option MidenState :=
   match s.stack with
@@ -130,6 +142,7 @@ def execAssertEqw (s : MidenState) : Option MidenState :=
   | _ => none
 
 -- Stack: drop, pad, push
+-- Ref: mod.rs execute_op (inline, line ~173-181 for drop)
 
 def execDrop (s : MidenState) : Option MidenState :=
   match s.stack with
@@ -151,6 +164,7 @@ def execPushList (vs : List Felt) (s : MidenState) : Option MidenState :=
   some (s.withStack (vs ++ s.stack))
 
 -- Stack: dup
+-- Ref: stack_ops/mod.rs dup_nth (lines 64-76)
 
 def execDup (n : Fin 16) (s : MidenState) : Option MidenState :=
   match s.stack[n.val]? with
@@ -164,6 +178,8 @@ def execDupw (n : Fin 4) (s : MidenState) : Option MidenState :=
   | _, _, _, _ => none
 
 -- Stack: swap
+-- Ref: stack_ops/mod.rs op_swap (lines 41-44)
+-- swapw: mod.rs execute_op (lines 195-206)
 
 def execSwap (n : Fin 16) (s : MidenState) : Option MidenState :=
   if n.val == 0 then some s
@@ -194,6 +210,8 @@ def execSwapdw (s : MidenState) : Option MidenState :=
   | _ => none
 
 -- Stack: move
+-- Ref: mod.rs execute_op (lines 208-263)
+-- movup N: stack.rotate_left(N); movdn N: stack.rotate_right(N)
 
 def execMovup (n : Nat) (s : MidenState) : Option MidenState :=
   if n < 2 || n > 15 then none
@@ -237,6 +255,8 @@ def execReversew (s : MidenState) : Option MidenState :=
   | _ => none
 
 -- Conditional operations
+-- Ref: stack_ops/mod.rs op_cswap (84-104), op_cswapw (112-135)
+-- cdrop/cdropw are compiled: not native VM operations
 
 def execCswap (s : MidenState) : Option MidenState :=
   match s.stack with
@@ -271,6 +291,10 @@ def execCdropw (s : MidenState) : Option MidenState :=
   | _ => none
 
 -- Field arithmetic
+-- Ref: field_ops/mod.rs
+-- add: op_add (18-24), mul: op_mul (38-44), neg: op_neg (29-33)
+-- inv: op_inv (52-61); fails on ZERO
+-- sub is compiled to [neg, add]; div is compiled to [inv, mul]
 
 def execAdd (s : MidenState) : Option MidenState :=
   match s.stack with
@@ -335,6 +359,9 @@ def execIncr (s : MidenState) : Option MidenState :=
   | _ => none
 
 -- Field comparison
+-- Ref: field_ops/mod.rs op_eq (133-148)
+-- eqImm: compiled to [push imm, eq]
+-- lt/gt/lte/gte: field element comparisons by .val (natural order)
 
 def execEq (s : MidenState) : Option MidenState :=
   match s.stack with
@@ -382,6 +409,9 @@ def execIsOdd (s : MidenState) : Option MidenState :=
   | _ => none
 
 -- Field boolean (inputs must be 0 or 1)
+-- Ref: field_ops/mod.rs op_and (77-88), op_or (97-108), op_not (116-128)
+-- VM validates both operands are binary (0 or 1); fails otherwise
+-- xor: compiled to [dup0, dup2, or, movdn2, and, not, and]
 
 def execAnd (s : MidenState) : Option MidenState :=
   match s.stack with
@@ -407,6 +437,7 @@ def execNot (s : MidenState) : Option MidenState :=
   | _ => none
 
 -- U32 assertions
+-- Ref: u32_ops/mod.rs op_u32assert2 (301-313)
 
 def execU32Assert (s : MidenState) : Option MidenState :=
   match s.stack with
@@ -449,6 +480,15 @@ def execU32Split (s : MidenState) : Option MidenState :=
   | _ => none
 
 -- U32 arithmetic
+-- Ref: u32_ops/mod.rs
+-- u32add: op_u32add (80-96), output [carry, sum] on stack
+-- u32add3: op_u32add3 (106-128), output [carry, sum]
+-- u32sub: op_u32sub (137-153), output [borrow, diff]
+-- u32mul: op_u32mul (161-175), output [hi, lo]
+-- u32madd: op_u32madd (184-204), computes a*b+c, output [hi, lo]
+-- Note: many MASM names differ from low-level VM op names.
+-- "Widen" variants push both lo and hi; "Overflow" swaps order;
+-- "Wrapping" discards overflow.
 
 def execU32WidenAdd (s : MidenState) : Option MidenState :=
   match s.stack with
@@ -578,6 +618,11 @@ def execU32Mod (s : MidenState) : Option MidenState :=
   | _ => none
 
 -- U32 bitwise
+-- Ref: u32_ops/mod.rs op_u32and (253-270), op_u32xor (278-295)
+-- u32or: compiled to [dup1, dup1, u32and, neg, add, add]
+-- u32not: compiled in assembly
+-- u32shl/shr/rotl/rotr: compiled from assembly instructions
+-- u32clz/ctz/clo/cto/popcnt: compiled from assembly
 
 def execU32And (s : MidenState) : Option MidenState :=
   match s.stack with
@@ -707,6 +752,7 @@ def execU32Cto (s : MidenState) : Option MidenState :=
   | _ => none
 
 -- U32 comparison
+-- Ref: compiled from assembly (u32_ops.rs in crates/assembly)
 
 def execU32Lt (s : MidenState) : Option MidenState :=
   match s.stack with
@@ -751,6 +797,10 @@ def execU32Max (s : MidenState) : Option MidenState :=
   | _ => none
 
 -- Memory
+-- Ref: io_ops/mod.rs
+-- mloadw: op_mloadw (76-102), mload: op_mload (158-176)
+-- mstorew: op_mstorew (116-147), mstore: op_mstore (187-210)
+-- locLoad/locStore: compiled to absolute address + mload/mstore
 
 def execMemLoad (s : MidenState) : Option MidenState :=
   match s.stack with
@@ -888,7 +938,22 @@ def execLocStore (idx : Nat) (s : MidenState) : Option MidenState :=
   | _ => none
 
 -- Advice stack
-
+-- Ref: io_ops/mod.rs op_advpop (22-37)
+--
+-- advPush.N is compiled to N consecutive ADVPOP operations.
+-- Each ADVPOP pops ONE element from the advice stack top and
+-- pushes it onto the operand stack. After N pops, the N values
+-- appear in REVERSE order on the operand stack relative to
+-- their original position on the advice stack.
+--
+-- Example: advice stack = [a, b, c, ...] (a on top)
+--   advPush.2 executes ADVPOP twice:
+--     pop a -> operand stack [a, ...]
+--     pop b -> operand stack [b, a, ...]
+--   Result: operand stack has [b, a, ...] (reversed!)
+--
+-- In this model, s.advice is a list with head = top.
+-- vals.reverse gives the correct operand stack ordering.
 def execAdvPush (n : Nat) (s : MidenState) : Option MidenState :=
   if s.advice.length < n then none
   else
@@ -896,6 +961,10 @@ def execAdvPush (n : Nat) (s : MidenState) : Option MidenState :=
     let adv' := s.advice.drop n
     some ((s.withAdvice adv').withStack (vals.reverse ++ s.stack))
 
+-- Ref: io_ops/mod.rs op_advpopw (45-60)
+-- advLoadW pops a 4-element word from the advice stack and
+-- OVERWRITES the top 4 operand stack elements (no reversal).
+-- Comment in VM source: "word[0] at top"
 def execAdvLoadW (s : MidenState) : Option MidenState :=
   match s.stack with
   | _ :: _ :: _ :: _ :: rest =>
@@ -907,6 +976,9 @@ def execAdvLoadW (s : MidenState) : Option MidenState :=
   | _ => none
 
 -- Events
+-- Ref: emit is an async operation; dispatches to host event handler.
+-- emitImm: compiled to [push event_id, emit]
+-- In this model, both are no-ops (we don't model host events).
 
 def execEmit (s : MidenState) : Option MidenState :=
   match s.stack with
