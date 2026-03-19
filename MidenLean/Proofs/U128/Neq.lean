@@ -18,7 +18,7 @@ theorem u128_neq_correct
     some (s.withStack (
       (if (b0 != a0) || (a1 != b1) || (a2 != b2) || (a3 != b3)
        then (1 : Felt) else 0) :: rest)) := by
-  obtain ⟨stk, mem, locs, adv⟩ := s
+  obtain ⟨stk, mem, locs, adv, evts⟩ := s
   simp only [MidenState.withStack] at hs ⊢
   subst hs
   unfold exec Miden.Core.U128.neq execWithEnv

@@ -19,7 +19,7 @@ theorem word_test_eq_correct (a0 a1 a2 a3 b0 b1 b2 b3 : Felt) (rest : List Felt)
       (if (b3 == a3) && (b2 == a2) && (b1 == a1) && (b0 == a0)
        then (1 : Felt) else 0) ::
       a0 :: a1 :: a2 :: a3 :: b0 :: b1 :: b2 :: b3 :: rest)) := by
-  obtain ⟨stk, mem, locs, adv⟩ := s
+  obtain ⟨stk, mem, locs, adv, evts⟩ := s
   simp only [MidenState.withStack] at hs ⊢
   subst hs
   unfold exec Miden.Core.Word.test_eq execWithEnv

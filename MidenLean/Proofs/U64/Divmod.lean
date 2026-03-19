@@ -73,7 +73,7 @@ theorem u64_divmod_correct
            memory := s.memory,
            locals := s.locals,
            advice := adv_rest } := by
-  obtain ⟨stk, mem, locs, adv⟩ := s
+  obtain ⟨stk, mem, locs, adv, evts⟩ := s
   simp only [] at hs ⊢
   simp only [] at hadv
   subst hs; subst hadv

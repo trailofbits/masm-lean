@@ -24,13 +24,13 @@ theorem u64_wrapping_mul_correct
       let cross1 := b_hi.val * a_lo.val + prod_lo / 2^32
       let cross2 := b_lo.val * a_hi.val + cross1 % 2^32
       Felt.ofNat (prod_lo % 2^32) :: Felt.ofNat (cross2 % 2^32) :: rest)) := by
-  obtain ⟨stk, mem, locs, adv⟩ := s
+  obtain ⟨stk, mem, locs, adv, evts⟩ := s
   simp only [MidenState.withStack] at hs ⊢
   subst hs
   unfold exec Miden.Core.U64.wrapping_mul execWithEnv
   simp only [List.foldlM]
   change (do
-    let s' ← execInstruction ⟨b_lo :: b_hi :: a_lo :: a_hi :: rest, mem, locs, adv⟩ (.dup 2)
+    let s' ← execInstruction ⟨b_lo :: b_hi :: a_lo :: a_hi :: rest, mem, locs, adv, evts⟩ (.dup 2)
     let s' ← execInstruction s' (.dup 1)
     let s' ← execInstruction s' (.u32WidenMul)
     let s' ← execInstruction s' (.swap 1)

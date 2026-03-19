@@ -14,7 +14,7 @@ theorem word_testz_correct (a b c d : Felt) (rest : List Felt) (s : MidenState)
       (if (d == (0:Felt)) && ((c == (0:Felt)) && ((b == (0:Felt)) && (a == (0:Felt))))
        then (1 : Felt) else 0) :: a :: b :: c :: d :: rest)) := by
   -- Destructure the state to work with concrete fields
-  obtain ⟨stk, mem, locs, adv⟩ := s
+  obtain ⟨stk, mem, locs, adv, evts⟩ := s
   subst hs
   -- Unfold top-level definitions
   unfold exec Miden.Core.Word.testz

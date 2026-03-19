@@ -199,7 +199,7 @@ theorem u64_rotl_correct
         result_lo :: result_hi :: rest
       else
         result_hi :: result_lo :: rest)) := by
-  obtain ⟨stk, mem, locs, adv⟩ := s
+  obtain ⟨stk, mem, locs, adv, evts⟩ := s
   simp only [MidenState.withStack] at hs ⊢
   subst hs
   rw [rotl_split, exec_append,

@@ -18,13 +18,13 @@ theorem u64_eq_correct (b_lo b_hi a_lo a_hi : Felt) (rest : List Felt) (s : Mide
     some (s.withStack (
       (if (b_lo == a_lo) && (b_hi == a_hi)
        then (1 : Felt) else 0) :: rest)) := by
-  obtain ⟨stk, mem, locs, adv⟩ := s
+  obtain ⟨stk, mem, locs, adv, evts⟩ := s
   simp only [MidenState.withStack] at hs ⊢
   subst hs
   unfold exec Miden.Core.U64.eq execWithEnv
   simp only [List.foldlM]
   change (do
-    let s' ← execInstruction ⟨b_lo :: b_hi :: a_lo :: a_hi :: rest, mem, locs, adv⟩ (.movup 2)
+    let s' ← execInstruction ⟨b_lo :: b_hi :: a_lo :: a_hi :: rest, mem, locs, adv, evts⟩ (.movup 2)
     let s' ← execInstruction s' (.eq)
     let s' ← execInstruction s' (.swap 2)
     let s' ← execInstruction s' (.eq)

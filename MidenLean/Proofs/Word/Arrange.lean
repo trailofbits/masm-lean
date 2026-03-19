@@ -15,7 +15,7 @@ theorem word_arrange_words_adjacent_le_correct
     (hs : s.stack = a0 :: a1 :: a2 :: a3 :: b0 :: b1 :: b2 :: b3 :: rest) :
     exec 20 s Miden.Core.Word.arrange_words_adjacent_le =
     some (s.withStack (b3 :: a3 :: b2 :: a2 :: b1 :: a1 :: b0 :: a0 :: rest)) := by
-  obtain ⟨stk, mem, locs, adv⟩ := s
+  obtain ⟨stk, mem, locs, adv, evts⟩ := s
   simp only [MidenState.withStack] at hs ⊢
   subst hs
   unfold exec Miden.Core.Word.arrange_words_adjacent_le execWithEnv

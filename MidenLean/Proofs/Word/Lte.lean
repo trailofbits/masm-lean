@@ -16,22 +16,22 @@ theorem word_lte_correct
                   || ((b3 == a3) && (b2 == a2) && (b1 == a1) && decide (a0.val < b0.val))
     execWithEnv wordProcEnv 4 s Miden.Core.Word.lte =
     some (s.withStack ((if !result then (1:Felt) else 0) :: rest)) := by
-  obtain ⟨stk, mem, locs, adv⟩ := s
+  obtain ⟨stk, mem, locs, adv, evts⟩ := s
   simp only [MidenState.withStack] at hs ⊢
   subst hs
   unfold Miden.Core.Word.lte execWithEnv
   simp only [List.foldlM, wordProcEnv]
   dsimp only [bind, Bind.bind, Option.bind]
   rw [show execWithEnv wordProcEnv 3
-    ⟨a0 :: a1 :: a2 :: a3 :: b0 :: b1 :: b2 :: b3 :: rest, mem, locs, adv⟩
+    ⟨a0 :: a1 :: a2 :: a3 :: b0 :: b1 :: b2 :: b3 :: rest, mem, locs, adv, evts⟩
     Miden.Core.Word.gt =
     some ⟨(if decide (a3.val < b3.val)
             || ((b3 == a3) && decide (a2.val < b2.val))
             || ((b3 == a3) && (b2 == a2) && decide (a1.val < b1.val))
             || ((b3 == a3) && (b2 == a2) && (b1 == a1) && decide (a0.val < b0.val))
-           then (1:Felt) else 0) :: rest, mem, locs, adv⟩
+           then (1:Felt) else 0) :: rest, mem, locs, adv, evts⟩
     from word_gt_correct a0 a1 a2 a3 b0 b1 b2 b3 rest
-      ⟨_, mem, locs, adv⟩ rfl]
+      ⟨_, mem, locs, adv, evts⟩ rfl]
   dsimp only [bind, Bind.bind, Option.bind]
   rw [stepNotIte]
   dsimp only [bind, Bind.bind, Option.bind, pure, Pure.pure]

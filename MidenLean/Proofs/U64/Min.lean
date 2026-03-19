@@ -28,7 +28,7 @@ theorem u64_min_correct
       (if is_gt then a_lo else b_lo) ::
       (if is_gt then a_hi else b_hi) :: rest)) := by
   -- Setup: unfold min, resolve ProcEnv, unfold gt body
-  obtain ⟨stk, mem, locs, adv⟩ := s
+  obtain ⟨stk, mem, locs, adv, evts⟩ := s
   simp only [MidenState.withStack] at hs ⊢
   subst hs
   unfold Miden.Core.U64.min execWithEnv

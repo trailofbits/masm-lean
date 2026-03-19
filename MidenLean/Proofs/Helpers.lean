@@ -224,22 +224,22 @@ theorem execInstruction_u32WidenMadd (s : MidenState) :
 
 /-- Concrete expansion of execU32WidenMul when isU32 guards pass. -/
 theorem execU32WidenMul_concrete
-    {a b : Felt} {rest : List Felt} {mem locs : Nat → Felt} {adv : List Felt}
+    {a b : Felt} {rest : List Felt} {mem locs : Nat → Felt} {adv evts : List Felt}
     (ha : a.isU32 = true := by assumption) (hb : b.isU32 = true := by assumption) :
-    execU32WidenMul ⟨b :: a :: rest, mem, locs, adv⟩ =
+    execU32WidenMul ⟨b :: a :: rest, mem, locs, adv, evts⟩ =
     some ⟨Felt.ofNat (a.val * b.val % 4294967296) ::
-      Felt.ofNat (a.val * b.val / 4294967296) :: rest, mem, locs, adv⟩ := by
+      Felt.ofNat (a.val * b.val / 4294967296) :: rest, mem, locs, adv, evts⟩ := by
   unfold execU32WidenMul u32WideMul u32Max
   simp [ha, hb, MidenState.withStack]
 
 /-- Concrete expansion of execU32WidenMadd when isU32 guards pass. -/
 theorem execU32WidenMadd_concrete
-    {a b c : Felt} {rest : List Felt} {mem locs : Nat → Felt} {adv : List Felt}
+    {a b c : Felt} {rest : List Felt} {mem locs : Nat → Felt} {adv evts : List Felt}
     (ha : a.isU32 = true := by assumption) (hb : b.isU32 = true := by assumption)
     (hc : c.isU32 = true := by assumption) :
-    execU32WidenMadd ⟨b :: a :: c :: rest, mem, locs, adv⟩ =
+    execU32WidenMadd ⟨b :: a :: c :: rest, mem, locs, adv, evts⟩ =
     some ⟨Felt.ofNat ((a.val * b.val + c.val) % 4294967296) ::
-      Felt.ofNat ((a.val * b.val + c.val) / 4294967296) :: rest, mem, locs, adv⟩ := by
+      Felt.ofNat ((a.val * b.val + c.val) / 4294967296) :: rest, mem, locs, adv, evts⟩ := by
   unfold execU32WidenMadd u32WideMadd u32Max
   simp [ha, hb, hc, MidenState.withStack]
 

@@ -120,9 +120,9 @@ private theorem u128_wrapping_mul_tail_cleanup_run
     (c3 a0 a1 a2 a3 b0 b1 b2 b3 c0 c1 c2 : Felt) (rest : List Felt)
     (mem locs : Nat → Felt) (adv : List Felt) :
     execWithEnv env (fuel + 1)
-      ⟨c3 :: a0 :: a1 :: a2 :: a3 :: b0 :: b1 :: b2 :: b3 :: c0 :: c1 :: c2 :: rest, mem, locs, adv⟩
+      ⟨c3 :: a0 :: a1 :: a2 :: a3 :: b0 :: b1 :: b2 :: b3 :: c0 :: c1 :: c2 :: rest, mem, locs, adv, evts⟩
       u128_wrapping_mul_tail_cleanup =
-    some ⟨c0 :: c1 :: c2 :: c3 :: rest, mem, locs, adv⟩ := by
+    some ⟨c0 :: c1 :: c2 :: c3 :: rest, mem, locs, adv, evts⟩ := by
   unfold execWithEnv u128_wrapping_mul_tail_cleanup
   simp only [List.foldlM]
   miden_movup
@@ -184,7 +184,7 @@ theorem u128_wrapping_mul_run
     (hb0 : b0.isU32 = true) (hb1 : b1.isU32 = true)
     (hb2 : b2.isU32 = true) (hb3 : b3.isU32 = true) :
     execWithEnv env (fuel + 1)
-      ⟨b0 :: b1 :: b2 :: b3 :: a0 :: a1 :: a2 :: a3 :: rest, mem, locs, adv⟩
+      ⟨b0 :: b1 :: b2 :: b3 :: a0 :: a1 :: a2 :: a3 :: rest, mem, locs, adv, evts⟩
       Miden.Core.U128.wrapping_mul =
     some ⟨
       u128MulC0 a0 b0 ::
@@ -218,7 +218,7 @@ theorem u128_wrapping_mul_correct
       u128MulC2 a0 a1 a2 b0 b1 b2 ::
       u128MulC3 a0 a1 a2 a3 b0 b1 b2 b3 ::
       rest)) := by
-  obtain ⟨stk, mem, locs, adv⟩ := s
+  obtain ⟨stk, mem, locs, adv, evts⟩ := s
   simp only [MidenState.withStack] at hs ⊢
   subst hs
   simpa [exec] using

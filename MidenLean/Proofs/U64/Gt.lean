@@ -24,14 +24,14 @@ theorem u64_gt_correct
       let borrow_hi := decide (b_hi.val < a_hi.val)
       let hi_eq := Felt.ofNat (u32OverflowingSub b_hi.val a_hi.val).2 == (0 : Felt)
       (if borrow_hi || (hi_eq && borrow_lo) then (1 : Felt) else 0) :: rest)) := by
-  obtain ⟨stk, mem, locs, adv⟩ := s
+  obtain ⟨stk, mem, locs, adv, evts⟩ := s
   simp only [MidenState.withStack] at hs ⊢
   subst hs
   unfold exec Miden.Core.U64.gt execWithEnv
   simp only [List.foldlM]
   -- gt differs from lt: swap 1 before first sub, no swap before second sub
   change (do
-    let s' ← execInstruction ⟨b_lo :: b_hi :: a_lo :: a_hi :: rest, mem, locs, adv⟩ (.movup 3)
+    let s' ← execInstruction ⟨b_lo :: b_hi :: a_lo :: a_hi :: rest, mem, locs, adv, evts⟩ (.movup 3)
     let s' ← execInstruction s' (.movup 3)
     let s' ← execInstruction s' (.movup 2)
     let s' ← execInstruction s' (.swap 1)

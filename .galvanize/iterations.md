@@ -421,4 +421,21 @@ updated."
 **Effect on iteration:** continued (additive)
 
 ### Changes Made (Phases 2-3)
-(pending)
+- Code: EquationLemmas.lean -- ~100 O(1) dispatch
+  lemmas for all instructions (rfl proofs)
+- Code: StepLemmas.lean -- replaced all 45
+  unfold execInstruction with equation lemma rewrites,
+  removed all 45 maxHeartbeats annotations
+- Code: Helpers.lean -- removed @[simp] from 4
+  equation lemmas to prevent eager rewriting
+- Code: All non-generated proof files -- removed
+  remaining 98 maxHeartbeats annotations
+- Code: U128/OverflowingMul.lean -- added missing
+  SimpAttrs import for @[miden_dispatch]
+- Felt.lean: retained 1 maxHeartbeats for primality
+- Build: U64 proofs all pass. Pre-existing U128
+  failures exposed (stepSwapw1/stepDupw1 undefined,
+  miden_loop tactic missing) -- these predate our
+  changes and were masked by stale oleans.
+- ACs: AC-47 partial (StepLemmas + all U64 done,
+  U128 pre-existing issues remain)

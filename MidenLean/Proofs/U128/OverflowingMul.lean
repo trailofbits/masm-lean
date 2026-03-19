@@ -19,8 +19,8 @@ theorem execWithEnv_append (env : ProcEnv) (fuel : Nat) (s : MidenState) (xs ys 
 
 @[miden_dispatch] theorem stepNeqImm (v : Felt) (mem locs : Nat → Felt) (adv : List Felt)
     (a : Felt) (rest : List Felt) :
-    execInstruction ⟨a :: rest, mem, locs, adv⟩ (.neqImm v) =
-    some ⟨(if a != v then (1 : Felt) else 0) :: rest, mem, locs, adv⟩ := by
+    execInstruction ⟨a :: rest, mem, locs, adv, evts⟩ (.neqImm v) =
+    some ⟨(if a != v then (1 : Felt) else 0) :: rest, mem, locs, adv, evts⟩ := by
   unfold execInstruction execNeqImm
   rfl
 
@@ -435,7 +435,7 @@ private theorem u128_mul_low_chunk1_run
     (ha0 : a0.isU32 = true) (ha1 : a1.isU32 = true)
     (hb0 : b0.isU32 = true) :
     execWithEnv env (fuel + 1)
-      ⟨b0 :: b1 :: b2 :: b3 :: a0 :: a1 :: a2 :: a3 :: rest, mem, locs, adv⟩
+      ⟨b0 :: b1 :: b2 :: b3 :: a0 :: a1 :: a2 :: a3 :: rest, mem, locs, adv, evts⟩
       u128_mul_low_chunk1 =
     some ⟨
       b1 ::
@@ -784,7 +784,7 @@ theorem u128_mul_low_chunk_run
     (hb0 : b0.isU32 = true) (hb1 : b1.isU32 = true)
     (hb2 : b2.isU32 = true) (_hb3 : b3.isU32 = true) :
     execWithEnv env (fuel + 1)
-      ⟨b0 :: b1 :: b2 :: b3 :: a0 :: a1 :: a2 :: a3 :: rest, mem, locs, adv⟩
+      ⟨b0 :: b1 :: b2 :: b3 :: a0 :: a1 :: a2 :: a3 :: rest, mem, locs, adv, evts⟩
       u128_mul_low_chunk =
     some ⟨
       u128MulO2Sum a0 a1 a2 b0 b1 b2 ::
@@ -1112,7 +1112,7 @@ theorem u128_overflowing_mul_cleanup_chunk_run
       ⟨overflow :: c3 :: a0 :: a1 :: a2 :: a3 :: b0 :: b1 :: b2 :: b3 :: c0 :: c1 :: c2 :: rest,
         mem, locs, adv⟩
       u128_overflowing_mul_cleanup_chunk =
-    some ⟨overflow :: c0 :: c1 :: c2 :: c3 :: rest, mem, locs, adv⟩ := by
+    some ⟨overflow :: c0 :: c1 :: c2 :: c3 :: rest, mem, locs, adv, evts⟩ := by
   unfold u128_overflowing_mul_cleanup_chunk execWithEnv execInstruction
     execMovup execDrop execSwap execMovdn removeNth insertAt
   simp [MidenState.withStack]
@@ -1126,7 +1126,7 @@ theorem u128_overflowing_mul_run
     (hb0 : b0.isU32 = true) (hb1 : b1.isU32 = true)
     (hb2 : b2.isU32 = true) (hb3 : b3.isU32 = true) :
     execWithEnv env (fuel + 1)
-      ⟨b0 :: b1 :: b2 :: b3 :: a0 :: a1 :: a2 :: a3 :: rest, mem, locs, adv⟩
+      ⟨b0 :: b1 :: b2 :: b3 :: a0 :: a1 :: a2 :: a3 :: rest, mem, locs, adv, evts⟩
       Miden.Core.U128.overflowing_mul =
     some ⟨
       (if u128MulOverflowBool a0 a1 a2 a3 b0 b1 b2 b3 then (1 : Felt) else 0) ::
@@ -1173,7 +1173,7 @@ theorem u128_overflowing_mul_correct
       u128MulC2 a0 a1 a2 b0 b1 b2 ::
       u128MulC3 a0 a1 a2 a3 b0 b1 b2 b3 ::
       rest)) := by
-  obtain ⟨stk, mem, locs, adv⟩ := s
+  obtain ⟨stk, mem, locs, adv, evts⟩ := s
   simp only [MidenState.withStack] at hs ⊢
   subst hs
   simpa [exec] using

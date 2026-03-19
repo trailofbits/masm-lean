@@ -104,7 +104,7 @@ set_option hygiene false in
 macro_rules
   | `(tactic| miden_setup $proc) =>
     `(tactic|
-      obtain ⟨stk, mem, locs, adv⟩ := s;
+      obtain ⟨stk, mem, locs, adv, evts⟩ := s;
       simp only [MidenState.withStack] at hs ⊢;
       subst hs;
       unfold $proc exec execWithEnv;
@@ -117,7 +117,7 @@ set_option hygiene false in
 macro_rules
   | `(tactic| miden_setup_env $proc) =>
     `(tactic|
-      obtain ⟨stk, mem, locs, adv⟩ := s;
+      obtain ⟨stk, mem, locs, adv, evts⟩ := s;
       simp only [MidenState.withStack] at hs ⊢;
       subst hs;
       unfold $proc execWithEnv;

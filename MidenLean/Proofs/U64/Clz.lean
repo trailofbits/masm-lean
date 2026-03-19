@@ -20,13 +20,13 @@ theorem u64_clz_correct (lo hi : Felt) (rest : List Felt) (s : MidenState)
       (if hi == (0 : Felt)
        then Felt.ofNat (u32CountLeadingZeros lo.val) + 32
        else Felt.ofNat (u32CountLeadingZeros hi.val)) :: rest)) := by
-  obtain ⟨stk, mem, locs, adv⟩ := s
+  obtain ⟨stk, mem, locs, adv, evts⟩ := s
   simp only [MidenState.withStack] at hs ⊢
   subst hs
   unfold exec Miden.Core.U64.clz execWithEnv
   simp only [List.foldlM]
   change (do
-    let s' ← execInstruction ⟨lo :: hi :: rest, mem, locs, adv⟩ (.swap 1)
+    let s' ← execInstruction ⟨lo :: hi :: rest, mem, locs, adv, evts⟩ (.swap 1)
     let s' ← execInstruction s' (.dup 0)
     let s' ← execInstruction s' (.eqImm 0)
     let s' ← (match s'.stack with

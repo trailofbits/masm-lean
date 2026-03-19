@@ -18,7 +18,7 @@ theorem u128_min_run
     (hb0 : b0.isU32 = true) (hb1 : b1.isU32 = true)
     (hb2 : b2.isU32 = true) (hb3 : b3.isU32 = true) :
     execWithEnv u128ProcEnv (fuel + 3)
-      ⟨b0 :: b1 :: b2 :: b3 :: a0 :: a1 :: a2 :: a3 :: rest, mem, locs, adv⟩
+      ⟨b0 :: b1 :: b2 :: b3 :: a0 :: a1 :: a2 :: a3 :: rest, mem, locs, adv, evts⟩
       Miden.Core.U128.min =
     some ⟨
       (if u128GtBool a0 a1 a2 a3 b0 b1 b2 b3 then b0 else a0) ::
@@ -58,7 +58,7 @@ theorem u128_min_correct
       (if u128GtBool a0 a1 a2 a3 b0 b1 b2 b3 then b1 else a1) ::
       (if u128GtBool a0 a1 a2 a3 b0 b1 b2 b3 then b2 else a2) ::
       (if u128GtBool a0 a1 a2 a3 b0 b1 b2 b3 then b3 else a3) :: rest)) := by
-  obtain ⟨stk, mem, locs, adv⟩ := s
+  obtain ⟨stk, mem, locs, adv, evts⟩ := s
   simp only [MidenState.withStack] at hs ⊢
   subst hs
   simpa using u128_min_run 34 a0 a1 a2 a3 b0 b1 b2 b3 rest mem locs adv

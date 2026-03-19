@@ -27,14 +27,14 @@ theorem u64_widening_add_correct
       let c_hi := Felt.ofNat (hi_sum % 2^32)
       let overflow := Felt.ofNat (hi_sum / 2^32)
       c_lo :: c_hi :: overflow :: rest)) := by
-  obtain ⟨stk, mem, locs, adv⟩ := s
+  obtain ⟨stk, mem, locs, adv, evts⟩ := s
   simp only [MidenState.withStack] at hs ⊢
   subst hs
   unfold Miden.Core.U64.widening_add execWithEnv
   simp only [List.foldlM]
   change (do
     let s' ← (match u64ProcEnv "overflowing_add" with
-      | some body => execWithEnv u64ProcEnv 9 ⟨b_lo :: b_hi :: a_lo :: a_hi :: rest, mem, locs, adv⟩ body
+      | some body => execWithEnv u64ProcEnv 9 ⟨b_lo :: b_hi :: a_lo :: a_hi :: rest, mem, locs, adv, evts⟩ body
       | none => none)
     let s' ← execInstruction s' (.movdn 2)
     pure s') = _

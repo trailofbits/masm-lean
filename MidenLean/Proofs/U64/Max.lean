@@ -29,7 +29,7 @@ theorem u64_max_correct
       (if is_lt then a_lo else b_lo) ::
       (if is_lt then a_hi else b_hi) :: rest)) := by
   -- Setup: unfold max, resolve ProcEnv, unfold lt body
-  obtain ⟨stk, mem, locs, adv⟩ := s
+  obtain ⟨stk, mem, locs, adv, evts⟩ := s
   simp only [MidenState.withStack] at hs ⊢
   subst hs
   unfold Miden.Core.U64.max execWithEnv

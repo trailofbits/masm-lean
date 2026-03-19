@@ -20,13 +20,13 @@ theorem u64_wrapping_sub_correct
       let sub_hi := u32OverflowingSub a_hi.val b_hi.val
       let sub_final := u32OverflowingSub sub_hi.2 sub_lo.1
       Felt.ofNat sub_lo.2 :: Felt.ofNat sub_final.2 :: rest)) := by
-  obtain ⟨stk, mem, locs, adv⟩ := s
+  obtain ⟨stk, mem, locs, adv, evts⟩ := s
   simp only [MidenState.withStack] at hs ⊢
   subst hs
   unfold exec Miden.Core.U64.wrapping_sub execWithEnv
   simp only [List.foldlM]
   change (do
-    let s' ← execInstruction ⟨b_lo :: b_hi :: a_lo :: a_hi :: rest, mem, locs, adv⟩ (.movup 3)
+    let s' ← execInstruction ⟨b_lo :: b_hi :: a_lo :: a_hi :: rest, mem, locs, adv, evts⟩ (.movup 3)
     let s' ← execInstruction s' (.movup 3)
     let s' ← execInstruction s' (.movup 2)
     let s' ← execInstruction s' (.u32OverflowSub)
