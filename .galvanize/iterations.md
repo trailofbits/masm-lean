@@ -200,3 +200,12 @@ u64 procedures (Tiers 5-8, ACs 19-42).
 - Build: 0 errors, 0 warnings, 0 sorry
 - ACs completed: AC-19, AC-30, AC-31, AC-32,
   AC-41, AC-42 (6 new)
+
+### Tarot Log
+None
+
+### Convergence Status
+Not converged -- 22 unchecked ACs remain (AC-20 to
+AC-29, AC-33 to AC-40, AC-43 to AC-46).
+BROKEN=0, ABSURD=0, BAD=4 (all previously accepted).
+Starting iteration 4.

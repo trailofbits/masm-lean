@@ -56,10 +56,10 @@ types (toU64, toU128) rather than raw field elements.
 
 - [ ] AC-21: u64_wrapping_add_semantic (toU64 result
   = (toU64 a + toU64 b) mod 2^64)
-- [ ] AC-22: u64_wrapping_sub_semantic
+- [x] AC-22: u64_wrapping_sub_semantic
 - [ ] AC-23: u64_wrapping_mul_semantic
-- [ ] AC-24: u64_overflowing_sub_semantic
-- [ ] AC-25: u64_widening_add_semantic (toU128 result)
+- [x] AC-24: u64_overflowing_sub_semantic
+- [x] AC-25: u64_widening_add_semantic
 - [ ] AC-26: u64_widening_mul_semantic (toU128 result)
 - [ ] AC-27: u64_div_semantic
 - [ ] AC-28: u64_mod_semantic

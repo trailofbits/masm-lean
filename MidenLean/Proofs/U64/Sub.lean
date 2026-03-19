@@ -1,4 +1,5 @@
 import MidenLean.Proofs.Tactics
+import MidenLean.Proofs.Interp
 import MidenLean.Generated.U64
 
 namespace MidenLean.Proofs
@@ -62,5 +63,24 @@ theorem u64_wrapping_sub_correct
   rw [stepDrop]; miden_bind
   miden_swap
   dsimp only [pure, Pure.pure]
+
+/-- Semantic: wrapping_sub computes the output limbs
+    such that their u64 value equals
+    (toU64 a + 2^64 - toU64 b) % 2^64. -/
+theorem u64_wrapping_sub_semantic
+    (a_lo a_hi b_lo b_hi : Felt)
+    (ha_lo : a_lo.isU32 = true)
+    (ha_hi : a_hi.isU32 = true)
+    (hb_lo : b_lo.isU32 = true)
+    (hb_hi : b_hi.isU32 = true) :
+    let sub_lo := u32OverflowingSub a_lo.val b_lo.val
+    let sub_hi := u32OverflowingSub a_hi.val b_hi.val
+    let sub_final := u32OverflowingSub sub_hi.2 sub_lo.1
+    sub_final.2 * 2 ^ 32 + sub_lo.2 =
+    (toU64 a_lo a_hi + 2 ^ 64 - toU64 b_lo b_hi) %
+      2 ^ 64 := by
+  simp only [toU64, u32OverflowingSub, u32Max,
+    Felt.isU32, decide_eq_true_eq] at *
+  split <;> split <;> split <;> omega
 
 end MidenLean.Proofs
