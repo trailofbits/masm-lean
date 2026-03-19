@@ -30,7 +30,7 @@ private theorem felt_ite_gt_decide (a b : Felt) :
 
 theorem arrange_for_wordProcEnv
     (a0 a1 a2 a3 b0 b1 b2 b3 : Felt) (rest : List Felt)
-    (mem locs : Nat → Felt) (adv : List Felt) (evts : List Felt) :
+    (mem locs : Nat → Word) (adv : List Felt) (evts : List Felt) :
     execWithEnv wordProcEnv 2
       ⟨a0 :: a1 :: a2 :: a3 :: b0 :: b1 :: b2 :: b3 :: rest, mem, locs, adv, evts⟩
       Miden.Core.Word.arrange_words_adjacent_le =
@@ -48,7 +48,7 @@ theorem arrange_for_wordProcEnv
 -- One iteration of the word.gt comparison loop.
 private theorem gt_iteration
     (result undecided : Bool) (b_i a_i : Felt) (tail : List Felt)
-    (mem locs : Nat → Felt) (adv : List Felt) (evts : List Felt) :
+    (mem locs : Nat → Word) (adv : List Felt) (evts : List Felt) :
     let eq_flag := (b_i == a_i)
     let lt_flag := decide (a_i.val < b_i.val)
     let new_result := result || (undecided && lt_flag)
@@ -81,7 +81,7 @@ private theorem gt_iteration
 -- First iteration specialized for concrete 0/1 stack values.
 private theorem gt_iteration_init
     (b_i a_i : Felt) (tail : List Felt)
-    (mem locs : Nat → Felt) (adv : List Felt) (evts : List Felt) :
+    (mem locs : Nat → Word) (adv : List Felt) (evts : List Felt) :
     execWithEnv wordProcEnv 2
       ⟨(0:Felt) :: (1:Felt) :: b_i :: a_i :: tail, mem, locs, adv, evts⟩
       [.inst (.movup 3), .inst (.movup 3), .inst (.dup 0), .inst (.dup 2),

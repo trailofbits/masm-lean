@@ -9,7 +9,7 @@ open MidenLean
 -- Stack manipulation
 -- ============================================================================
 
-theorem stepDrop (mem locs : Nat → Felt) (adv : List Felt) (evts : List Felt)
+theorem stepDrop (mem locs : Nat → Word) (adv : List Felt) (evts : List Felt)
     (a : Felt) (rest : List Felt) :
     execInstruction ⟨a :: rest, mem, locs, adv, evts⟩ .drop =
     some ⟨rest, mem, locs, adv, evts⟩ := by
@@ -17,7 +17,7 @@ theorem stepDrop (mem locs : Nat → Felt) (adv : List Felt) (evts : List Felt)
     MidenState.withStack]
 
 /-- Parametric dup: copies the element at index `n` to the top of the stack. -/
-theorem stepDup (n : Fin 16) (stk : List Felt) (mem locs : Nat → Felt) (adv : List Felt) (evts : List Felt)
+theorem stepDup (n : Fin 16) (stk : List Felt) (mem locs : Nat → Word) (adv : List Felt) (evts : List Felt)
     (v : Felt) (h : stk[n.val]? = some v) :
     execInstruction ⟨stk, mem, locs, adv, evts⟩ (.dup n) =
     some ⟨v :: stk, mem, locs, adv, evts⟩ := by
@@ -28,7 +28,7 @@ theorem stepDup (n : Fin 16) (stk : List Felt) (mem locs : Nat → Felt) (adv : 
 /-- Parametric swap: swaps the top element with the element at index `n`.
     After the rewrite, the result stack contains `List.set` operations;
     use `dsimp only [List.set]` to normalize on concrete lists. -/
-theorem stepSwap (n : Fin 16) (stk : List Felt) (mem locs : Nat → Felt) (adv : List Felt) (evts : List Felt)
+theorem stepSwap (n : Fin 16) (stk : List Felt) (mem locs : Nat → Word) (adv : List Felt) (evts : List Felt)
     (hn : (n.val == 0) = false)
     (top nth : Felt) (htop : stk[0]? = some top) (hnth : stk[n.val]? = some nth) :
     execInstruction ⟨stk, mem, locs, adv, evts⟩ (.swap n) =
@@ -42,7 +42,7 @@ theorem stepSwap (n : Fin 16) (stk : List Felt) (mem locs : Nat → Felt) (adv :
 /-- Parametric movup: removes element at index `n` and places it on top.
     After the rewrite, the result stack contains `List.eraseIdx`;
     use `dsimp only [List.eraseIdx]` to normalize on concrete lists. -/
-theorem stepMovup (n : Nat) (stk : List Felt) (mem locs : Nat → Felt) (adv : List Felt) (evts : List Felt)
+theorem stepMovup (n : Nat) (stk : List Felt) (mem locs : Nat → Word) (adv : List Felt) (evts : List Felt)
     (v : Felt) (hn : (n < 2 || n > 15) = false) (hv : stk[n]? = some v) :
     execInstruction ⟨stk, mem, locs, adv, evts⟩ (.movup n) =
     some ⟨v :: stk.eraseIdx n, mem, locs, adv, evts⟩ := by
@@ -53,7 +53,7 @@ theorem stepMovup (n : Nat) (stk : List Felt) (mem locs : Nat → Felt) (adv : L
 /-- Parametric movdn: pops the top element and inserts it at position `n`.
     After the rewrite, the result stack contains `insertAt`;
     use `dsimp only [insertAt, List.take, List.drop, List.append]` to normalize. -/
-theorem stepMovdn (n : Nat) (mem locs : Nat → Felt) (adv : List Felt) (evts : List Felt)
+theorem stepMovdn (n : Nat) (mem locs : Nat → Word) (adv : List Felt) (evts : List Felt)
     (top : Felt) (rest : List Felt) (hn : (n < 2 || n > 15) = false) :
     execInstruction ⟨top :: rest, mem, locs, adv, evts⟩ (.movdn n) =
     some ⟨insertAt rest n top, mem, locs, adv, evts⟩ := by
@@ -65,7 +65,7 @@ theorem stepMovdn (n : Nat) (mem locs : Nat → Felt) (adv : List Felt) (evts : 
 -- U32 assertions
 -- ============================================================================
 
-theorem stepU32Assert2 (mem locs : Nat → Felt) (adv : List Felt) (evts : List Felt)
+theorem stepU32Assert2 (mem locs : Nat → Word) (adv : List Felt) (evts : List Felt)
     (a b : Felt) (rest : List Felt)
     (ha : a.isU32 = true) (hb : b.isU32 = true) :
     execInstruction ⟨a :: b :: rest, mem, locs, adv, evts⟩ .u32Assert2 =
@@ -78,19 +78,19 @@ theorem stepU32Assert2 (mem locs : Nat → Felt) (adv : List Felt) (evts : List 
 -- Field comparison
 -- ============================================================================
 
-theorem stepEqImm (mem locs : Nat → Felt) (adv : List Felt) (evts : List Felt)
+theorem stepEqImm (mem locs : Nat → Word) (adv : List Felt) (evts : List Felt)
     (v a : Felt) (rest : List Felt) :
     execInstruction ⟨a :: rest, mem, locs, adv, evts⟩ (.eqImm v) =
     some ⟨(if a == v then (1 : Felt) else 0) :: rest, mem, locs, adv, evts⟩ := by
   simp only [execInstruction_eqImm, execEqImm, MidenState.withStack]
 
-theorem stepEq (mem locs : Nat → Felt) (adv : List Felt) (evts : List Felt)
+theorem stepEq (mem locs : Nat → Word) (adv : List Felt) (evts : List Felt)
     (a b : Felt) (rest : List Felt) :
     execInstruction ⟨b :: a :: rest, mem, locs, adv, evts⟩ .eq =
     some ⟨(if a == b then (1 : Felt) else 0) :: rest, mem, locs, adv, evts⟩ := by
   simp only [execInstruction_eq', execEq, MidenState.withStack]
 
-theorem stepNeq (mem locs : Nat → Felt) (adv : List Felt) (evts : List Felt)
+theorem stepNeq (mem locs : Nat → Word) (adv : List Felt) (evts : List Felt)
     (a b : Felt) (rest : List Felt) :
     execInstruction ⟨b :: a :: rest, mem, locs, adv, evts⟩ .neq =
     some ⟨(if a != b then (1 : Felt) else 0) :: rest, mem, locs, adv, evts⟩ := by
@@ -100,7 +100,7 @@ theorem stepNeq (mem locs : Nat → Felt) (adv : List Felt) (evts : List Felt)
 -- Field boolean
 -- ============================================================================
 
-theorem stepAndIte (mem locs : Nat → Felt) (adv : List Felt) (evts : List Felt)
+theorem stepAndIte (mem locs : Nat → Word) (adv : List Felt) (evts : List Felt)
     (rest : List Felt) (p q : Bool) :
     execInstruction
       ⟨(if p then (1 : Felt) else 0) :: (if q then (1 : Felt) else 0) :: rest, mem, locs, adv, evts⟩
@@ -111,7 +111,7 @@ theorem stepAndIte (mem locs : Nat → Felt) (adv : List Felt) (evts : List Felt
   simp only [Felt.isBool_ite_bool, MidenState.withStack]
   cases p <;> cases q <;> simp
 
-theorem stepOrIte (mem locs : Nat → Felt) (adv : List Felt) (evts : List Felt)
+theorem stepOrIte (mem locs : Nat → Word) (adv : List Felt) (evts : List Felt)
     (rest : List Felt) (p q : Bool) :
     execInstruction
       ⟨(if p then (1 : Felt) else 0) :: (if q then (1 : Felt) else 0) :: rest, mem, locs, adv, evts⟩
@@ -122,7 +122,7 @@ theorem stepOrIte (mem locs : Nat → Felt) (adv : List Felt) (evts : List Felt)
   simp only [Felt.isBool_ite_bool, MidenState.withStack]
   cases p <;> cases q <;> simp
 
-theorem stepNotIte (mem locs : Nat → Felt) (adv : List Felt) (evts : List Felt)
+theorem stepNotIte (mem locs : Nat → Word) (adv : List Felt) (evts : List Felt)
     (rest : List Felt) (p : Bool) :
     execInstruction
       ⟨(if p then (1 : Felt) else 0) :: rest, mem, locs, adv, evts⟩
@@ -137,7 +137,7 @@ theorem stepNotIte (mem locs : Nat → Felt) (adv : List Felt) (evts : List Felt
 -- Field arithmetic
 -- ============================================================================
 
-theorem stepAddImm (mem locs : Nat → Felt) (adv : List Felt) (evts : List Felt)
+theorem stepAddImm (mem locs : Nat → Word) (adv : List Felt) (evts : List Felt)
     (v a : Felt) (rest : List Felt) :
     execInstruction ⟨a :: rest, mem, locs, adv, evts⟩ (.addImm v) =
     some ⟨(a + v) :: rest, mem, locs, adv, evts⟩ := by
@@ -147,7 +147,7 @@ theorem stepAddImm (mem locs : Nat → Felt) (adv : List Felt) (evts : List Felt
 -- U32 arithmetic
 -- ============================================================================
 
-theorem stepU32WidenAdd (mem locs : Nat → Felt) (adv : List Felt) (evts : List Felt)
+theorem stepU32WidenAdd (mem locs : Nat → Word) (adv : List Felt) (evts : List Felt)
     (a b : Felt) (rest : List Felt)
     (ha : a.isU32 = true) (hb : b.isU32 = true) :
     execInstruction ⟨b :: a :: rest, mem, locs, adv, evts⟩ .u32WidenAdd =
@@ -157,7 +157,7 @@ theorem stepU32WidenAdd (mem locs : Nat → Felt) (adv : List Felt) (evts : List
   unfold execU32WidenAdd u32WideAdd u32Max
   simp [ha, hb, MidenState.withStack]
 
-theorem stepU32WidenAdd3 (mem locs : Nat → Felt) (adv : List Felt) (evts : List Felt)
+theorem stepU32WidenAdd3 (mem locs : Nat → Word) (adv : List Felt) (evts : List Felt)
     (a b c : Felt) (rest : List Felt)
     (ha : a.isU32 = true) (hb : b.isU32 = true) (hc : c.isU32 = true) :
     execInstruction ⟨c :: b :: a :: rest, mem, locs, adv, evts⟩ .u32WidenAdd3 =
@@ -167,7 +167,7 @@ theorem stepU32WidenAdd3 (mem locs : Nat → Felt) (adv : List Felt) (evts : Lis
   unfold execU32WidenAdd3 u32WideAdd3 u32Max
   simp [ha, hb, hc, MidenState.withStack]
 
-theorem stepU32OverflowSub (mem locs : Nat → Felt) (adv : List Felt) (evts : List Felt)
+theorem stepU32OverflowSub (mem locs : Nat → Word) (adv : List Felt) (evts : List Felt)
     (a b : Felt) (rest : List Felt)
     (ha : a.isU32 = true) (hb : b.isU32 = true) :
     execInstruction ⟨b :: a :: rest, mem, locs, adv, evts⟩ .u32OverflowSub =
@@ -178,7 +178,7 @@ theorem stepU32OverflowSub (mem locs : Nat → Felt) (adv : List Felt) (evts : L
   unfold execU32OverflowSub
   simp [ha, hb, MidenState.withStack]
 
-theorem stepU32WidenMul (mem locs : Nat → Felt) (adv : List Felt) (evts : List Felt)
+theorem stepU32WidenMul (mem locs : Nat → Word) (adv : List Felt) (evts : List Felt)
     (a b : Felt) (rest : List Felt)
     (ha : a.isU32 = true) (hb : b.isU32 = true) :
     execInstruction ⟨b :: a :: rest, mem, locs, adv, evts⟩ .u32WidenMul =
@@ -188,7 +188,7 @@ theorem stepU32WidenMul (mem locs : Nat → Felt) (adv : List Felt) (evts : List
   unfold execU32WidenMul u32WideMul u32Max
   simp [ha, hb, MidenState.withStack]
 
-theorem stepU32WidenMadd (mem locs : Nat → Felt) (adv : List Felt) (evts : List Felt)
+theorem stepU32WidenMadd (mem locs : Nat → Word) (adv : List Felt) (evts : List Felt)
     (a b c : Felt) (rest : List Felt)
     (ha : a.isU32 = true) (hb : b.isU32 = true) (hc : c.isU32 = true) :
     execInstruction ⟨b :: a :: c :: rest, mem, locs, adv, evts⟩ .u32WidenMadd =
@@ -200,7 +200,7 @@ theorem stepU32WidenMadd (mem locs : Nat → Felt) (adv : List Felt) (evts : Lis
 
 -- U32 bitwise (require isU32 preconditions)
 
-theorem stepU32And (mem locs : Nat → Felt) (adv : List Felt) (evts : List Felt)
+theorem stepU32And (mem locs : Nat → Word) (adv : List Felt) (evts : List Felt)
     (a b : Felt) (rest : List Felt)
     (ha : a.isU32 = true) (hb : b.isU32 = true) :
     execInstruction ⟨b :: a :: rest, mem, locs, adv, evts⟩ .u32And =
@@ -209,7 +209,7 @@ theorem stepU32And (mem locs : Nat → Felt) (adv : List Felt) (evts : List Felt
   unfold execU32And
   simp [ha, hb, MidenState.withStack]
 
-theorem stepU32Or (mem locs : Nat → Felt) (adv : List Felt) (evts : List Felt)
+theorem stepU32Or (mem locs : Nat → Word) (adv : List Felt) (evts : List Felt)
     (a b : Felt) (rest : List Felt)
     (ha : a.isU32 = true) (hb : b.isU32 = true) :
     execInstruction ⟨b :: a :: rest, mem, locs, adv, evts⟩ .u32Or =
@@ -218,7 +218,7 @@ theorem stepU32Or (mem locs : Nat → Felt) (adv : List Felt) (evts : List Felt)
   unfold execU32Or
   simp [ha, hb, MidenState.withStack]
 
-theorem stepU32Xor (mem locs : Nat → Felt) (adv : List Felt) (evts : List Felt)
+theorem stepU32Xor (mem locs : Nat → Word) (adv : List Felt) (evts : List Felt)
     (a b : Felt) (rest : List Felt)
     (ha : a.isU32 = true) (hb : b.isU32 = true) :
     execInstruction ⟨b :: a :: rest, mem, locs, adv, evts⟩ .u32Xor =
@@ -229,7 +229,7 @@ theorem stepU32Xor (mem locs : Nat → Felt) (adv : List Felt) (evts : List Felt
 
 -- U32 bit counting
 
-theorem stepU32Clz (mem locs : Nat → Felt) (adv : List Felt) (evts : List Felt)
+theorem stepU32Clz (mem locs : Nat → Word) (adv : List Felt) (evts : List Felt)
     (a : Felt) (rest : List Felt)
     (ha : a.isU32 = true) :
     execInstruction ⟨a :: rest, mem, locs, adv, evts⟩ .u32Clz =
@@ -238,7 +238,7 @@ theorem stepU32Clz (mem locs : Nat → Felt) (adv : List Felt) (evts : List Felt
   unfold execU32Clz
   simp [ha, MidenState.withStack]
 
-theorem stepU32Ctz (mem locs : Nat → Felt) (adv : List Felt) (evts : List Felt)
+theorem stepU32Ctz (mem locs : Nat → Word) (adv : List Felt) (evts : List Felt)
     (a : Felt) (rest : List Felt)
     (ha : a.isU32 = true) :
     execInstruction ⟨a :: rest, mem, locs, adv, evts⟩ .u32Ctz =
@@ -249,7 +249,7 @@ theorem stepU32Ctz (mem locs : Nat → Felt) (adv : List Felt) (evts : List Felt
 
 /-- u32Clo: count leading ones, expressed via u32CountLeadingZeros on the bitwise complement.
     (u32CountLeadingOnes is private in Semantics.) -/
-theorem stepU32Clo (mem locs : Nat → Felt) (adv : List Felt) (evts : List Felt)
+theorem stepU32Clo (mem locs : Nat → Word) (adv : List Felt) (evts : List Felt)
     (a : Felt) (rest : List Felt)
     (ha : a.isU32 = true) :
     execInstruction ⟨a :: rest, mem, locs, adv, evts⟩ .u32Clo =
@@ -260,7 +260,7 @@ theorem stepU32Clo (mem locs : Nat → Felt) (adv : List Felt) (evts : List Felt
 
 /-- u32Cto: count trailing ones, expressed via u32CountTrailingZeros on the XOR complement.
     (u32CountTrailingOnes is private in Semantics.) -/
-theorem stepU32Cto (mem locs : Nat → Felt) (adv : List Felt) (evts : List Felt)
+theorem stepU32Cto (mem locs : Nat → Word) (adv : List Felt) (evts : List Felt)
     (a : Felt) (rest : List Felt)
     (ha : a.isU32 = true) :
     execInstruction ⟨a :: rest, mem, locs, adv, evts⟩ .u32Cto =
@@ -273,36 +273,36 @@ theorem stepU32Cto (mem locs : Nat → Felt) (adv : List Felt) (evts : List Felt
 -- Additional stack and arithmetic operations
 -- ============================================================================
 
-theorem stepReversew (mem locs : Nat → Felt) (adv : List Felt) (evts : List Felt)
+theorem stepReversew (mem locs : Nat → Word) (adv : List Felt) (evts : List Felt)
     (a b c d : Felt) (rest : List Felt) :
     execInstruction ⟨a :: b :: c :: d :: rest, mem, locs, adv, evts⟩ .reversew =
     some ⟨d :: c :: b :: a :: rest, mem, locs, adv, evts⟩ := by
   simp only [execInstruction_reversew, execReversew, MidenState.withStack]
 
-theorem stepDropw (mem locs : Nat → Felt) (adv : List Felt) (evts : List Felt)
+theorem stepDropw (mem locs : Nat → Word) (adv : List Felt) (evts : List Felt)
     (a b c d : Felt) (rest : List Felt) :
     execInstruction ⟨a :: b :: c :: d :: rest, mem, locs, adv, evts⟩ .dropw =
     some ⟨rest, mem, locs, adv, evts⟩ := by
   simp only [execInstruction_dropw, execDropw, MidenState.withStack]
 
-theorem stepPush (v : Felt) (mem locs : Nat → Felt) (adv : List Felt) (evts : List Felt) (stk : List Felt) :
+theorem stepPush (v : Felt) (mem locs : Nat → Word) (adv : List Felt) (evts : List Felt) (stk : List Felt) :
     execInstruction ⟨stk, mem, locs, adv, evts⟩ (.push v) =
     some ⟨v :: stk, mem, locs, adv, evts⟩ := by
   simp only [execInstruction_push, execPush, MidenState.withStack]
 
-theorem stepAdd (mem locs : Nat → Felt) (adv : List Felt) (evts : List Felt)
+theorem stepAdd (mem locs : Nat → Word) (adv : List Felt) (evts : List Felt)
     (a b : Felt) (rest : List Felt) :
     execInstruction ⟨b :: a :: rest, mem, locs, adv, evts⟩ .add =
     some ⟨(a + b) :: rest, mem, locs, adv, evts⟩ := by
   simp only [execInstruction_add, execAdd, MidenState.withStack]
 
-theorem stepMul (mem locs : Nat → Felt) (adv : List Felt) (evts : List Felt)
+theorem stepMul (mem locs : Nat → Word) (adv : List Felt) (evts : List Felt)
     (a b : Felt) (rest : List Felt) :
     execInstruction ⟨b :: a :: rest, mem, locs, adv, evts⟩ .mul =
     some ⟨(a * b) :: rest, mem, locs, adv, evts⟩ := by
   simp only [execInstruction_mul, execMul, MidenState.withStack]
 
-theorem stepCdropIte (mem locs : Nat → Felt) (adv : List Felt) (evts : List Felt)
+theorem stepCdropIte (mem locs : Nat → Word) (adv : List Felt) (evts : List Felt)
     (a b : Felt) (rest : List Felt) (p : Bool) :
     execInstruction ⟨(if p then (1:Felt) else 0) :: a :: b :: rest, mem, locs, adv, evts⟩ .cdrop =
     some ⟨(if p then a else b) :: rest, mem, locs, adv, evts⟩ := by
@@ -310,7 +310,7 @@ theorem stepCdropIte (mem locs : Nat → Felt) (adv : List Felt) (evts : List Fe
   unfold execCdrop
   cases p <;> simp [MidenState.withStack]
 
-theorem stepCswapIte (mem locs : Nat → Felt) (adv : List Felt) (evts : List Felt)
+theorem stepCswapIte (mem locs : Nat → Word) (adv : List Felt) (evts : List Felt)
     (a b : Felt) (rest : List Felt) (p : Bool) :
     execInstruction ⟨(if p then (1:Felt) else 0) :: b :: a :: rest, mem, locs, adv, evts⟩ .cswap =
     some ⟨(if p then a else b) :: (if p then b else a) :: rest, mem, locs, adv, evts⟩ := by
@@ -318,7 +318,7 @@ theorem stepCswapIte (mem locs : Nat → Felt) (adv : List Felt) (evts : List Fe
   unfold execCswap
   cases p <;> simp [MidenState.withStack]
 
-theorem stepPow2 (mem locs : Nat → Felt) (adv : List Felt) (evts : List Felt)
+theorem stepPow2 (mem locs : Nat → Word) (adv : List Felt) (evts : List Felt)
     (a : Felt) (rest : List Felt) (ha : a.val ≤ 63) :
     execInstruction ⟨a :: rest, mem, locs, adv, evts⟩ .pow2 =
     some ⟨Felt.ofNat (2^a.val) :: rest, mem, locs, adv, evts⟩ := by
@@ -326,13 +326,13 @@ theorem stepPow2 (mem locs : Nat → Felt) (adv : List Felt) (evts : List Felt)
   unfold execPow2
   simp [ha, MidenState.withStack]
 
-theorem stepU32Split (mem locs : Nat → Felt) (adv : List Felt) (evts : List Felt)
+theorem stepU32Split (mem locs : Nat → Word) (adv : List Felt) (evts : List Felt)
     (a : Felt) (rest : List Felt) :
     execInstruction ⟨a :: rest, mem, locs, adv, evts⟩ .u32Split =
     some ⟨a.lo32 :: a.hi32 :: rest, mem, locs, adv, evts⟩ := by
   simp only [execInstruction_u32Split, execU32Split, MidenState.withStack]
 
-theorem stepU32WrappingSub (mem locs : Nat → Felt) (adv : List Felt) (evts : List Felt)
+theorem stepU32WrappingSub (mem locs : Nat → Word) (adv : List Felt) (evts : List Felt)
     (a b : Felt) (rest : List Felt)
     (ha : a.isU32 = true) (hb : b.isU32 = true) :
     execInstruction ⟨b :: a :: rest, mem, locs, adv, evts⟩ .u32WrappingSub =
@@ -341,7 +341,7 @@ theorem stepU32WrappingSub (mem locs : Nat → Felt) (adv : List Felt) (evts : L
   unfold execU32WrappingSub
   simp [ha, hb, MidenState.withStack]
 
-theorem stepU32Lt (mem locs : Nat → Felt) (adv : List Felt) (evts : List Felt)
+theorem stepU32Lt (mem locs : Nat → Word) (adv : List Felt) (evts : List Felt)
     (a b : Felt) (rest : List Felt)
     (ha : a.isU32 = true) (hb : b.isU32 = true) :
     execInstruction ⟨b :: a :: rest, mem, locs, adv, evts⟩ .u32Lt =
@@ -350,7 +350,7 @@ theorem stepU32Lt (mem locs : Nat → Felt) (adv : List Felt) (evts : List Felt)
   unfold execU32Lt
   simp [ha, hb, MidenState.withStack]
 
-theorem stepU32DivMod (mem locs : Nat → Felt) (adv : List Felt) (evts : List Felt)
+theorem stepU32DivMod (mem locs : Nat → Word) (adv : List Felt) (evts : List Felt)
     (a b : Felt) (rest : List Felt)
     (ha : a.isU32 = true) (hb : b.isU32 = true) (hbz : b.val ≠ 0) :
     execInstruction ⟨b :: a :: rest, mem, locs, adv, evts⟩ .u32DivMod =
@@ -359,13 +359,13 @@ theorem stepU32DivMod (mem locs : Nat → Felt) (adv : List Felt) (evts : List F
   unfold execU32DivMod
   simp [ha, hb, hbz, MidenState.withStack]
 
-theorem stepLt (mem locs : Nat → Felt) (adv : List Felt) (evts : List Felt)
+theorem stepLt (mem locs : Nat → Word) (adv : List Felt) (evts : List Felt)
     (a b : Felt) (rest : List Felt) :
     execInstruction ⟨b :: a :: rest, mem, locs, adv, evts⟩ .lt =
     some ⟨(if a.val < b.val then (1 : Felt) else 0) :: rest, mem, locs, adv, evts⟩ := by
   simp only [execInstruction_lt, execLt, MidenState.withStack]
 
-theorem stepGt (mem locs : Nat → Felt) (adv : List Felt) (evts : List Felt)
+theorem stepGt (mem locs : Nat → Word) (adv : List Felt) (evts : List Felt)
     (a b : Felt) (rest : List Felt) :
     execInstruction ⟨b :: a :: rest, mem, locs, adv, evts⟩ .gt =
     some ⟨(if a.val > b.val then (1 : Felt) else 0) :: rest, mem, locs, adv, evts⟩ := by
@@ -373,7 +373,7 @@ theorem stepGt (mem locs : Nat → Felt) (adv : List Felt) (evts : List Felt)
 
 /-- Parametric dupw: duplicates a word (4 elements) from position `n` to the top.
     For n=0, duplicates the top word. -/
-theorem stepDupw (n : Fin 4) (stk : List Felt) (mem locs : Nat → Felt) (adv : List Felt) (evts : List Felt)
+theorem stepDupw (n : Fin 4) (stk : List Felt) (mem locs : Nat → Word) (adv : List Felt) (evts : List Felt)
     (a b c d : Felt)
     (h0 : stk[n.val * 4]? = some a) (h1 : stk[n.val * 4 + 1]? = some b)
     (h2 : stk[n.val * 4 + 2]? = some c) (h3 : stk[n.val * 4 + 3]? = some d) :
@@ -383,7 +383,7 @@ theorem stepDupw (n : Fin 4) (stk : List Felt) (mem locs : Nat → Felt) (adv : 
   unfold execDupw
   simp [h0, h1, h2, h3, MidenState.withStack]
 
-theorem stepDiv (mem locs : Nat → Felt) (adv : List Felt) (evts : List Felt)
+theorem stepDiv (mem locs : Nat → Word) (adv : List Felt) (evts : List Felt)
     (a b : Felt) (rest : List Felt)
     (hb : (b == (0 : Felt)) = false) :
     execInstruction ⟨b :: a :: rest, mem, locs, adv, evts⟩ .div =
@@ -401,7 +401,7 @@ theorem stepEmitImm (v : Felt) (s : MidenState) :
     some { s with events := v :: s.events } := by
   rw [execInstruction_emitImm']
 
-theorem stepAssert (mem locs : Nat → Felt) (adv : List Felt) (evts : List Felt)
+theorem stepAssert (mem locs : Nat → Word) (adv : List Felt) (evts : List Felt)
     (a : Felt) (rest : List Felt) (ha : a.val == 1) :
     execInstruction ⟨a :: rest, mem, locs, adv, evts⟩ .assert =
     some ⟨rest, mem, locs, adv, evts⟩ := by
@@ -409,7 +409,7 @@ theorem stepAssert (mem locs : Nat → Felt) (adv : List Felt) (evts : List Felt
   unfold execAssert
   simp [ha, MidenState.withStack]
 
-theorem stepAssertWithError (msg : String) (mem locs : Nat → Felt) (adv : List Felt) (evts : List Felt)
+theorem stepAssertWithError (msg : String) (mem locs : Nat → Word) (adv : List Felt) (evts : List Felt)
     (a : Felt) (rest : List Felt) (ha : a.val == 1) :
     execInstruction ⟨a :: rest, mem, locs, adv, evts⟩ (.assertWithError msg) =
     some ⟨rest, mem, locs, adv, evts⟩ := by
@@ -417,7 +417,7 @@ theorem stepAssertWithError (msg : String) (mem locs : Nat → Felt) (adv : List
   unfold execAssert
   simp [ha, MidenState.withStack]
 
-theorem stepAssertEq (mem locs : Nat → Felt) (adv : List Felt) (evts : List Felt)
+theorem stepAssertEq (mem locs : Nat → Word) (adv : List Felt) (evts : List Felt)
     (a b : Felt) (rest : List Felt) (hab : a == b) :
     execInstruction ⟨b :: a :: rest, mem, locs, adv, evts⟩ .assertEq =
     some ⟨rest, mem, locs, adv, evts⟩ := by
@@ -425,7 +425,7 @@ theorem stepAssertEq (mem locs : Nat → Felt) (adv : List Felt) (evts : List Fe
   unfold execAssertEq
   simp [hab, MidenState.withStack]
 
-theorem stepAssertEqWithError (msg : String) (mem locs : Nat → Felt) (adv : List Felt) (evts : List Felt)
+theorem stepAssertEqWithError (msg : String) (mem locs : Nat → Word) (adv : List Felt) (evts : List Felt)
     (a b : Felt) (rest : List Felt) (hab : a == b) :
     execInstruction ⟨b :: a :: rest, mem, locs, adv, evts⟩ (.assertEqWithError msg) =
     some ⟨rest, mem, locs, adv, evts⟩ := by
@@ -433,7 +433,7 @@ theorem stepAssertEqWithError (msg : String) (mem locs : Nat → Felt) (adv : Li
   unfold execAssertEq
   simp [hab, MidenState.withStack]
 
-theorem stepAdvPush2 (stk : List Felt) (mem locs : Nat → Felt)
+theorem stepAdvPush2 (stk : List Felt) (mem locs : Nat → Word)
     (v0 v1 : Felt) (adv_rest : List Felt) (evts : List Felt) :
     execInstruction ⟨stk, mem, locs, v0 :: v1 :: adv_rest, evts⟩ (.advPush 2) =
     some ⟨v1 :: v0 :: stk, mem, locs, adv_rest, evts⟩ := by
@@ -451,30 +451,23 @@ theorem stepAdvPush2 (stk : List Felt) (mem locs : Nat → Felt)
 -- ============================================================================
 
 /-- memStorewLe: pops address, stores top 4 elements
-    to memory at addr..addr+3 in LE order.
-    Requires addr < u32Max and addr % 4 = 0. -/
-theorem stepMemStorewLe (locs : Nat → Felt) (adv : List Felt)
+    as a word at that address in LE order.
+    Requires addr < u32Max. -/
+theorem stepMemStorewLe (locs : Nat → Word)
+    (adv : List Felt)
     (a e0 e1 e2 e3 : Felt) (rest : List Felt)
-    (mem : Nat → Felt) (evts : List Felt)
-    (ha_lt : a.val < u32Max)
-    (ha_align : a.val % 4 = 0) :
+    (mem : Nat → Word) (evts : List Felt)
+    (ha_lt : a.val < u32Max) :
     execInstruction ⟨a :: e0 :: e1 :: e2 :: e3 :: rest,
       mem, locs, adv, evts⟩ .memStorewLe =
     some ⟨e0 :: e1 :: e2 :: e3 :: rest,
-      fun addr => if addr = a.val + 3 then e3
-        else if addr = a.val + 2 then e2
-        else if addr = a.val + 1 then e1
-        else if addr = a.val then e0
+      fun addr => if addr = a.val then (e0, e1, e2, e3)
         else mem addr,
       locs, adv, evts⟩ := by
   rw [execInstruction_memStorewLe']
   unfold execMemStorewLe
   dsimp only [MidenState.stack]
-  have h1 : decide (a.val ≥ u32Max) = false := by
-    simp only [decide_eq_false_iff_not, not_le]; exact ha_lt
-  have h2 : (a.val % 4 != 0) = false := by
-    simp only [bne_self_eq_false, ha_align]
-  simp only [h1, h2, Bool.false_or, Bool.false_eq_true,
+  simp only [show ¬(a.val ≥ u32Max) from not_le.mpr ha_lt,
     ite_false, MidenState.withStack, MidenState.writeMemory]
 
 end MidenLean.StepLemmas

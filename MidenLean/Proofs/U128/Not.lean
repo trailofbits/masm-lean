@@ -7,7 +7,7 @@ open MidenLean
 open MidenLean.StepLemmas
 open MidenLean.Tactics
 
-private theorem stepU32NotLocal (mem locs : Nat → Felt) (adv : List Felt) (evts : List Felt)
+private theorem stepU32NotLocal (mem locs : Nat → Word) (adv : List Felt) (evts : List Felt)
     (a : Felt) (rest : List Felt)
     (ha : a.isU32 = true) :
     execInstruction ⟨a :: rest, mem, locs, adv, evts⟩ .u32Not =

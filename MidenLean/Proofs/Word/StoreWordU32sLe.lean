@@ -13,9 +13,9 @@ open MidenLean.Tactics
 theorem word_store_word_u32s_le_correct
     (x0 x1 x2 x3 addr : Felt)
     (rest : List Felt)
-    (mem locs : Nat → Felt) (adv : List Felt) (evts : List Felt)
+    (mem locs : Nat → Word) (adv : List Felt)
+    (evts : List Felt)
     (haddr_lt : addr.val + 4 < u32Max)
-    (haddr_align : addr.val % 4 = 0)
     (haddr_val : (addr + 4 : Felt).val = addr.val + 4) :
     exec 20
       ⟨x0 :: x1 :: x2 :: x3 :: addr :: rest,
@@ -23,14 +23,10 @@ theorem word_store_word_u32s_le_correct
       Miden.Core.Word.store_word_u32s_le =
     some ⟨rest,
       fun a =>
-        if a = addr.val + 7 then x3.hi32
-        else if a = addr.val + 6 then x3.lo32
-        else if a = addr.val + 5 then x2.hi32
-        else if a = addr.val + 4 then x2.lo32
-        else if a = addr.val + 3 then x1.hi32
-        else if a = addr.val + 2 then x1.lo32
-        else if a = addr.val + 1 then x0.hi32
-        else if a = addr.val then x0.lo32
+        if a = addr.val + 4 then
+          (x2.lo32, x2.hi32, x3.lo32, x3.hi32)
+        else if a = addr.val then
+          (x0.lo32, x0.hi32, x1.lo32, x1.hi32)
         else mem a,
       locs, adv, evts⟩ := by
   unfold exec Miden.Core.Word.store_word_u32s_le
@@ -47,8 +43,7 @@ theorem word_store_word_u32s_le_correct
   -- dup 6
   miden_dup
   -- memStorewLe (first store at addr)
-  rw [stepMemStorewLe (ha_lt := by omega)
-    (ha_align := haddr_align)]
+  rw [stepMemStorewLe (ha_lt := by omega)]
   miden_bind
   -- dropw
   rw [stepDropw]; miden_bind
@@ -66,8 +61,7 @@ theorem word_store_word_u32s_le_correct
   rw [stepAddImm]; miden_bind
   -- memStorewLe (second store at addr+4)
   rw [stepMemStorewLe (ha_lt := by
-    simp only [haddr_val]; omega)
-    (ha_align := by simp only [haddr_val]; omega)]
+    simp only [haddr_val]; omega)]
   miden_bind
   -- dropw
   rw [stepDropw]

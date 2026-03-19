@@ -73,7 +73,7 @@ private theorem rotr_split :
 
 private theorem rotr_h1_ok
     (lo hi shift : Felt) (rest : List Felt)
-    (mem locs : Nat → Felt) (adv : List Felt) (evts : List Felt)
+    (mem locs : Nat → Word) (adv : List Felt) (evts : List Felt)
     (hshift_u32 : shift.isU32 = true) :
     let cmp := decide ((31 : Felt).val < shift.val)
     let shiftAnd31 :=
@@ -134,7 +134,7 @@ private theorem rotr_h1_ok
 private theorem rotr_h2_ok (b : Bool)
     (hi pow prod1_hi prod1_lo : Felt)
     (rest : List Felt)
-    (mem locs : Nat → Felt) (adv : List Felt) (evts : List Felt) :
+    (mem locs : Nat → Word) (adv : List Felt) (evts : List Felt) :
     let cross := prod1_hi + hi * pow
     exec 35
       ⟨prod1_hi :: prod1_lo :: pow :: hi ::

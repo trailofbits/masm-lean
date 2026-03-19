@@ -1213,7 +1213,7 @@ private def u32max : Nat := 2^32
   let s := mkState [42]
   let r := runInst s (.memStoreImm 10)
   match r with
-  | some s' => unless s'.memory 10 == (42 : Felt) do panic! "memStoreImm: should store value"
+  | some s' => unless (s'.memory 10).1 == (42 : Felt) do panic! "memStoreImm: should store value"
   | none => panic! "memStoreImm should not fail"
 
 -- memStorewLe: store word in little-endian order
@@ -1222,9 +1222,10 @@ private def u32max : Nat := 2^32
   let r := runInst s .memStorewLe
   match r with
   | some s' =>
-    unless s'.memory 0 == (10 : Felt) && s'.memory 1 == (20 : Felt)
-        && s'.memory 2 == (30 : Felt) && s'.memory 3 == (40 : Felt) do
-      panic! "memStorewLe: should store [10,20,30,40] at addr 0-3"
+    let w := s'.memory 0
+    unless w.1 == (10 : Felt) && w.2.1 == (20 : Felt)
+        && w.2.2.1 == (30 : Felt) && w.2.2.2 == (40 : Felt) do
+      panic! "memStorewLe: should store word (10,20,30,40) at addr 0"
   | none => panic! "memStorewLe should not fail"
 
 -- memLoadwLe: load word in little-endian order
@@ -1245,8 +1246,9 @@ private def u32max : Nat := 2^32
   let r1 := runInst s .memStorewBe
   match r1 with
   | some s1 =>
-    -- BE stores: addr+0=e3, addr+1=e2, addr+2=e1, addr+3=e0
-    unless s1.memory 0 == (40 : Felt) && s1.memory 3 == (10 : Felt) do
+    -- BE stores: word = (e3, e2, e1, e0)
+    let w := s1.memory 0
+    unless w.1 == (40 : Felt) && w.2.2.2 == (10 : Felt) do
       panic! "memStorewBe: should store in big-endian order"
     let s2 := { s1 with stack := [0, 0, 0, 0, 0] }
     let r2 := runInst s2 .memLoadwBe

@@ -10,7 +10,7 @@ open MidenLean.Tactics
 theorem u64_overflowing_add_run
     (env : ProcEnv) (fuel : Nat)
     (a_lo a_hi b_lo b_hi : Felt) (rest : List Felt)
-    (mem locs : Nat → Felt) (adv : List Felt) (evts : List Felt)
+    (mem locs : Nat → Word) (adv : List Felt) (evts : List Felt)
     (ha_lo : a_lo.isU32 = true) (ha_hi : a_hi.isU32 = true)
     (hb_lo : b_lo.isU32 = true) (hb_hi : b_hi.isU32 = true) :
     execWithEnv env (fuel + 1) ⟨b_lo :: b_hi :: a_lo :: a_hi :: rest, mem, locs, adv, evts⟩

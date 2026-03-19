@@ -17,7 +17,7 @@ theorem execWithEnv_append (env : ProcEnv) (fuel : Nat) (s : MidenState) (xs ys 
   unfold execWithEnv
   cases fuel <;> simp [List.foldlM_append]
 
-@[miden_dispatch] theorem stepNeqImm (v : Felt) (mem locs : Nat → Felt) (adv : List Felt) (evts : List Felt)
+@[miden_dispatch] theorem stepNeqImm (v : Felt) (mem locs : Nat → Word) (adv : List Felt) (evts : List Felt)
     (a : Felt) (rest : List Felt) :
     execInstruction ⟨a :: rest, mem, locs, adv, evts⟩ (.neqImm v) =
     some ⟨(if a != v then (1 : Felt) else 0) :: rest, mem, locs, adv, evts⟩ := by
@@ -431,7 +431,7 @@ private theorem u128_overflowing_mul_overflow_products_chunk_decomp :
 private theorem u128_mul_low_chunk1_run
     (env : ProcEnv) (fuel : Nat)
     (a0 a1 a2 a3 b0 b1 b2 b3 : Felt) (rest : List Felt)
-    (mem locs : Nat → Felt) (adv : List Felt) (evts : List Felt)
+    (mem locs : Nat → Word) (adv : List Felt) (evts : List Felt)
     (ha0 : a0.isU32 = true) (ha1 : a1.isU32 = true)
     (hb0 : b0.isU32 = true) :
     execWithEnv env (fuel + 1)
@@ -472,7 +472,7 @@ private theorem u128_mul_low_chunk1_run
 private theorem u128_mul_low_chunk2_run
     (env : ProcEnv) (fuel : Nat)
     (a0 a1 a2 a3 b0 b1 b2 b3 : Felt) (rest : List Felt)
-    (mem locs : Nat → Felt) (adv : List Felt) (evts : List Felt)
+    (mem locs : Nat → Word) (adv : List Felt) (evts : List Felt)
     (ha0 : a0.isU32 = true) (ha1 : a1.isU32 = true) (ha2 : a2.isU32 = true)
     (hb0 : b0.isU32 = true) (hb1 : b1.isU32 = true) :
     execWithEnv env (fuel + 1)
@@ -556,7 +556,7 @@ private theorem u128_mul_low_chunk2_run
 
 private theorem u128_mul_low_chunk3_add3_step
     (a0 a1 a2 a3 b0 b1 b2 b3 : Felt) (rest : List Felt)
-    (mem locs : Nat → Felt) (adv : List Felt) (evts : List Felt)
+    (mem locs : Nat → Word) (adv : List Felt) (evts : List Felt)
     (hO2a_u32 : (u128MulO2a a0 a1 a2 b0 b1).isU32 = true)
     (hO2b_u32 : (u128MulO2b a0 a1 a2 b0 b1).isU32 = true)
     (hO2c_u32 : (u128MulO2c a0 a1 a2 b0 b1 b2).isU32 = true) :
@@ -594,7 +594,7 @@ private theorem u128_mul_low_chunk3_add3_step
 
 private theorem u128_mul_low_chunk3_add_step
     (a0 a1 a2 a3 b0 b1 b2 b3 : Felt) (rest : List Felt)
-    (mem locs : Nat → Felt) (adv : List Felt) (evts : List Felt)
+    (mem locs : Nat → Word) (adv : List Felt) (evts : List Felt)
     (hO1Carry_u32 : (u128MulO1Carry a0 a1 b0 b1).isU32 = true)
     (hO2Partial_u32 : (u128MulO2Partial a0 a1 a2 b0 b1 b2).isU32 = true) :
     execInstruction
@@ -630,7 +630,7 @@ private theorem u128_mul_low_chunk3_add_step
 private theorem u128_mul_low_chunk3_run
     (env : ProcEnv) (fuel : Nat)
     (a0 a1 a2 a3 b0 b1 b2 b3 : Felt) (rest : List Felt)
-    (mem locs : Nat → Felt) (adv : List Felt) (evts : List Felt)
+    (mem locs : Nat → Word) (adv : List Felt) (evts : List Felt)
     (ha0 : a0.isU32 = true) (ha1 : a1.isU32 = true) (ha2 : a2.isU32 = true)
     (hb0 : b0.isU32 = true) (hb1 : b1.isU32 = true) (hb2 : b2.isU32 = true) :
     execWithEnv env (fuel + 1)
@@ -778,7 +778,7 @@ private theorem u128_mul_low_chunk3_run
 theorem u128_mul_low_chunk_run
     (env : ProcEnv) (fuel : Nat)
     (a0 a1 a2 a3 b0 b1 b2 b3 : Felt) (rest : List Felt)
-    (mem locs : Nat → Felt) (adv : List Felt) (evts : List Felt)
+    (mem locs : Nat → Word) (adv : List Felt) (evts : List Felt)
     (ha0 : a0.isU32 = true) (ha1 : a1.isU32 = true)
     (ha2 : a2.isU32 = true) (_ha3 : a3.isU32 = true)
     (hb0 : b0.isU32 = true) (hb1 : b1.isU32 = true)
@@ -808,7 +808,7 @@ theorem u128_mul_low_chunk_run
 theorem u128_overflowing_mul_c3_chunk_run
     (env : ProcEnv) (fuel : Nat)
     (a0 a1 a2 a3 b0 b1 b2 b3 : Felt) (rest : List Felt)
-    (mem locs : Nat → Felt) (adv : List Felt) (evts : List Felt)
+    (mem locs : Nat → Word) (adv : List Felt) (evts : List Felt)
     (ha0 : a0.isU32 = true) (ha1 : a1.isU32 = true)
     (ha2 : a2.isU32 = true) (ha3 : a3.isU32 = true)
     (hb0 : b0.isU32 = true) (hb1 : b1.isU32 = true)
@@ -879,7 +879,7 @@ theorem u128_overflowing_mul_c3_chunk_run
 theorem u128_overflowing_mul_overflow_acc_chunk_run
     (env : ProcEnv) (fuel : Nat)
     (a0 a1 a2 a3 b0 b1 b2 b3 : Felt) (rest : List Felt)
-    (mem locs : Nat → Felt) (adv : List Felt) (evts : List Felt) :
+    (mem locs : Nat → Word) (adv : List Felt) (evts : List Felt) :
     execWithEnv env (fuel + 1)
       ⟨u128MulC3 a0 a1 a2 a3 b0 b1 b2 b3 ::
         u128MulO3d a0 a1 a2 a3 b0 b1 b2 b3 ::
@@ -910,7 +910,7 @@ theorem u128_overflowing_mul_overflow_acc_chunk_run
 private theorem u128_overflowing_mul_overflow_products_chunk1_run
     (env : ProcEnv) (fuel : Nat)
     (a0 a1 a2 a3 b0 b1 b2 b3 : Felt) (rest : List Felt)
-    (mem locs : Nat → Felt) (adv : List Felt) (evts : List Felt)
+    (mem locs : Nat → Word) (adv : List Felt) (evts : List Felt)
     (_ha1 : a1.isU32 = true) (ha2 : a2.isU32 = true) (ha3 : a3.isU32 = true)
     (hb1 : b1.isU32 = true) (hb2 : b2.isU32 = true) :
     execWithEnv env (fuel + 1)
@@ -961,7 +961,7 @@ private theorem u128_overflowing_mul_overflow_products_chunk1_run
 private theorem u128_overflowing_mul_overflow_products_chunk2_run
     (env : ProcEnv) (fuel : Nat)
     (a0 a1 a2 a3 b0 b1 b2 b3 : Felt) (rest : List Felt)
-    (mem locs : Nat → Felt) (adv : List Felt) (evts : List Felt)
+    (mem locs : Nat → Word) (adv : List Felt) (evts : List Felt)
     (ha1 : a1.isU32 = true) (ha3 : a3.isU32 = true)
     (hb2 : b2.isU32 = true) (hb3 : b3.isU32 = true) :
     execWithEnv env (fuel + 1)
@@ -1015,7 +1015,7 @@ private theorem u128_overflowing_mul_overflow_products_chunk2_run
 private theorem u128_overflowing_mul_overflow_products_chunk3_run
     (env : ProcEnv) (fuel : Nat)
     (a0 a1 a2 a3 b0 b1 b2 b3 : Felt) (rest : List Felt)
-    (mem locs : Nat → Felt) (adv : List Felt) (evts : List Felt)
+    (mem locs : Nat → Word) (adv : List Felt) (evts : List Felt)
     (ha2 : a2.isU32 = true) (ha3 : a3.isU32 = true)
     (hb3 : b3.isU32 = true) :
     execWithEnv env (fuel + 1)
@@ -1069,7 +1069,7 @@ private theorem u128_overflowing_mul_overflow_products_chunk3_run
 theorem u128_overflowing_mul_overflow_products_chunk_run
     (env : ProcEnv) (fuel : Nat)
     (a0 a1 a2 a3 b0 b1 b2 b3 : Felt) (rest : List Felt)
-    (mem locs : Nat → Felt) (adv : List Felt) (evts : List Felt)
+    (mem locs : Nat → Word) (adv : List Felt) (evts : List Felt)
     (_ha0 : a0.isU32 = true) (ha1 : a1.isU32 = true)
     (ha2 : a2.isU32 = true) (ha3 : a3.isU32 = true)
     (_hb0 : b0.isU32 = true) (hb1 : b1.isU32 = true)
@@ -1107,7 +1107,7 @@ theorem u128_overflowing_mul_overflow_products_chunk_run
 theorem u128_overflowing_mul_cleanup_chunk_run
     (env : ProcEnv) (fuel : Nat)
     (overflow c0 c1 c2 c3 a0 a1 a2 a3 b0 b1 b2 b3 : Felt) (rest : List Felt)
-    (mem locs : Nat → Felt) (adv : List Felt) (evts : List Felt) :
+    (mem locs : Nat → Word) (adv : List Felt) (evts : List Felt) :
     execWithEnv env (fuel + 1)
       ⟨overflow :: c3 :: a0 :: a1 :: a2 :: a3 :: b0 :: b1 :: b2 :: b3 :: c0 :: c1 :: c2 :: rest,
         mem, locs, adv, evts⟩
@@ -1120,7 +1120,7 @@ theorem u128_overflowing_mul_cleanup_chunk_run
 theorem u128_overflowing_mul_run
     (env : ProcEnv) (fuel : Nat)
     (a0 a1 a2 a3 b0 b1 b2 b3 : Felt) (rest : List Felt)
-    (mem locs : Nat → Felt) (adv : List Felt) (evts : List Felt)
+    (mem locs : Nat → Word) (adv : List Felt) (evts : List Felt)
     (ha0 : a0.isU32 = true) (ha1 : a1.isU32 = true)
     (ha2 : a2.isU32 = true) (ha3 : a3.isU32 = true)
     (hb0 : b0.isU32 = true) (hb1 : b1.isU32 = true)
