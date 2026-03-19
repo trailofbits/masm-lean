@@ -78,10 +78,8 @@ types (toU64, toU128) rather than raw field elements.
 
 ### Tier 8: Semantic U64 Counting & Min/Max
 
-- [ ] AC-37: u64_clz_semantic [blocked: needs u64
-  clz definition]
-- [ ] AC-38: u64_ctz_semantic [blocked: needs u64
-  ctz definition]
+- [x] AC-37: u64_clz_semantic
+- [x] AC-38: u64_ctz_semantic
 - [ ] AC-39: u64_clo_semantic [blocked: needs u64
   clo definition]
 - [ ] AC-40: u64_cto_semantic [blocked: needs u64
