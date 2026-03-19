@@ -9,23 +9,22 @@ open MidenLean
 open MidenLean.StepLemmas
 open MidenLean.Tactics
 
-set_option maxHeartbeats 8000000 in
 theorem u128_lt_run
     (fuel : Nat)
     (a0 a1 a2 a3 b0 b1 b2 b3 : Felt) (rest : List Felt)
-    (mem locs : Nat → Felt) (adv : List Felt)
+    (mem locs : Nat → Word) (adv : List Felt) (evts : List Felt)
     (ha0 : a0.isU32 = true) (ha1 : a1.isU32 = true)
     (ha2 : a2.isU32 = true) (ha3 : a3.isU32 = true)
     (hb0 : b0.isU32 = true) (hb1 : b1.isU32 = true)
     (hb2 : b2.isU32 = true) (hb3 : b3.isU32 = true) :
     execWithEnv u128ProcEnv (fuel + 2)
-      ⟨b0 :: b1 :: b2 :: b3 :: a0 :: a1 :: a2 :: a3 :: rest, mem, locs, adv⟩
+      ⟨b0 :: b1 :: b2 :: b3 :: a0 :: a1 :: a2 :: a3 :: rest, mem, locs, adv, evts⟩
       Miden.Core.U128.lt =
-    some ⟨(if u128LtBool a0 a1 a2 a3 b0 b1 b2 b3 then (1 : Felt) else 0) :: rest, mem, locs, adv⟩ := by
+    some ⟨(if u128LtBool a0 a1 a2 a3 b0 b1 b2 b3 then (1 : Felt) else 0) :: rest, mem, locs, adv, evts⟩ := by
   unfold Miden.Core.U128.lt execWithEnv
   simp only [List.foldlM, u128ProcEnv]
   dsimp only [bind, Bind.bind, Option.bind]
-  rw [u128_overflowing_sub_run u128ProcEnv fuel a0 a1 a2 a3 b0 b1 b2 b3 rest mem locs adv
+  rw [u128_overflowing_sub_run u128ProcEnv fuel a0 a1 a2 a3 b0 b1 b2 b3 rest mem locs adv evts
     ha0 ha1 ha2 ha3 hb0 hb1 hb2 hb3]
   miden_bind
   unfold u128OverflowingSubResult
@@ -40,7 +39,6 @@ theorem u128_lt_run
   miden_bind
   simp [u128LtBool, u128Borrow1, u128Borrow2, u128Sub0, u128Sub1, u128Sub2, u128Sub3]
 
-set_option maxHeartbeats 8000000 in
 /-- `u128::lt` correctly compares two u128 values.
     Input stack:  [b0, b1, b2, b3, a0, a1, a2, a3] ++ rest
     Output stack: [result] ++ rest
@@ -54,10 +52,10 @@ theorem u128_lt_correct
     (hb2 : b2.isU32 = true) (hb3 : b3.isU32 = true) :
     execWithEnv u128ProcEnv 43 s Miden.Core.U128.lt =
     some (s.withStack ((if u128LtBool a0 a1 a2 a3 b0 b1 b2 b3 then (1 : Felt) else 0) :: rest)) := by
-  obtain ⟨stk, mem, locs, adv⟩ := s
+  obtain ⟨stk, mem, locs, adv, evts⟩ := s
   simp only [MidenState.withStack] at hs ⊢
   subst hs
-  simpa using u128_lt_run 41 a0 a1 a2 a3 b0 b1 b2 b3 rest mem locs adv
+  simpa using u128_lt_run 41 a0 a1 a2 a3 b0 b1 b2 b3 rest mem locs adv evts
     ha0 ha1 ha2 ha3 hb0 hb1 hb2 hb3
 
 end MidenLean.Proofs

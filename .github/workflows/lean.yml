@@ -1,0 +1,24 @@
+name: Lean Build
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: leanprover/lean-action@v1
+        with:
+          test: false
+          lint: false
+          use-mathlib-cache: true
+
+      - name: Check no sorry
+        run: |
+          if grep -rn 'sorry' MidenLean/ --include='*.lean' | grep -v '\.lake' | grep -v 'Proofs/Generated/' | grep -v -- '--.*sorry'; then
+            echo "Found sorry in source files"
+            exit 1
+          fi

@@ -47,11 +47,10 @@ private theorem u128_wrapping_mul_tail_decomp :
     u128_wrapping_mul_tail = u128_wrapping_mul_tail_arith ++ u128_wrapping_mul_tail_cleanup := by
   simp [u128_wrapping_mul_tail, u128_wrapping_mul_tail_arith, u128_wrapping_mul_tail_cleanup]
 
-set_option maxHeartbeats 12000000 in
 private theorem u128_wrapping_mul_tail_arith_run
     (env : ProcEnv) (fuel : Nat)
     (a0 a1 a2 a3 b0 b1 b2 b3 : Felt) (rest : List Felt)
-    (mem locs : Nat → Felt) (adv : List Felt)
+    (mem locs : Nat → Word) (adv : List Felt) (evts : List Felt)
     (ha0 : a0.isU32 = true) (ha1 : a1.isU32 = true)
     (ha2 : a2.isU32 = true) (ha3 : a3.isU32 = true)
     (hb0 : b0.isU32 = true) (hb1 : b1.isU32 = true)
@@ -64,7 +63,7 @@ private theorem u128_wrapping_mul_tail_arith_run
         u128MulC1 a0 a1 b0 b1 ::
         u128MulC2 a0 a1 a2 b0 b1 b2 ::
         rest,
-        mem, locs, adv⟩
+        mem, locs, adv, evts⟩
       u128_wrapping_mul_tail_arith =
     some ⟨
       u128MulC3 a0 a1 a2 a3 b0 b1 b2 b3 ::
@@ -73,7 +72,7 @@ private theorem u128_wrapping_mul_tail_arith_run
       u128MulC1 a0 a1 b0 b1 ::
       u128MulC2 a0 a1 a2 b0 b1 b2 ::
       rest,
-      mem, locs, adv⟩ := by
+      mem, locs, adv, evts⟩ := by
   unfold execWithEnv u128_wrapping_mul_tail_arith
   simp only [List.foldlM]
   have hO2Sum_u32 : (u128MulO2Sum a0 a1 a2 b0 b1 b2).isU32 = true := by
@@ -119,11 +118,11 @@ private theorem u128_wrapping_mul_tail_arith_run
 private theorem u128_wrapping_mul_tail_cleanup_run
     (env : ProcEnv) (fuel : Nat)
     (c3 a0 a1 a2 a3 b0 b1 b2 b3 c0 c1 c2 : Felt) (rest : List Felt)
-    (mem locs : Nat → Felt) (adv : List Felt) :
+    (mem locs : Nat → Word) (adv : List Felt) (evts : List Felt) :
     execWithEnv env (fuel + 1)
-      ⟨c3 :: a0 :: a1 :: a2 :: a3 :: b0 :: b1 :: b2 :: b3 :: c0 :: c1 :: c2 :: rest, mem, locs, adv⟩
+      ⟨c3 :: a0 :: a1 :: a2 :: a3 :: b0 :: b1 :: b2 :: b3 :: c0 :: c1 :: c2 :: rest, mem, locs, adv, evts⟩
       u128_wrapping_mul_tail_cleanup =
-    some ⟨c0 :: c1 :: c2 :: c3 :: rest, mem, locs, adv⟩ := by
+    some ⟨c0 :: c1 :: c2 :: c3 :: rest, mem, locs, adv, evts⟩ := by
   unfold execWithEnv u128_wrapping_mul_tail_cleanup
   simp only [List.foldlM]
   miden_movup
@@ -143,11 +142,10 @@ private theorem u128_wrapping_mul_tail_cleanup_run
   miden_swap
   simp [pure, Pure.pure]
 
-set_option maxHeartbeats 12000000 in
 private theorem u128_wrapping_mul_tail_run
     (env : ProcEnv) (fuel : Nat)
     (a0 a1 a2 a3 b0 b1 b2 b3 : Felt) (rest : List Felt)
-    (mem locs : Nat → Felt) (adv : List Felt)
+    (mem locs : Nat → Word) (adv : List Felt) (evts : List Felt)
     (ha0 : a0.isU32 = true) (ha1 : a1.isU32 = true)
     (ha2 : a2.isU32 = true) (ha3 : a3.isU32 = true)
     (hb0 : b0.isU32 = true) (hb1 : b1.isU32 = true)
@@ -160,7 +158,7 @@ private theorem u128_wrapping_mul_tail_run
         u128MulC1 a0 a1 b0 b1 ::
         u128MulC2 a0 a1 a2 b0 b1 b2 ::
         rest,
-        mem, locs, adv⟩
+        mem, locs, adv, evts⟩
       u128_wrapping_mul_tail =
     some ⟨
       u128MulC0 a0 b0 ::
@@ -168,26 +166,25 @@ private theorem u128_wrapping_mul_tail_run
       u128MulC2 a0 a1 a2 b0 b1 b2 ::
       u128MulC3 a0 a1 a2 a3 b0 b1 b2 b3 ::
       rest,
-      mem, locs, adv⟩ := by
+      mem, locs, adv, evts⟩ := by
   rw [u128_wrapping_mul_tail_decomp, execWithEnv_append]
-  rw [u128_wrapping_mul_tail_arith_run env fuel a0 a1 a2 a3 b0 b1 b2 b3 rest mem locs adv
+  rw [u128_wrapping_mul_tail_arith_run env fuel a0 a1 a2 a3 b0 b1 b2 b3 rest mem locs adv evts
     ha0 ha1 ha2 ha3 hb0 hb1 hb2 hb3]
   miden_bind
   rw [u128_wrapping_mul_tail_cleanup_run env fuel
     (u128MulC3 a0 a1 a2 a3 b0 b1 b2 b3) a0 a1 a2 a3 b0 b1 b2 b3
     (u128MulC0 a0 b0) (u128MulC1 a0 a1 b0 b1) (u128MulC2 a0 a1 a2 b0 b1 b2) rest mem locs adv]
 
-set_option maxHeartbeats 12000000 in
 theorem u128_wrapping_mul_run
     (env : ProcEnv) (fuel : Nat)
     (a0 a1 a2 a3 b0 b1 b2 b3 : Felt) (rest : List Felt)
-    (mem locs : Nat → Felt) (adv : List Felt)
+    (mem locs : Nat → Word) (adv : List Felt) (evts : List Felt)
     (ha0 : a0.isU32 = true) (ha1 : a1.isU32 = true)
     (ha2 : a2.isU32 = true) (ha3 : a3.isU32 = true)
     (hb0 : b0.isU32 = true) (hb1 : b1.isU32 = true)
     (hb2 : b2.isU32 = true) (hb3 : b3.isU32 = true) :
     execWithEnv env (fuel + 1)
-      ⟨b0 :: b1 :: b2 :: b3 :: a0 :: a1 :: a2 :: a3 :: rest, mem, locs, adv⟩
+      ⟨b0 :: b1 :: b2 :: b3 :: a0 :: a1 :: a2 :: a3 :: rest, mem, locs, adv, evts⟩
       Miden.Core.U128.wrapping_mul =
     some ⟨
       u128MulC0 a0 b0 ::
@@ -195,15 +192,14 @@ theorem u128_wrapping_mul_run
       u128MulC2 a0 a1 a2 b0 b1 b2 ::
       u128MulC3 a0 a1 a2 a3 b0 b1 b2 b3 ::
       rest,
-      mem, locs, adv⟩ := by
+      mem, locs, adv, evts⟩ := by
   rw [wrapping_mul_decomp, execWithEnv_append]
-  rw [u128_mul_low_chunk_run env fuel a0 a1 a2 a3 b0 b1 b2 b3 rest mem locs adv
+  rw [u128_mul_low_chunk_run env fuel a0 a1 a2 a3 b0 b1 b2 b3 rest mem locs adv evts
     ha0 ha1 ha2 ha3 hb0 hb1 hb2 hb3]
   miden_bind
-  rw [u128_wrapping_mul_tail_run env fuel a0 a1 a2 a3 b0 b1 b2 b3 rest mem locs adv
+  rw [u128_wrapping_mul_tail_run env fuel a0 a1 a2 a3 b0 b1 b2 b3 rest mem locs adv evts
     ha0 ha1 ha2 ha3 hb0 hb1 hb2 hb3]
 
-set_option maxHeartbeats 12000000 in
 /-- `u128::wrapping_mul` correctly computes the low 128 bits of the product of two 128-bit values.
     Input stack:  [b0, b1, b2, b3, a0, a1, a2, a3] ++ rest
     Output stack: [c0, c1, c2, c3] ++ rest
@@ -222,11 +218,11 @@ theorem u128_wrapping_mul_correct
       u128MulC2 a0 a1 a2 b0 b1 b2 ::
       u128MulC3 a0 a1 a2 a3 b0 b1 b2 b3 ::
       rest)) := by
-  obtain ⟨stk, mem, locs, adv⟩ := s
+  obtain ⟨stk, mem, locs, adv, evts⟩ := s
   simp only [MidenState.withStack] at hs ⊢
   subst hs
   simpa [exec] using
-    u128_wrapping_mul_run (fun _ => none) 64 a0 a1 a2 a3 b0 b1 b2 b3 rest mem locs adv
+    u128_wrapping_mul_run (fun _ => none) 64 a0 a1 a2 a3 b0 b1 b2 b3 rest mem locs adv evts
       ha0 ha1 ha2 ha3 hb0 hb1 hb2 hb3
 
 end MidenLean.Proofs

@@ -1,4 +1,5 @@
 import MidenLean.Proofs.Tactics
+import MidenLean.Proofs.Interp
 import MidenLean.Generated.U64
 
 namespace MidenLean.Proofs
@@ -213,22 +214,23 @@ private theorem shr_decomp :
   simp [Miden.Core.U64.shr, shr_chunk1, shr_chunk2, shr_chunk3, shr_chunk4]
 
 private theorem shr_chunk1_correct
-    (lo hi shift : Felt) (rest : List Felt) (mem locs : Nat → Felt) (adv : List Felt)
-    (hshift : shift.val ≤ 63) (hhi : hi.isU32 = true) :
+    (lo hi shift : Felt) (rest : List Felt) (mem locs : Nat → Word) (adv : List Felt) (evts : List Felt)
+    (hshift : shift.val ≤ 63) (hhi : hi.isU32 = true)
+    (hlen : rest.length + 30 ≤ MAX_STACK_DEPTH) :
     let pow := Felt.ofNat (2 ^ shift.val)
     let pow_lo := pow.lo32
     let pow_hi := pow.hi32
     let denom := pow_hi + pow_lo
-    exec 42 ⟨shift :: lo :: hi :: rest, mem, locs, adv⟩ shr_chunk1 =
+    exec 42 ⟨shift :: lo :: hi :: rest, mem, locs, adv, evts⟩ shr_chunk1 =
       some ⟨Felt.ofNat (hi.val % denom.val) ::
-        Felt.ofNat (hi.val / denom.val) :: pow_lo :: lo :: rest, mem, locs, adv⟩ := by
+        Felt.ofNat (hi.val / denom.val) :: pow_lo :: lo :: rest, mem, locs, adv, evts⟩ := by
   unfold exec shr_chunk1 execWithEnv
   simp only [List.foldlM]
   miden_movup
   miden_swap
   rw [stepPow2 (ha := hshift)]
   miden_bind
-  rw [stepU32Split]
+  rw [stepU32Split (hov := by simp [List.length_cons]; omega)]
   miden_bind
   miden_swap
   miden_dup
@@ -238,13 +240,15 @@ private theorem shr_chunk1_correct
   miden_swap
   have h_denom_isU32 := pow2_denom_isU32 shift hshift
   have h_denom_ne_zero := pow2_denom_val_ne_zero shift hshift
-  rw [stepU32DivMod (ha := hhi) (hb := h_denom_isU32) (hbnz := h_denom_ne_zero)]
+  rw [stepU32DivMod (ha := hhi) (hb := h_denom_isU32)
+    (hbz := by intro h; rw [h] at h_denom_ne_zero; simp at h_denom_ne_zero)]
   miden_bind
   rfl
 
 private theorem shr_chunk2_correct
-    (lo hi shift : Felt) (rest : List Felt) (mem locs : Nat → Felt) (adv : List Felt)
-    (hlo : lo.isU32 = true) :
+    (lo hi shift : Felt) (rest : List Felt) (mem locs : Nat → Word) (adv : List Felt) (evts : List Felt)
+    (hlo : lo.isU32 = true)
+    (hlen : rest.length + 30 ≤ MAX_STACK_DEPTH) :
     let pow := Felt.ofNat (2 ^ shift.val)
     let pow_lo := pow.lo32
     let pow_hi := pow.hi32
@@ -254,10 +258,10 @@ private theorem shr_chunk2_correct
     let pow_lo_eq0 : Felt := if pow_lo == (0 : Felt) then 1 else 0
     let cond := !decide (pow_lo.val < pow_lo_eq0.val)
     let diff := Felt.ofNat (u32OverflowingSub pow_lo.val pow_lo_eq0.val).2
-    exec 42 ⟨hi_rem :: hi_quot :: pow_lo :: lo :: rest, mem, locs, adv⟩ shr_chunk2 =
+    exec 42 ⟨hi_rem :: hi_quot :: pow_lo :: lo :: rest, mem, locs, adv, evts⟩ shr_chunk2 =
       some ⟨Felt.ofNat (lo.val % diff.val) :: Felt.ofNat (lo.val / diff.val) ::
         hi_quot :: hi_rem :: diff :: (if cond then (1 : Felt) else 0) :: rest,
-        mem, locs, adv⟩ := by
+        mem, locs, adv, evts⟩ := by
   unfold exec shr_chunk2 execWithEnv
   simp only [List.foldlM]
   miden_swap
@@ -281,27 +285,29 @@ private theorem shr_chunk2_correct
   simp only [] at h_diff_isU32
   have h_diff_ne_zero := shr_diff_val_ne_zero_beq (Felt.ofNat (2 ^ shift.val)).lo32
   simp only [] at h_diff_ne_zero
-  rw [stepU32DivMod (ha := hlo) (hb := h_diff_isU32) (hbnz := h_diff_ne_zero)]
+  rw [stepU32DivMod (ha := hlo) (hb := h_diff_isU32)
+    (hbz := by intro h; rw [h] at h_diff_ne_zero; simp at h_diff_ne_zero)]
   miden_bind
   rfl
 
 private theorem shr_chunk3_correct
     (lo_rem lo_quot hi_quot hi_rem diff : Felt) (cond : Bool)
-    (rest : List Felt) (mem locs : Nat → Felt) (adv : List Felt)
-    (hdiff_ne_zero : (diff == (0 : Felt)) = false) :
+    (rest : List Felt) (mem locs : Nat → Word) (adv : List Felt) (evts : List Felt)
+    (hdiff_ne_zero : (diff == (0 : Felt)) = false)
+    (hlen : rest.length + 30 ≤ MAX_STACK_DEPTH) :
     let cond_felt : Felt := if cond then 1 else 0
     let mix := lo_quot + (((4294967296 : Felt) * cond_felt) * diff⁻¹) * hi_rem
-    exec 42 ⟨lo_rem :: lo_quot :: hi_quot :: hi_rem :: diff :: cond_felt :: rest, mem, locs, adv⟩
+    exec 42 ⟨lo_rem :: lo_quot :: hi_quot :: hi_rem :: diff :: cond_felt :: rest, mem, locs, adv, evts⟩
         shr_chunk3 =
       some ⟨(if cond then hi_quot else mix) :: (if cond then mix else hi_quot) ::
-        cond_felt :: rest, mem, locs, adv⟩ := by
+        cond_felt :: rest, mem, locs, adv, evts⟩ := by
   unfold exec shr_chunk3 execWithEnv
   simp only [List.foldlM]
   miden_swap
   miden_swap
   rw [stepDrop]
   miden_bind
-  rw [stepPush]
+  rw [stepPush (hov := by simp [List.length_cons]; omega)]
   miden_bind
   miden_dup
   rw [stepMul]
@@ -319,7 +325,6 @@ private theorem shr_chunk3_correct
   miden_bind
   rfl
 
-set_option maxHeartbeats 16000000 in
 /-- `u64::shr` correctly right-shifts a u64 value.
     Input stack:  [shift, lo, hi] ++ rest
     Output stack: [result_lo, result_hi] ++ rest -/
@@ -327,7 +332,8 @@ theorem u64_shr_correct
     (lo hi shift : Felt) (rest : List Felt) (s : MidenState)
     (hs : s.stack = shift :: lo :: hi :: rest)
     (hshift : shift.val ≤ 63)
-    (hlo : lo.isU32 = true) (hhi : hi.isU32 = true) :
+    (hlo : lo.isU32 = true) (hhi : hi.isU32 = true)
+    (hlen : rest.length + 30 ≤ MAX_STACK_DEPTH) :
     let pow := Felt.ofNat (2 ^ shift.val)
     let pow_lo := pow.lo32
     let pow_hi := pow.hi32
@@ -344,14 +350,14 @@ theorem u64_shr_correct
       if cond then
         (lo_quot + (4294967296 : Felt) * diff⁻¹ * hi_rem) :: hi_quot :: rest
       else hi_quot :: (0 : Felt) :: rest)) := by
-  obtain ⟨stk, mem, locs, adv⟩ := s
+  obtain ⟨stk, mem, locs, adv, evts⟩ := s
   simp only [MidenState.withStack] at hs ⊢
   subst hs
   rw [shr_decomp, MidenLean.exec_append]
-  rw [shr_chunk1_correct (mem := mem) (locs := locs) (adv := adv) (hshift := hshift) (hhi := hhi)]
+  rw [shr_chunk1_correct (mem := mem) (locs := locs) (adv := adv) (hshift := hshift) (hhi := hhi) (hlen := hlen)]
   simp only [bind, Bind.bind, Option.bind]
   rw [MidenLean.exec_append]
-  rw [shr_chunk2_correct (mem := mem) (locs := locs) (adv := adv) (hlo := hlo)]
+  rw [shr_chunk2_correct (mem := mem) (locs := locs) (adv := adv) (hlo := hlo) (hlen := hlen)]
   simp only [bind, Bind.bind, Option.bind]
   rw [MidenLean.exec_append]
   have h_diff_ne_zero_felt := shr_diff_ne_zero_felt (Felt.ofNat (2 ^ shift.val)).lo32
@@ -378,7 +384,7 @@ theorem u64_shr_correct
       ((Felt.ofNat (2 ^ shift.val)).lo32.val <
         (if (Felt.ofNat (2 ^ shift.val)).lo32 == 0 then (1 : Felt) else 0).val))
     (mem := mem) (locs := locs) (adv := adv) (rest := rest)
-    (hdiff_ne_zero := h_diff_ne_zero_felt)]
+    (hdiff_ne_zero := h_diff_ne_zero_felt) (hlen := hlen)]
   simp only [bind, Bind.bind, Option.bind]
   unfold exec shr_chunk4 execWithEnv
   simp only [List.foldlM]
@@ -397,5 +403,42 @@ theorem u64_shr_correct
     miden_bind
     miden_swap
     simp
+
+/-- Semantic: shr computes toU64 lo hi / 2^shift.val.
+    For shift >= 32: the result is hi / 2^(shift-32).
+    For 0 < shift < 32: the result decomposes into
+    hi_quot * 2^32 + lo_quot + spillover.
+    For shift = 0: identity. -/
+theorem u64_shr_semantic
+    (lo hi shift : Felt)
+    (hlo : lo.isU32 = true) (hhi : hi.isU32 = true)
+    (hshift : shift.val ≤ 63) :
+    if shift.val ≥ 32 then
+      hi.val / 2 ^ (shift.val - 32) =
+        toU64 lo hi / 2 ^ shift.val
+    else
+      (hi.val / 2 ^ shift.val) * 2 ^ 32 +
+        (lo.val / 2 ^ shift.val +
+         (hi.val % 2 ^ shift.val) *
+          2 ^ (32 - shift.val)) =
+        toU64 lo hi / 2 ^ shift.val := by
+  simp only [Felt.isU32, decide_eq_true_eq] at hlo hhi
+  split
+  · -- shift >= 32
+    rw [show toU64 lo hi = hi.val * 2 ^ 32 +
+        lo.val from rfl]
+    exact (shr_hi_only lo.val hi.val
+      shift.val hlo ‹_›).symm
+  · -- shift < 32
+    rename_i hlt
+    push_neg at hlt
+    by_cases h0 : shift.val = 0
+    · simp only [h0, Nat.pow_zero, Nat.div_one,
+        Nat.mod_one, Nat.zero_mul, Nat.add_zero,
+        Nat.sub_zero, toU64]
+    · rw [show toU64 lo hi = hi.val * 2 ^ 32 +
+          lo.val from rfl]
+      exact shr_lo_decomp lo.val hi.val
+        shift.val hlo hhi hlt (by omega)
 
 end MidenLean.Proofs

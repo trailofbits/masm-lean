@@ -1,4 +1,5 @@
 import MidenLean.Proofs.Tactics
+import MidenLean.Proofs.Interp
 import MidenLean.Generated.U64
 
 namespace MidenLean.Proofs
@@ -7,7 +8,6 @@ open MidenLean
 open MidenLean.StepLemmas
 open MidenLean.Tactics
 
-set_option maxHeartbeats 8000000 in
 /-- `u64::overflowing_sub` correctly computes subtraction of two u64 values with borrow.
     Input stack:  [b_lo, b_hi, a_lo, a_hi] ++ rest
     Output stack: [borrow, diff_lo, diff_hi] ++ rest
@@ -27,13 +27,13 @@ theorem u64_overflowing_sub_correct
       let borrow_adj := decide (sub_hi.2 < sub_lo.1)
       (if borrow_adj || borrow_hi then (1 : Felt) else 0) ::
       Felt.ofNat sub_lo.2 :: Felt.ofNat sub_adj.2 :: rest)) := by
-  obtain ⟨stk, mem, locs, adv⟩ := s
+  obtain ⟨stk, mem, locs, adv, evts⟩ := s
   simp only [MidenState.withStack] at hs ⊢
   subst hs
   unfold exec Miden.Core.U64.overflowing_sub execWithEnv
   simp only [List.foldlM]
   change (do
-    let s' ← execInstruction ⟨b_lo :: b_hi :: a_lo :: a_hi :: rest, mem, locs, adv⟩ (.movup 3)
+    let s' ← execInstruction ⟨b_lo :: b_hi :: a_lo :: a_hi :: rest, mem, locs, adv, evts⟩ (.movup 3)
     let s' ← execInstruction s' (.movup 3)
     let s' ← execInstruction s' (.movup 2)
     let s' ← execInstruction s' (.u32OverflowSub)
@@ -77,5 +77,33 @@ theorem u64_overflowing_sub_correct
   miden_movup
   miden_swap
   dsimp only [pure, Pure.pure]
+
+/-- Semantic: overflowing_sub's borrow flag is 1 iff
+    toU64 a < toU64 b, and the result limbs encode
+    (toU64 a + 2^64 - toU64 b) % 2^64. -/
+theorem u64_overflowing_sub_semantic
+    (a_lo a_hi b_lo b_hi : Felt)
+    (ha_lo : a_lo.isU32 = true)
+    (ha_hi : a_hi.isU32 = true)
+    (hb_lo : b_lo.isU32 = true)
+    (hb_hi : b_hi.isU32 = true) :
+    let sub_lo := u32OverflowingSub a_lo.val b_lo.val
+    let sub_hi := u32OverflowingSub a_hi.val b_hi.val
+    let sub_adj := u32OverflowingSub sub_hi.2 sub_lo.1
+    -- Result limbs form the wrapping subtraction
+    sub_adj.2 * 2 ^ 32 + sub_lo.2 =
+    (toU64 a_lo a_hi + 2 ^ 64 - toU64 b_lo b_hi) %
+      2 ^ 64 ∧
+    -- Borrow flag matches toU64 comparison
+    (decide (a_hi.val < b_hi.val) ||
+     decide (sub_hi.2 < sub_lo.1)) =
+    decide (toU64 a_lo a_hi < toU64 b_lo b_hi) := by
+  simp only [toU64, u32OverflowingSub, u32Max,
+    Felt.isU32, decide_eq_true_eq] at *
+  constructor
+  · split <;> split <;> split <;> omega
+  · rw [Bool.eq_iff_iff]
+    simp only [Bool.or_eq_true, decide_eq_true_eq]
+    split <;> split <;> constructor <;> intro h <;> omega
 
 end MidenLean.Proofs

@@ -8,7 +8,6 @@ open MidenLean
 open MidenLean.StepLemmas
 open MidenLean.Tactics
 
-set_option maxHeartbeats 4000000 in
 /-- `u128::and` correctly computes bitwise AND of two 128-bit values.
     Input stack:  [b0, b1, b2, b3, a0, a1, a2, a3] ++ rest
     Output stack: [b0 &&& a0, b1 &&& a1, b2 &&& a2, b3 &&& a3] ++ rest. -/
@@ -25,7 +24,7 @@ theorem u128_and_correct
       Felt.ofNat (b1.val &&& a1.val) ::
       Felt.ofNat (b2.val &&& a2.val) ::
       Felt.ofNat (b3.val &&& a3.val) :: rest)) := by
-  obtain ⟨stk, mem, locs, adv⟩ := s
+  obtain ⟨stk, mem, locs, adv, evts⟩ := s
   simp only [MidenState.withStack] at hs ⊢
   subst hs
   unfold exec Miden.Core.U128.and execWithEnv

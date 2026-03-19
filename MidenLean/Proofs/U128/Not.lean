@@ -7,15 +7,14 @@ open MidenLean
 open MidenLean.StepLemmas
 open MidenLean.Tactics
 
-private theorem stepU32NotLocal (mem locs : Nat → Felt) (adv : List Felt)
+private theorem stepU32NotLocal (mem locs : Nat → Word) (adv : List Felt) (evts : List Felt)
     (a : Felt) (rest : List Felt)
     (ha : a.isU32 = true) :
-    execInstruction ⟨a :: rest, mem, locs, adv⟩ .u32Not =
-    some ⟨Felt.ofNat (u32Max - 1 - a.val) :: rest, mem, locs, adv⟩ := by
+    execInstruction ⟨a :: rest, mem, locs, adv, evts⟩ .u32Not =
+    some ⟨Felt.ofNat (u32Max - 1 - a.val) :: rest, mem, locs, adv, evts⟩ := by
   unfold execInstruction execU32Not u32Max
   simp [ha, MidenState.withStack]
 
-set_option maxHeartbeats 4000000 in
 /-- `u128::not` correctly computes the bitwise complement of a 128-bit value.
     Input stack:  [a0, a1, a2, a3] ++ rest
     Output stack: [~~~a0, ~~~a1, ~~~a2, ~~~a3] ++ rest, limbwise over u32 values. -/
@@ -30,7 +29,7 @@ theorem u128_not_correct
       Felt.ofNat (u32Max - 1 - a1.val) ::
       Felt.ofNat (u32Max - 1 - a2.val) ::
       Felt.ofNat (u32Max - 1 - a3.val) :: rest)) := by
-  obtain ⟨stk, mem, locs, adv⟩ := s
+  obtain ⟨stk, mem, locs, adv, evts⟩ := s
   simp only [MidenState.withStack] at hs ⊢
   subst hs
   unfold exec Miden.Core.U128.not execWithEnv

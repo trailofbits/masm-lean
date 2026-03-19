@@ -1,5 +1,6 @@
 import MidenLean.Proofs.U64.Common
 import MidenLean.Proofs.Tactics
+import MidenLean.Proofs.Interp
 import MidenLean.Generated.U64
 
 namespace MidenLean.Proofs
@@ -8,7 +9,6 @@ open MidenLean
 open MidenLean.StepLemmas
 open MidenLean.Tactics
 
-set_option maxHeartbeats 8000000 in
 /-- `u64::lte` correctly compares two u64 values.
     Input stack:  [b_lo, b_hi, a_lo, a_hi] ++ rest
     Output stack: [result] ++ rest
@@ -25,7 +25,7 @@ theorem u64_lte_correct
       let borrow_hi := decide (b_hi.val < a_hi.val)
       let hi_eq := Felt.ofNat (u32OverflowingSub b_hi.val a_hi.val).2 == (0 : Felt)
       (if !(borrow_hi || (hi_eq && borrow_lo)) then (1 : Felt) else 0) :: rest)) := by
-  obtain ⟨stk, mem, locs, adv⟩ := s
+  obtain ⟨stk, mem, locs, adv, evts⟩ := s
   simp only [MidenState.withStack] at hs ⊢
   subst hs
   -- Unfold lte and resolve ProcEnv
@@ -53,5 +53,19 @@ theorem u64_lte_correct
   rw [stepOrIte]; dsimp only []
   -- not
   rw [stepNotIte]
+
+/-- Semantic version: u64.lte computes (toU64 a <= toU64 b). -/
+theorem u64_lte_semantic
+    (a_lo a_hi b_lo b_hi : Felt) (rest : List Felt) (s : MidenState)
+    (hs : s.stack = b_lo :: b_hi :: a_lo :: a_hi :: rest)
+    (ha_lo : a_lo.isU32 = true) (ha_hi : a_hi.isU32 = true)
+    (hb_lo : b_lo.isU32 = true) (hb_hi : b_hi.isU32 = true) :
+    execWithEnv u64ProcEnv 20 s Miden.Core.U64.lte =
+    some (s.withStack (
+      (if decide (¬(toU64 b_lo b_hi < toU64 a_lo a_hi))
+       then (1 : Felt) else 0) :: rest)) := by
+  rw [u64_lte_correct a_lo a_hi b_lo b_hi rest s hs ha_lo ha_hi hb_lo hb_hi]
+  simp_rw [u64_lt_condition_eq b_lo b_hi a_lo a_hi hb_lo hb_hi ha_lo ha_hi]
+  simp only [decide_not, Bool.not_eq_eq_eq_not, Bool.not_true]
 
 end MidenLean.Proofs

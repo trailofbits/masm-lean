@@ -6,16 +6,16 @@ namespace MidenLean.Proofs
 
 open MidenLean
 
-set_option maxHeartbeats 8000000 in
 /-- `word::testz` correctly tests whether a word is zero without consuming the input. -/
 theorem word_testz_correct (a b c d : Felt) (rest : List Felt) (s : MidenState)
-    (hs : s.stack = a :: b :: c :: d :: rest) :
+    (hs : s.stack = a :: b :: c :: d :: rest)
+    (hlen : rest.length + 30 ≤ MAX_STACK_DEPTH) :
     exec 20 s Miden.Core.Word.testz =
     some (s.withStack (
       (if (d == (0:Felt)) && ((c == (0:Felt)) && ((b == (0:Felt)) && (a == (0:Felt))))
        then (1 : Felt) else 0) :: a :: b :: c :: d :: rest)) := by
   -- Destructure the state to work with concrete fields
-  obtain ⟨stk, mem, locs, adv⟩ := s
+  obtain ⟨stk, mem, locs, adv, evts⟩ := s
   subst hs
   -- Unfold top-level definitions
   unfold exec Miden.Core.Word.testz
@@ -29,7 +29,7 @@ theorem word_testz_correct (a b c d : Felt) (rest : List Felt) (s : MidenState)
   unfold execWithEnv
   simp only [List.foldlM]
   -- dup 3 on [a, b, c, d, ...rest] → [d, a, b, c, d, ...rest]
-  rw [StepLemmas.stepDup (h := rfl)]
+  rw [StepLemmas.stepDup (h := rfl) (hov := by simp only [List.length_cons]; omega)]
   dsimp only [bind, Option.bind]
   -- eqImm 0 on [d, a, b, c, d, ...rest] → [(d==0?), a, b, c, d, ...rest]
   rw [StepLemmas.stepEqImm]
@@ -39,7 +39,7 @@ theorem word_testz_correct (a b c d : Felt) (rest : List Felt) (s : MidenState)
   unfold execWithEnv
   simp only [List.foldlM]
   -- dup 3 copies index 3 = c
-  rw [StepLemmas.stepDup (h := rfl)]
+  rw [StepLemmas.stepDup (h := rfl) (hov := by simp only [List.length_cons]; omega)]
   dsimp only [bind, Option.bind]
   -- eqImm 0 on [c, (d==0?), a, b, c, d, ...rest]
   rw [StepLemmas.stepEqImm]
@@ -49,7 +49,7 @@ theorem word_testz_correct (a b c d : Felt) (rest : List Felt) (s : MidenState)
   unfold execWithEnv
   simp only [List.foldlM]
   -- dup 3 copies index 3 = b
-  rw [StepLemmas.stepDup (h := rfl)]
+  rw [StepLemmas.stepDup (h := rfl) (hov := by simp only [List.length_cons]; omega)]
   dsimp only [bind, Option.bind]
   -- eqImm 0 on [b, (c==0?), (d==0?), a, b, c, d, ...rest]
   rw [StepLemmas.stepEqImm]
@@ -59,7 +59,7 @@ theorem word_testz_correct (a b c d : Felt) (rest : List Felt) (s : MidenState)
   unfold execWithEnv
   simp only [List.foldlM]
   -- dup 3 copies index 3 = a
-  rw [StepLemmas.stepDup (h := rfl)]
+  rw [StepLemmas.stepDup (h := rfl) (hov := by simp only [List.length_cons]; omega)]
   dsimp only [bind, Option.bind]
   -- eqImm 0 on [a, (b==0?), (c==0?), (d==0?), a, b, c, d, ...rest]
   rw [StepLemmas.stepEqImm]

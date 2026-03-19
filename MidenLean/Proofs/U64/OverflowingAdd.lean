@@ -10,17 +10,17 @@ open MidenLean.Tactics
 theorem u64_overflowing_add_run
     (env : ProcEnv) (fuel : Nat)
     (a_lo a_hi b_lo b_hi : Felt) (rest : List Felt)
-    (mem locs : Nat → Felt) (adv : List Felt)
+    (mem locs : Nat → Word) (adv : List Felt) (evts : List Felt)
     (ha_lo : a_lo.isU32 = true) (ha_hi : a_hi.isU32 = true)
     (hb_lo : b_lo.isU32 = true) (hb_hi : b_hi.isU32 = true) :
-    execWithEnv env (fuel + 1) ⟨b_lo :: b_hi :: a_lo :: a_hi :: rest, mem, locs, adv⟩
+    execWithEnv env (fuel + 1) ⟨b_lo :: b_hi :: a_lo :: a_hi :: rest, mem, locs, adv, evts⟩
       Miden.Core.U64.overflowing_add =
     some ⟨
       Felt.ofNat ((a_hi.val + b_hi.val + (b_lo.val + a_lo.val) / 2 ^ 32) / 2 ^ 32) ::
       Felt.ofNat ((b_lo.val + a_lo.val) % 2 ^ 32) ::
       Felt.ofNat ((a_hi.val + b_hi.val + (b_lo.val + a_lo.val) / 2 ^ 32) % 2 ^ 32) ::
       rest,
-      mem, locs, adv⟩ := by
+      mem, locs, adv, evts⟩ := by
   unfold Miden.Core.U64.overflowing_add execWithEnv
   simp only [List.foldlM]
   miden_movup
@@ -40,7 +40,6 @@ theorem u64_overflowing_add_run
     felt_ofNat_val_lt _ (sum_div_2_32_lt_prime b_lo a_lo)
   rw [hcarry]
 
-set_option maxHeartbeats 4000000 in
 /-- `u64::overflowing_add` correctly computes addition of two u64 values with carry.
     Input stack:  [b_lo, b_hi, a_lo, a_hi] ++ rest
     Output stack: [overflow, c_lo, c_hi] ++ rest
@@ -58,11 +57,11 @@ theorem u64_overflowing_add_correct
       Felt.ofNat (hi_sum / 2 ^ 32) ::
       Felt.ofNat (lo_sum % 2 ^ 32) ::
       Felt.ofNat (hi_sum % 2 ^ 32) :: rest)) := by
-  obtain ⟨stk, mem, locs, adv⟩ := s
+  obtain ⟨stk, mem, locs, adv, evts⟩ := s
   simp only [MidenState.withStack] at hs ⊢
   subst hs
   simpa [exec] using
-    u64_overflowing_add_run (fun _ => none) 9 a_lo a_hi b_lo b_hi rest mem locs adv
+    u64_overflowing_add_run (fun _ => none) 9 a_lo a_hi b_lo b_hi rest mem locs adv evts
       ha_lo ha_hi hb_lo hb_hi
 
 end MidenLean.Proofs

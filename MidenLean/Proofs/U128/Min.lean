@@ -9,17 +9,16 @@ open MidenLean
 open MidenLean.StepLemmas
 open MidenLean.Tactics
 
-set_option maxHeartbeats 8000000 in
 theorem u128_min_run
     (fuel : Nat)
     (a0 a1 a2 a3 b0 b1 b2 b3 : Felt) (rest : List Felt)
-    (mem locs : Nat → Felt) (adv : List Felt)
+    (mem locs : Nat → Word) (adv : List Felt) (evts : List Felt)
     (ha0 : a0.isU32 = true) (ha1 : a1.isU32 = true)
     (ha2 : a2.isU32 = true) (ha3 : a3.isU32 = true)
     (hb0 : b0.isU32 = true) (hb1 : b1.isU32 = true)
     (hb2 : b2.isU32 = true) (hb3 : b3.isU32 = true) :
     execWithEnv u128ProcEnv (fuel + 3)
-      ⟨b0 :: b1 :: b2 :: b3 :: a0 :: a1 :: a2 :: a3 :: rest, mem, locs, adv⟩
+      ⟨b0 :: b1 :: b2 :: b3 :: a0 :: a1 :: a2 :: a3 :: rest, mem, locs, adv, evts⟩
       Miden.Core.U128.min =
     some ⟨
       (if u128GtBool a0 a1 a2 a3 b0 b1 b2 b3 then b0 else a0) ::
@@ -27,7 +26,7 @@ theorem u128_min_run
       (if u128GtBool a0 a1 a2 a3 b0 b1 b2 b3 then b2 else a2) ::
       (if u128GtBool a0 a1 a2 a3 b0 b1 b2 b3 then b3 else a3) ::
       rest,
-      mem, locs, adv⟩ := by
+      mem, locs, adv, evts⟩ := by
   unfold Miden.Core.U128.min execWithEnv
   simp only [List.foldlM, u128ProcEnv]
   dsimp only [bind, Bind.bind, Option.bind]
@@ -42,7 +41,6 @@ theorem u128_min_run
   rw [stepCdropwIte]
   simp [pure, Pure.pure]
 
-set_option maxHeartbeats 8000000 in
 /-- `u128::min` correctly computes the minimum of two u128 values.
     Input stack:  [b0, b1, b2, b3, a0, a1, a2, a3] ++ rest
     Output stack: [m0, m1, m2, m3] ++ rest
@@ -60,10 +58,10 @@ theorem u128_min_correct
       (if u128GtBool a0 a1 a2 a3 b0 b1 b2 b3 then b1 else a1) ::
       (if u128GtBool a0 a1 a2 a3 b0 b1 b2 b3 then b2 else a2) ::
       (if u128GtBool a0 a1 a2 a3 b0 b1 b2 b3 then b3 else a3) :: rest)) := by
-  obtain ⟨stk, mem, locs, adv⟩ := s
+  obtain ⟨stk, mem, locs, adv, evts⟩ := s
   simp only [MidenState.withStack] at hs ⊢
   subst hs
-  simpa using u128_min_run 34 a0 a1 a2 a3 b0 b1 b2 b3 rest mem locs adv
+  simpa using u128_min_run 34 a0 a1 a2 a3 b0 b1 b2 b3 rest mem locs adv evts
     ha0 ha1 ha2 ha3 hb0 hb1 hb2 hb3
 
 end MidenLean.Proofs

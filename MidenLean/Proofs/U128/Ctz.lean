@@ -7,7 +7,6 @@ open MidenLean
 open MidenLean.StepLemmas
 open MidenLean.Tactics
 
-set_option maxHeartbeats 12000000 in
 /-- `u128::ctz` correctly counts trailing zeros of a u128 value.
     Input stack:  [a, b, c, d] ++ rest
     Output stack: [result] ++ rest
@@ -30,7 +29,7 @@ theorem u128_ctz_correct
           Felt.ofNat (u32CountTrailingZeros b.val) + 32
       else
         Felt.ofNat (u32CountTrailingZeros a.val)) :: rest)) := by
-  obtain ⟨stk, mem, locs, adv⟩ := s
+  obtain ⟨stk, mem, locs, adv, evts⟩ := s
   simp only [MidenState.withStack] at hs ⊢
   subst hs
   unfold exec Miden.Core.U128.ctz execWithEnv

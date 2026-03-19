@@ -193,12 +193,12 @@ private theorem overflowing_sub_decomp :
 private theorem chunk1_correct
     (env : ProcEnv) (fuel : Nat)
     (a0 a1 a2 a3 b0 b1 b2 b3 : Felt) (rest : List Felt)
-    (mem locs : Nat → Felt) (adv : List Felt)
+    (mem locs : Nat → Word) (adv : List Felt) (evts : List Felt)
     (ha0 : a0.isU32 = true) (hb0 : b0.isU32 = true) :
     execWithEnv env (fuel + 1)
-      ⟨b0 :: b1 :: b2 :: b3 :: a0 :: a1 :: a2 :: a3 :: rest, mem, locs, adv⟩
+      ⟨b0 :: b1 :: b2 :: b3 :: a0 :: a1 :: a2 :: a3 :: rest, mem, locs, adv, evts⟩
       chunk1 =
-    some ⟨stage1a a0 a1 a2 a3 b0 b1 b2 b3 rest, mem, locs, adv⟩ := by
+    some ⟨stage1a a0 a1 a2 a3 b0 b1 b2 b3 rest, mem, locs, adv, evts⟩ := by
   unfold chunk1 execWithEnv
   simp only [List.foldlM]
   miden_movup
@@ -214,12 +214,12 @@ private theorem chunk1_correct
 private theorem chunk2_correct
     (env : ProcEnv) (fuel : Nat)
     (a0 a1 a2 a3 b0 b1 b2 b3 : Felt) (rest : List Felt)
-    (mem locs : Nat → Felt) (adv : List Felt)
+    (mem locs : Nat → Word) (adv : List Felt) (evts : List Felt)
     (ha1 : a1.isU32 = true) (hb1 : b1.isU32 = true) :
     execWithEnv env (fuel + 1)
-      ⟨stage1a a0 a1 a2 a3 b0 b1 b2 b3 rest, mem, locs, adv⟩
+      ⟨stage1a a0 a1 a2 a3 b0 b1 b2 b3 rest, mem, locs, adv, evts⟩
       chunk2 =
-    some ⟨stage1b a0 a1 a2 a3 b0 b1 b2 b3 rest, mem, locs, adv⟩ := by
+    some ⟨stage1b a0 a1 a2 a3 b0 b1 b2 b3 rest, mem, locs, adv, evts⟩ := by
   unfold stage1a chunk2 execWithEnv
   simp only [List.foldlM]
   miden_movdn
@@ -234,12 +234,12 @@ private theorem chunk2_correct
 private theorem chunk3_correct
     (env : ProcEnv) (fuel : Nat)
     (a0 a1 a2 a3 b0 b1 b2 b3 : Felt) (rest : List Felt)
-    (mem locs : Nat → Felt) (adv : List Felt)
+    (mem locs : Nat → Word) (adv : List Felt) (evts : List Felt)
     (ha1 : a1.isU32 = true) (hb1 : b1.isU32 = true) :
     execWithEnv env (fuel + 1)
-      ⟨stage1b a0 a1 a2 a3 b0 b1 b2 b3 rest, mem, locs, adv⟩
+      ⟨stage1b a0 a1 a2 a3 b0 b1 b2 b3 rest, mem, locs, adv, evts⟩
       chunk3 =
-    some ⟨stage1c a0 a1 a2 a3 b0 b1 b2 b3 rest, mem, locs, adv⟩ := by
+    some ⟨stage1c a0 a1 a2 a3 b0 b1 b2 b3 rest, mem, locs, adv, evts⟩ := by
   unfold stage1b chunk3 execWithEnv
   simp only [List.foldlM]
   have ha1_lt : a1.val < 2 ^ 32 := by simpa [Felt.isU32, decide_eq_true_eq] using ha1
@@ -266,12 +266,12 @@ private theorem chunk3_correct
 private theorem chunk4_correct
     (env : ProcEnv) (fuel : Nat)
     (a0 a1 a2 a3 b0 b1 b2 b3 : Felt) (rest : List Felt)
-    (mem locs : Nat → Felt) (adv : List Felt)
+    (mem locs : Nat → Word) (adv : List Felt) (evts : List Felt)
     (ha2 : a2.isU32 = true) (hb2 : b2.isU32 = true) :
     execWithEnv env (fuel + 1)
-      ⟨stage1c a0 a1 a2 a3 b0 b1 b2 b3 rest, mem, locs, adv⟩
+      ⟨stage1c a0 a1 a2 a3 b0 b1 b2 b3 rest, mem, locs, adv, evts⟩
       chunk4 =
-    some ⟨stage2a a0 a1 a2 a3 b0 b1 b2 b3 rest, mem, locs, adv⟩ := by
+    some ⟨stage2a a0 a1 a2 a3 b0 b1 b2 b3 rest, mem, locs, adv, evts⟩ := by
   unfold stage1c chunk4 execWithEnv
   simp only [List.foldlM]
   unfold sub1Adj sub1 sub0
@@ -293,12 +293,12 @@ private theorem chunk4_correct
 private theorem chunk5_correct
     (env : ProcEnv) (fuel : Nat)
     (a0 a1 a2 a3 b0 b1 b2 b3 : Felt) (rest : List Felt)
-    (mem locs : Nat → Felt) (adv : List Felt)
+    (mem locs : Nat → Word) (adv : List Felt) (evts : List Felt)
     (ha2 : a2.isU32 = true) (hb2 : b2.isU32 = true) :
     execWithEnv env (fuel + 1)
-      ⟨stage2a a0 a1 a2 a3 b0 b1 b2 b3 rest, mem, locs, adv⟩
+      ⟨stage2a a0 a1 a2 a3 b0 b1 b2 b3 rest, mem, locs, adv, evts⟩
       chunk5 =
-    some ⟨stage2b a0 a1 a2 a3 b0 b1 b2 b3 rest, mem, locs, adv⟩ := by
+    some ⟨stage2b a0 a1 a2 a3 b0 b1 b2 b3 rest, mem, locs, adv, evts⟩ := by
   unfold stage2a chunk5 execWithEnv
   simp only [List.foldlM]
   have ha2_lt : a2.val < 2 ^ 32 := by simpa [Felt.isU32, decide_eq_true_eq] using ha2
@@ -323,12 +323,12 @@ private theorem chunk5_correct
 private theorem chunk6_correct
     (env : ProcEnv) (fuel : Nat)
     (a0 a1 a2 a3 b0 b1 b2 b3 : Felt) (rest : List Felt)
-    (mem locs : Nat → Felt) (adv : List Felt)
+    (mem locs : Nat → Word) (adv : List Felt) (evts : List Felt)
     (ha3 : a3.isU32 = true) (hb3 : b3.isU32 = true) :
     execWithEnv env (fuel + 1)
-      ⟨stage2b a0 a1 a2 a3 b0 b1 b2 b3 rest, mem, locs, adv⟩
+      ⟨stage2b a0 a1 a2 a3 b0 b1 b2 b3 rest, mem, locs, adv, evts⟩
       chunk6 =
-    some ⟨stage3a a0 a1 a2 a3 b0 b1 b2 b3 rest, mem, locs, adv⟩ := by
+    some ⟨stage3a a0 a1 a2 a3 b0 b1 b2 b3 rest, mem, locs, adv, evts⟩ := by
   unfold stage2b chunk6 execWithEnv
   simp only [List.foldlM]
   unfold sub2Adj sub2
@@ -350,12 +350,12 @@ private theorem chunk6_correct
 private theorem chunk7_correct
     (env : ProcEnv) (fuel : Nat)
     (a0 a1 a2 a3 b0 b1 b2 b3 : Felt) (rest : List Felt)
-    (mem locs : Nat → Felt) (adv : List Felt)
+    (mem locs : Nat → Word) (adv : List Felt) (evts : List Felt)
     (ha3 : a3.isU32 = true) (hb3 : b3.isU32 = true) :
     execWithEnv env (fuel + 1)
-      ⟨stage3a a0 a1 a2 a3 b0 b1 b2 b3 rest, mem, locs, adv⟩
+      ⟨stage3a a0 a1 a2 a3 b0 b1 b2 b3 rest, mem, locs, adv, evts⟩
       chunk7 =
-    some ⟨stage3b a0 a1 a2 a3 b0 b1 b2 b3 rest, mem, locs, adv⟩ := by
+    some ⟨stage3b a0 a1 a2 a3 b0 b1 b2 b3 rest, mem, locs, adv, evts⟩ := by
   unfold stage3a chunk7 execWithEnv
   simp only [List.foldlM]
   have ha3_lt : a3.val < 2 ^ 32 := by simpa [Felt.isU32, decide_eq_true_eq] using ha3
@@ -381,11 +381,11 @@ private theorem chunk7_correct
 private theorem chunk8_correct
     (env : ProcEnv) (fuel : Nat)
     (a0 a1 a2 a3 b0 b1 b2 b3 : Felt) (rest : List Felt)
-    (mem locs : Nat → Felt) (adv : List Felt) :
+    (mem locs : Nat → Word) (adv : List Felt) (evts : List Felt) :
     execWithEnv env (fuel + 1)
-      ⟨stage3b a0 a1 a2 a3 b0 b1 b2 b3 rest, mem, locs, adv⟩
+      ⟨stage3b a0 a1 a2 a3 b0 b1 b2 b3 rest, mem, locs, adv, evts⟩
       chunk8 =
-    some ⟨u128OverflowingSubResult a0 a1 a2 a3 b0 b1 b2 b3 rest, mem, locs, adv⟩ := by
+    some ⟨u128OverflowingSubResult a0 a1 a2 a3 b0 b1 b2 b3 rest, mem, locs, adv, evts⟩ := by
   unfold stage3b chunk8 execWithEnv
   simp only [List.foldlM]
   unfold sub3Adj sub3
@@ -404,43 +404,41 @@ private theorem chunk8_correct
     u128Sub2, u128Sub3, sub3Adj, sub3, borrow2, sub2Adj, sub2, borrow1, sub1Adj, sub1, sub0]
   dsimp only [pure, Pure.pure]
 
-set_option maxHeartbeats 12000000 in
 theorem u128_overflowing_sub_run
     (env : ProcEnv) (fuel : Nat)
     (a0 a1 a2 a3 b0 b1 b2 b3 : Felt) (rest : List Felt)
-    (mem locs : Nat → Felt) (adv : List Felt)
+    (mem locs : Nat → Word) (adv : List Felt) (evts : List Felt)
     (ha0 : a0.isU32 = true) (ha1 : a1.isU32 = true)
     (ha2 : a2.isU32 = true) (ha3 : a3.isU32 = true)
     (hb0 : b0.isU32 = true) (hb1 : b1.isU32 = true)
     (hb2 : b2.isU32 = true) (hb3 : b3.isU32 = true) :
     execWithEnv env (fuel + 1)
-      ⟨b0 :: b1 :: b2 :: b3 :: a0 :: a1 :: a2 :: a3 :: rest, mem, locs, adv⟩
+      ⟨b0 :: b1 :: b2 :: b3 :: a0 :: a1 :: a2 :: a3 :: rest, mem, locs, adv, evts⟩
       Miden.Core.U128.overflowing_sub =
-    some ⟨u128OverflowingSubResult a0 a1 a2 a3 b0 b1 b2 b3 rest, mem, locs, adv⟩ := by
+    some ⟨u128OverflowingSubResult a0 a1 a2 a3 b0 b1 b2 b3 rest, mem, locs, adv, evts⟩ := by
   rw [overflowing_sub_decomp, execWithEnv_append]
-  rw [chunk1_correct env fuel a0 a1 a2 a3 b0 b1 b2 b3 rest mem locs adv ha0 hb0]
+  rw [chunk1_correct env fuel a0 a1 a2 a3 b0 b1 b2 b3 rest mem locs adv evts ha0 hb0]
   miden_bind
   rw [execWithEnv_append]
-  rw [chunk2_correct env fuel a0 a1 a2 a3 b0 b1 b2 b3 rest mem locs adv ha1 hb1]
+  rw [chunk2_correct env fuel a0 a1 a2 a3 b0 b1 b2 b3 rest mem locs adv evts ha1 hb1]
   miden_bind
   rw [execWithEnv_append]
-  rw [chunk3_correct env fuel a0 a1 a2 a3 b0 b1 b2 b3 rest mem locs adv ha1 hb1]
+  rw [chunk3_correct env fuel a0 a1 a2 a3 b0 b1 b2 b3 rest mem locs adv evts ha1 hb1]
   miden_bind
   rw [execWithEnv_append]
-  rw [chunk4_correct env fuel a0 a1 a2 a3 b0 b1 b2 b3 rest mem locs adv ha2 hb2]
+  rw [chunk4_correct env fuel a0 a1 a2 a3 b0 b1 b2 b3 rest mem locs adv evts ha2 hb2]
   miden_bind
   rw [execWithEnv_append]
-  rw [chunk5_correct env fuel a0 a1 a2 a3 b0 b1 b2 b3 rest mem locs adv ha2 hb2]
+  rw [chunk5_correct env fuel a0 a1 a2 a3 b0 b1 b2 b3 rest mem locs adv evts ha2 hb2]
   miden_bind
   rw [execWithEnv_append]
-  rw [chunk6_correct env fuel a0 a1 a2 a3 b0 b1 b2 b3 rest mem locs adv ha3 hb3]
+  rw [chunk6_correct env fuel a0 a1 a2 a3 b0 b1 b2 b3 rest mem locs adv evts ha3 hb3]
   miden_bind
   rw [execWithEnv_append]
-  rw [chunk7_correct env fuel a0 a1 a2 a3 b0 b1 b2 b3 rest mem locs adv ha3 hb3]
+  rw [chunk7_correct env fuel a0 a1 a2 a3 b0 b1 b2 b3 rest mem locs adv evts ha3 hb3]
   miden_bind
-  exact chunk8_correct env fuel a0 a1 a2 a3 b0 b1 b2 b3 rest mem locs adv
+  exact chunk8_correct env fuel a0 a1 a2 a3 b0 b1 b2 b3 rest mem locs adv evts
 
-set_option maxHeartbeats 8000000 in
 /-- `u128::overflowing_sub` correctly computes subtraction of two 128-bit values with borrow.
     Input stack:  [b0, b1, b2, b3, a0, a1, a2, a3] ++ rest
     Output stack: [borrow, d0, d1, d2, d3] ++ rest
@@ -455,11 +453,11 @@ theorem u128_overflowing_sub_correct
     (hb2 : b2.isU32 = true) (hb3 : b3.isU32 = true) :
     exec 49 s Miden.Core.U128.overflowing_sub =
     some (s.withStack (u128OverflowingSubResult a0 a1 a2 a3 b0 b1 b2 b3 rest)) := by
-  obtain ⟨stk, mem, locs, adv⟩ := s
+  obtain ⟨stk, mem, locs, adv, evts⟩ := s
   simp only [MidenState.withStack] at hs ⊢
   subst hs
   simpa [exec] using
-    u128_overflowing_sub_run (fun _ => none) 48 a0 a1 a2 a3 b0 b1 b2 b3 rest mem locs adv
+    u128_overflowing_sub_run (fun _ => none) 48 a0 a1 a2 a3 b0 b1 b2 b3 rest mem locs adv evts
       ha0 ha1 ha2 ha3 hb0 hb1 hb2 hb3
 
 end MidenLean.Proofs

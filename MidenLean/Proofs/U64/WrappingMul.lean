@@ -1,4 +1,5 @@
 import MidenLean.Proofs.Tactics
+import MidenLean.Proofs.Interp
 import MidenLean.Generated.U64
 
 namespace MidenLean.Proofs
@@ -7,7 +8,6 @@ open MidenLean
 open MidenLean.StepLemmas
 open MidenLean.Tactics
 
-set_option maxHeartbeats 8000000 in
 /-- `u64::wrapping_mul` correctly computes the low 64 bits of the product of two u64 values.
     Input stack:  [b_lo, b_hi, a_lo, a_hi] ++ rest
     Output stack: [c_lo, c_hi] ++ rest
@@ -17,20 +17,21 @@ theorem u64_wrapping_mul_correct
     (a_lo a_hi b_lo b_hi : Felt) (rest : List Felt) (s : MidenState)
     (hs : s.stack = b_lo :: b_hi :: a_lo :: a_hi :: rest)
     (ha_lo : a_lo.isU32 = true) (ha_hi : a_hi.isU32 = true)
-    (hb_lo : b_lo.isU32 = true) (hb_hi : b_hi.isU32 = true) :
+    (hb_lo : b_lo.isU32 = true) (hb_hi : b_hi.isU32 = true)
+    (hlen : rest.length + 30 ≤ MAX_STACK_DEPTH) :
     exec 20 s Miden.Core.U64.wrapping_mul =
     some (s.withStack (
       let prod_lo := a_lo.val * b_lo.val
       let cross1 := b_hi.val * a_lo.val + prod_lo / 2^32
       let cross2 := b_lo.val * a_hi.val + cross1 % 2^32
       Felt.ofNat (prod_lo % 2^32) :: Felt.ofNat (cross2 % 2^32) :: rest)) := by
-  obtain ⟨stk, mem, locs, adv⟩ := s
+  obtain ⟨stk, mem, locs, adv, evts⟩ := s
   simp only [MidenState.withStack] at hs ⊢
   subst hs
   unfold exec Miden.Core.U64.wrapping_mul execWithEnv
   simp only [List.foldlM]
   change (do
-    let s' ← execInstruction ⟨b_lo :: b_hi :: a_lo :: a_hi :: rest, mem, locs, adv⟩ (.dup 2)
+    let s' ← execInstruction ⟨b_lo :: b_hi :: a_lo :: a_hi :: rest, mem, locs, adv, evts⟩ (.dup 2)
     let s' ← execInstruction s' (.dup 1)
     let s' ← execInstruction s' (.u32WidenMul)
     let s' ← execInstruction s' (.swap 1)
@@ -86,5 +87,20 @@ theorem u64_wrapping_mul_correct
   rw [stepDrop]; miden_bind
   miden_swap
   dsimp only [pure, Pure.pure]
+
+/-- Semantic: wrapping_mul output limbs encode
+    (toU64 a * toU64 b) % 2^64. -/
+theorem u64_wrapping_mul_semantic
+    (a_lo a_hi b_lo b_hi : Felt) :
+    let prod_lo := a_lo.val * b_lo.val
+    let cross1 := b_hi.val * a_lo.val +
+        prod_lo / 2 ^ 32
+    let cross2 := b_lo.val * a_hi.val +
+        cross1 % 2 ^ 32
+    (cross2 % 2 ^ 32) * 2 ^ 32 +
+        (prod_lo % 2 ^ 32) =
+    (toU64 a_lo a_hi * toU64 b_lo b_hi) % 2 ^ 64 :=
+  MidenLean.cross_product_mod_2_64 a_lo.val a_hi.val
+    b_lo.val b_hi.val
 
 end MidenLean.Proofs

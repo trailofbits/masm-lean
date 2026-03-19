@@ -7,7 +7,6 @@ open MidenLean
 open MidenLean.StepLemmas
 open MidenLean.Tactics
 
-set_option maxHeartbeats 4000000 in
 /-- `word::eqz` correctly tests whether a word is zero.
     Input stack:  [a, b, c, d] ++ rest
     Output stack: [is_zero] ++ rest
@@ -19,7 +18,7 @@ theorem word_eqz_correct
     some (s.withStack (
       (if (a == (0 : Felt)) && (b == (0 : Felt)) && (c == (0 : Felt)) && (d == (0 : Felt))
        then (1 : Felt) else 0) :: rest)) := by
-  obtain ⟨stk, mem, locs, adv⟩ := s
+  obtain ⟨stk, mem, locs, adv, evts⟩ := s
   simp only [MidenState.withStack] at hs ⊢
   subst hs
   unfold exec Miden.Core.Word.eqz execWithEnv
