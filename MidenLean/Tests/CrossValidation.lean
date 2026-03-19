@@ -7,7 +7,7 @@
     lake build MidenLean.Tests.CrossValidation
 -/
 import MidenLean.Semantics
-import MidenLean.Proofs.U64
+import MidenLean.Proofs.U64.Common
 import MidenLean.Generated.U64
 
 namespace MidenLean.Tests.CrossValidation

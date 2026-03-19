@@ -6,7 +6,7 @@
   string on failure, so `lake build` success implies all tests pass.
 -/
 import MidenLean.Semantics
-import MidenLean.Proofs.U64
+import MidenLean.Proofs.U64.Common
 import MidenLean.Generated.U64
 
 namespace MidenLean.Tests
