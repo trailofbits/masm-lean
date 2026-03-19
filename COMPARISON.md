@@ -140,6 +140,18 @@ The Lean model does not extract the event ID or model host interaction.
 This is correct for functional semantics since emit does not modify the
 VM state (stack, memory, advice).
 
+**`emitImm` in `u64::divmod`:** The divmod procedure begins with
+`.inst (.emitImm 14153021663962350784)`. In the real Miden VM, this
+emit triggers the host to push the quotient and remainder (as u32
+limbs) onto the advice stack. The subsequent `advPush 2` then
+consumes those values. The Lean model abstracts this host interaction
+by treating emitImm as a no-op and requiring the divmod correctness
+theorem (`u64_divmod_correct`) to take explicit advice-tape
+hypotheses: the advice stack must contain `[q_hi, q_lo, r_hi, r_lo]`
+satisfying the division relation `divisor * q + r = n` with
+`r < divisor`. This makes the host's role explicit in the theorem
+statement rather than modeling it in the semantics.
+
 ### S-5: Error codes as strings
 
 **Lean:** `assertWithError` takes a `String` parameter

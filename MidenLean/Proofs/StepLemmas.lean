@@ -468,4 +468,40 @@ theorem stepAdvPush2 (stk : List Felt) (mem locs : Nat → Felt)
     List.reverseAux, List.append]
   rfl
 
+-- ============================================================================
+-- Memory
+-- ============================================================================
+
+@[simp] theorem execInstruction_memStorewLe (s : MidenState) :
+    execInstruction s .memStorewLe = execMemStorewLe s := by
+  unfold execInstruction; rfl
+
+set_option maxHeartbeats 4000000 in
+/-- memStorewLe: pops address, stores top 4 elements
+    to memory at addr..addr+3 in LE order.
+    Requires addr < u32Max and addr % 4 = 0. -/
+theorem stepMemStorewLe (locs : Nat → Felt) (adv : List Felt)
+    (a e0 e1 e2 e3 : Felt) (rest : List Felt)
+    (mem : Nat → Felt)
+    (ha_lt : a.val < u32Max)
+    (ha_align : a.val % 4 = 0) :
+    execInstruction ⟨a :: e0 :: e1 :: e2 :: e3 :: rest,
+      mem, locs, adv⟩ .memStorewLe =
+    some ⟨e0 :: e1 :: e2 :: e3 :: rest,
+      fun addr => if addr = a.val + 3 then e3
+        else if addr = a.val + 2 then e2
+        else if addr = a.val + 1 then e1
+        else if addr = a.val then e0
+        else mem addr,
+      locs, adv⟩ := by
+  rw [execInstruction_memStorewLe]
+  unfold execMemStorewLe
+  dsimp only [MidenState.stack]
+  have h1 : decide (a.val ≥ u32Max) = false := by
+    simp only [decide_eq_false_iff_not, not_le]; exact ha_lt
+  have h2 : (a.val % 4 != 0) = false := by
+    simp only [bne_self_eq_false, ha_align]
+  simp only [h1, h2, Bool.false_or, Bool.false_eq_true,
+    ite_false, MidenState.withStack, MidenState.writeMemory]
+
 end MidenLean.StepLemmas

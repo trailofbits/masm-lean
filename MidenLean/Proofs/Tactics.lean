@@ -89,7 +89,8 @@ macro_rules
       | (rw [stepAdvPush2]; miden_bind)
       | (rw [stepU32Assert2 (ha := by assumption) (hb := by assumption)]; miden_bind)
       | (rw [stepAssertWithError (ha := by assumption)]; miden_bind)
-      | (rw [stepAssertEqWithError (hab := by assumption)]; miden_bind))
+      | (rw [stepAssertEqWithError (hab := by assumption)]; miden_bind)
+      | (rw [stepMemStorewLe (ha_lt := by assumption) (ha_align := by assumption)]; miden_bind))
 
 /-- Step through all remaining instructions, finishing with pure. -/
 syntax "miden_steps" : tactic
