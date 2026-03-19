@@ -80,62 +80,45 @@ actual behavior.
 
 ## Intentional Modeling Simplifications
 
-### S-1: Unbounded stack depth
+### S-1: Stack depth enforcement
 
-**Lean:** `List Felt` (unbounded, no minimum depth)
-**Rust:** Minimum 16 elements (zero-padded), maximum 2^16
+**Lean:** `List Felt` with overflow guards; `MIN_STACK_DEPTH = 16`,
+`MAX_STACK_DEPTH = 2^16`, `wellFormed` predicate in State.lean.
+11 instruction handlers that increase stack depth check
+`s.stack.length + N > MAX_STACK_DEPTH` and return `none` on overflow.
+**Rust:** Minimum 16 elements (zero-padded), maximum 2^16.
 
-The Lean model allows operations on stacks smaller than 16 elements.
-This is standard in formal machine models (see LNSym, eth-isabelle,
-Cairo formal proofs). It avoids modeling the zero-padding logic, which
-is an implementation detail not relevant to procedure correctness.
+Remaining differences:
+- The Lean model does not auto-pad stacks below 16 elements with
+  zeros. Operations on short stacks fail via pattern matching rather
+  than reading zero from padding. The `padStack` function exists but
+  is not called automatically.
+- The Lean model does not prevent the stack from shrinking below 16
+  via pop operations. In the Rust VM, the visible stack is always
+  exactly 16 elements with an overflow table backing it.
 
-**Impact:** Proofs do not verify stack overflow behavior. Programs that
-depend on the zero-initialized padding below the 16th element would need
-explicit hypotheses.
+All proven procedure theorems carry
+`hlen : rest.length + 30 <= MAX_STACK_DEPTH`, which ensures the
+stack stays within bounds throughout execution. The constant 30
+accounts for the maximum intermediate stack growth of any proven
+procedure.
 
-**Soundness for proven theorems:** All proven procedure theorems take
-the initial stack as an explicit hypothesis (e.g.,
-`hs : s.stack = a :: b :: c :: rest`). This fixes the stack depth to
-at least the number of named elements. No proven theorem relies on
-accessing zero-padded positions below its explicitly stated inputs,
-so the unbounded model produces identical results to the Rust model
-for all proven theorems.
+### S-2: Word-addressed memory (matched)
 
-### S-2: Element-addressed memory vs word-addressed memory
-
-**Lean:** `Nat -> Felt` (one felt per address, total function)
+**Lean:** `Nat -> Word` (word-addressed, total function, 0-initialized)
 **Rust:** `BTreeMap<(ContextId, u32), Word>` (word-addressed, sparse)
 
-The Lean model stores one felt per natural number address. Word
-operations (memLoadw, memStorew) read/write 4 consecutive addresses. The
-Lean model provides separate Be (big-endian) and Le (little-endian)
-variants for word operations.
+The Lean model now matches the Rust VM's word-addressed memory layout.
+Each address maps to a `Word` (4 field elements). `memLoad` reads
+element 0 of the word; `memStore` writes element 0 (preserving elements
+1-3). `memLoadw`/`memStorew` read/write full words. Be and Le variants
+control element ordering on the stack.
 
-The Rust model stores 4-element Words at word-aligned addresses.
-Individual element access uses `split_addr(addr)` to decompose into
-(word_addr, index_within_word). The Rust `op_mloadw` reads a Word and
-places `word[0]` at stack top; `op_mstorew` writes the top 4 stack
-elements as a Word starting from position 1 (after popping the address).
-
-The Rust VM's element ordering within a word is:
-- `word[0]` <-> lowest address within the 4-element group
-- `word[0]` <-> stack top after mloadw
-
-This matches the Lean Le (little-endian) variant where the lowest
-address goes to the stack top.
-
-**Impact:** Proofs using word memory operations must specify which
-variant (Be or Le) is being used. For fidelity with the Rust VM, the Le
-variants should be preferred.
-
-**Soundness for proven theorems:** The only memory-writing procedure
-proved is `word.store_word_u32s_le`, which uses `memStorewLe` (the Le
-variant matching Rust's element ordering). Its theorem states the
-exact memory addresses written and their values. The per-element
-memory model gives identical results to the per-word model when
-accessed through word-aligned Le operations, which is the only
-pattern used in proven theorems.
+Remaining differences:
+- Lean uses a total function (`Nat -> Word`) returning `Word.zero` for
+  unwritten addresses. Rust uses a sparse `BTreeMap` with implicit zero
+  default. Functionally equivalent.
+- Lean does not model `ContextId`. See S-3.
 
 ### S-3: No execution contexts
 
@@ -146,36 +129,27 @@ The Lean model does not support multiple execution contexts. This is
 appropriate for the current scope (single-procedure correctness proofs)
 since all proven procedures execute in a single context.
 
-### S-4: Emit as pure no-op
+### S-4: Emit records event IDs (matched)
 
-**Lean:** `execEmit` checks stack >= 1, returns state unchanged
+**Lean:** `execEmit` reads top stack element as event ID, appends it
+to `s.events`. `emitImm v` appends `v` directly. Stack unchanged.
 **Rust:** `op_emit` reads top element as event ID, dispatches to host.
-Stack is unchanged in both.
+Stack unchanged.
 
-The Lean model does not extract the event ID or model host interaction.
-This is correct for functional semantics since emit does not modify the
-VM state (stack, memory, advice).
+The Lean model now records emitted event IDs in the state's `events`
+field (most recent first). This matches the Rust VM's event dispatch
+behavior at the state level.
 
 **`emitImm` in `u64::divmod`:** The divmod procedure begins with
 `.inst (.emitImm 14153021663962350784)`. In the real Miden VM, this
-emit triggers the host to push the quotient and remainder (as u32
-limbs) onto the advice stack. The subsequent `advPush 2` then
-consumes those values. The Lean model abstracts this host interaction
-by treating emitImm as a no-op and requiring the divmod correctness
-theorem (`u64_divmod_correct`) to take explicit advice-tape
-hypotheses: the advice stack must contain `[q_hi, q_lo, r_hi, r_lo]`
-satisfying the division relation `divisor * q + r = n` with
-`r < divisor`. This makes the host's role explicit in the theorem
-statement rather than modeling it in the semantics.
+emit triggers the host to push the quotient and remainder onto the
+advice stack. The Lean model records the event ID but does not model
+host-side effects. The divmod correctness theorem takes explicit
+advice-tape hypotheses instead.
 
-**Soundness for proven theorems:** `emitImm` is a pure no-op in both
-the Lean model and the Rust VM (neither modifies stack, memory, or
-locals). The only functional effect is the host pushing advice values,
-which the Lean model captures via explicit theorem hypotheses
-(the advice stack must contain specific values). This is strictly
-stronger than the Rust model: the theorem specifies exactly what
-the host must provide, rather than relying on an implicit host
-protocol.
+Remaining difference: the Lean model does not model host-side effects
+triggered by emit events (e.g., advice stack population). This is
+captured by explicit hypotheses in affected theorems.
 
 ### S-5: Error codes as strings
 
@@ -251,4 +225,5 @@ cases across all modeled instruction categories:
 | Advice stack       | 4     | ordering, insufficient          |
 | Memory             | 4     | store/load, unwritten, OOB      |
 | Control flow       | 6     | ifElse, repeat, while           |
+| Stack depth        | 8     | overflow on push/dup/padw/etc   |
 
