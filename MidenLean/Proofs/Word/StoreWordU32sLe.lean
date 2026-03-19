@@ -74,6 +74,5 @@ theorem word_store_word_u32s_le_correct
   dsimp only [bind, Bind.bind, Option.bind, pure,
     Pure.pure]
   simp only [haddr_val]
-  all_goals exact evts
 
 end MidenLean.Proofs
