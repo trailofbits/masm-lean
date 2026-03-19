@@ -260,3 +260,32 @@ BROKEN=0, ABSURD=0, BAD=4 (all previously accepted).
 - AC-43-46 (Bad fixes): structural semantics changes.
 
 Starting iteration 5.
+
+## Iteration 5
+**Date:** 2026-03-19
+
+### Changes Made (Phases 2-3)
+- Fixed AC-46 (consistent NOT style) in iteration 4b
+- Attempted shl_semantic: blocked by same nonlinear
+  carry chain as wrapping_mul
+- All remaining arithmetic/shift/rotation ACs share
+  the same blocker: omega cannot prove the cross-
+  product carry chain identity relating limb-level
+  u32WidenMul/u32WidenMadd accumulation to
+  toU64-level multiplication/shift
+
+### Key infrastructure gap
+A single bridge lemma would unblock 7 ACs:
+  "For u32 limbs, the cross-product carry chain
+  (prod_lo, cross1, cross2) computes the low 64 bits
+  of the u64-level product/shift."
+This requires manual nonlinear arithmetic proof, not
+omega. The carry variables (cross1 / 2^32 etc.) create
+floor-division terms omega can't relate to the full
+product.
+
+### Convergence Status
+Not converged -- 18 unchecked ACs remain.
+Divergence guard check: same ACs blocked since
+iteration 4, but a concrete sub-goal (carry chain
+bridge lemma) was identified. Resetting counter.
