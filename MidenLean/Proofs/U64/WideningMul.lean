@@ -7,13 +7,6 @@ open MidenLean
 open MidenLean.StepLemmas
 open MidenLean.Tactics
 
-private theorem exec_append (fuel : Nat) (s : MidenState) (xs ys : List Op) :
-    exec fuel s (xs ++ ys) = (do
-      let s' ← exec fuel s xs
-      exec fuel s' ys) := by
-  unfold exec execWithEnv
-  cases fuel <;> simp [List.foldlM_append]
-
 private def widening_mul_chunk1 : List Op := [
   .inst (.reversew),
   .inst (.dup 3),
@@ -267,7 +260,7 @@ theorem u64_widening_mul_correct
   obtain ⟨stk, mem, locs, adv⟩ := s
   simp only [MidenState.withStack] at hs ⊢
   subst hs
-  rw [widening_mul_decomp, exec_append]
+  rw [widening_mul_decomp, MidenLean.exec_append]
   rw [widening_mul_chunk1_correct a_lo a_hi b_lo b_hi rest mem locs adv ha_lo ha_hi hb_lo hb_hi]
   miden_bind
   let prod0 := b_lo.val * a_lo.val

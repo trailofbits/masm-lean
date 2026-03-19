@@ -23,6 +23,18 @@ namespace MidenLean
     (s.withStack stk1).withStack stk2 = s.withStack stk2 := rfl
 
 -- ============================================================================
+-- Execution decomposition lemmas
+-- ============================================================================
+
+/-- Execute a concatenation of straight-line op lists in two phases. -/
+theorem exec_append (fuel : Nat) (s : MidenState) (xs ys : List Op) :
+    exec fuel s (xs ++ ys) = (do
+      let s' ← exec fuel s xs
+      exec fuel s' ys) := by
+  unfold exec execWithEnv
+  cases fuel <;> simp [List.foldlM_append]
+
+-- ============================================================================
 -- Felt value lemmas
 -- ============================================================================
 
