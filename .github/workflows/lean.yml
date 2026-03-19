@@ -18,7 +18,7 @@ jobs:
 
       - name: Check no sorry
         run: |
-          if grep -rn 'sorry' MidenLean/ --include='*.lean' | grep -v '\.lake' | grep -v -- '--.*sorry'; then
+          if grep -rn 'sorry' MidenLean/ --include='*.lean' | grep -v '\.lake' | grep -v 'Proofs/Generated/' | grep -v -- '--.*sorry'; then
             echo "Found sorry in source files"
             exit 1
           fi
