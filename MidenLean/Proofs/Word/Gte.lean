@@ -7,6 +7,7 @@ open MidenLean.StepLemmas
 open MidenLean.Tactics
 
 set_option maxHeartbeats 16000000 in
+/-- word.gte correctly checks whether one word is greater than or equal to another. -/
 theorem word_gte_correct
     (a0 a1 a2 a3 b0 b1 b2 b3 : Felt) (rest : List Felt) (s : MidenState)
     (hs : s.stack = a0 :: a1 :: a2 :: a3 :: b0 :: b1 :: b2 :: b3 :: rest) :
