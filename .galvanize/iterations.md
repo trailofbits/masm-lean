@@ -562,3 +562,14 @@ spec.md (updated stale text describing resolved
 memory and emit findings).
 **Gate result:** Spec-text-only change, no code or
 test modifications. PASS (final gate).
+
+### Goal Revision (post-convergence)
+**User said:** "add that as another tier" (referring
+to per-instruction stack depth enforcement)
+**Classification:** additive
+**Changes to goal.md:**
+- Added Tier 11 (AC-50 to AC-53) for per-instruction
+  stack depth guards, step lemma wellFormed hypotheses,
+  proof updates, and edge case tests.
+**Effect on iteration:** new iteration needed (AC-50-53
+unchecked). Checkpoint requested before starting.

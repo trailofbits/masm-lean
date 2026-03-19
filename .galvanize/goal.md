@@ -112,6 +112,20 @@ types (toU64, toU128) rather than raw field elements.
   to match Rust BTreeMap<u32, [Felt; 4]>. Rewrite
   all memory handlers and their proofs.
 
+### Tier 11: Per-instruction stack depth enforcement
+
+- [ ] AC-50: Add stack overflow/underflow guards to
+  instruction handlers. Each handler that pushes should
+  check stack.length < MAX_STACK_DEPTH; each handler
+  that pops should check stack.length > MIN_STACK_DEPTH
+  (or has enough elements). Return none on violation.
+- [ ] AC-51: Update step lemmas with wellFormed
+  hypotheses where needed.
+- [ ] AC-52: Update all proof files to carry/discharge
+  wellFormed hypotheses.
+- [ ] AC-53: Update tests for stack depth edge cases
+  (empty stack, stack at max depth).
+
 ## Default Quality Requirements
 
 - [x] lake build passes with 0 errors
@@ -149,3 +163,5 @@ proofs, modifying miden-vm.
   memory handlers).
 - 2026-03-19: Modification: un-deferred AC-44.
   Full word-addressed memory refactor now in scope.
+- 2026-03-19: Additive: Tier 11 (AC-50 to AC-53)
+  for per-instruction stack depth enforcement.

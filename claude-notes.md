@@ -1,5 +1,15 @@
 # Claude Notes: audit-0xmiden/masm-lean
 
+## 2026-03-19: Tier 11 added (not yet started)
+
+Per-instruction stack depth enforcement (AC-50 to AC-53).
+This resolves the last Bad vivisect finding. Requires:
+- AC-50: Add overflow/underflow guards to handlers
+- AC-51: Update step lemmas with wellFormed hypotheses
+- AC-52: Update all proof files
+- AC-53: Stack depth edge case tests
+Checkpoint tag: checkpoint-pre-tier11
+
 ## 2026-03-19: Vivisect run 12 (post-memory-refactor)
 
 Ran vivisect on the codebase after the memory model
