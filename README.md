@@ -8,7 +8,7 @@ Formal verification of the [Miden Assembly](https://github.com/0xMiden/miden-vm)
 - **`MidenLean/Generated/`** — MASM procedures translated to `List Op` definitions.
 - **`MidenLean/Proofs/`** — Manual correctness proofs for individual procedures.
 - **`MidenLean/Proofs/Generated/`** — Auto-generated proof scaffolding, split per procedure.
-- **`masm-to-lean/`** — Rust tool that parses `.masm` files and emits Lean definitions.
+- **`masm-to-lean/`** — Rust tool that parses `.masm` files and emits Lean definitions and proof scaffolding.
 
 ## Correctness Proofs
 
@@ -84,7 +84,7 @@ timeout 180s lake build MidenLean.Proofs.Word.Reverse
 # Check a single Lean file directly.
 timeout 180s lake env lean MidenLean/Proofs/U64/Shr.lean
 
-# Sweep all manual correctness proofs componentwise.
+# Sweep all manual correctness proofs component-wise.
 mods=(
   MidenLean.Proofs.U64.Common
   $(find MidenLean/Proofs/U64 -maxdepth 1 -name '*.lean' ! -name 'Common.lean' | sort | sed 's#/#.#g; s#.lean$##')
@@ -94,5 +94,3 @@ for mod in $mods; do
   timeout 180s lake build "$mod"
 done
 ```
-
-Use strict timeouts when checking proofs. Some larger proof files can otherwise appear to stall during elaboration.

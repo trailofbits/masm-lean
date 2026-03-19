@@ -2,7 +2,7 @@
 """Generate markdown tables for verified manual proof procedures.
 
 The script:
-1. builds each manual proof module componentwise with a strict timeout,
+1. builds each manual proof module component-wise with a strict timeout,
 2. extracts the public `*_correct` theorem from each manual proof file,
 3. parses the associated theorem doc comment for a short summary when present,
 4. emits a markdown snippet with one table per module.
@@ -142,7 +142,9 @@ def theorem_to_procedure(module: str, theorem: str) -> str | None:
     return None
 
 
-def extract_row(path: Path, module: str, warnings: list[WarningMessage]) -> ProofRow | None:
+def extract_row(
+    path: Path, module: str, warnings: list[WarningMessage]
+) -> ProofRow | None:
     content = path.read_text(encoding="utf-8")
     theorem_match = find_public_correctness_theorem(content)
     if theorem_match is None:
@@ -191,7 +193,9 @@ def extract_row(path: Path, module: str, warnings: list[WarningMessage]) -> Proo
     )
 
 
-def run_build(module_name: str, timeout_seconds: int) -> subprocess.CompletedProcess[str]:
+def run_build(
+    module_name: str, timeout_seconds: int
+) -> subprocess.CompletedProcess[str]:
     cmd = ["timeout", f"{timeout_seconds}s", "lake", "build", module_name]
     try:
         return subprocess.run(
