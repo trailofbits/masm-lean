@@ -57,8 +57,8 @@ types (toU64, toU128) rather than raw field elements.
 - [ ] AC-21: u64_wrapping_add_semantic [blocked:
   needs wrapping_add _correct theorem first]
 - [x] AC-22: u64_wrapping_sub_semantic
-- [ ] AC-23: u64_wrapping_mul_semantic [blocked:
-  needs manual proof of carry-chain mod 2^64]
+- [x] AC-23: u64_wrapping_mul_semantic (via
+  cross_product_mod_2_64 bridge)
 - [x] AC-24: u64_overflowing_sub_semantic
 - [x] AC-25: u64_widening_add_semantic
 - [ ] AC-26: u64_widening_mul_semantic (toU128 result)

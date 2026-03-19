@@ -88,4 +88,19 @@ theorem u64_wrapping_mul_correct
   miden_swap
   dsimp only [pure, Pure.pure]
 
+/-- Semantic: wrapping_mul output limbs encode
+    (toU64 a * toU64 b) % 2^64. -/
+theorem u64_wrapping_mul_semantic
+    (a_lo a_hi b_lo b_hi : Felt) :
+    let prod_lo := a_lo.val * b_lo.val
+    let cross1 := b_hi.val * a_lo.val +
+        prod_lo / 2 ^ 32
+    let cross2 := b_lo.val * a_hi.val +
+        cross1 % 2 ^ 32
+    (cross2 % 2 ^ 32) * 2 ^ 32 +
+        (prod_lo % 2 ^ 32) =
+    (toU64 a_lo a_hi * toU64 b_lo b_hi) % 2 ^ 64 :=
+  MidenLean.cross_product_mod_2_64 a_lo.val a_hi.val
+    b_lo.val b_hi.val
+
 end MidenLean.Proofs
