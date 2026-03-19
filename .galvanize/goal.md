@@ -101,7 +101,7 @@ types (toU64, toU128) rather than raw field elements.
   read top stack element as event ID (not just check
   non-empty), and emitImm should use its argument
 - [x] AC-46: Consistent NOT style -- unified to XOR
-- [ ] AC-43: Bounded stack model -- add minimum depth
+- [x] AC-43: Bounded stack model -- add minimum depth
   of 16 (zero-padded) and/or maximum depth of 2^16
   to match Rust VM semantics
 - [ ] AC-44: Word-addressed memory -- refactor memory
