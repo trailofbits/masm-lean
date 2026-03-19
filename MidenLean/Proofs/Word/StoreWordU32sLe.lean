@@ -73,8 +73,7 @@ theorem word_store_word_u32s_le_correct
   rw [stepDropw]
   dsimp only [bind, Bind.bind, Option.bind, pure,
     Pure.pure]
-  congr 1
   simp only [haddr_val]
-  all_goals rfl
+  all_goals exact evts
 
 end MidenLean.Proofs

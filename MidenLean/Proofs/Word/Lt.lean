@@ -55,7 +55,7 @@ private theorem lt_iteration_init
        .inst (.and), .inst (.or), .inst (.movdn 2), .inst (.and), .inst (.swap 1)] =
     some ⟨(if decide (a_i.val > b_i.val) then (1:Felt) else 0) ::
           (if (b_i == a_i) then (1:Felt) else 0) :: tail, mem, locs, adv, evts⟩ :=
-  lt_iteration false true b_i a_i tail mem locs adv
+  lt_iteration false true b_i a_i tail mem locs adv evts
 
 /-- `word::lt` correctly compares two words lexicographically. -/
 theorem word_lt_correct
