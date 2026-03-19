@@ -79,8 +79,17 @@ Use the smallest relevant target first. Only run broader builds when the local p
 
 - Do not commit without explicit permission.
 - Do not use git worktrees or branches unless asked.
-- Always run Lean checks and `lake build` with strict timeouts. Default to 3-5 minutes. Otherwise you risk getting stuck or causing the entire system to run out of memory.
-- Prefer targeted proof checks such as `timeout 180s lake build MidenLean.Proofs.U64.Shr` over whole-project builds while iterating.
+- **MANDATORY memory cap**: every `lake build` invocation must be wrapped in a systemd-run memory cap. Never run `lake build` without this wrapper -- it will OOM the machine (62GB RAM, Lean+Mathlib workers eat it all). Never remove, bypass, or "investigate" by disabling this constraint.
+  ```bash
+  # Full project build
+  timeout 300s systemd-run --user --scope -p MemoryMax=10G -- lake build -j 2 MidenLean
+  # Targeted module build
+  timeout 180s systemd-run --user --scope -p MemoryMax=10G -- lake build -j 2 MidenLean.Proofs.U64.Shr
+  # Single file check
+  timeout 180s systemd-run --user --scope -p MemoryMax=6G -- lake env lean MidenLean/Proofs/U64/Shr.lean
+  ```
+  If a build gets killed by the memory cap, that means the build is too memory-hungry -- reduce parallelism (`-j 1`) or build a smaller target. Do NOT raise or remove the cap.
+- Prefer targeted proof checks over whole-project builds while iterating.
 - When writing new proofs, follow the existing pattern in the closest existing proof file.
 
 ## Lean Proof Principles
