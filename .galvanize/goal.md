@@ -54,10 +54,11 @@ types (toU64, toU128) rather than raw field elements.
 
 ### Tier 6: Semantic U64 Arithmetic
 
-- [ ] AC-21: u64_wrapping_add_semantic (toU64 result
-  = (toU64 a + toU64 b) mod 2^64)
+- [ ] AC-21: u64_wrapping_add_semantic [blocked:
+  needs wrapping_add _correct theorem first]
 - [x] AC-22: u64_wrapping_sub_semantic
-- [ ] AC-23: u64_wrapping_mul_semantic
+- [ ] AC-23: u64_wrapping_mul_semantic [blocked:
+  needs manual proof of carry-chain mod 2^64]
 - [x] AC-24: u64_overflowing_sub_semantic
 - [x] AC-25: u64_widening_add_semantic
 - [ ] AC-26: u64_widening_mul_semantic (toU128 result)
@@ -77,10 +78,14 @@ types (toU64, toU128) rather than raw field elements.
 
 ### Tier 8: Semantic U64 Counting & Min/Max
 
-- [ ] AC-37: u64_clz_semantic
-- [ ] AC-38: u64_ctz_semantic
-- [ ] AC-39: u64_clo_semantic
-- [ ] AC-40: u64_cto_semantic
+- [ ] AC-37: u64_clz_semantic [blocked: needs u64
+  clz definition]
+- [ ] AC-38: u64_ctz_semantic [blocked: needs u64
+  ctz definition]
+- [ ] AC-39: u64_clo_semantic [blocked: needs u64
+  clo definition]
+- [ ] AC-40: u64_cto_semantic [blocked: needs u64
+  cto definition]
 - [x] AC-41: u64_min_semantic
 - [x] AC-42: u64_max_semantic
 
@@ -95,9 +100,7 @@ types (toU64, toU128) rather than raw field elements.
 - [ ] AC-45: Emit reads event ID -- execEmit should
   read top stack element as event ID (not just check
   non-empty), and emitImm should use its argument
-- [ ] AC-46: Consistent NOT style -- unify
-  u32CountLeadingOnes and u32CountTrailingOnes to
-  use the same inversion method (XOR or arithmetic)
+- [x] AC-46: Consistent NOT style -- unified to XOR
 
 ## Default Quality Requirements
 

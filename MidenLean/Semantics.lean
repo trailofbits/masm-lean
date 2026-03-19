@@ -88,7 +88,7 @@ def u32CountTrailingZeros (n : Nat) : Nat :=
 
 /-- Count leading ones of a 32-bit value. -/
 def u32CountLeadingOnes (n : Nat) : Nat :=
-  u32CountLeadingZeros (u32Max - 1 - n)
+  u32CountLeadingZeros (n ^^^ (u32Max - 1))
 
 /-- Count trailing ones of a 32-bit value. -/
 def u32CountTrailingOnes (n : Nat) : Nat :=

@@ -12,16 +12,16 @@ set_option maxHeartbeats 8000000 in
     Input stack:  [lo, hi] ++ rest
     Output stack: [result] ++ rest
     where result = if hi == 0xFFFFFFFF then clo(lo) + 32 else clo(hi).
-    clo(x) is expressed as u32CountLeadingZeros(u32Max - 1 - x) since
-    u32CountLeadingOnes is private to Semantics. -/
+    clo(x) is expressed as u32CountLeadingZeros(x ^^^ (u32Max - 1))
+    since u32CountLeadingOnes is private to Semantics. -/
 theorem u64_clo_correct (lo hi : Felt) (rest : List Felt) (s : MidenState)
     (hs : s.stack = lo :: hi :: rest)
     (hlo : lo.isU32 = true) (hhi : hi.isU32 = true) :
     exec 20 s Miden.Core.U64.clo =
     some (s.withStack (
       (if hi == (4294967295 : Felt)
-       then Felt.ofNat (u32CountLeadingZeros (u32Max - 1 - lo.val)) + 32
-       else Felt.ofNat (u32CountLeadingZeros (u32Max - 1 - hi.val))) :: rest)) := by
+       then Felt.ofNat (u32CountLeadingZeros (lo.val ^^^ (u32Max - 1))) + 32
+       else Felt.ofNat (u32CountLeadingZeros (hi.val ^^^ (u32Max - 1)))) :: rest)) := by
   obtain ⟨stk, mem, locs, adv⟩ := s
   simp only [MidenState.withStack] at hs ⊢
   subst hs
