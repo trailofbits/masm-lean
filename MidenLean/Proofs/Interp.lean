@@ -358,4 +358,28 @@ theorem felt_lo32_hi32_toU64 (n : Nat)
     ZMod.val_natCast_of_lt h32_hi]
   omega
 
+/-- Count leading zeros of a 64-bit value represented
+    as two u32 limbs. If hi is zero, count all 32 bits
+    of hi plus leading zeros of lo. -/
+def u64CountLeadingZeros (lo hi : Nat) : Nat :=
+  if hi = 0 then u32CountLeadingZeros lo + 32
+  else u32CountLeadingZeros hi
+
+/-- Count trailing zeros of a 64-bit value represented
+    as two u32 limbs. If lo is zero, count all 32 bits
+    of lo plus trailing zeros of hi. -/
+def u64CountTrailingZeros (lo hi : Nat) : Nat :=
+  if lo = 0 then u32CountTrailingZeros hi + 32
+  else u32CountTrailingZeros lo
+
+/-- Count leading ones of a 64-bit value. -/
+def u64CountLeadingOnes (lo hi : Nat) : Nat :=
+  u64CountLeadingZeros (lo ^^^ (u32Max - 1))
+    (hi ^^^ (u32Max - 1))
+
+/-- Count trailing ones of a 64-bit value. -/
+def u64CountTrailingOnes (lo hi : Nat) : Nat :=
+  u64CountTrailingZeros (lo ^^^ (u32Max - 1))
+    (hi ^^^ (u32Max - 1))
+
 end MidenLean

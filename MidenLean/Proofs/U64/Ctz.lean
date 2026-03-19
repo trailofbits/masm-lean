@@ -1,4 +1,5 @@
 import MidenLean.Proofs.Tactics
+import MidenLean.Proofs.Interp
 import MidenLean.Generated.U64
 
 namespace MidenLean.Proofs
@@ -55,5 +56,21 @@ theorem u64_ctz_correct (lo hi : Felt) (rest : List Felt) (s : MidenState)
     rw [stepSwap (hn := by decide) (htop := rfl) (hnth := rfl)]; miden_bind
     rw [stepDrop]; miden_bind
     rw [stepU32Ctz (ha := hlo)]
+
+/-- The _correct output equals u64CountTrailingZeros. -/
+theorem u64_ctz_semantic (lo hi : Felt) :
+    (if lo == (0 : Felt)
+     then Felt.ofNat (u32CountTrailingZeros hi.val) + 32
+     else Felt.ofNat (u32CountTrailingZeros lo.val)) =
+    Felt.ofNat (u64CountTrailingZeros lo.val hi.val) := by
+  simp only [u64CountTrailingZeros]
+  by_cases h : lo.val = 0
+  · have : lo = (0 : Felt) := ZMod.val_injective _ h
+    simp only [this, beq_self_eq_true, ite_true,
+      ZMod.val_zero, Felt.ofNat]
+    push_cast; ring
+  · have : lo ≠ (0 : Felt) := fun heq =>
+      h (by rw [heq]; simp)
+    simp [this, h]
 
 end MidenLean.Proofs
