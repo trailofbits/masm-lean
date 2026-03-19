@@ -338,4 +338,24 @@ theorem cross_product_mod_2_64
     rw [this]; omega
   rw [h6]
 
+/-- Splitting a Felt into lo32/hi32 and reassembling
+    via toU64 recovers the original value,
+    provided it fits in 64 bits. -/
+theorem felt_lo32_hi32_toU64 (n : Nat)
+    (h : n < GOLDILOCKS_PRIME) :
+    toU64 (Felt.ofNat n).lo32 (Felt.ofNat n).hi32 =
+    n := by
+  simp only [toU64, Felt.lo32, Felt.hi32, Felt.ofNat]
+  have hval : (n : ZMod GOLDILOCKS_PRIME).val = n :=
+    ZMod.val_natCast_of_lt h
+  rw [hval]
+  have h32_lo : n % 2^32 < GOLDILOCKS_PRIME := by
+    unfold GOLDILOCKS_PRIME; omega
+  have h32_hi : n / 2^32 < GOLDILOCKS_PRIME := by
+    unfold GOLDILOCKS_PRIME at h ⊢
+    omega
+  rw [ZMod.val_natCast_of_lt h32_lo,
+    ZMod.val_natCast_of_lt h32_hi]
+  omega
+
 end MidenLean

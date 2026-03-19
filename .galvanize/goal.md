@@ -71,7 +71,7 @@ types (toU64, toU128) rather than raw field elements.
 - [x] AC-30: u64_and_toU64 (bridge lemma)
 - [x] AC-31: u64_or_toU64 (bridge lemma)
 - [x] AC-32: u64_xor_toU64 (bridge lemma)
-- [ ] AC-33: u64_shl_semantic
+- [x] AC-33: u64_shl_semantic
 - [ ] AC-34: u64_shr_semantic
 - [ ] AC-35: u64_rotl_semantic
 - [ ] AC-36: u64_rotr_semantic
