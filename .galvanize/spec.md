@@ -305,7 +305,7 @@ the top value. Document in COMPARISON.md section (a).
   exist -> none
 
 ### Assertions
-- assert: top = 0 -> none (failure), top != 0 -> success
+- assert: top != 1 -> none (failure), top = 1 -> success
 - assertz: top = 0 -> success, top != 0 -> none
 - assertEq: equal values -> success, unequal -> none
 - assertEqw: all four pairs equal -> success, one pair

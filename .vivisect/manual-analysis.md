@@ -228,3 +228,59 @@ definition update.
 ---
 ## Run 10 findings
 
+
+---
+## Run 11 findings
+
+### Finding: emit is now functional (previously no-op)
+File: MidenLean/Semantics.lean:983-986, 1110-1111
+Category: Good (fixed since run 10)
+
+`execEmit` (line 983-986) now reads the top stack
+element as `eventId` and records it in `s.events`.
+`emitImm` (line 1110-1111) records the immediate
+event ID argument. The MidenState.events field
+(State.lean:16) stores emitted event IDs.
+This resolves the previous Bad finding about emit
+being a no-op. Both emit and emitImm are now
+semantically meaningful.
+
+### Finding: Bounded stack infrastructure added
+File: MidenLean/State.lean:75-99
+Category: Good (new)
+
+`MIN_STACK_DEPTH` (16), `MAX_STACK_DEPTH` (2^16),
+`padStack`, `MidenState.wellFormed`, and
+`MidenState.ofStackPadded` are now defined.
+However, `wellFormed` is a `Prop` not enforced at
+the type level -- individual instruction handlers
+still operate on unbounded `List Felt` stacks.
+The bounded stack model provides the vocabulary
+for proofs to state well-formedness assumptions
+but does not prevent creating states with fewer
+than 16 elements.
+
+### Finding: Spec assertion description vs impl
+File: .galvanize/spec.md:309, Semantics.lean:124
+Category: Bad (spec documentation issue)
+
+The spec section 7 states: "assert: top = 0 ->
+none (failure), top != 0 -> success." But the
+implementation checks `a.val == 1` (only passes
+for exactly 1, not for any nonzero value). This
+matches Rust's `op_assert` which compares against
+`ONE`. The spec description is slightly misleading
+but the Lean implementation correctly matches Rust.
+This is a spec documentation issue, not a code bug.
+
+### Finding: Word type + readWord/writeWord added
+File: MidenLean/State.lean:18-42, 101-119
+Category: Good (new)
+
+`Word` type (`Felt x Felt x Felt x Felt`) with
+`get`, `set`, `toList`, `readWord`, `writeWord`
+accessors. These support word-level memory
+operations. Memory remains element-addressed
+(Nat -> Felt) but word operations provide a
+clean interface.
+
