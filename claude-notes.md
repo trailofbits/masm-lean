@@ -1,5 +1,42 @@
 # claude-notes.md
 
+## 2026-03-18: Fixed broken divmod proof
+
+### Root cause
+The u64_divmod_correct theorem had the advice tape ordering wrong.
+It used `q_lo :: q_hi :: r_lo :: r_hi` but the Miden VM handler
+actually pushes `[q_hi, q_lo, r_hi, r_lo]` onto the advice stack
+(q_hi on top). Since advPush.2 reverses pairs when pushing to the
+operand stack, the correct advice hypothesis is:
+  `hadv : s.advice = q_hi :: q_lo :: r_hi :: r_lo :: adv_rest`
+This gives standard LE layout [q_lo, q_hi] on the operand stack.
+
+### Changes made
+- **Divmod.lean**: Complete rewrite of theorem statement and proof:
+  - Advice ordering: q_hi :: q_lo :: r_hi :: r_lo (was q_lo :: q_hi :: r_lo :: r_hi)
+  - Output stack: r_lo :: r_hi :: q_lo :: q_hi (was r_hi :: r_lo :: q_hi :: q_lo)
+  - Cross products corrected: p1 = b_lo*q_lo, p2 = b_hi*q_lo+p1_hi, p3 = b_lo*q_hi+p2_lo
+    (was: b_lo*q_hi, b_hi*q_hi+cross0_hi, b_lo*q_lo+madd1_lo)
+  - Assert check: b_hi * q_hi == 0 (was q_hi * b_hi, due to mul order)
+  - lt body: removed extra miden_swap, fixed ha/hb for u32OverflowSub
+  - Added carry val rewrite (h_add1_carry_val)
+  - Fixed all step lemma ha/hb/hc assignments
+- **Div.lean**: Updated to match new divmod signature
+- **Mod.lean**: Updated to match new divmod signature
+
+### Verified against miden-vm source
+- Checked u64_div.rs handler (extend_stack ordering)
+- Checked u64.masm divmod procedure (stack comments at each step)
+- Checked advPush semantics (reverses N values from advice tape)
+
+### Build status
+0 errors, 0 warnings, 0 sorry. Full `lake build MidenLean` passes.
+
+### User request: source code reference
+User wants a goal to create/maintain a source code reference mapping
+each instruction's semantic definition to the miden-vm implementation.
+This should be addressed in the galvanize goal.
+
 ## 2026-03-18: Build fixes and divmod setup
 
 ### Completed
