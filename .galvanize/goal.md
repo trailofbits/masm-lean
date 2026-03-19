@@ -84,18 +84,27 @@ types (toU64, toU128) rather than raw field elements.
 - [x] AC-41: u64_min_semantic
 - [x] AC-42: u64_max_semantic
 
-### Tier 9: Fix Bad Findings (stretch)
+### Tier 9: Proof Quality (maxHeartbeats removal)
 
+- [ ] AC-47: Remove all set_option maxHeartbeats from
+  non-Generated proof files. Split slow proofs into
+  symbolic sub-lemmas instead of relying on compute.
+- [ ] AC-48: [ongoing] No maxHeartbeats annotations in
+  non-Generated files. Verify: grep -c
+  'set_option maxHeartbeats' in non-Generated .lean
+
+### Tier 10: Fix Bad Findings
+
+- [ ] AC-45: Emit reads event ID -- execEmit should
+  read top stack element as event ID (not just check
+  non-empty), and emitImm should use its argument
+- [x] AC-46: Consistent NOT style -- unified to XOR
 - [ ] AC-43: Bounded stack model -- add minimum depth
   of 16 (zero-padded) and/or maximum depth of 2^16
   to match Rust VM semantics
 - [ ] AC-44: Word-addressed memory -- refactor memory
   model from Nat -> Felt to Nat -> Word (4-element)
   to match Rust BTreeMap<u32, [Felt; 4]>
-- [ ] AC-45: Emit reads event ID -- execEmit should
-  read top stack element as event ID (not just check
-  non-empty), and emitImm should use its argument
-- [x] AC-46: Consistent NOT style -- unified to XOR
 
 ## Default Quality Requirements
 
@@ -123,3 +132,8 @@ proofs, modifying miden-vm.
   completed semantic theorems (lt/gt/lte/gte/eq).
 - 2026-03-19: Additive: Tier 9 (AC-43 to AC-46) for
   fixing the 4 Bad vivisect findings (stretch goal)
+- 2026-03-19: Additive: Tier 9 becomes proof quality
+  (AC-47/48: remove maxHeartbeats, split slow proofs).
+  Tier 10: restructured Bad fixes (AC-45 first, then
+  AC-43/44). Process: commit/push first, keep PR
+  updated.

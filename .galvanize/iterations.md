@@ -379,3 +379,46 @@ accepted in prior iterations). No regressions.
 - Both Rotl.lean and Rotr.lean now import Interp.lean
 - Build: EXIT 0, 0 warnings, 0 errors, 0 sorry
 - ACs completed: AC-34, AC-35, AC-36 (3 new, 46/49)
+
+### Tarot Log
+None
+
+### Convergence Status
+Not converged -- 3 unchecked ACs remain (AC-43/44/45,
+all Tier 9 stretch). BROKEN=0, ABSURD=0, BAD=3
+(intentional). AC-43/44 are large structural refactors.
+AC-45 (emit event ID) is smaller and should be
+attempted first.
+
+## Iteration 10
+**Date:** 2026-03-19
+**Vivisect run:** #10 (full mode)
+
+### Vivisect Findings (Phase 1)
+| Category | Count |
+|----------|-------|
+| Broken   | 0     |
+| Absurd   | 0     |
+| Bad      | 3     |
+| Good     | 14    |
+
+Same 3 Bad findings. All contrarian tests SOUND.
+Work for Phase 3: attempt AC-45 (emit event ID).
+
+### Goal Revision
+**User said:** "remove all max heartbeats annotations;
+split slow proofs and prove them symbolically instead
+of just throwing a lot of compute at them. Then, fix
+AC-45; then do the whole restructure. Make sure to
+commit and push first, and keep the PR regularly
+updated."
+**Classification:** additive
+**Changes to goal.md:**
+- Added Tier 9: AC-47 (remove maxHeartbeats, split
+  slow proofs) and AC-48 (ongoing: no maxHeartbeats)
+- Moved Bad fixes to Tier 10, reordered AC-45 first
+- Process: commit/push checkpoint, keep PR updated
+**Effect on iteration:** continued (additive)
+
+### Changes Made (Phases 2-3)
+(pending)
