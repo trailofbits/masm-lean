@@ -86,16 +86,18 @@ types (toU64, toU128) rather than raw field elements.
 
 ### Tier 9: Proof Quality (maxHeartbeats removal)
 
-- [ ] AC-47: Remove all set_option maxHeartbeats from
+- [x] AC-47: Remove all set_option maxHeartbeats from
   non-Generated proof files. Split slow proofs into
   symbolic sub-lemmas instead of relying on compute.
-- [ ] AC-48: [ongoing] No maxHeartbeats annotations in
+  (1 retained: Felt.lean primality native_decide)
+- [x] AC-48: [ongoing] No maxHeartbeats annotations in
   non-Generated files. Verify: grep -c
   'set_option maxHeartbeats' in non-Generated .lean
+  (1 exception: Felt.lean:12 primality)
 
 ### Tier 10: Fix Bad Findings
 
-- [ ] AC-45: Emit reads event ID -- execEmit should
+- [x] AC-45: Emit reads event ID -- execEmit should
   read top stack element as event ID (not just check
   non-empty), and emitImm should use its argument
 - [x] AC-46: Consistent NOT style -- unified to XOR

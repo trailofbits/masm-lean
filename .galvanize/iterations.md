@@ -437,5 +437,16 @@ updated."
   failures exposed (stepSwapw1/stepDupw1 undefined,
   miden_loop tactic missing) -- these predate our
   changes and were masked by stale oleans.
-- ACs: AC-47 partial (StepLemmas + all U64 done,
-  U128 pre-existing issues remain)
+- ACs completed: AC-45 (emit event ID, 72+ files),
+  AC-47 (maxHeartbeats removal, 98 removed),
+  AC-48 (ongoing, 1 exception in Felt.lean).
+  Build: EXIT 0, 0 errors, 0 warnings, 0 sorry.
+  Remaining: AC-43 (bounded stack), AC-44 (word memory)
+
+### Tarot Log
+None
+
+### Convergence Status
+Not converged -- 2 unchecked ACs remain (AC-43/44).
+These are large structural refactors of the core
+model. Starting work on AC-43.
