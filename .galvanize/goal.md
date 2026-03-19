@@ -104,9 +104,14 @@ types (toU64, toU128) rather than raw field elements.
 - [x] AC-43: Bounded stack model -- add minimum depth
   of 16 (zero-padded) and/or maximum depth of 2^16
   to match Rust VM semantics
-- [ ] AC-44: Word-addressed memory -- refactor memory
-  model from Nat -> Felt to Nat -> Word (4-element)
-  to match Rust BTreeMap<u32, [Felt; 4]>
+- [x] AC-49: Word type and word-addressed accessors --
+  add Word type, readWord/writeWord accessors on
+  element-addressed memory, zeroWordMemory
+- [ ] AC-44: [deferred: AC-49] Word-addressed memory --
+  refactor memory model from Nat -> Felt to
+  Nat -> Word (4-element) to match Rust
+  BTreeMap<u32, [Felt; 4]>. Requires rewriting all
+  memory handlers and their proofs.
 
 ## Default Quality Requirements
 
@@ -139,3 +144,7 @@ proofs, modifying miden-vm.
   Tier 10: restructured Bad fixes (AC-45 first, then
   AC-43/44). Process: commit/push first, keep PR
   updated.
+- 2026-03-19: Split AC-44 into AC-49 (Word type +
+  accessors, achievable) and deferred AC-44 (full
+  memory model refactor, requires rewriting all
+  memory handlers).

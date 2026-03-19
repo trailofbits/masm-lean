@@ -15,7 +15,37 @@ structure MidenState where
   /-- Emitted event IDs (most recent first). -/
   events : List Felt := []
 
-/-- Default 0-initialized memory. -/
+/-- A Miden word: 4 field elements. -/
+abbrev Word := Felt × Felt × Felt × Felt
+
+/-- The zero word. -/
+def Word.zero : Word := (0, 0, 0, 0)
+
+/-- Access individual elements of a word (0-indexed). -/
+def Word.get (w : Word) (i : Fin 4) : Felt :=
+  match i with
+  | 0 => w.1
+  | 1 => w.2.1
+  | 2 => w.2.2.1
+  | 3 => w.2.2.2
+
+/-- Set an individual element of a word. -/
+def Word.set (w : Word) (i : Fin 4) (v : Felt) : Word :=
+  match i with
+  | 0 => (v, w.2.1, w.2.2.1, w.2.2.2)
+  | 1 => (w.1, v, w.2.2.1, w.2.2.2)
+  | 2 => (w.1, w.2.1, v, w.2.2.2)
+  | 3 => (w.1, w.2.1, w.2.2.1, v)
+
+/-- Convert a word to a list of 4 elements. -/
+def Word.toList (w : Word) : List Felt :=
+  [w.1, w.2.1, w.2.2.1, w.2.2.2]
+
+/-- Default 0-initialized memory (word-addressed). -/
+def zeroWordMemory : Nat → Word := fun _ => Word.zero
+
+/-- Default 0-initialized element-addressed memory
+    (legacy, for backward compatibility). -/
 def zeroMemory : Nat → Felt := fun _ => 0
 
 /-- Create a state with the given stack and empty memory. -/
@@ -67,5 +97,25 @@ def MidenState.ofStackPadded (s : List Felt) :
     locals := zeroMemory,
     advice := [],
     events := [] }
+
+/-- Read a word from element-addressed memory at a
+    word-aligned address. -/
+def MidenState.readWord (s : MidenState) (addr : Nat) :
+    Word :=
+  (s.memory addr,
+   s.memory (addr + 1),
+   s.memory (addr + 2),
+   s.memory (addr + 3))
+
+/-- Write a word to element-addressed memory at a
+    word-aligned address. -/
+def MidenState.writeWord (s : MidenState) (addr : Nat)
+    (w : Word) : MidenState :=
+  { s with memory := fun a =>
+    if a = addr then w.1
+    else if a = addr + 1 then w.2.1
+    else if a = addr + 2 then w.2.2.1
+    else if a = addr + 3 then w.2.2.2
+    else s.memory a }
 
 end MidenLean
