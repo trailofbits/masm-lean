@@ -1,5 +1,29 @@
 # Claude Notes: audit-0xmiden/masm-lean
 
+## 2026-03-19: Vivisect run 12 (post-memory-refactor)
+
+Ran vivisect on the codebase after the memory model
+refactor from element-addressed to word-addressed.
+
+Results: 17 Good, 1 Bad, 0 Broken, 0 Absurd.
+- Previous "Bad: element-addressed memory" finding
+  is now resolved (Good).
+- Only remaining Bad: stack depth not enforced
+  per-instruction (intentional simplification).
+- Build: 0 errors, 0 warnings, 0 sorry (1913 jobs).
+- Spec text at .galvanize/spec.md lines 155-156 and
+  236-240 is stale (still says element-addressed).
+- All memory operations verified correct against
+  Rust VM semantics.
+- Le variant confirmed as Rust-native order.
+- writeMemoryElem0 correctly preserves elements 1-3.
+
+Files written:
+- .vivisect/findings.md (run 12)
+- .vivisect/analysis.md (run 12)
+- .vivisect/patches.md (run 12)
+- .vivisect/manual-analysis.md (run 12 section added)
+
 ## 2026-03-19: AC-44 Word-addressed memory refactor
 
 ### Plan

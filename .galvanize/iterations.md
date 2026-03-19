@@ -533,3 +533,32 @@ a checkpoint, then do the hard work"
 - Git: checkpoint tag pushed, commit + push before work.
 - Build: EXIT 0, 0 errors, 0 warnings, 0 sorry (1913)
 - ACs completed: AC-44 (51/51 total)
+
+### Vivisect Findings (Phase 1, run #12, full mode)
+| Category | Count |
+|----------|-------|
+| Broken   | 0     |
+| Absurd   | 0     |
+| Bad      | 1     |
+| Good     | 17    |
+
+Bad-1: Stack depth not enforced per-instruction
+  (intentional, accepted iter 1).
+Previous Bad findings resolved: element-addressed
+memory (now word-addressed), emit as no-op (now
+records event ID).
+
+### Tarot Log
+None
+
+### Convergence Status
+CONVERGED -- 51/51 ACs complete.
+0 Broken, 0 Absurd, 1 Bad (intentional/accepted).
+Build clean. Full vivisect run 12 confirms.
+
+### Phase 5 Gate
+**Changes after Phase 1 vivisect:**
+spec.md (updated stale text describing resolved
+memory and emit findings).
+**Gate result:** Spec-text-only change, no code or
+test modifications. PASS (final gate).

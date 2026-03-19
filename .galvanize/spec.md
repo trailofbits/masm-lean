@@ -151,10 +151,12 @@ Each entry states:
 Known items to document:
 - Stack model: unbounded List Felt vs Rust's 16-element
   minimum depth with zero padding and 2^16 max depth.
-- Memory model: element-addressed (Nat -> Felt) vs Rust's
-  word-addressed (BTreeMap<u32, [Felt; 4]>), with Be/Le
-  variants compensating.
-- Emit: modeled as stack no-op without reading event ID.
+- Memory model: now word-addressed (Nat -> Word) matching
+  Rust's BTreeMap<u32, [Felt; 4]>. mem_load/mem_store
+  access element 0; mem_loadw/mem_storew access full
+  words. Le variant is Rust-native element ordering.
+- Emit: records top stack element as event ID via
+  MidenState.events field.
 - Error codes: String vs Felt (functionally equivalent for
   semantic correctness).
 - Assembled ops: some Lean primitives (cdrop, cdropw, neq,
@@ -230,21 +232,19 @@ modeling simplification. Document in COMPARISON.md section
 (a). Write tests demonstrating that operations work on
 small stacks where Rust would pad.
 
-### Bad: Memory model is element-addressed
-(AC-13, priority: LOW -- document only)
+### Resolved: Memory model is now word-addressed
+(AC-44, FIXED in iteration 12)
 
-Lean uses Nat -> Felt; Rust uses BTreeMap<u32, [Felt; 4]>.
-Document in COMPARISON.md section (a). Include tests for
-both Be and Le word load/store to document which variant
-corresponds to Rust's ordering. Note in COMPARISON.md
-which variant (if either) matches Rust's element ordering
-within words.
+Lean now uses Nat -> Word matching Rust's
+BTreeMap<u32, [Felt; 4]>. mem_load/mem_store access
+element 0 of the word. Le variant is Rust-native
+element ordering.
 
-### Bad: Emit does not read top element
-(AC-12, priority: LOW -- document only)
+### Resolved: Emit now reads top element
+(AC-45, FIXED in iteration 10)
 
-Lean's execEmit checks stack non-empty but does not read
-the top value. Document in COMPARISON.md section (a).
+execEmit records the top stack element as the event ID
+via MidenState.events field.
 
 ## 7. Edge Cases to Test per Instruction Category
 

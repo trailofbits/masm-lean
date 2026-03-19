@@ -284,3 +284,69 @@ operations. Memory remains element-addressed
 (Nat -> Felt) but word operations provide a
 clean interface.
 
+
+---
+## Run 12 findings (post-memory-refactor)
+
+### Finding: Memory model now word-addressed (RESOLVED)
+File: MidenLean/State.lean:43, Semantics.lean:805-932
+Category: Good (previously Bad)
+
+The memory model has been refactored from element-
+addressed (`Nat -> Felt`) to word-addressed
+(`Nat -> Word`). This resolves the AC-13 finding.
+Key changes:
+- `MidenState.memory : Nat -> Word` (was Nat -> Felt)
+- `MidenState.locals : Nat -> Word` (was Nat -> Felt)
+- `writeMemory` writes a full Word
+- `writeMemoryElem0` writes only element 0,
+  preserving elements 1-3
+- Alignment checks removed (each address IS a word)
+- StoreWordU32sLe proof rewritten for new model
+- StepLemmas updated for word-addressed model
+- All memory tests pass
+
+### Finding: Le variant matches Rust native order
+File: Semantics.lean:857-907
+Category: Good (confirmed)
+
+After the refactor, `memStorewLe` stores
+`(e0, e1, e2, e3)` where e0 = stack[0] after
+address removal. This maps stack[0] to word[0],
+matching Rust's `op_mstorew`. The generated code
+(Generated/Word.lean:18,26) exclusively uses
+`memStorewLe`, confirming Le as the Rust-native
+variant.
+
+### Finding: Spec text stale on memory model
+File: .galvanize/spec.md:155-156, 236-240
+Category: Bad (spec documentation issue)
+
+The spec describes the memory model as "element-
+addressed (Nat -> Felt)" with Be/Le variants
+compensating. This text predates the word-addressed
+refactor and should be updated. The implementation
+now matches Rust's model.
+
+### Finding: memStore/memLoad element 0 access correct
+File: Semantics.lean:809-834
+Category: Good (verified)
+
+`execMemLoad` reads `(s.memory a.val).1` = element 0.
+`execMemStore` writes element 0 via `writeMemoryElem0`.
+Both match Rust's `op_mload` (reads word[0]) and
+`op_mstore` (writes word[0]). Round-trip verified by
+test at Tests/Semantics.lean:825-834.
+
+### Finding: writeMemoryElem0 preserves elements 1-3
+File: MidenLean/State.lean:73-79
+Category: Good (verified)
+
+The helper correctly reads the existing word at the
+address and only replaces element 0:
+  `(v, (s.memory addr).2.1, (s.memory addr).2.2.1,
+   (s.memory addr).2.2.2)`
+This matches Rust's behavior where `op_mstore`
+reads the existing word, modifies `word[0]`, and
+writes back.
+
