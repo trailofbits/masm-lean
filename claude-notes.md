@@ -1,5 +1,22 @@
 # claude-notes.md
 
+## 2026-03-18: Complete instruction test coverage
+
+All 107 instructions now have at least one #eval test.
+43 previously untested instructions were added. Full
+`lake build MidenLean` passes with 0 errors/warnings.
+
+### User follow-up requests (not yet addressed)
+1. "test suite should both be proven in here and run in
+   miden-vm" -- user wants cross-validation: same test
+   vectors run in both the Lean model and the actual
+   Miden VM Rust implementation
+2. "vivisect compare the masm tests written in miden-vm
+   to the masm tests here; they should exactly match" --
+   user wants to find the u64 test suite in miden-vm
+   (likely at miden-vm/crates/lib/core/tests/math/) and
+   ensure our Lean tests use matching test vectors
+
 ## 2026-03-18: Fixed broken divmod proof
 
 ### Root cause
