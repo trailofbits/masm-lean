@@ -1,6 +1,6 @@
 # Correctness Analysis: masm-lean
 
-Date:  2026-03-18
+Date:  2026-03-19 (incremental update from 2026-03-18)
 Scope: MidenLean/ (all .lean files excluding .lake/)
 Tools: trailmark (summary), manual review, contrarian
        (validation)
@@ -237,32 +237,20 @@ Assumptions:
 - Input is a valid u32 value (< 2^32).
 
 Invariants:
-- Line 91: `u32CountLeadingZeros (u32Max - 1 - n)`
+- Line 91: `u32CountLeadingZeros (n ^^^ (u32Max - 1))`
 
 Guarantees:
-- Counts leading ones by inverting and counting
+- Counts leading ones by XOR-inverting and counting
   leading zeros.
 
 Dependencies:
 - u32CountLeadingZeros
 
-Preliminary category: Bad
-  Lines 90-91:
-  ```lean
-  def u32CountLeadingOnes (n : Nat) : Nat :=
-    u32CountLeadingZeros (u32Max - 1 - n)
-  ```
-  Uses `u32Max - 1 - n` (= 2^32 - 1 - n) as the
-  bitwise NOT. This is correct for u32 NOT
-  (XOR with 0xFFFFFFFF). However,
-  `u32CountTrailingOnes` at line 94-95 uses XOR
-  operator `^^^` instead:
-  ```lean
-  def u32CountTrailingOnes (n : Nat) : Nat :=
-    u32CountTrailingZeros (n ^^^ (u32Max - 1))
-  ```
-  Both are equivalent for u32 values, but the
-  inconsistency is a code smell.
+Preliminary category: Good
+  Now uses XOR (`^^^`) consistent with
+  `u32CountTrailingOnes`. Previously used arithmetic
+  subtraction (`u32Max - 1 - n`), which was correct
+  but inconsistent. Fixed in commit 545db0c.
 
 ---
 
@@ -362,13 +350,15 @@ Assumptions:
 Guarantees:
 - Produces [result, ...rest] where result=1 iff
   a < b as 128-bit words.
-- "Proved" via axiom word_lt_full_correct.
+- Proved correct: word_lt_full_correct (theorem,
+  no axioms). Previously was an axiom; now fully
+  proved.
 
 Dependencies:
 - arrange_words_adjacent_le, eq, gt, and, or
 
-Preliminary category: Bad
-  Relies on unproved axiom. See finding below.
+Preliminary category: Good
+  Fully proved without axioms.
 
 ---
 
@@ -395,72 +385,62 @@ Preliminary category: Good
 
 ---
 
-### `word_lt_full_correct` (AXIOM)
-File:      MidenLean/Proofs/WordLt.lean:12-24
-Signature: axiom
+### `word_lt_full_correct` (theorem)
+File:      MidenLean/Proofs/Word/Lt.lean
+Signature: theorem
 
 Assumptions:
-- None (axiom has no proof obligations).
+- Stack is well-formed with 8+ elements.
+- wordProcEnv resolves sub-procedures.
 
 Guarantees:
-- Claims word::lt computes lexicographic < on 4-limb
-  words.
-- NOT VERIFIED -- this is an axiom, not a theorem.
+- word::lt computes lexicographic < on 4-limb words.
+- Proof is complete (no axioms, no sorry).
 
 Dependencies:
-- wordProcEnv, execWithEnv
+- wordProcEnv, execWithEnv, lt_iteration lemma
 
-Preliminary category: Bad
-  Unproved axiom. word_gt_correct was fully proved,
-  so lt should be provable by the same technique
-  (the loop body uses .gt instead of .lt, with the
-  comparison direction flipped). The axiom creates
-  a soundness gap.
+Preliminary category: Good
+  Full proof. Previously an axiom; now machine-
+  checked.
 
 ---
 
-### `word_lte_full_correct` (AXIOM)
-File:      MidenLean/Proofs/WordLte.lean:12-24
-Signature: axiom
+### `word_lte_full_correct` (theorem)
+File:      MidenLean/Proofs/Word/Lte.lean
+Signature: theorem
 
-Preliminary category: Bad
-  Depends on word_gt_correct (lte = !gt) but encoded
-  as an axiom rather than derived. Should be provable
-  from word_gt_correct + not.
+Preliminary category: Good
+  Derived from word_gt_correct by composing with
+  not. Full theorem, no axioms.
 
 ---
 
-### `word_gte_full_correct` (AXIOM)
-File:      MidenLean/Proofs/WordGte.lean:12-24
-Signature: axiom
+### `word_gte_full_correct` (theorem)
+File:      MidenLean/Proofs/Word/Gte.lean
+Signature: theorem
 
-Preliminary category: Bad
-  Depends on word_lt which is itself an axiom.
-  Double axiom chain: gte -> lt -> axiom.
+Preliminary category: Good
+  Derived from word_lt_full_correct by composing
+  with not. Full theorem, no axioms.
 
 ---
 
 ## Cross-Function Analysis
 
-### Issue 1: Three axioms create unverified proof chain
+### Issue 1: Three axioms RESOLVED
 Functions: word_lt_full_correct, word_lte_full_correct,
            word_gte_full_correct
-Type: Broken Guarantee Chain
+Type: Resolved (previously Broken Guarantee Chain)
 
 Description:
-word_gt_correct is fully proved. word_lt should be
-symmetric but is axiomatized instead. word_lte depends
-on word_gt (via !gt) but is also axiomatized instead
-of being derived. word_gte depends on word_lt (via
-!lt) and inherits the lt axiom gap.
+All three axioms have been replaced with full proofs.
+word_lt is proved via lt_iteration lemma (same
+technique as word_gt). word_lte is derived from
+word_gt + not. word_gte is derived from word_lt +
+not. Zero axioms remain in the project.
 
-The axiom chain means 3 of 4 word comparison theorems
-are unverified. An error in the axiom statement (e.g.,
-wrong comparison direction, wrong limb ordering) would
-not be caught by the proof checker.
-
-Severity: Bad (axioms are not demonstrably wrong, but
-they are demonstrably unverified)
+Severity: N/A (resolved)
 
 ---
 
@@ -477,6 +457,50 @@ MATCHES Rust (Miden's assert requires exactly 1), so
 the code is correct but the spec is misleading.
 
 Severity: Not a code bug. Spec wording issue only.
+
+---
+
+### Issue 3: Semantic proof layer (NEW)
+Functions: toU64, toU128, toU64_eq_iff,
+           toU64_lt_iff, toU128_lt_iff,
+           u64_lt_condition_eq, toU64_and/or/xor,
+           cross_product_mod_2_64,
+           u64CountLeadingZeros/TrailingZeros/
+           LeadingOnes/TrailingOnes
+Type: New capability
+
+Description:
+Proofs/Interp.lean introduces interpretation functions
+(toU64, toU128) that map limb pairs to mathematical
+integers. Bridge lemmas connect low-level proof
+results to high-level semantic statements. 16 proof
+files now have _semantic or _toU64 corollary theorems
+chaining original_correct + bridge_lemma.
+
+The semantic layer does NOT introduce new axioms. All
+bridge lemmas are proved from first principles using
+omega, ZMod.val arithmetic, and Nat.testBit.
+
+Quality: Good -- clean separation of concerns. The
+interpretation layer is sound and the corollaries
+are straightforward compositions.
+
+---
+
+### Issue 4: Cross-validation test suite (NEW)
+Functions: Tests/CrossValidation.lean
+Type: New capability
+
+Description:
+30+ cross-validation tests running MASM library
+procedures through the Lean semantics model against
+miden-vm Rust test vectors (u64_mod.rs). Tests cover:
+wrapping_add, lt/lte/gt/gte, min/max, eq/neq/eqz,
+divmod, clz/ctz/clo/cto, shl/shr.
+
+Quality: Good -- independently validates the Lean
+model against the Rust reference implementation.
+Catches any semantic divergence between the two.
 
 ---
 

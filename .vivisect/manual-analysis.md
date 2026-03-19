@@ -162,3 +162,61 @@ spec itself documents as intentional.
 ---
 ## Run 3 findings
 
+
+## Run 4 findings (incremental, 2026-03-19)
+
+### Finding: NOT style inconsistency RESOLVED
+File: MidenLean/Semantics.lean:90-91
+Category: Good (fixed)
+
+u32CountLeadingOnes changed from
+`u32CountLeadingZeros (u32Max - 1 - n)` to
+`u32CountLeadingZeros (n ^^^ (u32Max - 1))`,
+matching u32CountTrailingOnes. The "Inconsistent
+NOT implementation style" Bad finding is resolved.
+
+### Finding: Semantic interpretation layer added
+File: MidenLean/Proofs/Interp.lean (NEW, 385 lines)
+Category: Good
+
+New file introduces:
+- toU64, toU128: limb pair -> Nat interpretation
+- Bridge lemmas: toU64_eq_iff, toU64_lt_iff,
+  toU128_lt_iff, u64_lt_condition_eq, toU64_neq_iff
+- Bitwise: toU64_and, toU64_or, toU64_xor (proved
+  via Nat.testBit decomposition)
+- cross_product_mod_2_64: carry chain correctness
+- Counting: u64CountLeading/TrailingZeros/Ones
+- felt_lo32_hi32_toU64: Felt decomposition roundtrip
+
+All lemmas are sorry-free and axiom-free. Clean
+mathematical layer.
+
+### Finding: 16 semantic corollaries added
+Files: Proofs/U64/{And,Or,Xor,Clz,Ctz,Clo,Min,Max,
+       Neq,Sub,WideningAdd,WrappingMul,
+       OverflowingSub,Shl}.lean
+Category: Good
+
+Each file gained a _semantic or _toU64 corollary
+that connects the _correct theorem to a toU64-level
+statement. Pattern: rw [original_correct]; apply
+bridge_lemma. All are sorry-free.
+
+### Finding: Cross-validation test suite added
+File: MidenLean/Tests/CrossValidation.lean (NEW)
+Category: Good
+
+30+ tests exercising MASM library procedures through
+Lean semantics against miden-vm Rust test vectors.
+Includes a complete u64 ProcEnv covering all 27 u64
+procedures. Tests use #eval with panic! on mismatch.
+
+### Finding: StepLemmas updated for clo change
+File: MidenLean/Proofs/StepLemmas.lean
+Category: Good
+
+stepU32Clo lemma updated to match the XOR-based
+u32CountLeadingOnes definition. No functional change
+to the step lemma's behavior, just tracks the
+definition update.

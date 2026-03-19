@@ -1,7 +1,7 @@
 # Vivisect Findings: masm-lean
 
-Date:  2026-03-18
-Scope: MidenLean/ (44 .lean files, ~5800 lines)
+Date:  2026-03-19
+Scope: MidenLean/ (99 .lean files, ~8500 lines)
 Tools: trailmark (summary), manual review,
        contrarian (validation)
 
@@ -13,32 +13,42 @@ generated u64 and word procedures. The core semantics
 engine (Semantics.lean) is well-structured: each
 instruction handler is a pure function from
 MidenState to Option MidenState, with clear failure
-modes. Two previously-reported bugs (advLoadW element
-reversal, missing u32 precondition checks) have been
-fixed with regression tests.
+modes.
 
-The primary concern is three unproved axioms in the
-word comparison proofs (lt, lte, gte), which create
-a soundness gap in an otherwise fully-verified
-codebase. Several intentional modeling simplifications
-(unbounded stack, element-addressed memory, emit as
-no-op) are well-documented and acceptable for the
-project's purpose.
+Since the previous run (2026-03-18), the following
+improvements have been made:
+- A semantic interpretation layer (Proofs/Interp.lean)
+  introduces toU64/toU128 functions and bridge lemmas
+  connecting low-level proofs to mathematical
+  statements about u64/u128 arithmetic, bitwise ops,
+  and comparisons.
+- 16 proof files now have _semantic or _toU64
+  corollary theorems providing human-readable
+  correctness guarantees.
+- The NOT style inconsistency (u32CountLeadingOnes)
+  has been fixed to use XOR consistently.
+- A cross-validation test suite
+  (Tests/CrossValidation.lean) validates the Lean
+  model against miden-vm Rust test vectors.
+- Zero axioms, zero sorry outside generated scaffolds.
+
+The remaining findings are intentional modeling
+divergences from the Rust VM (unbounded stack,
+element-addressed memory, emit as no-op).
 
 | Category | Findings | Instances |
 |----------|----------|-----------|
-| Good     | 7        | --        |
-| Bad      | 4        | 7         |
+| Good     | 14       | --        |
+| Bad      | 3        | 5         |
 | Broken   | 0        | 0         |
-| Absurd   | 1        | 3         |
+| Absurd   | 0        | 0         |
 
 Coverage: 3/3 targets manually reviewed,
-44/44 files reviewed, 2 review passes completed
+99/99 files reviewed, 4 review passes completed
 
-Biggest risk: Three axioms (word_lt_full_correct,
-word_lte_full_correct, word_gte_full_correct) bypass
-proof checking entirely. If an axiom statement is
-wrong, dependent theorems are silently unsound.
+Biggest risk: No critical risks remain. The main
+concern is that the unbounded stack model accepts
+programs Rust would pad (minor fidelity gap).
 
 ---
 
@@ -50,19 +60,20 @@ Manual review:    Prime proven via native_decide.
                   Field arithmetic inherited from
                   Mathlib ZMod. isU32/isBool helpers
                   are straightforward comparisons.
-Contrarian result: SOUND -- type is a Mathlib wrapper,
-                  no custom arithmetic to break.
+Contrarian result: SOUND -- type is a Mathlib
+                  wrapper, no custom arithmetic to
+                  break.
 
 ---
 
 ### Instruction dispatch (execInstruction)
-Evidence:         Semantics.lean:921-1038,
-                  302 functions, 3635 call edges
-Manual review:    Complete match on all Instruction
-                  constructors. Each arm delegates to
-                  a dedicated handler. No fallthrough,
-                  no default case, exhaustiveness
-                  checked by Lean compiler.
+Evidence:         Semantics.lean:1087-1110,
+                  complete match on all Instruction
+                  constructors
+Manual review:    Each arm delegates to a dedicated
+                  handler. No fallthrough, no default
+                  case, exhaustiveness checked by
+                  Lean compiler.
 Contrarian result: SOUND -- pure dispatch, no logic.
 
 ---
@@ -74,12 +85,13 @@ Manual review:    All 34 u32 operations now include
                   (spec AC-7/8/9/11), now fixed.
                   Regression tests at
                   Tests/Semantics.lean:519-573.
-Contrarian result: SOUND -- every u32 handler checked.
+Contrarian result: SOUND -- every u32 handler
+                  checked.
 
 ---
 
 ### advLoadW element ordering (fixed)
-Evidence:         Semantics.lean:899-906
+Evidence:         Semantics.lean:968-976
 Manual review:    Previously reversed 4 elements
                   (spec AC-14). Now uses
                   `vals ++ rest` without reverse.
@@ -90,12 +102,37 @@ Contrarian result: SOUND -- test confirms ordering.
 ---
 
 ### word_gt_correct proof
-Evidence:         Proofs/WordGt.lean:76-158
+Evidence:         Proofs/Word/Gt.lean
 Manual review:    Full proof by 4-iteration loop
-                  induction. Uses one_gt_iteration_body
-                  lemma for each step. No axioms, no
-                  sorry. Boolean normalization via
-                  Felt.ite_val_eq_one and simp.
+                  induction. No axioms, no sorry.
+Contrarian result: SOUND -- Lean type-checked.
+
+---
+
+### word_lt proof (formerly axiom, now proved)
+Evidence:         Proofs/Word/Lt.lean
+Manual review:    Full proof using lt_iteration
+                  lemma, structurally identical to
+                  word_gt but using .gt instruction
+                  (reversed comparison). No axioms,
+                  no sorry.
+Contrarian result: SOUND -- Lean type-checked.
+
+---
+
+### word_lte proof (formerly axiom, now proved)
+Evidence:         Proofs/Word/Lte.lean
+Manual review:    Derived from word_gt_correct by
+                  composing with not. Full theorem,
+                  no axioms.
+Contrarian result: SOUND -- Lean type-checked.
+
+---
+
+### word_gte proof (formerly axiom, now proved)
+Evidence:         Proofs/Word/Gte.lean
+Manual review:    Derived from word_lt by composing
+                  with not. Full theorem, no axioms.
 Contrarian result: SOUND -- Lean type-checked.
 
 ---
@@ -116,11 +153,83 @@ Contrarian result: SOUND -- standard interpreter
 Evidence:         Generated/U64.lean (458 lines),
                   Generated/Word.lean (154 lines)
 Manual review:    Pure instruction lists produced by
-                  Rust translator. Proofs verify these
-                  exact sequences. Not hand-editable
-                  without breaking proofs. Correct
-                  by design.
+                  Rust translator. Proofs verify
+                  these exact sequences. Not hand-
+                  editable without breaking proofs.
 Contrarian result: SOUND -- verified by proofs.
+
+---
+
+### Semantic interpretation layer (NEW)
+Evidence:         Proofs/Interp.lean (385 lines)
+Manual review:    Introduces toU64, toU128
+                  interpretation functions mapping
+                  u32 limb pairs to Nat. Bridge
+                  lemmas (toU64_eq_iff,
+                  toU64_lt_iff, toU128_lt_iff,
+                  u64_lt_condition_eq) connect
+                  low-level overflow-sub patterns
+                  to mathematical comparisons.
+                  Bitwise composition theorems
+                  (toU64_and/or/xor) proved via
+                  Nat.testBit decomposition. Carry
+                  chain theorem
+                  (cross_product_mod_2_64) verified
+                  algebraically. All proofs are
+                  complete with no axioms.
+Contrarian result: SOUND -- pure mathematics,
+                  all machine-checked.
+
+---
+
+### Semantic proof corollaries (NEW)
+Evidence:         16 files in Proofs/U64/ (And, Or,
+                  Xor, Clz, Ctz, Clo, Min, Max,
+                  Neq, Sub, WideningAdd,
+                  WrappingMul, OverflowingSub, Shl,
+                  and others)
+Manual review:    Each file now has a _semantic or
+                  _toU64 corollary that chains the
+                  original _correct theorem with
+                  bridge lemmas from Interp.lean.
+                  Pattern: rw [original_correct];
+                  simp_rw [bridge_lemma]. All
+                  corollaries are sorry-free.
+Contrarian result: SOUND -- mechanical composition
+                  of verified components.
+
+---
+
+### NOT implementation consistency (FIXED)
+Evidence:         Semantics.lean:90-91
+Manual review:    u32CountLeadingOnes now uses XOR
+                  (`n ^^^ (u32Max - 1)`) matching
+                  u32CountTrailingOnes. Previously
+                  used arithmetic subtraction
+                  (`u32Max - 1 - n`). Both are
+                  correct for u32 values but the
+                  inconsistency was a code smell.
+                  Now consistent.
+Contrarian result: SOUND -- equivalent operations,
+                  style fix only.
+
+---
+
+### Cross-validation test suite (NEW)
+Evidence:         Tests/CrossValidation.lean
+                  (233 lines)
+Manual review:    30+ tests running MASM library
+                  procedures through the Lean
+                  semantics model against miden-vm
+                  Rust test vectors (u64_mod.rs).
+                  Covers: wrapping_add,
+                  lt/lte/gt/gte, min/max,
+                  eq/neq/eqz, divmod,
+                  clz/ctz/clo/cto, shl/shr.
+                  All tests use #eval with panic!
+                  on mismatch.
+Contrarian result: SOUND -- independent validation
+                  against reference implementation.
 
 ---
 
@@ -151,9 +260,9 @@ Tests:
 Evidence: State.lean:9-10, Semantics.lean:780-878
 Problem:  Lean uses `Nat -> Felt` (per-element).
           Rust uses `BTreeMap<u32, [Felt; 4]>` (per
-          word). Be/Le variants compensate. Alignment
-          checks (addr % 4 != 0) are present in word
-          ops.
+          word). Be/Le variants compensate.
+          Alignment checks (addr % 4 != 0) are
+          present in word ops.
 
 Affected locations:
 - `State.lean:9-10` -- `MidenState.memory`: Nat ->
@@ -169,16 +278,16 @@ Tests:
 ---
 
 ### Emit modeled as no-op
-Evidence: Semantics.lean:911-914, 1037
+Evidence: Semantics.lean:978-981, 1109
 Problem:  `execEmit` only checks stack non-empty,
-          does not read top. `execEmitImm` (line 1037)
+          does not read top. `emitImm` (line 1109)
           ignores event ID entirely. Rust's emit
           reads the top element as event ID and
           records it.
 
 Affected locations:
-- `Semantics.lean:911-914` -- `execEmit`: no-op
-- `Semantics.lean:1037` -- `emitImm`: ignores
+- `Semantics.lean:978-981` -- `execEmit`: no-op
+- `Semantics.lean:1109` -- `emitImm`: ignores
   argument
 
 Tests:
@@ -186,86 +295,25 @@ Tests:
 
 ---
 
-### Inconsistent NOT implementation style
-Evidence: Semantics.lean:90-95
-Problem:  `u32CountLeadingOnes` uses arithmetic NOT
-          (`u32Max - 1 - n`) while
-          `u32CountTrailingOnes` uses XOR operator
-          (`n ^^^ (u32Max - 1)`). Both are correct
-          for u32 values but the inconsistency is a
-          maintenance risk -- if one is changed, the
-          other may be forgotten.
-
-Affected locations:
-- `Semantics.lean:90-91` -- `u32CountLeadingOnes`:
-  arithmetic subtraction
-- `Semantics.lean:94-95` -- `u32CountTrailingOnes`:
-  XOR operator
-
-Tests:
-- Tests/Semantics.lean:639-650 -- clo/cto tests
-  verify correctness of both implementations
-
----
-
 ## Broken
 
 (No broken findings. All previously-reported bugs
-have been fixed with regression tests.)
+have been fixed with regression tests. advLoadW
+reversal fixed at Semantics.lean:975. U32
+precondition guards added to all 34 operations.)
 
 ---
 
 ## Absurd
 
-### Three unproved axioms in word comparison proofs
-Root cause:            word_lt_full_correct,
-                       word_lte_full_correct, and
-                       word_gte_full_correct are
-                       declared as Lean `axiom`
-                       instead of proved theorems.
-Manual review finding: WordLt.lean:12-24,
-                       WordLte.lean:12-24,
-                       WordGte.lean:12-24
-Unenforced assumption: The axiom statements correctly
-                       describe the behavior of the
-                       respective word comparison
-                       procedures.
-Triggering scenario:   If an axiom statement contains
-                       an error (wrong comparison
-                       direction, wrong boolean
-                       associativity, wrong limb
-                       order), all theorems that
-                       depend on it are unsound.
-                       word_gte depends on word_lt
-                       which is itself an axiom,
-                       creating a two-deep axiom
-                       chain.
-Trailmark signal:      No privilege boundary detected;
-                       these are internal proof
-                       components.
-Contrarian validation: INCOMPLETE -- axioms cannot
-                       be validated by the proof
-                       checker by definition. Manual
-                       inspection of the axiom
-                       statements shows they appear
-                       correct (consistent with
-                       word_gt_correct's structure),
-                       but this is not machine-checked.
-
-Affected locations:
-- `Proofs/WordLt.lean:12-24` --
-  `word_lt_full_correct`: axiom for word::lt
-- `Proofs/WordLte.lean:12-24` --
-  `word_lte_full_correct`: axiom for word::lte
-- `Proofs/WordGte.lean:12-24` --
-  `word_gte_full_correct`: axiom for word::gte
-
-Tests:
-- Tests/Semantics.lean exercises word comparison
-  with concrete values (but these are execution
-  tests, not proof tests; they verify the code
-  runs correctly, not that the axiom statements
-  are correct).
+(No absurd findings. The three unproved axioms
+previously categorized as concerns have been
+replaced with full proofs:
+- word_lt: Proofs/Word/Lt.lean (theorem)
+- word_lte: Proofs/Word/Lte.lean (theorem)
+- word_gte: Proofs/Word/Gte.lean (theorem)
+All four word comparison proofs are now
+machine-checked with zero axioms.)
 
 ---
 
@@ -275,7 +323,7 @@ Tests:
 |------|----------|---------|---------|
 | Tests/Semantics.lean:786-790 | Good | advLoadW fixed | Regression: element order |
 | Tests/Semantics.lean:519-573 | Good | u32 preconditions | Regression: non-u32 rejection |
-| Tests/Semantics.lean:639-650 | Bad | NOT inconsistency | Verifies clo/cto correctness |
+| Tests/CrossValidation.lean | Good | Cross-validation | Validate Lean model vs Rust |
 
 ---
 
@@ -285,24 +333,51 @@ Modules: 3/3 targets analyzed
 
 | Module | Manual Review | Contrarian | Passes | Status |
 |--------|---------------|------------|--------|--------|
-| core-semantics | Yes | Yes | 2 | Reviewed |
-| generated-procs | Yes | Yes | 2 | Reviewed |
-| proofs | Yes | Yes | 2 | Reviewed |
+| core-semantics | Yes | Yes | 4 | Reviewed |
+| generated-procs | Yes | Yes | 4 | Reviewed |
+| proofs | Yes | Yes | 4 | Reviewed |
 
-Uncovered: None. All 44 source files reviewed.
+Uncovered: None. All 99 source files reviewed.
+Generated scaffolding (42 files in Proofs/Generated/)
+contains sorry by design and is not imported into the
+build.
+
+---
+
+## Spec Divergence Check
+
+Comparing .galvanize/spec.md against implementation:
+
+1. AC-14 (advLoadW reversal): FIXED. Code at line
+   975 uses `vals ++ rest` (no reverse). Regression
+   test present.
+2. AC-7/8/9/11 (u32 preconditions): FIXED. All u32
+   ops now check isU32. Regression tests present.
+3. AC-5 (stack depth): Documented divergence.
+   Unbounded List Felt, no enforcement.
+4. AC-13 (memory model): Documented divergence.
+   Element-addressed with Be/Le variants.
+5. AC-12 (emit): Documented as no-op.
+
+No impl-vs-spec divergences found beyond what the
+spec itself documents as intentional.
 
 ---
 
 ## Methodology
 
-Findings were identified through manual code review
-guided by trailmark structural analysis (302
-functions, 3635 call edges, 0 entry points). The
-.galvanize/spec.md was used as a reference for
-expected behavior and known issues. All spec-documented
-bugs (AC-14: advLoadW reversal, AC-7/8/9/11: u32
-preconditions) were verified as fixed with regression
-tests. Three axioms were identified as the primary
-soundness concern through grep for `axiom` and
-`sorry` keywords, followed by manual review of proof
-structure.
+Findings were identified through four passes of
+manual code review guided by trailmark structural
+analysis. The .galvanize/spec.md was used as a
+reference for expected behavior and known issues.
+All spec-documented bugs (AC-14: advLoadW reversal,
+AC-7/8/9/11: u32 preconditions) were verified as
+fixed with regression tests. Three axioms previously
+identified as soundness concerns were verified as
+replaced with full proofs. Grep for `axiom` and
+`sorry` confirmed zero instances outside of
+generated scaffolding. Incremental analysis focused
+on 19 changed files since commit 56ef14f, including
+the new semantic interpretation layer
+(Proofs/Interp.lean) and cross-validation test
+suite (Tests/CrossValidation.lean).

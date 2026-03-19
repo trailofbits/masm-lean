@@ -1,7 +1,7 @@
 # Vivisect Findings: masm-lean
 
 Date:  2026-03-19
-Scope: MidenLean/ (99 .lean files, ~7000 lines)
+Scope: MidenLean/ (99 .lean files, ~8500 lines)
 Tools: trailmark (summary), manual review,
        contrarian (validation)
 
@@ -15,29 +15,36 @@ instruction handler is a pure function from
 MidenState to Option MidenState, with clear failure
 modes.
 
-Two previously-reported bugs (advLoadW element
-reversal, missing u32 precondition checks) have been
-fixed with regression tests. Three previously-
-unproved axioms (word_lt, word_lte, word_gte) have
-been replaced with full proofs. The codebase now
-contains zero axioms and zero sorry outside of
-generated scaffolding (Proofs/Generated/, which is
-not imported into the build).
+Since the previous run (2026-03-18), the following
+improvements have been made:
+- A semantic interpretation layer (Proofs/Interp.lean)
+  introduces toU64/toU128 functions and bridge lemmas
+  connecting low-level proofs to mathematical
+  statements about u64/u128 arithmetic, bitwise ops,
+  and comparisons.
+- 16 proof files now have _semantic or _toU64
+  corollary theorems providing human-readable
+  correctness guarantees.
+- The NOT style inconsistency (u32CountLeadingOnes)
+  has been fixed to use XOR consistently.
+- A cross-validation test suite
+  (Tests/CrossValidation.lean) validates the Lean
+  model against miden-vm Rust test vectors.
+- Zero axioms, zero sorry outside generated scaffolds.
 
 The remaining findings are intentional modeling
 divergences from the Rust VM (unbounded stack,
-element-addressed memory, emit as no-op) and one
-minor code style inconsistency.
+element-addressed memory, emit as no-op).
 
 | Category | Findings | Instances |
 |----------|----------|-----------|
-| Good     | 10       | --        |
-| Bad      | 4        | 7         |
+| Good     | 14       | --        |
+| Bad      | 3        | 5         |
 | Broken   | 0        | 0         |
 | Absurd   | 0        | 0         |
 
 Coverage: 3/3 targets manually reviewed,
-99/99 files reviewed, 3 review passes completed
+99/99 files reviewed, 4 review passes completed
 
 Biggest risk: No critical risks remain. The main
 concern is that the unbounded stack model accepts
@@ -153,6 +160,79 @@ Contrarian result: SOUND -- verified by proofs.
 
 ---
 
+### Semantic interpretation layer (NEW)
+Evidence:         Proofs/Interp.lean (385 lines)
+Manual review:    Introduces toU64, toU128
+                  interpretation functions mapping
+                  u32 limb pairs to Nat. Bridge
+                  lemmas (toU64_eq_iff,
+                  toU64_lt_iff, toU128_lt_iff,
+                  u64_lt_condition_eq) connect
+                  low-level overflow-sub patterns
+                  to mathematical comparisons.
+                  Bitwise composition theorems
+                  (toU64_and/or/xor) proved via
+                  Nat.testBit decomposition. Carry
+                  chain theorem
+                  (cross_product_mod_2_64) verified
+                  algebraically. All proofs are
+                  complete with no axioms.
+Contrarian result: SOUND -- pure mathematics,
+                  all machine-checked.
+
+---
+
+### Semantic proof corollaries (NEW)
+Evidence:         16 files in Proofs/U64/ (And, Or,
+                  Xor, Clz, Ctz, Clo, Min, Max,
+                  Neq, Sub, WideningAdd,
+                  WrappingMul, OverflowingSub, Shl,
+                  and others)
+Manual review:    Each file now has a _semantic or
+                  _toU64 corollary that chains the
+                  original _correct theorem with
+                  bridge lemmas from Interp.lean.
+                  Pattern: rw [original_correct];
+                  simp_rw [bridge_lemma]. All
+                  corollaries are sorry-free.
+Contrarian result: SOUND -- mechanical composition
+                  of verified components.
+
+---
+
+### NOT implementation consistency (FIXED)
+Evidence:         Semantics.lean:90-91
+Manual review:    u32CountLeadingOnes now uses XOR
+                  (`n ^^^ (u32Max - 1)`) matching
+                  u32CountTrailingOnes. Previously
+                  used arithmetic subtraction
+                  (`u32Max - 1 - n`). Both are
+                  correct for u32 values but the
+                  inconsistency was a code smell.
+                  Now consistent.
+Contrarian result: SOUND -- equivalent operations,
+                  style fix only.
+
+---
+
+### Cross-validation test suite (NEW)
+Evidence:         Tests/CrossValidation.lean
+                  (233 lines)
+Manual review:    30+ tests running MASM library
+                  procedures through the Lean
+                  semantics model against miden-vm
+                  Rust test vectors (u64_mod.rs).
+                  Covers: wrapping_add,
+                  lt/lte/gt/gte, min/max,
+                  eq/neq/eqz, divmod,
+                  clz/ctz/clo/cto, shl/shr.
+                  All tests use #eval with panic!
+                  on mismatch.
+Contrarian result: SOUND -- independent validation
+                  against reference implementation.
+
+---
+
 ## Bad
 
 ### Unbounded stack model diverges from Rust
@@ -215,27 +295,6 @@ Tests:
 
 ---
 
-### Inconsistent NOT implementation style
-Evidence: Semantics.lean:90-95
-Problem:  `u32CountLeadingOnes` uses arithmetic NOT
-          (`u32Max - 1 - n`) while
-          `u32CountTrailingOnes` uses XOR operator
-          (`n ^^^ (u32Max - 1)`). Both are correct
-          for u32 values but the inconsistency is a
-          maintenance risk.
-
-Affected locations:
-- `Semantics.lean:90-91` -- `u32CountLeadingOnes`:
-  arithmetic subtraction
-- `Semantics.lean:94-95` -- `u32CountTrailingOnes`:
-  XOR operator
-
-Tests:
-- Tests/Semantics.lean:639-650 -- clo/cto tests
-  verify correctness of both implementations
-
----
-
 ## Broken
 
 (No broken findings. All previously-reported bugs
@@ -248,8 +307,8 @@ precondition guards added to all 34 operations.)
 ## Absurd
 
 (No absurd findings. The three unproved axioms
-previously categorized as Absurd have been replaced
-with full proofs:
+previously categorized as concerns have been
+replaced with full proofs:
 - word_lt: Proofs/Word/Lt.lean (theorem)
 - word_lte: Proofs/Word/Lte.lean (theorem)
 - word_gte: Proofs/Word/Gte.lean (theorem)
@@ -264,7 +323,7 @@ machine-checked with zero axioms.)
 |------|----------|---------|---------|
 | Tests/Semantics.lean:786-790 | Good | advLoadW fixed | Regression: element order |
 | Tests/Semantics.lean:519-573 | Good | u32 preconditions | Regression: non-u32 rejection |
-| Tests/Semantics.lean:639-650 | Bad | NOT inconsistency | Verifies clo/cto correctness |
+| Tests/CrossValidation.lean | Good | Cross-validation | Validate Lean model vs Rust |
 
 ---
 
@@ -274,9 +333,9 @@ Modules: 3/3 targets analyzed
 
 | Module | Manual Review | Contrarian | Passes | Status |
 |--------|---------------|------------|--------|--------|
-| core-semantics | Yes | Yes | 3 | Reviewed |
-| generated-procs | Yes | Yes | 3 | Reviewed |
-| proofs | Yes | Yes | 3 | Reviewed |
+| core-semantics | Yes | Yes | 4 | Reviewed |
+| generated-procs | Yes | Yes | 4 | Reviewed |
+| proofs | Yes | Yes | 4 | Reviewed |
 
 Uncovered: None. All 99 source files reviewed.
 Generated scaffolding (42 files in Proofs/Generated/)
@@ -307,7 +366,7 @@ spec itself documents as intentional.
 
 ## Methodology
 
-Findings were identified through three passes of
+Findings were identified through four passes of
 manual code review guided by trailmark structural
 analysis. The .galvanize/spec.md was used as a
 reference for expected behavior and known issues.
@@ -317,4 +376,8 @@ fixed with regression tests. Three axioms previously
 identified as soundness concerns were verified as
 replaced with full proofs. Grep for `axiom` and
 `sorry` confirmed zero instances outside of
-generated scaffolding.
+generated scaffolding. Incremental analysis focused
+on 19 changed files since commit 56ef14f, including
+the new semantic interpretation layer
+(Proofs/Interp.lean) and cross-validation test
+suite (Tests/CrossValidation.lean).
