@@ -220,3 +220,7 @@ stepU32Clo lemma updated to match the XOR-based
 u32CountLeadingOnes definition. No functional change
 to the step lemma's behavior, just tracks the
 definition update.
+
+---
+## Run 9 findings
+

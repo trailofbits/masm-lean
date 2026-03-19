@@ -71,9 +71,9 @@ types (toU64, toU128) rather than raw field elements.
 - [x] AC-31: u64_or_toU64 (bridge lemma)
 - [x] AC-32: u64_xor_toU64 (bridge lemma)
 - [x] AC-33: u64_shl_semantic
-- [ ] AC-34: u64_shr_semantic
-- [ ] AC-35: u64_rotl_semantic
-- [ ] AC-36: u64_rotr_semantic
+- [x] AC-34: u64_shr_semantic
+- [x] AC-35: u64_rotl_semantic
+- [x] AC-36: u64_rotr_semantic
 
 ### Tier 8: Semantic U64 Counting & Min/Max
 

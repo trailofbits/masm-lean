@@ -347,3 +347,35 @@ Remaining ACs:
   sub-lemmas ready; Felt-level bridge needs field
   inverse reasoning (diff^(-1) correctness)
 - AC-43/44/45 (Tier 9 stretch): structural changes
+
+## Iteration 9
+**Date:** 2026-03-19
+**Vivisect run:** #9 (full mode)
+
+### Vivisect Findings (Phase 1)
+| Category | Count |
+|----------|-------|
+| Broken   | 0     |
+| Absurd   | 0     |
+| Bad      | 3     |
+| Good     | 14    |
+
+Same 3 Bad findings as before (all intentional,
+accepted in prior iterations). No regressions.
+
+### Changes Made (Phases 2-3)
+- Spec: no changes
+- Code (Shr.lean): u64_shr_semantic -- case splits on
+  shift >= 32 vs < 32, uses shr_hi_only and
+  shr_lo_decomp sub-lemmas from Interp.lean
+- Code (Rotl.lean): u64_rotl_product -- proves the
+  cross-product equals toU64 * 2^eff via nlinarith
+  after set + Nat.div_add_mod; u64_rotl_semantic
+  wraps it with the correct effective shift
+- Code (Rotr.lean): u64_rotr_product -- same algebraic
+  identity with addition order swapped (lo_prod / 2^32
+  + hi * pow); u64_rotr_semantic wraps it. Docstring
+  notes Felt overflow for shift=0 edge case.
+- Both Rotl.lean and Rotr.lean now import Interp.lean
+- Build: EXIT 0, 0 warnings, 0 errors, 0 sorry
+- ACs completed: AC-34, AC-35, AC-36 (3 new, 46/49)

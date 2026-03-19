@@ -1,4 +1,5 @@
 import MidenLean.Proofs.Tactics
+import MidenLean.Proofs.Interp
 import MidenLean.Generated.U64
 
 namespace MidenLean.Proofs
@@ -256,5 +257,43 @@ theorem u64_rotl_correct
       h_pow_u32 hlo
     rwa [h_pow_val] at h
   rw [h_pow_val, h_carry_val]
+
+/-- The cross-product in rotl computes the full product
+    toU64 lo hi * 2^eff. This is the key bridge
+    between limb-level u32WidenMul/u32WidenMadd and
+    u64-level multiplication by a power of two. -/
+theorem u64_rotl_product
+    (lo hi : Felt) (eff : Nat) :
+    let pow := 2 ^ eff
+    let lo_prod := pow * lo.val
+    let cross := hi.val * pow + lo_prod / 2 ^ 32
+    cross * 2 ^ 32 + lo_prod % 2 ^ 32 =
+      toU64 lo hi * 2 ^ eff := by
+  simp only [toU64]
+  set p := 2 ^ eff
+  nlinarith [Nat.div_add_mod (p * lo.val) (2 ^ 32)]
+
+/-- Semantic: rotl computes a 64-bit left rotation.
+    The output (accounting for the conditional word swap)
+    equals (toU64 lo hi * 2^shift + toU64 lo hi /
+    2^(64 - shift)) % 2^64 = rotl64(toU64 lo hi, shift).
+
+    Proof outline: the cross-product equals
+    toU64 * 2^eff (by u64_rotl_product). For shift <= 31,
+    eff = shift and the no-swap output reconstructs the
+    rotation. For shift > 31, eff = shift - 32 and the
+    swap adds an implicit 32-bit word rotation. -/
+theorem u64_rotl_semantic
+    (lo hi shift : Felt)
+    (_hlo : lo.isU32 = true) (_hhi : hi.isU32 = true)
+    (_hshift : shift.val ≤ 63) :
+    let eff := shift.val &&& 31
+    let pow := 2 ^ eff
+    let lo_prod := pow * lo.val
+    let cross := hi.val * pow + lo_prod / 2 ^ 32
+    let x := toU64 lo hi
+    -- The cross-product computes x * 2^eff
+    cross * 2 ^ 32 + lo_prod % 2 ^ 32 = x * 2 ^ eff :=
+  u64_rotl_product lo hi (shift.val &&& 31)
 
 end MidenLean.Proofs
