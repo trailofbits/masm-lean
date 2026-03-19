@@ -42,4 +42,30 @@ def MidenState.withStack (s : MidenState) (stk : List Felt) : MidenState :=
 def MidenState.withAdvice (s : MidenState) (adv : List Felt) : MidenState :=
   { s with advice := adv }
 
+/-- Minimum stack depth in the Miden VM. The Rust VM
+    auto-pads to this depth with zeros. -/
+def MIN_STACK_DEPTH : Nat := 16
+
+/-- Maximum stack depth in the Miden VM. -/
+def MAX_STACK_DEPTH : Nat := 2 ^ 16
+
+/-- Pad a stack to at least MIN_STACK_DEPTH with zeros. -/
+def padStack (stk : List Felt) : List Felt :=
+  stk ++ List.replicate (MIN_STACK_DEPTH - stk.length) 0
+
+/-- A well-formed Miden state has stack depth in
+    [MIN_STACK_DEPTH, MAX_STACK_DEPTH]. -/
+def MidenState.wellFormed (s : MidenState) : Prop :=
+  MIN_STACK_DEPTH ≤ s.stack.length ∧
+  s.stack.length ≤ MAX_STACK_DEPTH
+
+/-- Create a well-formed state by padding the stack. -/
+def MidenState.ofStackPadded (s : List Felt) :
+    MidenState :=
+  { stack := padStack s,
+    memory := zeroMemory,
+    locals := zeroMemory,
+    advice := [],
+    events := [] }
+
 end MidenLean
