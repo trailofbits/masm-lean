@@ -46,17 +46,15 @@ theorem u64_clz_correct (lo hi : Felt) (rest : List Felt) (s : MidenState)
   -- Case split on whether hi == 0
   by_cases h : hi == (0 : Felt)
   · -- Case: hi == 0 (then branch)
-    simp only [h, ite_true, ite_false, MidenState.withStack]
+    simp [h, MidenState.withStack]
     unfold execWithEnv; simp only [List.foldlM]
     rw [stepDrop]; miden_bind
     rw [stepU32Clz (ha := hlo)]; miden_bind
-    rw [stepAddImm]; dsimp only [bind, Bind.bind, Option.bind, pure, Pure.pure]
-    simp
+    rw [stepAddImm]
   · -- Case: hi != 0 (else branch)
-    simp only [h, ite_false, ite_true, MidenState.withStack]
+    simp [h, MidenState.withStack]
     unfold execWithEnv; simp only [List.foldlM]
-    simp (config := { decide := true }) only [ite_false, ite_true,
-      bind, Bind.bind, Option.bind, pure, Pure.pure, MidenState.withStack]
+    simp (config := { decide := true }) only [bind, Bind.bind, Option.bind, pure, Pure.pure]
     rw [stepSwap (hn := by decide) (htop := rfl) (hnth := rfl)]; miden_bind
     rw [stepDrop]; miden_bind
     rw [stepU32Clz (ha := hhi)]

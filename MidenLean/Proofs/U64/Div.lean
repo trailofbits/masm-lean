@@ -1,4 +1,4 @@
-import MidenLean.Proofs.U64
+import MidenLean.Proofs.U64.Common
 import MidenLean.Proofs.U64.Divmod
 import MidenLean.Proofs.Tactics
 import MidenLean.Generated.U64
@@ -67,7 +67,6 @@ theorem u64_div_correct
            locals := s.locals,
            advice := adv_rest } := by
   obtain ⟨stk, mem, locs, adv⟩ := s
-  simp only [MidenState.withStack] at hs ⊢
   simp only [] at hadv
   subst hs; subst hadv
   -- Unfold div: exec "divmod"; drop; drop

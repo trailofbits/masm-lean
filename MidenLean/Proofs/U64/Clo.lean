@@ -46,16 +46,14 @@ theorem u64_clo_correct (lo hi : Felt) (rest : List Felt) (s : MidenState)
   miden_dup
   rw [stepEqImm]; miden_bind
   by_cases h : hi == (4294967295 : Felt)
-  · simp only [h, ite_true, ite_false, MidenState.withStack]
+  · simp [h, MidenState.withStack]
     unfold execWithEnv; simp only [List.foldlM]
     rw [stepDrop]; miden_bind
     rw [stepU32Clo (ha := hlo)]; miden_bind
-    rw [stepAddImm]; dsimp only [bind, Bind.bind, Option.bind, pure, Pure.pure]
-    simp
-  · simp only [h, ite_false, ite_true, MidenState.withStack]
+    rw [stepAddImm]
+  · simp [h, MidenState.withStack]
     unfold execWithEnv; simp only [List.foldlM]
-    simp (config := { decide := true }) only [ite_false, ite_true,
-      bind, Bind.bind, Option.bind, pure, Pure.pure, MidenState.withStack]
+    simp (config := { decide := true }) only [bind, Bind.bind, Option.bind, pure, Pure.pure]
     rw [stepSwap (hn := by decide) (htop := rfl) (hnth := rfl)]; miden_bind
     rw [stepDrop]; miden_bind
     rw [stepU32Clo (ha := hhi)]

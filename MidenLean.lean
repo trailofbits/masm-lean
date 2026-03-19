@@ -9,8 +9,7 @@ import MidenLean.Proofs.SimpAttrs
 import MidenLean.Proofs.Helpers
 import MidenLean.Proofs.StepLemmas
 import MidenLean.Proofs.Tactics
-import MidenLean.Proofs.Word
-import MidenLean.Proofs.U64
+import MidenLean.Proofs.U64.Common
 import MidenLean.Proofs.U64.Eq
 import MidenLean.Proofs.U64.Sub
 import MidenLean.Proofs.U64.OverflowingSub
@@ -40,7 +39,9 @@ import MidenLean.Proofs.U64.Shl
 import MidenLean.Proofs.U64.Shr
 import MidenLean.Proofs.U64.WideningMul
 import MidenLean.Proofs.Word.Testz
+import MidenLean.Proofs.Word.Eqz
 import MidenLean.Proofs.Word.Reverse
+import MidenLean.Proofs.Word.StoreWordU32sLe
 import MidenLean.Proofs.Word.Arrange
 import MidenLean.Proofs.Word.Eq
 import MidenLean.Proofs.Word.TestEq
