@@ -1,4 +1,4 @@
-import MidenLean.Proofs.U64
+import MidenLean.Proofs.U64.Common
 import MidenLean.Proofs.Tactics
 import MidenLean.Proofs.Interp
 import MidenLean.Generated.U64
