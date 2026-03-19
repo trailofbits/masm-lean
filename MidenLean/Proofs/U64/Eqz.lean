@@ -8,7 +8,7 @@ open MidenLean.StepLemmas
 open MidenLean.Tactics
 
 set_option maxHeartbeats 4000000 in
-/-- u64.eqz correctly tests whether a u64 value is zero.
+/-- `u64::eqz` correctly tests whether a u64 value is zero.
     Input stack:  [lo, hi] ++ rest
     Output stack: [is_zero] ++ rest
     where is_zero = 1 iff both input limbs are zero. -/

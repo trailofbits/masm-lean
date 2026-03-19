@@ -7,7 +7,7 @@ open MidenLean
 open MidenLean.StepLemmas
 open MidenLean.Tactics
 
-/-- word.reverse correctly reverses the first four stack elements.
+/-- `word::reverse` correctly reverses the first four stack elements.
     Input stack:  [a, b, c, d] ++ rest
     Output stack: [d, c, b, a] ++ rest -/
 theorem word_reverse_correct (a b c d : Felt) (rest : List Felt) (s : MidenState)

@@ -9,7 +9,7 @@ open MidenLean.StepLemmas
 open MidenLean.Tactics
 
 set_option maxHeartbeats 4000000 in
-/-- u64.widening_add correctly computes widening addition of two u64 values.
+/-- `u64::widening_add` correctly computes widening addition of two u64 values.
     Input stack:  [b_lo, b_hi, a_lo, a_hi] ++ rest
     Output stack: [c_lo, c_hi, overflow] ++ rest
     where (c_hi, c_lo) is the 64-bit sum and overflow is the carry bit. -/

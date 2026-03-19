@@ -8,7 +8,7 @@ open MidenLean.StepLemmas
 open MidenLean.Tactics
 
 set_option maxHeartbeats 4000000 in
-/-- u128.neq correctly tests inequality of two 128-bit values.
+/-- `u128::neq` correctly tests inequality of two 128-bit values.
     Input stack:  [b0, b1, b2, b3, a0, a1, a2, a3] ++ rest
     Output stack: [result] ++ rest
     where result = 1 iff some limb of `a` differs from the corresponding limb of `b`. -/

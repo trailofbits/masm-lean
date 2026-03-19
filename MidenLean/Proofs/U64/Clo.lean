@@ -8,7 +8,7 @@ open MidenLean.StepLemmas
 open MidenLean.Tactics
 
 set_option maxHeartbeats 8000000 in
-/-- u64.clo correctly counts leading ones of a u64 value.
+/-- `u64::clo` correctly counts leading ones of a u64 value.
     Input stack:  [lo, hi] ++ rest
     Output stack: [result] ++ rest
     where result = if hi == 0xFFFFFFFF then clo(lo) + 32 else clo(hi).

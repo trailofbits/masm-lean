@@ -320,7 +320,7 @@ private theorem shr_chunk3_correct
   rfl
 
 set_option maxHeartbeats 16000000 in
-/-- u64.shr correctly right-shifts a u64 value.
+/-- `u64::shr` correctly right-shifts a u64 value.
     Input stack:  [shift, lo, hi] ++ rest
     Output stack: [result_lo, result_hi] ++ rest -/
 theorem u64_shr_correct

@@ -195,7 +195,7 @@ private theorem rotl_chunk4_correct
   cases decide (31 < shift.val) <;> simp only [pure, Pure.pure]
 
 set_option maxHeartbeats 16000000 in
-/-- u64.rotl correctly left-rotates a u64 value.
+/-- `u64::rotl` correctly left-rotates a u64 value.
     Input stack:  [shift, lo, hi] ++ rest
     Output stack: [result_lo, result_hi] ++ rest
     Requires shift, lo, and hi to be u32 values. -/

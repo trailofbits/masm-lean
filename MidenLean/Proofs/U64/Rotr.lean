@@ -211,7 +211,7 @@ private theorem rotr_chunk4_correct
   cases p <;> simp only [pure, Pure.pure]
 
 set_option maxHeartbeats 16000000 in
-/-- u64.rotr correctly right-rotates a u64 value.
+/-- `u64::rotr` correctly right-rotates a u64 value.
     Input stack:  [shift, lo, hi] ++ rest
     Output stack: [result_lo, result_hi] ++ rest
     Requires shift.isU32 (for u32Lt and u32And). -/

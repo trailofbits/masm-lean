@@ -1,3 +1,4 @@
+import MidenLean.Proofs.U128.Common
 import MidenLean.Proofs.Tactics
 import MidenLean.Generated.U128
 
@@ -102,7 +103,7 @@ private def stage3b (a0 a1 a2 a3 b0 b1 b2 b3 : Felt) (rest : List Felt) : List F
 
 def u128OverflowingSubResult
     (a0 a1 a2 a3 b0 b1 b2 b3 : Felt) (rest : List Felt) : List Felt :=
-  borrow3 a0 a1 a2 a3 b0 b1 b2 b3 ::
+  (if u128LtBool a0 a1 a2 a3 b0 b1 b2 b3 then (1 : Felt) else 0) ::
   Felt.ofNat (sub0 a0 b0).2 ::
   Felt.ofNat (sub1Adj a0 a1 b0 b1).2 ::
   Felt.ofNat (sub2Adj a0 a1 a2 b0 b1 b2).2 ::
@@ -399,8 +400,8 @@ private theorem chunk8_correct
   miden_movdn
   miden_swap
   miden_movup
-  simp only [u128OverflowingSubResult, borrow3, sub3Adj, sub3, borrow2, sub2Adj, sub2, borrow1,
-    sub1Adj, sub1, sub0]
+  simp only [u128OverflowingSubResult, u128LtBool, u128Borrow1, u128Borrow2, u128Sub0, u128Sub1,
+    u128Sub2, u128Sub3, sub3Adj, sub3, borrow2, sub2Adj, sub2, borrow1, sub1Adj, sub1, sub0]
   dsimp only [pure, Pure.pure]
 
 set_option maxHeartbeats 12000000 in
@@ -440,7 +441,7 @@ theorem u128_overflowing_sub_run
   exact chunk8_correct env fuel a0 a1 a2 a3 b0 b1 b2 b3 rest mem locs adv
 
 set_option maxHeartbeats 8000000 in
-/-- u128.overflowing_sub correctly computes subtraction of two 128-bit values with borrow.
+/-- `u128::overflowing_sub` correctly computes subtraction of two 128-bit values with borrow.
     Input stack:  [b0, b1, b2, b3, a0, a1, a2, a3] ++ rest
     Output stack: [borrow, d0, d1, d2, d3] ++ rest
     where `d0..d3` are the low-to-high limbs of `a - b`,

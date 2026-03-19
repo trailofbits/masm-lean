@@ -422,7 +422,7 @@ private theorem divmod_chunk3b_correct
   simp only [pure, Pure.pure]
 
 set_option maxHeartbeats 16000000 in
-/-- u64.divmod checks the advised quotient and remainder for a 64-bit division.
+/-- `u64::divmod` checks the advised quotient and remainder for a 64-bit division.
     Input stack:  [b_lo, b_hi, a_lo, a_hi] ++ rest
     Advice stack: [q_lo, q_hi, r_lo, r_hi] ++ adv_rest
     Output stack: [r_hi, r_lo, q_hi, q_lo] ++ rest. -/

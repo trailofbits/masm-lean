@@ -37,7 +37,7 @@ private theorem stepMemStorewLeLocal
   simp [hlt, ha_aligned, MidenState.writeMemory, MidenState.withStack]
 
 set_option maxHeartbeats 8000000 in
-/-- word.store_word_u32s_le correctly writes a word to memory as eight u32 limbs in
+/-- `word::store_word_u32s_le` correctly writes a word to memory as eight u32 limbs in
     little-endian order.
     Input stack:  [w0, w1, w2, w3, out_ptr] ++ rest
     Output stack: rest

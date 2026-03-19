@@ -8,7 +8,7 @@ open MidenLean.StepLemmas
 open MidenLean.Tactics
 
 set_option maxHeartbeats 8000000 in
-/-- u64.cto correctly counts trailing ones of a u64 value.
+/-- `u64::cto` correctly counts trailing ones of a u64 value.
     Input stack:  [lo, hi] ++ rest
     Output stack: [result] ++ rest
     where result = if lo == 0xFFFFFFFF then cto(hi) + 32 else cto(lo).

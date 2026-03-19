@@ -8,7 +8,7 @@ open MidenLean.StepLemmas
 open MidenLean.Tactics
 
 set_option maxHeartbeats 4000000 in
-/-- word.eqz correctly tests whether a word is zero.
+/-- `word::eqz` correctly tests whether a word is zero.
     Input stack:  [a, b, c, d] ++ rest
     Output stack: [is_zero] ++ rest
     where is_zero = 1 iff all four input elements are zero. -/

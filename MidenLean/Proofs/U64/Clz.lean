@@ -8,7 +8,7 @@ open MidenLean.StepLemmas
 open MidenLean.Tactics
 
 set_option maxHeartbeats 8000000 in
-/-- u64.clz correctly counts leading zeros of a u64 value.
+/-- `u64::clz` correctly counts leading zeros of a u64 value.
     Input stack:  [lo, hi] ++ rest
     Output stack: [result] ++ rest
     where result = if hi == 0 then clz(lo) + 32 else clz(hi). -/

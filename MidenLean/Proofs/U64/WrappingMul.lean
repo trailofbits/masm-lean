@@ -8,7 +8,7 @@ open MidenLean.StepLemmas
 open MidenLean.Tactics
 
 set_option maxHeartbeats 8000000 in
-/-- u64.wrapping_mul correctly computes the low 64 bits of the product of two u64 values.
+/-- `u64::wrapping_mul` correctly computes the low 64 bits of the product of two u64 values.
     Input stack:  [b_lo, b_hi, a_lo, a_hi] ++ rest
     Output stack: [c_lo, c_hi] ++ rest
     where c_lo is the low 32 bits and c_hi the high 32 bits of (a * b) mod 2^64.

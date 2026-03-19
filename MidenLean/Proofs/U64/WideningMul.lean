@@ -236,7 +236,7 @@ private theorem widening_mul_chunk2_correct
   simp only [pure, Pure.pure]
 
 set_option maxHeartbeats 12000000 in
-/-- u64.widening_mul correctly computes the full 128-bit product of two u64 values.
+/-- `u64::widening_mul` correctly computes the full 128-bit product of two u64 values.
     Input stack:  [b_lo, b_hi, a_lo, a_hi] ++ rest
     Output stack: [c0, c1, c2, c3] ++ rest
     where (c3, c2, c1, c0) is the 128-bit product a * b.
