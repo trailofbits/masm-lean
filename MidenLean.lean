@@ -5,6 +5,7 @@ import MidenLean.Op
 import MidenLean.Semantics
 import MidenLean.Generated.Word
 import MidenLean.Generated.U64
+import MidenLean.Generated.U128
 import MidenLean.Proofs.SimpAttrs
 import MidenLean.Proofs.Helpers
 import MidenLean.Proofs.StepLemmas
@@ -38,6 +39,17 @@ import MidenLean.Proofs.U64.Rotr
 import MidenLean.Proofs.U64.Shl
 import MidenLean.Proofs.U64.Shr
 import MidenLean.Proofs.U64.WideningMul
+import MidenLean.Proofs.U128.Common
+import MidenLean.Proofs.U128.And
+import MidenLean.Proofs.U128.Eq
+import MidenLean.Proofs.U128.Eqz
+import MidenLean.Proofs.U128.Not
+import MidenLean.Proofs.U128.Neq
+import MidenLean.Proofs.U128.Or
+import MidenLean.Proofs.U128.OverflowingAdd
+import MidenLean.Proofs.U128.WideningAdd
+import MidenLean.Proofs.U128.WrappingAdd
+import MidenLean.Proofs.U128.Xor
 import MidenLean.Proofs.Word.Testz
 import MidenLean.Proofs.Word.Eqz
 import MidenLean.Proofs.Word.Reverse
