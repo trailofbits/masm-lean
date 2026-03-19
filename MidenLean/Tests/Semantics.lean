@@ -6,6 +6,8 @@
   string on failure, so `lake build` success implies all tests pass.
 -/
 import MidenLean.Semantics
+import MidenLean.Proofs.U64
+import MidenLean.Generated.U64
 
 namespace MidenLean.Tests
 
@@ -933,6 +935,359 @@ private def u32max : Nat := 2^32
   unless checkStack r [] do panic! "whileTrue: basic failed"
 
 -- ============================================================================
+-- Coverage: Missing instruction tests
+-- ============================================================================
+-- Tests for every instruction not yet covered above.
+
+-- nop: does nothing
+#eval do
+  let s := mkState [1, 2, 3]
+  let r := runInst s .nop
+  unless checkStack r [1, 2, 3] do panic! "nop: should not change stack"
+
+-- assertWithError: same as assert but with error message
+#eval do
+  let s := mkState [1, 99]
+  let r := runInst s (.assertWithError "test")
+  unless checkStack r [99] do panic! "assertWithError: 1 should pass"
+
+#eval do
+  let s := mkState [0, 99]
+  let r := runInst s (.assertWithError "test")
+  unless checkNone r do panic! "assertWithError: 0 should fail"
+
+-- assertzWithError
+#eval do
+  let s := mkState [0, 99]
+  let r := runInst s (.assertzWithError "test")
+  unless checkStack r [99] do panic! "assertzWithError: 0 should pass"
+
+-- assertEqWithError
+#eval do
+  let s := mkState [5, 5, 99]
+  let r := runInst s (.assertEqWithError "test")
+  unless checkStack r [99] do panic! "assertEqWithError: equal should pass"
+
+#eval do
+  let s := mkState [5, 6, 99]
+  let r := runInst s (.assertEqWithError "test")
+  unless checkNone r do panic! "assertEqWithError: unequal should fail"
+
+-- assertEqw: compare two words
+#eval do
+  let s := mkState [1, 2, 3, 4, 1, 2, 3, 4]
+  let r := runInst s .assertEqw
+  unless checkStack r [] do panic! "assertEqw: equal words should pass"
+
+#eval do
+  let s := mkState [1, 2, 3, 4, 1, 2, 3, 5]
+  let r := runInst s .assertEqw
+  unless checkNone r do panic! "assertEqw: unequal words should fail"
+
+-- dupw: duplicate a word
+#eval do
+  let s := mkState [10, 20, 30, 40, 50]
+  let r := runInst s (.dupw 0)
+  unless checkStack r [10, 20, 30, 40, 10, 20, 30, 40, 50] do
+    panic! "dupw 0: should duplicate top word"
+
+-- swapw: swap word groups
+#eval do
+  let s := mkState [1, 2, 3, 4, 5, 6, 7, 8]
+  let r := runInst s (.swapw 1)
+  unless checkStack r [5, 6, 7, 8, 1, 2, 3, 4] do
+    panic! "swapw 1: should swap words"
+
+-- movupw: move word up
+#eval do
+  let s := mkState [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+  let r := runInst s (.movupw 2)
+  unless checkStack r [9, 10, 11, 12, 1, 2, 3, 4, 5, 6, 7, 8] do
+    panic! "movupw 2: should bring word 2 to top"
+
+-- movdnw: move word down
+#eval do
+  let s := mkState [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+  let r := runInst s (.movdnw 2)
+  unless checkStack r [5, 6, 7, 8, 9, 10, 11, 12, 1, 2, 3, 4] do
+    panic! "movdnw 2: should push top word to position 2"
+
+-- cdropw: conditional drop word
+#eval do
+  let s := mkState [1, 10, 20, 30, 40, 50, 60, 70, 80]
+  let r := runInst s .cdropw
+  -- condition=1: keep first word (b), drop second (a)
+  unless checkStack r [10, 20, 30, 40] do
+    panic! "cdropw: cond=1 should keep first word"
+
+#eval do
+  let s := mkState [0, 10, 20, 30, 40, 50, 60, 70, 80]
+  let r := runInst s .cdropw
+  -- condition=0: keep second word (a), drop first (b)
+  unless checkStack r [50, 60, 70, 80] do
+    panic! "cdropw: cond=0 should keep second word"
+
+-- pushList
+#eval do
+  let s := mkState [99]
+  let r := runInst s (.pushList [1, 2, 3])
+  unless checkStack r [1, 2, 3, 99] do panic! "pushList: should prepend"
+
+-- addImm, subImm, mulImm, divImm
+#eval do
+  let s := mkState [10]
+  let r := runInst s (.addImm 5)
+  unless checkStack r [15] do panic! "addImm: 10+5=15"
+
+#eval do
+  let s := mkState [10]
+  let r := runInst s (.subImm 3)
+  unless checkStack r [7] do panic! "subImm: 10-3=7"
+
+#eval do
+  let s := mkState [6]
+  let r := runInst s (.mulImm 7)
+  unless checkStack r [42] do panic! "mulImm: 6*7=42"
+
+#eval do
+  let s := mkState [10]
+  let r := runInst s (.divImm 2)
+  -- field div: 10 * 2^(-1) mod p
+  match r with
+  | some s' =>
+    -- 2^(-1) mod p is (p+1)/2
+    let expected : Felt := 10 * (2 : Felt)⁻¹
+    unless s'.stack[0]! == expected do panic! "divImm: should be 10/2 in field"
+  | none => panic! "divImm should not fail"
+
+-- eqImm, neqImm
+#eval do
+  let s := mkState [42]
+  let r := runInst s (.eqImm 42)
+  unless checkStack r [1] do panic! "eqImm: 42==42 should give 1"
+
+#eval do
+  let s := mkState [42]
+  let r := runInst s (.eqImm 43)
+  unless checkStack r [0] do panic! "eqImm: 42==43 should give 0"
+
+#eval do
+  let s := mkState [42]
+  let r := runInst s (.neqImm 43)
+  unless checkStack r [1] do panic! "neqImm: 42!=43 should give 1"
+
+-- emit: no-op (just needs stack depth >= 1)
+#eval do
+  let s := mkState [42, 99]
+  let r := runInst s .emit
+  unless checkStack r [42, 99] do panic! "emit: should be no-op"
+
+-- emitImm: no-op
+#eval do
+  let s := mkState [99]
+  let r := runInst s (.emitImm 12345)
+  unless checkStack r [99] do panic! "emitImm: should be no-op"
+
+-- u32Assert2
+#eval do
+  let s := mkState [10, 20, 99]
+  let r := runInst s .u32Assert2
+  unless checkStack r [10, 20, 99] do panic! "u32Assert2: valid should pass"
+
+#eval do
+  let s := mkState [Felt.ofNat (2^32), 20]
+  let r := runInst s .u32Assert2
+  unless checkNone r do panic! "u32Assert2: invalid should fail"
+
+-- u32AssertW
+#eval do
+  let s := mkState [1, 2, 3, 4, 99]
+  let r := runInst s .u32AssertW
+  unless checkStack r [1, 2, 3, 4, 99] do panic! "u32AssertW: valid should pass"
+
+-- u32TestW
+#eval do
+  let s := mkState [1, 2, 3, 4]
+  let r := runInst s .u32TestW
+  match r with
+  | some s' => unless s'.stack[0]! == (1 : Felt) do panic! "u32TestW: valid u32s should give 1"
+  | none => panic! "u32TestW should not fail"
+
+-- u32WrappingSub
+#eval do
+  let s := mkState [3, 10]
+  let r := runInst s .u32WrappingSub
+  unless checkStack r [7] do panic! "u32WrappingSub: 10-3=7"
+
+-- u32WrappingMul
+#eval do
+  let s := mkState [3, 7]
+  let r := runInst s .u32WrappingMul
+  unless checkStack r [21] do panic! "u32WrappingMul: 7*3=21"
+
+-- u32WrappingMadd
+#eval do
+  let s := mkState [3, 7, 100]
+  let r := runInst s .u32WrappingMadd
+  unless checkStack r [121] do panic! "u32WrappingMadd: (7*3+100)%2^32=121"
+
+-- u32OverflowAdd3
+#eval do
+  let s := mkState [10, 20, 30]
+  let r := runInst s .u32OverflowAdd3
+  -- a=30, b=20, c=10 -> sum=60, carry=0
+  unless checkStack r [0, 60] do panic! "u32OverflowAdd3: 30+20+10"
+
+-- u32WrappingAdd3
+#eval do
+  let s := mkState [10, 20, 30]
+  let r := runInst s .u32WrappingAdd3
+  unless checkStack r [60] do panic! "u32WrappingAdd3: 30+20+10=60"
+
+-- u32Mod
+#eval do
+  let s := mkState [3, 10]
+  let r := runInst s .u32Mod
+  unless checkStack r [1] do panic! "u32Mod: 10%3=1"
+
+-- u32Gte
+#eval do
+  let s := mkState [5, 10]
+  let r := runInst s .u32Gte
+  unless checkStack r [1] do panic! "u32Gte: 10>=5 should give 1"
+
+#eval do
+  let s := mkState [10, 5]
+  let r := runInst s .u32Gte
+  unless checkStack r [0] do panic! "u32Gte: 5>=10 should give 0"
+
+-- u32ShlImm, u32ShrImm
+#eval do
+  let s := mkState [5]
+  let r := runInst s (.u32ShlImm 3)
+  unless checkStack r [40] do panic! "u32ShlImm: 5<<3=40"
+
+#eval do
+  let s := mkState [40]
+  let r := runInst s (.u32ShrImm 3)
+  unless checkStack r [5] do panic! "u32ShrImm: 40>>3=5"
+
+-- u32Rotl, u32RotlImm
+#eval do
+  let s := mkState [1, 0x80000001]
+  let r := runInst s .u32Rotl
+  -- rotate 0x80000001 left by 1: 0x00000003
+  unless checkStack r [3] do panic! "u32Rotl: 0x80000001 rotl 1 = 3"
+
+#eval do
+  let s := mkState [0x80000001]
+  let r := runInst s (.u32RotlImm 1)
+  unless checkStack r [3] do panic! "u32RotlImm: 0x80000001 rotl 1 = 3"
+
+-- u32Rotr, u32RotrImm
+#eval do
+  let s := mkState [1, 3]
+  let r := runInst s .u32Rotr
+  -- rotate 3 right by 1: 0x80000001
+  unless checkStack r [0x80000001] do panic! "u32Rotr: 3 rotr 1"
+
+#eval do
+  let s := mkState [3]
+  let r := runInst s (.u32RotrImm 1)
+  unless checkStack r [0x80000001] do panic! "u32RotrImm: 3 rotr 1"
+
+-- memLoadImm
+#eval do
+  let s := mkState [42]
+  let r1 := runInst s (.memStoreImm 5)  -- store 42 at addr 5
+  match r1 with
+  | some s1 =>
+    let r2 := runInst s1 (.memLoadImm 5)  -- load from addr 5
+    match r2 with
+    | some s2 => unless s2.stack[0]! == (42 : Felt) do panic! "memLoadImm: should load stored value"
+    | none => panic! "memLoadImm should not fail"
+  | none => panic! "memStoreImm should not fail"
+
+-- memStoreImm
+#eval do
+  let s := mkState [42]
+  let r := runInst s (.memStoreImm 10)
+  match r with
+  | some s' => unless s'.memory 10 == (42 : Felt) do panic! "memStoreImm: should store value"
+  | none => panic! "memStoreImm should not fail"
+
+-- memStorewLe: store word in little-endian order
+#eval do
+  let s := mkState [0, 10, 20, 30, 40]  -- addr=0, word=[10,20,30,40]
+  let r := runInst s .memStorewLe
+  match r with
+  | some s' =>
+    unless s'.memory 0 == (10 : Felt) && s'.memory 1 == (20 : Felt)
+        && s'.memory 2 == (30 : Felt) && s'.memory 3 == (40 : Felt) do
+      panic! "memStorewLe: should store [10,20,30,40] at addr 0-3"
+  | none => panic! "memStorewLe should not fail"
+
+-- memLoadwLe: load word in little-endian order
+#eval do
+  let s := mkState [0, 10, 20, 30, 40]
+  let r1 := runInst s .memStorewLe
+  match r1 with
+  | some s1 =>
+    let s2 := { s1 with stack := [0, 0, 0, 0, 0] }
+    let r2 := runInst s2 .memLoadwLe
+    unless checkStack r2 [10, 20, 30, 40] do
+      panic! "memLoadwLe: should load stored word"
+  | none => panic! "memStorewLe should not fail"
+
+-- memStorewBe / memLoadwBe
+#eval do
+  let s := mkState [0, 10, 20, 30, 40]  -- addr=0, e0=10, e1=20, e2=30, e3=40
+  let r1 := runInst s .memStorewBe
+  match r1 with
+  | some s1 =>
+    -- BE stores: addr+0=e3, addr+1=e2, addr+2=e1, addr+3=e0
+    unless s1.memory 0 == (40 : Felt) && s1.memory 3 == (10 : Felt) do
+      panic! "memStorewBe: should store in big-endian order"
+    let s2 := { s1 with stack := [0, 0, 0, 0, 0] }
+    let r2 := runInst s2 .memLoadwBe
+    unless checkStack r2 [10, 20, 30, 40] do
+      panic! "memLoadwBe: should reconstruct original word"
+  | none => panic! "memStorewBe should not fail"
+
+-- memStorewLeImm / memLoadwLeImm
+#eval do
+  let s := mkState [10, 20, 30, 40]
+  let r1 := runInst s (.memStorewLeImm 0)
+  match r1 with
+  | some s1 =>
+    let s2 := { s1 with stack := [0, 0, 0, 0] }
+    let r2 := runInst s2 (.memLoadwLeImm 0)
+    unless checkStack r2 [10, 20, 30, 40] do
+      panic! "memStorewLeImm/memLoadwLeImm roundtrip failed"
+  | none => panic! "memStorewLeImm should not fail"
+
+-- memStorewBeImm / memLoadwBeImm
+#eval do
+  let s := mkState [10, 20, 30, 40]
+  let r1 := runInst s (.memStorewBeImm 0)
+  match r1 with
+  | some s1 =>
+    let s2 := { s1 with stack := [0, 0, 0, 0] }
+    let r2 := runInst s2 (.memLoadwBeImm 0)
+    unless checkStack r2 [10, 20, 30, 40] do
+      panic! "memStorewBeImm/memLoadwBeImm roundtrip failed"
+  | none => panic! "memStorewBeImm should not fail"
+
+-- exec: requires procedure environment (tested via runOps)
+#eval do
+  let procEnv : ProcEnv := fun name =>
+    if name == "double" then some [Op.inst (.dup 0), Op.inst .add]
+    else none
+  let s := mkState [5]
+  let r := execWithEnv procEnv 10 s [Op.inst (.exec "double")]
+  unless checkStack r [10] do panic! "exec: double(5)=10"
+
+-- ============================================================================
 -- Tier 4: Order-sensitive instruction tests (AC-6 through AC-8)
 -- ============================================================================
 -- These tests verify that operand ordering is correct for
@@ -1063,9 +1418,9 @@ private def u32max : Nat := 2^32
 -- q_lo=3, q_hi=0, r_lo=1, r_hi=0
 -- Advice tape (matching Miden handler): [q_hi, q_lo, r_hi, r_lo]
 -- = [0, 3, 0, 1]
+open Miden.Core.U64 in
+open MidenLean.Proofs in
 #eval do
-  open Miden.Core.U64 in
-  open MidenLean.Proofs in
   let b_lo : Felt := 3; let b_hi : Felt := 0
   let a_lo : Felt := 10; let a_hi : Felt := 0
   let stk := [b_lo, b_hi, a_lo, a_hi]
@@ -1076,13 +1431,13 @@ private def u32max : Nat := 2^32
   | some s' =>
     -- Output should be [r_lo, r_hi, q_lo, q_hi] = [1, 0, 3, 0]
     unless s'.stack == [1, 0, 3, 0] do
-      panic! s!"divmod 10/3: expected [1,0,3,0] got {s'.stack}"
+      panic! "divmod 10/3: unexpected output stack"
   | none => panic! "divmod 10/3 should not fail"
 
 -- divmod: 100 / 7 = q=14, r=2
+open Miden.Core.U64 in
+open MidenLean.Proofs in
 #eval do
-  open Miden.Core.U64 in
-  open MidenLean.Proofs in
   let b_lo : Felt := 7; let b_hi : Felt := 0
   let a_lo : Felt := 100; let a_hi : Felt := 0
   let stk := [b_lo, b_hi, a_lo, a_hi]
@@ -1092,7 +1447,7 @@ private def u32max : Nat := 2^32
   match r with
   | some s' =>
     unless s'.stack == [2, 0, 14, 0] do
-      panic! s!"divmod 100/7: expected [2,0,14,0] got {s'.stack}"
+      panic! "divmod 100/7: unexpected output stack"
   | none => panic! "divmod 100/7 should not fail"
 
 -- ============================================================================
