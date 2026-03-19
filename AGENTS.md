@@ -18,6 +18,7 @@ Lean 4 v4.28.0 via elan. A clean build with zero `sorry` means all theorems are 
 - **Step lemmas** (`StepLemmas.lean`): parametric where possible (`stepDup`, `stepSwap`), with explicit range hypotheses for `movup`/`movdn`. Proved by `unfold execInstruction execFoo; rfl` or `simp`.
 - **Proof pattern**: destructure state, unfold procedure, rewrite to monadic `do`-form, step through with exact `rw [stepFoo]`, structural tactics (`miden_swap`, `miden_dup`, `miden_movup`, `miden_movdn`), and `miden_bind`. Use `miden_step` mainly for short residual steps, not as the default for long proofs. See `MidenLean/Proofs/U64/Min.lean`, `MidenLean/Proofs/U64/Max.lean`, and `MidenLean/Proofs/U64/Shr.lean`.
 - **Correctness theorems**: named `<procedure>_correct` in snake_case matching the MASM name (e.g., `u64_wrapping_sub_correct`).
+- **Theorem descriptions for README generation**: place a doc comment immediately above the main `*_correct` theorem with no intervening text other than whitespace. The first sentence should be a short high-level English summary of what the procedure proves, and it should be at least a few words long. The README table generator uses this doc comment directly, so avoid leaving only placeholder text. If you include extra lines like `Input stack:` or `Output stack:`, put the high-level summary first.
 - **Generated code** (`MidenLean/Generated/`): produced by the Rust translator. Do not edit by hand.
 - **Generated proof scaffolding** (`MidenLean/Proofs/Generated/`): produced by `masm-to-lean`. Do not edit by hand; copy the relevant scaffold into the manual proof file and complete it there.
 
@@ -56,6 +57,7 @@ timeout 180s cargo run --manifest-path masm-to-lean/Cargo.toml -- \
 - Prefer exact step rewrites and structural tactics over repeated `miden_step`.
 - Add helper lemmas only for real side conditions such as `isU32`, nonzero divisors, boolean normalization, or small arithmetic identities.
 - Remove helper lemmas that are no longer used.
+- Before finishing the file, replace the scaffold's placeholder theorem comment with a real high-level correctness description for the main `*_correct` theorem. Keep that doc comment directly attached to the theorem so `scripts/generate_verified_tables.py` can extract it.
 
 5. Validate with targeted Lean checks before broader builds.
 
@@ -65,6 +67,17 @@ timeout 180s lake build MidenLean.Proofs.U64.Shr
 ```
 
 Use the smallest relevant target first. Only run broader builds when the local proof checks.
+
+6. Regenerate the verified-procedures tables and update `README.md`.
+
+```bash
+python3 scripts/generate_verified_tables.py > /tmp/verified_tables.md
+```
+
+- The script builds each manual proof module componentwise, with strict per-module `timeout 180s lake build` checks.
+- It writes progress messages to stderr such as `starting proof ...` and `proof ... completed`.
+- Fix any emitted warnings before updating the README.
+- Replace the verified-procedures section in `README.md` with the generated markdown if it changed.
 
 ## Scaffolding Expectations
 
@@ -82,3 +95,4 @@ Use the smallest relevant target first. Only run broader builds when the local p
 - Always run Lean checks and `lake build` with strict timeouts. Default to 3-5 minutes. Otherwise you risk getting stuck or causing the entire system to run out of memory.
 - Prefer targeted proof checks such as `timeout 180s lake build MidenLean.Proofs.U64.Shr` over whole-project builds while iterating.
 - When writing new proofs, follow the existing pattern in the closest existing proof file.
+- After completing or updating manual proofs, rerun `scripts/generate_verified_tables.py` and keep the README proof tables in sync with the checked proofs.
