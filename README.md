@@ -70,6 +70,21 @@ The current checked manual proofs cover 49 procedures: 28 in `u64`, 10 in `u128`
 | `u128::wrapping_add` | `u128_wrapping_add_correct` | u128.wrapping_add correctly computes wrapping addition of two 128-bit values. | `MidenLean/Proofs/U128/WrappingAdd.lean` |
 | `u128::xor` | `u128_xor_correct` | u128.xor correctly computes bitwise XOR of two 128-bit values. | `MidenLean/Proofs/U128/Xor.lean` |
 
+### `u128`
+
+| Procedure               | Theorem                        | Summary                                                                            | Manual proof file                           |
+| ----------------------- | ------------------------------ | ---------------------------------------------------------------------------------- | ------------------------------------------- |
+| `u128::and`             | `u128_and_correct`             | u128.and correctly computes bitwise AND of two 128-bit values.                     | `MidenLean/Proofs/U128/And.lean`            |
+| `u128::eq`              | `u128_eq_correct`              | u128.eq correctly tests equality of two 128-bit values.                            | `MidenLean/Proofs/U128/Eq.lean`             |
+| `u128::eqz`             | `u128_eqz_correct`             | u128.eqz correctly tests whether a 128-bit value is zero.                          | `MidenLean/Proofs/U128/Eqz.lean`            |
+| `u128::neq`             | `u128_neq_correct`             | u128.neq correctly tests inequality of two 128-bit values.                         | `MidenLean/Proofs/U128/Neq.lean`            |
+| `u128::not`             | `u128_not_correct`             | u128.not correctly computes the bitwise complement of a 128-bit value.             | `MidenLean/Proofs/U128/Not.lean`            |
+| `u128::or`              | `u128_or_correct`              | u128.or correctly computes bitwise OR of two 128-bit values.                       | `MidenLean/Proofs/U128/Or.lean`             |
+| `u128::overflowing_add` | `u128_overflowing_add_correct` | u128.overflowing_add correctly computes addition of two 128-bit values with carry. | `MidenLean/Proofs/U128/OverflowingAdd.lean` |
+| `u128::widening_add`    | `u128_widening_add_correct`    | u128.widening_add correctly computes widening addition of two 128-bit values.      | `MidenLean/Proofs/U128/WideningAdd.lean`    |
+| `u128::wrapping_add`    | `u128_wrapping_add_correct`    | u128.wrapping_add correctly computes wrapping addition of two 128-bit values.      | `MidenLean/Proofs/U128/WrappingAdd.lean`    |
+| `u128::xor`             | `u128_xor_correct`             | u128.xor correctly computes bitwise XOR of two 128-bit values.                     | `MidenLean/Proofs/U128/Xor.lean`            |
+
 ### `word`
 
 | Procedure | Theorem | Summary | Manual proof file |
