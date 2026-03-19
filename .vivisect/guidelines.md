@@ -20,10 +20,13 @@
 
 ## Build Commands
 - Build: timeout 300s systemd-run --user --scope
-  -p MemoryMax=10G -- lake build -j 2 MidenLean
+  -p MemoryMax=10G -- lake build MidenLean
+  2>&1 | tee /tmp/build-out.txt; echo "EXIT: $?"
 - Targeted: timeout 180s systemd-run --user --scope
-  -p MemoryMax=10G -- lake build -j 2
+  -p MemoryMax=10G -- lake build
   MidenLean.Proofs.U64.Shr
+  2>&1 | tee /tmp/build-out.txt; echo "EXIT: $?"
+- NOTE: Lake 5.0.0 does NOT support -j flag.
 - Language: Lean 4 v4.28.0
 - Test framework: proofs ARE the tests. lake build
   succeeding with zero sorry means all theorems are

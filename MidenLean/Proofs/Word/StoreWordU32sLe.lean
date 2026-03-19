@@ -16,7 +16,8 @@ theorem word_store_word_u32s_le_correct
     (mem locs : Nat → Word) (adv : List Felt)
     (evts : List Felt)
     (haddr_lt : addr.val + 4 < u32Max)
-    (haddr_val : (addr + 4 : Felt).val = addr.val + 4) :
+    (haddr_val : (addr + 4 : Felt).val = addr.val + 4)
+    (hlen : rest.length + 30 ≤ MAX_STACK_DEPTH) :
     exec 20
       ⟨x0 :: x1 :: x2 :: x3 :: addr :: rest,
        mem, locs, adv, evts⟩
@@ -35,11 +36,11 @@ theorem word_store_word_u32s_le_correct
   -- swap 1
   miden_swap
   -- u32Split
-  rw [stepU32Split]; miden_bind
+  rw [stepU32Split (hov := by simp [List.length_cons]; omega)]; miden_bind
   -- movup 2
   miden_movup
   -- u32Split
-  rw [stepU32Split]; miden_bind
+  rw [stepU32Split (hov := by simp [List.length_cons]; omega)]; miden_bind
   -- dup 6
   miden_dup
   -- memStorewLe (first store at addr)
@@ -50,11 +51,11 @@ theorem word_store_word_u32s_le_correct
   -- swap 1
   miden_swap
   -- u32Split
-  rw [stepU32Split]; miden_bind
+  rw [stepU32Split (hov := by simp [List.length_cons]; omega)]; miden_bind
   -- movup 2
   miden_movup
   -- u32Split
-  rw [stepU32Split]; miden_bind
+  rw [stepU32Split (hov := by simp [List.length_cons]; omega)]; miden_bind
   -- movup 4
   miden_movup
   -- addImm 4

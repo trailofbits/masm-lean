@@ -18,12 +18,14 @@ theorem stepDrop (mem locs : Nat → Word) (adv : List Felt) (evts : List Felt)
 
 /-- Parametric dup: copies the element at index `n` to the top of the stack. -/
 theorem stepDup (n : Fin 16) (stk : List Felt) (mem locs : Nat → Word) (adv : List Felt) (evts : List Felt)
-    (v : Felt) (h : stk[n.val]? = some v) :
+    (v : Felt) (h : stk[n.val]? = some v)
+    (hov : stk.length + 1 ≤ MAX_STACK_DEPTH) :
     execInstruction ⟨stk, mem, locs, adv, evts⟩ (.dup n) =
     some ⟨v :: stk, mem, locs, adv, evts⟩ := by
   simp only [execInstruction_dup]
   unfold execDup
-  simp [h, MidenState.withStack]
+  have : ¬(stk.length + 1 > MAX_STACK_DEPTH) := by omega
+  simp [this, h, MidenState.withStack]
 
 /-- Parametric swap: swaps the top element with the element at index `n`.
     After the rewrite, the result stack contains `List.set` operations;
@@ -285,10 +287,14 @@ theorem stepDropw (mem locs : Nat → Word) (adv : List Felt) (evts : List Felt)
     some ⟨rest, mem, locs, adv, evts⟩ := by
   simp only [execInstruction_dropw, execDropw, MidenState.withStack]
 
-theorem stepPush (v : Felt) (mem locs : Nat → Word) (adv : List Felt) (evts : List Felt) (stk : List Felt) :
+theorem stepPush (v : Felt) (mem locs : Nat → Word) (adv : List Felt) (evts : List Felt) (stk : List Felt)
+    (hov : stk.length + 1 ≤ MAX_STACK_DEPTH) :
     execInstruction ⟨stk, mem, locs, adv, evts⟩ (.push v) =
     some ⟨v :: stk, mem, locs, adv, evts⟩ := by
-  simp only [execInstruction_push, execPush, MidenState.withStack]
+  simp only [execInstruction_push]
+  unfold execPush
+  have : ¬(stk.length + 1 > MAX_STACK_DEPTH) := by omega
+  simp only [this, ite_false, MidenState.withStack]
 
 theorem stepAdd (mem locs : Nat → Word) (adv : List Felt) (evts : List Felt)
     (a b : Felt) (rest : List Felt) :
@@ -327,10 +333,15 @@ theorem stepPow2 (mem locs : Nat → Word) (adv : List Felt) (evts : List Felt)
   simp [ha, MidenState.withStack]
 
 theorem stepU32Split (mem locs : Nat → Word) (adv : List Felt) (evts : List Felt)
-    (a : Felt) (rest : List Felt) :
+    (a : Felt) (rest : List Felt)
+    (hov : rest.length + 2 ≤ MAX_STACK_DEPTH) :
     execInstruction ⟨a :: rest, mem, locs, adv, evts⟩ .u32Split =
     some ⟨a.lo32 :: a.hi32 :: rest, mem, locs, adv, evts⟩ := by
-  simp only [execInstruction_u32Split, execU32Split, MidenState.withStack]
+  simp only [execInstruction_u32Split]
+  unfold execU32Split
+  have : ¬((a :: rest).length + 1 > MAX_STACK_DEPTH) := by
+    simp [List.length_cons]; omega
+  simp only [this, ite_false, MidenState.withStack]
 
 theorem stepU32WrappingSub (mem locs : Nat → Word) (adv : List Felt) (evts : List Felt)
     (a b : Felt) (rest : List Felt)
@@ -376,12 +387,14 @@ theorem stepGt (mem locs : Nat → Word) (adv : List Felt) (evts : List Felt)
 theorem stepDupw (n : Fin 4) (stk : List Felt) (mem locs : Nat → Word) (adv : List Felt) (evts : List Felt)
     (a b c d : Felt)
     (h0 : stk[n.val * 4]? = some a) (h1 : stk[n.val * 4 + 1]? = some b)
-    (h2 : stk[n.val * 4 + 2]? = some c) (h3 : stk[n.val * 4 + 3]? = some d) :
+    (h2 : stk[n.val * 4 + 2]? = some c) (h3 : stk[n.val * 4 + 3]? = some d)
+    (hov : stk.length + 4 ≤ MAX_STACK_DEPTH) :
     execInstruction ⟨stk, mem, locs, adv, evts⟩ (.dupw n) =
     some ⟨a :: b :: c :: d :: stk, mem, locs, adv, evts⟩ := by
   simp only [execInstruction_dupw]
   unfold execDupw
-  simp [h0, h1, h2, h3, MidenState.withStack]
+  have : ¬(stk.length + 4 > MAX_STACK_DEPTH) := by omega
+  simp only [this, ite_false, h0, h1, h2, h3, MidenState.withStack]
 
 theorem stepDiv (mem locs : Nat → Word) (adv : List Felt) (evts : List Felt)
     (a b : Felt) (rest : List Felt)
@@ -434,17 +447,17 @@ theorem stepAssertEqWithError (msg : String) (mem locs : Nat → Word) (adv : Li
   simp [hab, MidenState.withStack]
 
 theorem stepAdvPush2 (stk : List Felt) (mem locs : Nat → Word)
-    (v0 v1 : Felt) (adv_rest : List Felt) (evts : List Felt) :
+    (v0 v1 : Felt) (adv_rest : List Felt) (evts : List Felt)
+    (hov : stk.length + 2 ≤ MAX_STACK_DEPTH) :
     execInstruction ⟨stk, mem, locs, v0 :: v1 :: adv_rest, evts⟩ (.advPush 2) =
     some ⟨v1 :: v0 :: stk, mem, locs, adv_rest, evts⟩ := by
   rw [execInstruction_advPush']
   unfold execAdvPush
-  dsimp only [MidenState.withStack, MidenState.withAdvice,
-    MidenState.advice, MidenState.stack, MidenState.memory,
-    MidenState.locals,
+  have hov' : ¬(stk.length + 2 > MAX_STACK_DEPTH) := by omega
+  simp only [hov', ite_false, MidenState.withStack, MidenState.withAdvice,
     List.take, List.drop, List.reverse, List.length,
-    List.reverseAux, List.append]
-  rfl
+    List.reverseAux, List.cons_append, List.nil_append]
+  simp
 
 -- ============================================================================
 -- Memory

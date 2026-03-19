@@ -114,16 +114,16 @@ types (toU64, toU128) rather than raw field elements.
 
 ### Tier 11: Per-instruction stack depth enforcement
 
-- [ ] AC-50: Add stack overflow/underflow guards to
+- [x] AC-50: Add stack overflow/underflow guards to
   instruction handlers. Each handler that pushes should
   check stack.length < MAX_STACK_DEPTH; each handler
   that pops should check stack.length > MIN_STACK_DEPTH
   (or has enough elements). Return none on violation.
-- [ ] AC-51: Update step lemmas with wellFormed
+- [x] AC-51: Update step lemmas with wellFormed
   hypotheses where needed.
-- [ ] AC-52: Update all proof files to carry/discharge
+- [x] AC-52: Update all proof files to carry/discharge
   wellFormed hypotheses.
-- [ ] AC-53: Update tests for stack depth edge cases
+- [x] AC-53: Update tests for stack depth edge cases
   (empty stack, stack at max depth).
 
 ## Default Quality Requirements

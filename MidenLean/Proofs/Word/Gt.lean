@@ -48,7 +48,8 @@ theorem arrange_for_wordProcEnv
 -- One iteration of the word.gt comparison loop.
 private theorem gt_iteration
     (result undecided : Bool) (b_i a_i : Felt) (tail : List Felt)
-    (mem locs : Nat → Word) (adv : List Felt) (evts : List Felt) :
+    (mem locs : Nat → Word) (adv : List Felt) (evts : List Felt)
+    (hlen : tail.length + 10 ≤ MAX_STACK_DEPTH) :
     let eq_flag := (b_i == a_i)
     let lt_flag := decide (a_i.val < b_i.val)
     let new_result := result || (undecided && lt_flag)
@@ -81,7 +82,8 @@ private theorem gt_iteration
 -- First iteration specialized for concrete 0/1 stack values.
 private theorem gt_iteration_init
     (b_i a_i : Felt) (tail : List Felt)
-    (mem locs : Nat → Word) (adv : List Felt) (evts : List Felt) :
+    (mem locs : Nat → Word) (adv : List Felt) (evts : List Felt)
+    (hlen : tail.length + 10 ≤ MAX_STACK_DEPTH) :
     execWithEnv wordProcEnv 2
       ⟨(0:Felt) :: (1:Felt) :: b_i :: a_i :: tail, mem, locs, adv, evts⟩
       [.inst (.movup 3), .inst (.movup 3), .inst (.dup 0), .inst (.dup 2),
@@ -89,12 +91,13 @@ private theorem gt_iteration_init
        .inst (.and), .inst (.or), .inst (.movdn 2), .inst (.and), .inst (.swap 1)] =
     some ⟨(if decide (a_i.val < b_i.val) then (1:Felt) else 0) ::
           (if (b_i == a_i) then (1:Felt) else 0) :: tail, mem, locs, adv, evts⟩ :=
-  gt_iteration false true b_i a_i tail mem locs adv evts
+  gt_iteration false true b_i a_i tail mem locs adv evts hlen
 
 /-- `word::gt` correctly compares two words lexicographically. -/
 theorem word_gt_correct
     (a0 a1 a2 a3 b0 b1 b2 b3 : Felt) (rest : List Felt) (s : MidenState)
-    (hs : s.stack = a0 :: a1 :: a2 :: a3 :: b0 :: b1 :: b2 :: b3 :: rest) :
+    (hs : s.stack = a0 :: a1 :: a2 :: a3 :: b0 :: b1 :: b2 :: b3 :: rest)
+    (hlen : rest.length + 30 ≤ MAX_STACK_DEPTH) :
     let result := decide (a3.val < b3.val)
                   || ((b3 == a3) && decide (a2.val < b2.val))
                   || ((b3 == a3) && (b2 == a2) && decide (a1.val < b1.val))
@@ -111,23 +114,26 @@ theorem word_gt_correct
   rw [arrange_for_wordProcEnv a0 a1 a2 a3 b0 b1 b2 b3 rest mem locs adv]
   dsimp only [bind, Bind.bind, Option.bind]
   -- push 1, push 0
-  rw [stepPush]; miden_bind
-  rw [stepPush]; miden_bind
+  rw [stepPush (hov := by simp [List.length_cons]; omega)]; miden_bind
+  rw [stepPush (hov := by simp [List.length_cons]; omega)]; miden_bind
   -- Iteration 1: result=false, undecided=true, b_i=b3, a_i=a3
   unfold execWithEnv.doRepeat
-  rw [gt_iteration_init b3 a3 (b2 :: a2 :: b1 :: a1 :: b0 :: a0 :: rest) mem locs adv]
+  rw [gt_iteration_init b3 a3 (b2 :: a2 :: b1 :: a1 :: b0 :: a0 :: rest) mem locs adv
+    (hlen := by simp [List.length_cons]; omega)]
   dsimp only []
   -- Iteration 2
   unfold execWithEnv.doRepeat
-  rw [gt_iteration _ _ b2 a2 (b1 :: a1 :: b0 :: a0 :: rest) mem locs adv]
+  rw [gt_iteration _ _ b2 a2 (b1 :: a1 :: b0 :: a0 :: rest) mem locs adv
+    (hlen := by simp [List.length_cons]; omega)]
   dsimp only []
   -- Iteration 3
   unfold execWithEnv.doRepeat
-  rw [gt_iteration _ _ b1 a1 (b0 :: a0 :: rest) mem locs adv]
+  rw [gt_iteration _ _ b1 a1 (b0 :: a0 :: rest) mem locs adv
+    (hlen := by simp [List.length_cons]; omega)]
   dsimp only []
   -- Iteration 4
   unfold execWithEnv.doRepeat
-  rw [gt_iteration _ _ b0 a0 rest mem locs adv]
+  rw [gt_iteration _ _ b0 a0 rest mem locs adv (hlen := by omega)]
   dsimp only []
   -- doRepeat base case
   unfold execWithEnv.doRepeat

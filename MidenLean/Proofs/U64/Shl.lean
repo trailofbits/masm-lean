@@ -30,7 +30,8 @@ theorem u64_shl_correct
     (hs : s.stack = shift :: lo :: hi :: rest)
     (hshift : shift.val ≤ 63)
     (hlo : lo.isU32 = true)
-    (hhi : hi.isU32 = true) :
+    (hhi : hi.isU32 = true)
+    (hlen : rest.length + 30 ≤ MAX_STACK_DEPTH) :
     let pow := Felt.ofNat (2 ^ shift.val)
     let pow_lo := pow.lo32
     let pow_hi := pow.hi32
@@ -47,7 +48,7 @@ theorem u64_shl_correct
   simp only [List.foldlM, bind, Bind.bind, Option.bind, pure, Pure.pure]
   -- shl preamble: pow2; u32Split; movup 2; movup 3; swap 1
   rw [stepPow2 (ha := by assumption)]; miden_bind
-  rw [stepU32Split]; miden_bind
+  rw [stepU32Split (hov := by simp [List.length_cons]; omega)]; miden_bind
   miden_movup; miden_movup
   miden_swap
   -- wrapping_mul body on [lo, hi, pow_lo, pow_hi | rest]

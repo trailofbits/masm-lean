@@ -81,14 +81,15 @@ Use the smallest relevant target first. Only run broader builds when the local p
 - Do not use git worktrees or branches unless asked.
 - **MANDATORY memory cap**: every `lake build` invocation must be wrapped in a systemd-run memory cap. Never run `lake build` without this wrapper -- it will OOM the machine (62GB RAM, Lean+Mathlib workers eat it all). Never remove, bypass, or "investigate" by disabling this constraint.
   ```bash
-  # Full project build
-  timeout 300s systemd-run --user --scope -p MemoryMax=10G -- lake build -j 2 MidenLean
+  # Full project build (always check exit code!)
+  timeout 300s systemd-run --user --scope -p MemoryMax=10G -- lake build MidenLean 2>&1 | tee /tmp/build-out.txt; echo "EXIT: $?"
   # Targeted module build
-  timeout 180s systemd-run --user --scope -p MemoryMax=10G -- lake build -j 2 MidenLean.Proofs.U64.Shr
+  timeout 180s systemd-run --user --scope -p MemoryMax=10G -- lake build MidenLean.Proofs.U64.Shr 2>&1 | tee /tmp/build-out.txt; echo "EXIT: $?"
   # Single file check
-  timeout 180s systemd-run --user --scope -p MemoryMax=6G -- lake env lean MidenLean/Proofs/U64/Shr.lean
+  timeout 180s systemd-run --user --scope -p MemoryMax=6G -- lake env lean MidenLean/Proofs/U64/Shr.lean 2>&1 | tee /tmp/build-out.txt; echo "EXIT: $?"
   ```
-  If a build gets killed by the memory cap, that means the build is too memory-hungry -- reduce parallelism (`-j 1`) or build a smaller target. Do NOT raise or remove the cap.
+  Note: Lake 5.0.0 does NOT support `-j N`. Do not pass `-j` flags.
+  If a build gets killed by the memory cap, that means the build is too memory-hungry -- build a smaller target. Do NOT raise or remove the cap.
 - Prefer targeted proof checks over whole-project builds while iterating.
 - When writing new proofs, follow the existing pattern in the closest existing proof file.
 

@@ -1,5 +1,60 @@
 # Claude Notes: audit-0xmiden/masm-lean
 
+## 2026-03-19: Vivisect run 14 (post-AC-50-53)
+
+AC-50 through AC-53 verified. All overflow guards
+confirmed in place. Previous Bad finding resolved.
+Results: 18 Good, 0 Bad, 0 Broken, 0 Absurd.
+Lean LSP: 0 errors, 0 warnings on key files.
+Files: .vivisect/findings.md (run 14),
+  .vivisect/analysis.md (updated to run 14),
+  .vivisect/manual-analysis.md (run 14),
+  .vivisect/patches.md (run 14, empty).
+
+## 2026-03-19: Vivisect run 13 (verification pass)
+
+No .lean file changes since run 12. Build re-verified:
+1913 jobs, 0 errors, 0 warnings. Zero sorry.
+Results: 17 Good, 1 Bad, 0 Broken, 0 Absurd.
+Contrarian validated 8 functions: all SOUND.
+35 proof scripts (24 writer + 11 breaker), 0 breaks.
+Files: .vivisect/findings.md (run 13),
+  .vivisect/analysis.md, .vivisect/patches.md,
+  .vivisect/manual-analysis.md.
+Spec divergence: 2 stale spec text items noted
+(memory model description, assert semantics).
+Ongoing: AC-50 to AC-53 (Tier 11) -- starting now.
+
+### AC-50 plan: overflow guards
+Handlers with net positive stack effect need overflow
+guards. Check `s.stack.length + net > MAX_STACK_DEPTH`,
+return `none` if so.
+
+**Handlers to modify (net growth):**
+- execPadw (+4), execPush (+1), execPushList (+N)
+- execDup (+1), execDupw (+4)
+- execU32Test (+1), execU32TestW (+1), execU32Split (+1)
+- execMemLoadImm (+1), execLocLoad (+1)
+- execAdvPush (+N)
+
+**Step lemmas needing overflow hypothesis:**
+- stepPush, stepDup, stepDupw, stepU32Split, stepAdvPush2
+
+**Tactic:** miden_step discharges overflow via `by omega`
+
+**Proofs:** add `hlen : rest.length + 30 <= MAX_STACK_DEPTH`
+to correctness theorems. Tactic uses
+`simp [List.length_cons]; omega` to discharge.
+
+### AC-50/51/52 DONE
+- 11 handlers in Semantics.lean got overflow guards
+- 5 step lemmas got hov hypotheses
+- Tactics.lean: miden_step discharges via simp+omega
+- 30+ proof files updated with hlen hypotheses
+- Build: 1913 jobs, 0 errors, 0 warnings, 0 sorry
+- Also fixed: stale ha_align in Tactics.lean,
+  stale -j 2 in CLAUDE.md and guidelines.md
+
 ## 2026-03-19: Tier 11 added (not yet started)
 
 Per-instruction stack depth enforcement (AC-50 to AC-53).

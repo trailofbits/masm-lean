@@ -14,7 +14,8 @@ open MidenLean.Tactics
     where result = if hi == 0 then clz(lo) + 32 else clz(hi). -/
 theorem u64_clz_correct (lo hi : Felt) (rest : List Felt) (s : MidenState)
     (hs : s.stack = lo :: hi :: rest)
-    (hlo : lo.isU32 = true) (hhi : hi.isU32 = true) :
+    (hlo : lo.isU32 = true) (hhi : hi.isU32 = true)
+    (hlen : rest.length + 30 ≤ MAX_STACK_DEPTH) :
     exec 20 s Miden.Core.U64.clz =
     some (s.withStack (
       (if hi == (0 : Felt)

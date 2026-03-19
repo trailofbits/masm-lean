@@ -17,7 +17,8 @@ theorem u64_wrapping_mul_correct
     (a_lo a_hi b_lo b_hi : Felt) (rest : List Felt) (s : MidenState)
     (hs : s.stack = b_lo :: b_hi :: a_lo :: a_hi :: rest)
     (ha_lo : a_lo.isU32 = true) (ha_hi : a_hi.isU32 = true)
-    (hb_lo : b_lo.isU32 = true) (hb_hi : b_hi.isU32 = true) :
+    (hb_lo : b_lo.isU32 = true) (hb_hi : b_hi.isU32 = true)
+    (hlen : rest.length + 30 ≤ MAX_STACK_DEPTH) :
     exec 20 s Miden.Core.U64.wrapping_mul =
     some (s.withStack (
       let prod_lo := a_lo.val * b_lo.val

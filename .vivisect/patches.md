@@ -1,29 +1,16 @@
 # Vivisect Patches: masm-lean
 
-Date: 2026-03-19 (run 12)
+Date: 2026-03-19 (run 14)
 
-## No patches needed
+## Summary
 
-All previously-reported Broken findings have been
-fixed in prior iterations. The memory model refactor
-(element-addressed to word-addressed) was completed
-successfully with no new bugs introduced.
+No patches needed. All previously-identified issues
+have been resolved:
 
-The one remaining Bad finding (stack depth not
-enforced per-instruction) is an intentional modeling
-simplification that does not require a code patch.
+- advLoadW element reversal: fixed (run 2)
+- u32 precondition guards: fixed (run 2)
+- emit event recording: fixed (run 10)
+- word-addressed memory: fixed (run 12)
+- stack depth enforcement: fixed (run 14, AC-50-53)
 
-### Spec update needed (documentation only)
-
-The spec at `.galvanize/spec.md` lines 155-156 and
-236-240 describes the memory model as "element-
-addressed (Nat -> Felt)" with Be/Le variants
-compensating. This text is now stale. Suggested
-update:
-
-```
-- Memory model: word-addressed (Nat -> Word)
-  matching Rust's BTreeMap<u32, [Felt; 4]>.
-  Be/Le variants control element ordering within
-  words; Le matches Rust's native ordering.
-```
+The codebase has 0 Bad, 0 Broken, 0 Absurd findings.

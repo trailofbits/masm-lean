@@ -215,7 +215,8 @@ private theorem shr_decomp :
 
 private theorem shr_chunk1_correct
     (lo hi shift : Felt) (rest : List Felt) (mem locs : Nat → Word) (adv : List Felt) (evts : List Felt)
-    (hshift : shift.val ≤ 63) (hhi : hi.isU32 = true) :
+    (hshift : shift.val ≤ 63) (hhi : hi.isU32 = true)
+    (hlen : rest.length + 30 ≤ MAX_STACK_DEPTH) :
     let pow := Felt.ofNat (2 ^ shift.val)
     let pow_lo := pow.lo32
     let pow_hi := pow.hi32
@@ -229,7 +230,7 @@ private theorem shr_chunk1_correct
   miden_swap
   rw [stepPow2 (ha := hshift)]
   miden_bind
-  rw [stepU32Split]
+  rw [stepU32Split (hov := by simp [List.length_cons]; omega)]
   miden_bind
   miden_swap
   miden_dup
@@ -246,7 +247,8 @@ private theorem shr_chunk1_correct
 
 private theorem shr_chunk2_correct
     (lo hi shift : Felt) (rest : List Felt) (mem locs : Nat → Word) (adv : List Felt) (evts : List Felt)
-    (hlo : lo.isU32 = true) :
+    (hlo : lo.isU32 = true)
+    (hlen : rest.length + 30 ≤ MAX_STACK_DEPTH) :
     let pow := Felt.ofNat (2 ^ shift.val)
     let pow_lo := pow.lo32
     let pow_hi := pow.hi32
@@ -291,7 +293,8 @@ private theorem shr_chunk2_correct
 private theorem shr_chunk3_correct
     (lo_rem lo_quot hi_quot hi_rem diff : Felt) (cond : Bool)
     (rest : List Felt) (mem locs : Nat → Word) (adv : List Felt) (evts : List Felt)
-    (hdiff_ne_zero : (diff == (0 : Felt)) = false) :
+    (hdiff_ne_zero : (diff == (0 : Felt)) = false)
+    (hlen : rest.length + 30 ≤ MAX_STACK_DEPTH) :
     let cond_felt : Felt := if cond then 1 else 0
     let mix := lo_quot + (((4294967296 : Felt) * cond_felt) * diff⁻¹) * hi_rem
     exec 42 ⟨lo_rem :: lo_quot :: hi_quot :: hi_rem :: diff :: cond_felt :: rest, mem, locs, adv, evts⟩
@@ -304,7 +307,7 @@ private theorem shr_chunk3_correct
   miden_swap
   rw [stepDrop]
   miden_bind
-  rw [stepPush]
+  rw [stepPush (hov := by simp [List.length_cons]; omega)]
   miden_bind
   miden_dup
   rw [stepMul]
@@ -329,7 +332,8 @@ theorem u64_shr_correct
     (lo hi shift : Felt) (rest : List Felt) (s : MidenState)
     (hs : s.stack = shift :: lo :: hi :: rest)
     (hshift : shift.val ≤ 63)
-    (hlo : lo.isU32 = true) (hhi : hi.isU32 = true) :
+    (hlo : lo.isU32 = true) (hhi : hi.isU32 = true)
+    (hlen : rest.length + 30 ≤ MAX_STACK_DEPTH) :
     let pow := Felt.ofNat (2 ^ shift.val)
     let pow_lo := pow.lo32
     let pow_hi := pow.hi32
@@ -350,10 +354,10 @@ theorem u64_shr_correct
   simp only [MidenState.withStack] at hs ⊢
   subst hs
   rw [shr_decomp, MidenLean.exec_append]
-  rw [shr_chunk1_correct (mem := mem) (locs := locs) (adv := adv) (hshift := hshift) (hhi := hhi)]
+  rw [shr_chunk1_correct (mem := mem) (locs := locs) (adv := adv) (hshift := hshift) (hhi := hhi) (hlen := hlen)]
   simp only [bind, Bind.bind, Option.bind]
   rw [MidenLean.exec_append]
-  rw [shr_chunk2_correct (mem := mem) (locs := locs) (adv := adv) (hlo := hlo)]
+  rw [shr_chunk2_correct (mem := mem) (locs := locs) (adv := adv) (hlo := hlo) (hlen := hlen)]
   simp only [bind, Bind.bind, Option.bind]
   rw [MidenLean.exec_append]
   have h_diff_ne_zero_felt := shr_diff_ne_zero_felt (Felt.ofNat (2 ^ shift.val)).lo32
@@ -380,7 +384,7 @@ theorem u64_shr_correct
       ((Felt.ofNat (2 ^ shift.val)).lo32.val <
         (if (Felt.ofNat (2 ^ shift.val)).lo32 == 0 then (1 : Felt) else 0).val))
     (mem := mem) (locs := locs) (adv := adv) (rest := rest)
-    (hdiff_ne_zero := h_diff_ne_zero_felt)]
+    (hdiff_ne_zero := h_diff_ne_zero_felt) (hlen := hlen)]
   simp only [bind, Bind.bind, Option.bind]
   unfold exec shr_chunk4 execWithEnv
   simp only [List.foldlM]

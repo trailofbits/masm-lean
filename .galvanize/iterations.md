@@ -573,3 +573,26 @@ to per-instruction stack depth enforcement)
   proof updates, and edge case tests.
 **Effect on iteration:** new iteration needed (AC-50-53
 unchecked). Checkpoint requested before starting.
+
+## Iteration 13
+**Date:** 2026-03-19
+**Vivisect runs:** #13 (pre-work), #14 (post-work)
+AC-50 to AC-53 implemented (overflow guards, step
+lemma hypotheses, proof updates, edge case tests).
+Also fixed stale -j 2 and ha_align. Run 14: 18 Good,
+0 Bad, 0 Broken, 0 Absurd. CONVERGED.
+
+### Phase 5 Gate
+**Changes after Phase 1 vivisect (run 14):** none
+**Gate result:** PASS
+
+## Final State
+**Date:** 2026-03-19
+**Iterations:** 13
+**Vivisect runs:** 14 (final: .vivisect/findings.md)
+**Acceptance criteria:** 55/55 met
+**Vivisect:** clean (0 Broken, 0 Absurd, 0 Bad,
+  18 Good)
+**Tests:** lake build 1913 jobs passing, 8 new
+  stack depth edge case tests
+**Quality gate:** all items PASS or N/A

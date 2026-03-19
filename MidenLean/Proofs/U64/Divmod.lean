@@ -26,6 +26,7 @@ theorem u64_divmod_correct
     (hq_lo_u32 : q_lo.isU32 = true)
     (hr_hi_u32 : r_hi.isU32 = true)
     (hr_lo_u32 : r_lo.isU32 = true)
+    (hlen : rest.length + 30 ≤ MAX_STACK_DEPTH)
     (hb_lo_u32 : b_lo.isU32 = true)
     (hb_hi_u32 : b_hi.isU32 = true)
     -- Cross-product hypotheses matching actual MASM computation:
@@ -84,7 +85,7 @@ theorem u64_divmod_correct
   -- 1: emitImm (no-op)
   rw [stepEmitImm]; miden_bind
   -- 2: advPush 2 (pops q_hi, q_lo from advice → stack [q_lo, q_hi, ...])
-  rw [stepAdvPush2]; miden_bind
+  rw [stepAdvPush2 (hov := by simp [List.length_cons]; omega)]; miden_bind
   -- 3: u32Assert2 (assert q_lo, q_hi are u32)
   rw [stepU32Assert2 (ha := hq_lo_u32) (hb := hq_hi_u32)]; miden_bind
   -- 4: dup 2 (duplicate b_lo)
@@ -148,7 +149,7 @@ theorem u64_divmod_correct
     simp only [beq_iff_eq] at h_qhi_bhi_zero
     rw [h_qhi_bhi_zero]; simp)]; miden_bind
   -- 25: advPush 2 (pops r_hi, r_lo from advice → stack [r_lo, r_hi, ...])
-  rw [stepAdvPush2]; miden_bind
+  rw [stepAdvPush2 (hov := by simp [List.length_cons]; omega)]; miden_bind
   -- 26: u32Assert2 (assert r_lo, r_hi are u32)
   rw [stepU32Assert2 (ha := hr_lo_u32) (hb := hr_hi_u32)]; miden_bind
   -- 27: movup 6 (bring b_lo up)

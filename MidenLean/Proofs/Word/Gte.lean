@@ -9,7 +9,8 @@ open MidenLean.Tactics
 /-- `word::gte` correctly checks whether one word is greater than or equal to another. -/
 theorem word_gte_correct
     (a0 a1 a2 a3 b0 b1 b2 b3 : Felt) (rest : List Felt) (s : MidenState)
-    (hs : s.stack = a0 :: a1 :: a2 :: a3 :: b0 :: b1 :: b2 :: b3 :: rest) :
+    (hs : s.stack = a0 :: a1 :: a2 :: a3 :: b0 :: b1 :: b2 :: b3 :: rest)
+    (hlen : rest.length + 30 ≤ MAX_STACK_DEPTH) :
     let result := decide (a3.val > b3.val)
                   || ((b3 == a3) && decide (a2.val > b2.val))
                   || ((b3 == a3) && (b2 == a2) && decide (a1.val > b1.val))
@@ -31,7 +32,7 @@ theorem word_gte_correct
             || ((b3 == a3) && (b2 == a2) && (b1 == a1) && decide (a0.val > b0.val))
            then (1:Felt) else 0) :: rest, mem, locs, adv, evts⟩
     from word_lt_correct a0 a1 a2 a3 b0 b1 b2 b3 rest
-      ⟨_, mem, locs, adv, evts⟩ rfl]
+      ⟨_, mem, locs, adv, evts⟩ rfl hlen]
   dsimp only [bind, Bind.bind, Option.bind]
   rw [stepNotIte]
   dsimp only [bind, Bind.bind, Option.bind, pure, Pure.pure]

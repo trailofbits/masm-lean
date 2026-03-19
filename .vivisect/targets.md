@@ -6,9 +6,9 @@
 
 | # | Target | Scope | Priority | Phase | Findings |
 |---|--------|-------|----------|-------|----------|
-| 1 | core-semantics | Felt.lean, State.lean, Instruction.lean, Op.lean, Semantics.lean | Must | Pending | |
-| 2 | generated-procs | Generated/U64.lean, Generated/Word.lean | Must | Pending | |
-| 3 | proofs | Proofs/*.lean | Must | Pending | |
+| 1 | core-semantics | Felt.lean, State.lean, Instruction.lean, Op.lean, Semantics.lean | Must | Complete | 17G 1B |
+| 2 | generated-procs | Generated/U64.lean, Generated/Word.lean | Must | Complete | 17G 1B |
+| 3 | proofs | Proofs/*.lean | Must | Complete | 17G 1B |
 
 ## Target Details
 

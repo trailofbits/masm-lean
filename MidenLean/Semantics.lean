@@ -155,27 +155,33 @@ def execDropw (s : MidenState) : Option MidenState :=
   | _ => none
 
 def execPadw (s : MidenState) : Option MidenState :=
-  some (s.withStack (0 :: 0 :: 0 :: 0 :: s.stack))
+  if s.stack.length + 4 > MAX_STACK_DEPTH then none
+  else some (s.withStack (0 :: 0 :: 0 :: 0 :: s.stack))
 
 def execPush (v : Felt) (s : MidenState) : Option MidenState :=
-  some (s.withStack (v :: s.stack))
+  if s.stack.length + 1 > MAX_STACK_DEPTH then none
+  else some (s.withStack (v :: s.stack))
 
 def execPushList (vs : List Felt) (s : MidenState) : Option MidenState :=
-  some (s.withStack (vs ++ s.stack))
+  if s.stack.length + vs.length > MAX_STACK_DEPTH then none
+  else some (s.withStack (vs ++ s.stack))
 
 -- Stack: dup
 -- Ref: stack_ops/mod.rs dup_nth (lines 64-76)
 
 def execDup (n : Fin 16) (s : MidenState) : Option MidenState :=
-  match s.stack[n.val]? with
+  if s.stack.length + 1 > MAX_STACK_DEPTH then none
+  else match s.stack[n.val]? with
   | some v => some (s.withStack (v :: s.stack))
   | none => none
 
 def execDupw (n : Fin 4) (s : MidenState) : Option MidenState :=
-  let base := n.val * 4
-  match s.stack[base]?, s.stack[base+1]?, s.stack[base+2]?, s.stack[base+3]? with
-  | some a, some b, some c, some d => some (s.withStack (a :: b :: c :: d :: s.stack))
-  | _, _, _, _ => none
+  if s.stack.length + 4 > MAX_STACK_DEPTH then none
+  else
+    let base := n.val * 4
+    match s.stack[base]?, s.stack[base+1]?, s.stack[base+2]?, s.stack[base+3]? with
+    | some a, some b, some c, some d => some (s.withStack (a :: b :: c :: d :: s.stack))
+    | _, _, _, _ => none
 
 -- Stack: swap
 -- Ref: stack_ops/mod.rs op_swap (lines 41-44)
@@ -456,12 +462,14 @@ def execU32AssertW (s : MidenState) : Option MidenState :=
   | _ => none
 
 def execU32Test (s : MidenState) : Option MidenState :=
-  match s.stack with
+  if s.stack.length + 1 > MAX_STACK_DEPTH then none
+  else match s.stack with
   | a :: stk => some (s.withStack ((if a.isU32 then (1 : Felt) else 0) :: a :: stk))
   | _ => none
 
 def execU32TestW (s : MidenState) : Option MidenState :=
-  match s.stack with
+  if s.stack.length + 1 > MAX_STACK_DEPTH then none
+  else match s.stack with
   | a :: b :: c :: d :: _ =>
     let result : Felt := if a.isU32 && b.isU32 && c.isU32 && d.isU32 then 1 else 0
     some (s.withStack (result :: s.stack))
@@ -475,7 +483,8 @@ def execU32Cast (s : MidenState) : Option MidenState :=
   | _ => none
 
 def execU32Split (s : MidenState) : Option MidenState :=
-  match s.stack with
+  if s.stack.length + 1 > MAX_STACK_DEPTH then none
+  else match s.stack with
   | a :: rest => some (s.withStack (a.lo32 :: a.hi32 :: rest))
   | _ => none
 
@@ -816,6 +825,7 @@ def execMemLoad (s : MidenState) : Option MidenState :=
 def execMemLoadImm (addr : Nat) (s : MidenState) :
     Option MidenState :=
   if addr >= u32Max then none
+  else if s.stack.length + 1 > MAX_STACK_DEPTH then none
   else some (s.withStack ((s.memory addr).1 :: s.stack))
 
 def execMemStore (s : MidenState) : Option MidenState :=
@@ -922,7 +932,8 @@ def execMemLoadwLeImm (addr : Nat) (s : MidenState) :
 
 def execLocLoad (idx : Nat) (s : MidenState) :
     Option MidenState :=
-  some (s.withStack ((s.locals idx).1 :: s.stack))
+  if s.stack.length + 1 > MAX_STACK_DEPTH then none
+  else some (s.withStack ((s.locals idx).1 :: s.stack))
 
 def execLocStore (idx : Nat) (s : MidenState) :
     Option MidenState :=
@@ -950,6 +961,7 @@ def execLocStore (idx : Nat) (s : MidenState) :
 -- vals.reverse gives the correct operand stack ordering.
 def execAdvPush (n : Nat) (s : MidenState) : Option MidenState :=
   if s.advice.length < n then none
+  else if s.stack.length + n > MAX_STACK_DEPTH then none
   else
     let vals := s.advice.take n
     let adv' := s.advice.drop n

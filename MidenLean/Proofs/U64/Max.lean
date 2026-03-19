@@ -19,7 +19,8 @@ theorem u64_max_correct
     (a_lo a_hi b_lo b_hi : Felt) (rest : List Felt) (s : MidenState)
     (hs : s.stack = b_lo :: b_hi :: a_lo :: a_hi :: rest)
     (ha_lo : a_lo.isU32 = true) (ha_hi : a_hi.isU32 = true)
-    (hb_lo : b_lo.isU32 = true) (hb_hi : b_hi.isU32 = true) :
+    (hb_lo : b_lo.isU32 = true) (hb_hi : b_hi.isU32 = true)
+    (hlen : rest.length + 30 ≤ MAX_STACK_DEPTH) :
     execWithEnv u64ProcEnv 20 s Miden.Core.U64.max =
     some (s.withStack (
       let borrow_lo := decide (b_lo.val < a_lo.val)
@@ -83,7 +84,8 @@ theorem u64_max_semantic
     (ha_lo : a_lo.isU32 = true)
     (ha_hi : a_hi.isU32 = true)
     (hb_lo : b_lo.isU32 = true)
-    (hb_hi : b_hi.isU32 = true) :
+    (hb_hi : b_hi.isU32 = true)
+    (hlen : rest.length + 30 ≤ MAX_STACK_DEPTH) :
     execWithEnv u64ProcEnv 20 s Miden.Core.U64.max =
     some (s.withStack (
       (if decide (toU64 b_lo b_hi < toU64 a_lo a_hi)
@@ -91,7 +93,7 @@ theorem u64_max_semantic
       (if decide (toU64 b_lo b_hi < toU64 a_lo a_hi)
        then a_hi else b_hi) :: rest)) := by
   rw [u64_max_correct a_lo a_hi b_lo b_hi rest s hs
-    ha_lo ha_hi hb_lo hb_hi]
+    ha_lo ha_hi hb_lo hb_hi hlen]
   simp only [u64_lt_condition_eq b_lo b_hi a_lo a_hi
     hb_lo hb_hi ha_lo ha_hi]
 

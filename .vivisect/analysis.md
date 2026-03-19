@@ -1,6 +1,6 @@
 # Vivisect Correctness Analysis: masm-lean
 
-Date: 2026-03-19 (run 12, post-memory-refactor)
+Date: 2026-03-19 (run 14, post-AC-50-53)
 
 ## Target: core-semantics
 
@@ -16,8 +16,11 @@ Date: 2026-03-19 (run 12, post-memory-refactor)
   locals. Line 46.
 - `stack : List Felt` unbounded, head = top of stack.
   Line 38.
-- `wellFormed` (line 122-124) states `16 <= len <= 2^16`
-  but is not enforced in the type.
+- `wellFormed` (line 122-124) states `16 <= len <= 2^16`.
+  Overflow (max depth) enforced per-instruction via
+  MAX_STACK_DEPTH guards. Underflow enforced by pattern
+  matching on required elements. wellFormed carried as
+  hypothesis in proofs.
 
 **Guarantees:**
 - `writeMemory` (line 65-68) produces a new state where

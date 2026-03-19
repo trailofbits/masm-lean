@@ -127,7 +127,8 @@ private theorem wmul_h1_ok
     (ha_lo : a_lo.isU32 = true)
     (ha_hi : a_hi.isU32 = true)
     (hb_lo : b_lo.isU32 = true)
-    (hb_hi : b_hi.isU32 = true) :
+    (hb_hi : b_hi.isU32 = true)
+    (hlen : rest.length + 30 ≤ MAX_STACK_DEPTH) :
     exec 30
       ⟨b_lo :: b_hi :: a_lo :: a_hi :: rest,
        mem, locs, adv, evts⟩ wmul_h1 =
@@ -217,7 +218,8 @@ theorem u64_widening_mul_correct
     (ha_lo : a_lo.isU32 = true)
     (ha_hi : a_hi.isU32 = true)
     (hb_lo : b_lo.isU32 = true)
-    (hb_hi : b_hi.isU32 = true) :
+    (hb_hi : b_hi.isU32 = true)
+    (hlen : rest.length + 30 ≤ MAX_STACK_DEPTH) :
     exec 30 s Miden.Core.U64.widening_mul =
     some (s.withStack (
       let prod0 := b_lo.val * a_lo.val
@@ -235,7 +237,7 @@ theorem u64_widening_mul_correct
   subst hs
   rw [wmul_split, exec_append,
     wmul_h1_ok a_lo a_hi b_lo b_hi rest
-      mem locs adv evts ha_lo ha_hi hb_lo hb_hi]
+      mem locs adv evts ha_lo ha_hi hb_lo hb_hi hlen]
   simp only [bind, Bind.bind, Option.bind]
   rw [wmul_h2_ok a_hi b_hi _ _ _ _
     rest mem locs adv evts ha_hi hb_hi
