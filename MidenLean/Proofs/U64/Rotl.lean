@@ -203,7 +203,7 @@ theorem u64_rotl_correct
   simp only [MidenState.withStack] at hs ⊢
   subst hs
   rw [rotl_split, exec_append,
-    rotl_h1_ok lo hi shift rest mem locs adv
+    rotl_h1_ok lo hi shift rest mem locs adv evts
       hshift_u32 hlo]
   simp only [bind, Bind.bind, Option.bind]
   rw [u32OverflowingSub_borrow_ite 31 shift.val]
@@ -214,7 +214,7 @@ theorem u64_rotl_correct
       2 ^ 32))
     (Felt.ofNat (2 ^ (shift.val &&& 31) * lo.val %
       2 ^ 32))
-    rest mem locs adv
+    rest mem locs adv evts
     hhi
     (by
       simp only [Felt.isU32, decide_eq_true_eq]

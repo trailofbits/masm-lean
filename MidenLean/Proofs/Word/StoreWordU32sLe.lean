@@ -75,5 +75,6 @@ theorem word_store_word_u32s_le_correct
     Pure.pure]
   congr 1
   simp only [haddr_val]
+  all_goals rfl
 
 end MidenLean.Proofs

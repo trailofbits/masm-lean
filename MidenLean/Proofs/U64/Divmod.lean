@@ -72,7 +72,8 @@ theorem u64_divmod_correct
     some { stack := r_lo :: r_hi :: q_lo :: q_hi :: rest,
            memory := s.memory,
            locals := s.locals,
-           advice := adv_rest } := by
+           advice := adv_rest,
+           events := 14153021663962350784 :: s.events } := by
   obtain ⟨stk, mem, locs, adv, evts⟩ := s
   simp only [] at hs ⊢
   simp only [] at hadv

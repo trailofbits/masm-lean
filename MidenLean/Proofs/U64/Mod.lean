@@ -64,7 +64,8 @@ theorem u64_mod_correct
     some { stack := r_lo :: r_hi :: rest,
            memory := s.memory,
            locals := s.locals,
-           advice := adv_rest } := by
+           advice := adv_rest,
+           events := 14153021663962350784 :: s.events } := by
   obtain ⟨stk, mem, locs, adv, evts⟩ := s
   simp only [] at hs ⊢
   simp only [] at hadv
@@ -76,7 +77,8 @@ theorem u64_mod_correct
     ⟨b_lo :: b_hi :: a_lo :: a_hi :: rest, mem, locs, q_hi :: q_lo :: r_hi :: r_lo :: adv_rest, evts⟩
     Miden.Core.U64.divmod =
     some { stack := r_lo :: r_hi :: q_lo :: q_hi :: rest,
-           memory := mem, locals := locs, advice := adv_rest }
+           memory := mem, locals := locs, advice := adv_rest,
+           events := 14153021663962350784 :: evts }
     from u64_divmod_correct a_lo a_hi b_lo b_hi rest q_lo q_hi r_lo r_hi adv_rest
       ⟨b_lo :: b_hi :: a_lo :: a_hi :: rest, mem, locs, q_hi :: q_lo :: r_hi :: r_lo :: adv_rest, evts⟩
       rfl rfl hq_hi_u32 hq_lo_u32 hr_hi_u32 hr_lo_u32 hb_lo_u32 hb_hi_u32

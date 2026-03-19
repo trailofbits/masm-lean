@@ -61,7 +61,7 @@ theorem u64_overflowing_add_correct
   simp only [MidenState.withStack] at hs ⊢
   subst hs
   simpa [exec] using
-    u64_overflowing_add_run (fun _ => none) 9 a_lo a_hi b_lo b_hi rest mem locs adv
+    u64_overflowing_add_run (fun _ => none) 9 a_lo a_hi b_lo b_hi rest mem locs adv evts
       ha_lo ha_hi hb_lo hb_hi
 
 end MidenLean.Proofs

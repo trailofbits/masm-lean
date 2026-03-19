@@ -24,7 +24,7 @@ theorem u128_gte_run
   unfold Miden.Core.U128.gte execWithEnv
   simp only [List.foldlM, u128ProcEnv]
   dsimp only [bind, Bind.bind, Option.bind]
-  rw [u128_lt_run fuel a0 a1 a2 a3 b0 b1 b2 b3 rest mem locs adv
+  rw [u128_lt_run fuel a0 a1 a2 a3 b0 b1 b2 b3 rest mem locs adv evts
     ha0 ha1 ha2 ha3 hb0 hb1 hb2 hb3]
   miden_bind
   rw [stepNotIte]
@@ -46,7 +46,7 @@ theorem u128_gte_correct
   obtain ⟨stk, mem, locs, adv, evts⟩ := s
   simp only [MidenState.withStack] at hs ⊢
   subst hs
-  simpa using u128_gte_run 28 a0 a1 a2 a3 b0 b1 b2 b3 rest mem locs adv
+  simpa using u128_gte_run 28 a0 a1 a2 a3 b0 b1 b2 b3 rest mem locs adv evts
     ha0 ha1 ha2 ha3 hb0 hb1 hb2 hb3
 
 end MidenLean.Proofs
