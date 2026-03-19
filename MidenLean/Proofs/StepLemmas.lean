@@ -257,7 +257,7 @@ theorem stepU32Clo (mem locs : Nat → Felt) (adv : List Felt)
     (a : Felt) (rest : List Felt)
     (ha : a.isU32 = true) :
     execInstruction ⟨a :: rest, mem, locs, adv⟩ .u32Clo =
-    some ⟨Felt.ofNat (u32CountLeadingZeros (u32Max - 1 - a.val)) :: rest, mem, locs, adv⟩ := by
+    some ⟨Felt.ofNat (u32CountLeadingZeros (a.val ^^^ (u32Max - 1))) :: rest, mem, locs, adv⟩ := by
   unfold execInstruction execU32Clo u32CountLeadingOnes
   simp [ha, MidenState.withStack]
 
