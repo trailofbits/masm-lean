@@ -13,13 +13,13 @@ open MidenLean.Tactics
 theorem word_store_word_u32s_le_correct
     (x0 x1 x2 x3 addr : Felt)
     (rest : List Felt)
-    (mem locs : Nat → Felt) (adv : List Felt)
+    (mem locs : Nat → Felt) (adv : List Felt) (evts : List Felt)
     (haddr_lt : addr.val + 4 < u32Max)
     (haddr_align : addr.val % 4 = 0)
     (haddr_val : (addr + 4 : Felt).val = addr.val + 4) :
     exec 20
       ⟨x0 :: x1 :: x2 :: x3 :: addr :: rest,
-       mem, locs, adv⟩
+       mem, locs, adv, evts⟩
       Miden.Core.Word.store_word_u32s_le =
     some ⟨rest,
       fun a =>
@@ -32,7 +32,7 @@ theorem word_store_word_u32s_le_correct
         else if a = addr.val + 1 then x0.hi32
         else if a = addr.val then x0.lo32
         else mem a,
-      locs, adv⟩ := by
+      locs, adv, evts⟩ := by
   unfold exec Miden.Core.Word.store_word_u32s_le
     execWithEnv
   simp only [List.foldlM]

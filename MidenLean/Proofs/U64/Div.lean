@@ -73,12 +73,12 @@ theorem u64_div_correct
   simp only [List.foldlM, u64ProcEnv]
   dsimp only [bind, Bind.bind, Option.bind]
   rw [show execWithEnv u64ProcEnv 50
-    ⟨b_lo :: b_hi :: a_lo :: a_hi :: rest, mem, locs, q_hi :: q_lo :: r_hi :: r_lo :: adv_rest⟩
+    ⟨b_lo :: b_hi :: a_lo :: a_hi :: rest, mem, locs, q_hi :: q_lo :: r_hi :: r_lo :: adv_rest, evts⟩
     Miden.Core.U64.divmod =
     some { stack := r_lo :: r_hi :: q_lo :: q_hi :: rest,
            memory := mem, locals := locs, advice := adv_rest }
     from u64_divmod_correct a_lo a_hi b_lo b_hi rest q_lo q_hi r_lo r_hi adv_rest
-      ⟨b_lo :: b_hi :: a_lo :: a_hi :: rest, mem, locs, q_hi :: q_lo :: r_hi :: r_lo :: adv_rest⟩
+      ⟨b_lo :: b_hi :: a_lo :: a_hi :: rest, mem, locs, q_hi :: q_lo :: r_hi :: r_lo :: adv_rest, evts⟩
       rfl rfl hq_hi_u32 hq_lo_u32 hr_hi_u32 hr_lo_u32 hb_lo_u32 hb_hi_u32
       p1_hi_val h_p2_hi_zero p2_lo_val h_p3_hi_zero h_qhi_bhi_zero
       p1_lo_val p3_lo_val h_lt_result h_carry_hi_zero h_a_hi_eq h_a_lo_eq]

@@ -123,14 +123,14 @@ private theorem wmul_c1hi_val (a_lo b_lo b_hi : Felt)
 private theorem wmul_h1_ok
     (a_lo a_hi b_lo b_hi : Felt)
     (rest : List Felt)
-    (mem locs : Nat → Felt) (adv : List Felt)
+    (mem locs : Nat → Felt) (adv : List Felt) (evts : List Felt)
     (ha_lo : a_lo.isU32 = true)
     (ha_hi : a_hi.isU32 = true)
     (hb_lo : b_lo.isU32 = true)
     (hb_hi : b_hi.isU32 = true) :
     exec 30
       ⟨b_lo :: b_hi :: a_lo :: a_hi :: rest,
-       mem, locs, adv⟩ wmul_h1 =
+       mem, locs, adv, evts⟩ wmul_h1 =
     some ⟨
       Felt.ofNat ((b_lo.val * a_hi.val +
         (b_hi.val * a_lo.val +
@@ -167,7 +167,7 @@ private theorem wmul_h1_ok
 private theorem wmul_h2_ok
     (a_hi b_hi c2hi c2lo c1hi prod0 : Felt)
     (rest : List Felt)
-    (mem locs : Nat → Felt) (adv : List Felt)
+    (mem locs : Nat → Felt) (adv : List Felt) (evts : List Felt)
     (ha_hi : a_hi.isU32 = true)
     (hb_hi : b_hi.isU32 = true)
     (hc2hi_u32 : c2hi.isU32 = true)

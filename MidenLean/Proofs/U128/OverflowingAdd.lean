@@ -10,7 +10,7 @@ open MidenLean.Tactics
 theorem u128_overflowing_add_run
     (env : ProcEnv) (fuel : Nat)
     (a0 a1 a2 a3 b0 b1 b2 b3 : Felt) (rest : List Felt)
-    (mem locs : Nat → Felt) (adv : List Felt)
+    (mem locs : Nat → Felt) (adv : List Felt) (evts : List Felt)
     (ha0 : a0.isU32 = true) (ha1 : a1.isU32 = true)
     (ha2 : a2.isU32 = true) (ha3 : a3.isU32 = true)
     (hb0 : b0.isU32 = true) (hb1 : b1.isU32 = true)
@@ -31,7 +31,7 @@ theorem u128_overflowing_add_run
       Felt.ofNat (sum1 % 2 ^ 32) ::
       Felt.ofNat (sum2 % 2 ^ 32) ::
       Felt.ofNat (sum3 % 2 ^ 32) :: rest,
-      mem, locs, adv⟩ := by
+      mem, locs, adv, evts⟩ := by
   unfold Miden.Core.U128.overflowing_add execWithEnv
   simp only [List.foldlM]
   have ha0_lt : a0.val < 2 ^ 32 := by simpa [Felt.isU32, decide_eq_true_eq] using ha0

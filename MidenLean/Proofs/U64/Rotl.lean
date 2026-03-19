@@ -39,7 +39,7 @@ private theorem rotl_split :
 
 private theorem rotl_h1_ok
     (lo hi shift : Felt) (rest : List Felt)
-    (mem locs : Nat → Felt) (adv : List Felt)
+    (mem locs : Nat → Felt) (adv : List Felt) (evts : List Felt)
     (hshift_u32 : shift.isU32 = true)
     (hlo : lo.isU32 = true) :
     let eff := shift.val &&& 31
@@ -47,7 +47,7 @@ private theorem rotl_h1_ok
     let lo_prod := pow * lo.val
     exec 30
       ⟨shift :: lo :: hi :: rest,
-       mem, locs, adv⟩ rotl_h1 =
+       mem, locs, adv, evts⟩ rotl_h1 =
     some ⟨Felt.ofNat (lo_prod / 2 ^ 32) ::
           Felt.ofNat (lo_prod % 2 ^ 32) ::
           Felt.ofNat pow ::
@@ -55,7 +55,7 @@ private theorem rotl_h1_ok
           Felt.ofNat
             (u32OverflowingSub 31 shift.val).1 ::
           rest,
-      mem, locs, adv⟩ := by
+      mem, locs, adv, evts⟩ := by
   dsimp only []
   unfold exec rotl_h1 execWithEnv
   simp only [List.foldlM]
@@ -143,7 +143,7 @@ private theorem rotl_carry_u32 (lo shift : Felt)
 private theorem rotl_h2_ok (b : Bool)
     (hi pow carry lo_mod : Felt)
     (rest : List Felt)
-    (mem locs : Nat → Felt) (adv : List Felt)
+    (mem locs : Nat → Felt) (adv : List Felt) (evts : List Felt)
     (hhi : hi.isU32 = true)
     (hpow_u32 : pow.isU32 = true)
     (hcarry_u32 : carry.isU32 = true) :
@@ -151,7 +151,7 @@ private theorem rotl_h2_ok (b : Bool)
     exec 30
       ⟨carry :: lo_mod :: pow :: hi ::
         (if b then (1 : Felt) else 0) :: rest,
-       mem, locs, adv⟩ rotl_h2 =
+       mem, locs, adv, evts⟩ rotl_h2 =
     some ⟨
       (if b then
         Felt.ofNat (cross % 2 ^ 32) ::
@@ -159,7 +159,7 @@ private theorem rotl_h2_ok (b : Bool)
       else
         (Felt.ofNat (cross / 2 ^ 32) + lo_mod) ::
         Felt.ofNat (cross % 2 ^ 32) :: rest),
-      mem, locs, adv⟩ := by
+      mem, locs, adv, evts⟩ := by
   dsimp only []
   unfold exec rotl_h2 execWithEnv
   simp only [List.foldlM]

@@ -73,7 +73,7 @@ private theorem rotr_split :
 
 private theorem rotr_h1_ok
     (lo hi shift : Felt) (rest : List Felt)
-    (mem locs : Nat → Felt) (adv : List Felt)
+    (mem locs : Nat → Felt) (adv : List Felt) (evts : List Felt)
     (hshift_u32 : shift.isU32 = true) :
     let cmp := decide ((31 : Felt).val < shift.val)
     let shiftAnd31 :=
@@ -85,10 +85,10 @@ private theorem rotr_h1_ok
     let prod1 := pow * lo
     exec 35
       ⟨shift :: lo :: hi :: rest,
-       mem, locs, adv⟩ rotr_h1 =
+       mem, locs, adv, evts⟩ rotr_h1 =
     some ⟨prod1.hi32 :: prod1.lo32 :: pow :: hi ::
       (if cmp then (1 : Felt) else 0) :: rest,
-      mem, locs, adv⟩ := by
+      mem, locs, adv, evts⟩ := by
   simp only []
   unfold exec rotr_h1 execWithEnv
   simp only [List.foldlM]
@@ -134,7 +134,7 @@ private theorem rotr_h1_ok
 private theorem rotr_h2_ok (b : Bool)
     (hi pow prod1_hi prod1_lo : Felt)
     (rest : List Felt)
-    (mem locs : Nat → Felt) (adv : List Felt) :
+    (mem locs : Nat → Felt) (adv : List Felt) (evts : List Felt) :
     let cross := prod1_hi + hi * pow
     exec 35
       ⟨prod1_hi :: prod1_lo :: pow :: hi ::
@@ -146,7 +146,7 @@ private theorem rotr_h2_ok (b : Bool)
       else
         (cross.hi32 + prod1_lo) :: cross.lo32 ::
           rest),
-      mem, locs, adv⟩ := by
+      mem, locs, adv, evts⟩ := by
   simp only []
   unfold exec rotr_h2 execWithEnv
   simp only [List.foldlM]
