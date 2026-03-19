@@ -453,7 +453,7 @@ theorem stepAdvPush2 (stk : List Felt) (mem locs : Nat → Felt)
 /-- memStorewLe: pops address, stores top 4 elements
     to memory at addr..addr+3 in LE order.
     Requires addr < u32Max and addr % 4 = 0. -/
-theorem stepMemStorewLe (locs : Nat → Felt) (adv : List Felt) (evts : List Felt)
+theorem stepMemStorewLe (locs : Nat → Felt) (adv : List Felt)
     (a e0 e1 e2 e3 : Felt) (rest : List Felt)
     (mem : Nat → Felt) (evts : List Felt)
     (ha_lt : a.val < u32Max)
