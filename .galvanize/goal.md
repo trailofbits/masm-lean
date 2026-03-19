@@ -131,6 +131,11 @@ types (toU64, toU128) rather than raw field elements.
 - [x] lake build passes with 0 errors
 - [x] 0 lint warnings
 - [x] No sorry in any proof file
+- [x] [ongoing] AC-54: COMPARISON.md accurately reflects
+  the current state of the code. Every S-N simplification
+  entry matches the actual implementation. Verify after
+  any change to Semantics.lean, State.lean, or memory/
+  stack/emit model.
 
 ## Scope Boundaries
 
@@ -165,3 +170,5 @@ proofs, modifying miden-vm.
   Full word-addressed memory refactor now in scope.
 - 2026-03-19: Additive: Tier 11 (AC-50 to AC-53)
   for per-instruction stack depth enforcement.
+- 2026-03-19: Additive: AC-54 (ongoing) --
+  COMPARISON.md accuracy after semantic changes.
