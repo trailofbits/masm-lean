@@ -450,6 +450,16 @@ impl SymbolicStack {
                 self.push_local(2);
             }
 
+            // u32 wrapping madd: all three operands must be u32
+            U32WrappingMadd => {
+                self.ensure_depth(3);
+                self.require_u32(0, &inst_name);
+                self.require_u32(1, &inst_name);
+                self.require_u32(2, &inst_name);
+                self.pop_n(3);
+                self.push_local(1);
+            }
+
             // u32 assert2: both operands must be u32 (but not consumed)
             U32Assert2 | U32Assert2WithError(_) => {
                 self.ensure_depth(2);

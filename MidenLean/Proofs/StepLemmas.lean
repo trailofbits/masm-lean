@@ -391,6 +391,15 @@ set_option maxHeartbeats 4000000 in
   unfold execInstruction execU32WidenMadd u32WideMadd u32Max
   simp [ha, hb, hc, MidenState.withStack]
 
+set_option maxHeartbeats 4000000 in
+@[miden_dispatch] theorem stepU32WrappingMadd (mem locs : Nat → Felt) (adv : List Felt)
+    (a b c : Felt) (rest : List Felt)
+    (ha : a.isU32 = true) (hb : b.isU32 = true) (hc : c.isU32 = true) :
+    execInstruction ⟨b :: a :: c :: rest, mem, locs, adv⟩ .u32WrappingMadd =
+    some ⟨Felt.ofNat ((a.val * b.val + c.val) % 2^32) :: rest, mem, locs, adv⟩ := by
+  unfold execInstruction execU32WrappingMadd u32Max
+  simp [ha, hb, hc, MidenState.withStack]
+
 -- ============================================================================
 -- U32 bitwise (require isU32 preconditions)
 -- ============================================================================

@@ -309,6 +309,7 @@ pub fn translate_instruction(inst: &Instruction) -> Result<String> {
             return Ok(format!(".inst (.push {v}), .inst .u32WrappingMul"));
         }
         U32WideningMadd => ".u32WidenMadd".into(),
+        U32WrappingMadd => ".u32WrappingMadd".into(),
 
         U32DivMod => ".u32DivMod".into(),
         U32DivModImm(imm) => {
@@ -394,4 +395,16 @@ pub fn translate_instruction(inst: &Instruction) -> Result<String> {
         _ => return Err(anyhow!("unsupported instruction: {:?}", inst)),
     };
     Ok(s)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::translate_instruction;
+    use miden_assembly_syntax::ast::Instruction;
+
+    #[test]
+    fn translates_u32_wrapping_madd() {
+        let lean = translate_instruction(&Instruction::U32WrappingMadd).unwrap();
+        assert_eq!(lean, ".u32WrappingMadd");
+    }
 }
