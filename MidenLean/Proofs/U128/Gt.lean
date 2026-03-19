@@ -18,9 +18,9 @@ theorem u128_gt_run
     (hb0 : b0.isU32 = true) (hb1 : b1.isU32 = true)
     (hb2 : b2.isU32 = true) (hb3 : b3.isU32 = true) :
     execWithEnv u128ProcEnv (fuel + 2)
-      ⟨b0 :: b1 :: b2 :: b3 :: a0 :: a1 :: a2 :: a3 :: rest, mem, locs, adv⟩
+      ⟨b0 :: b1 :: b2 :: b3 :: a0 :: a1 :: a2 :: a3 :: rest, mem, locs, adv, evts⟩
       Miden.Core.U128.gt =
-    some ⟨(if u128GtBool a0 a1 a2 a3 b0 b1 b2 b3 then (1 : Felt) else 0) :: rest, mem, locs, adv⟩ := by
+    some ⟨(if u128GtBool a0 a1 a2 a3 b0 b1 b2 b3 then (1 : Felt) else 0) :: rest, mem, locs, adv, evts⟩ := by
   unfold Miden.Core.U128.gt execWithEnv
   simp only [List.foldlM, u128ProcEnv]
   dsimp only [bind, Bind.bind, Option.bind]
@@ -54,7 +54,7 @@ theorem u128_gt_correct
     (hb2 : b2.isU32 = true) (hb3 : b3.isU32 = true) :
     execWithEnv u128ProcEnv 46 s Miden.Core.U128.gt =
     some (s.withStack ((if u128GtBool a0 a1 a2 a3 b0 b1 b2 b3 then (1 : Felt) else 0) :: rest)) := by
-  obtain ⟨stk, mem, locs, adv⟩ := s
+  obtain ⟨stk, mem, locs, adv, evts⟩ := s
   simp only [MidenState.withStack] at hs ⊢
   subst hs
   simpa using u128_gt_run 44 a0 a1 a2 a3 b0 b1 b2 b3 rest mem locs adv

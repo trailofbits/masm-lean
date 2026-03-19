@@ -144,7 +144,7 @@ private theorem wmul_h1_ok
         b_lo.val * a_lo.val / 2^32) / 2^32) ::
       Felt.ofNat (b_lo.val * a_lo.val % 2^32) ::
       a_hi :: b_hi ::
-      rest, mem, locs, adv⟩ := by
+      rest, mem, locs, adv, evts⟩ := by
   unfold exec wmul_h1 execWithEnv
   simp only [List.foldlM]
   rw [stepReversew]; miden_bind
@@ -174,7 +174,7 @@ private theorem wmul_h2_ok
     (hc1hi_u32 : c1hi.isU32 = true) :
     exec 30
       ⟨c2hi :: c2lo :: c1hi :: prod0 :: a_hi ::
-        b_hi :: rest, mem, locs, adv⟩ wmul_h2 =
+        b_hi :: rest, mem, locs, adv, evts⟩ wmul_h2 =
     some ⟨
       prod0 :: c2lo ::
       Felt.ofNat ((c1hi.val +
@@ -184,7 +184,7 @@ private theorem wmul_h2_ok
         (b_hi.val * a_hi.val + c2hi.val) % 2^32) /
         2^32) +
        Felt.ofNat ((b_hi.val * a_hi.val + c2hi.val) /
-        2^32)) :: rest, mem, locs, adv⟩ := by
+        2^32)) :: rest, mem, locs, adv, evts⟩ := by
   unfold exec wmul_h2 execWithEnv
   simp only [List.foldlM]
   miden_movup; miden_movup
@@ -230,7 +230,7 @@ theorem u64_widening_mul_correct
       Felt.ofNat (widenAdd % 2^32) ::
       (Felt.ofNat (widenAdd / 2^32) +
         Felt.ofNat (high / 2^32)) :: rest)) := by
-  obtain ⟨stk, mem, locs, adv⟩ := s
+  obtain ⟨stk, mem, locs, adv, evts⟩ := s
   simp only [MidenState.withStack] at hs ⊢
   subst hs
   rw [wmul_split, exec_append,

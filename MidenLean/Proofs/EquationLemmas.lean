@@ -338,7 +338,8 @@ theorem execInstruction_emit
     execInstruction s .emit = execEmit s := rfl
 theorem execInstruction_emitImm'
     (v : Felt) (s : MidenState) :
-    execInstruction s (.emitImm v) = some s := rfl
+    execInstruction s (.emitImm v) =
+      some { s with events := v :: s.events } := rfl
 
 -- Assert
 theorem execInstruction_assert

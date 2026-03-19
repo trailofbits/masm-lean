@@ -978,11 +978,12 @@ def execAdvLoadW (s : MidenState) : Option MidenState :=
 -- Events
 -- Ref: emit is an async operation; dispatches to host event handler.
 -- emitImm: compiled to [push event_id, emit]
--- In this model, both are no-ops (we don't model host events).
+-- The model records emitted event IDs.
 
 def execEmit (s : MidenState) : Option MidenState :=
   match s.stack with
-  | _ :: _ => some s
+  | eventId :: _ =>
+    some { s with events := eventId :: s.events }
   | _ => none
 
 -- ============================================================================
@@ -1106,7 +1107,8 @@ def execInstruction (s : MidenState) (i : Instruction) : Option MidenState :=
   | .advPush n => execAdvPush n s
   | .advLoadW => execAdvLoadW s
   | .emit => execEmit s
-  | .emitImm _ => some s  -- events are no-ops in semantics
+  | .emitImm eventId =>
+    some { s with events := eventId :: s.events }
   | .exec _ => none  -- handled at Op level
 
 -- ============================================================================

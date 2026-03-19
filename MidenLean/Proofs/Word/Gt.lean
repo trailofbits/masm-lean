@@ -32,9 +32,9 @@ theorem arrange_for_wordProcEnv
     (a0 a1 a2 a3 b0 b1 b2 b3 : Felt) (rest : List Felt)
     (mem locs : Nat → Felt) (adv : List Felt) :
     execWithEnv wordProcEnv 2
-      ⟨a0 :: a1 :: a2 :: a3 :: b0 :: b1 :: b2 :: b3 :: rest, mem, locs, adv⟩
+      ⟨a0 :: a1 :: a2 :: a3 :: b0 :: b1 :: b2 :: b3 :: rest, mem, locs, adv, evts⟩
       Miden.Core.Word.arrange_words_adjacent_le =
-    some ⟨b3 :: a3 :: b2 :: a2 :: b1 :: a1 :: b0 :: a0 :: rest, mem, locs, adv⟩ := by
+    some ⟨b3 :: a3 :: b2 :: a2 :: b1 :: a1 :: b0 :: a0 :: rest, mem, locs, adv, evts⟩ := by
   unfold Miden.Core.Word.arrange_words_adjacent_le execWithEnv
   simp only [List.foldlM]
   miden_step; miden_step; miden_step; miden_step; miden_step  -- movup 7, movup 4, swap, movup 7, movdn 2
@@ -55,12 +55,12 @@ private theorem gt_iteration
     let new_undecided := undecided && eq_flag
     execWithEnv wordProcEnv 2
       ⟨(if result then (1:Felt) else 0) :: (if undecided then (1:Felt) else 0) ::
-        b_i :: a_i :: tail, mem, locs, adv⟩
+        b_i :: a_i :: tail, mem, locs, adv, evts⟩
       [.inst (.movup 3), .inst (.movup 3), .inst (.dup 0), .inst (.dup 2),
        .inst (.eq), .inst (.movdn 3), .inst (.lt), .inst (.dup 3),
        .inst (.and), .inst (.or), .inst (.movdn 2), .inst (.and), .inst (.swap 1)] =
     some ⟨(if new_result then (1:Felt) else 0) ::
-          (if new_undecided then (1:Felt) else 0) :: tail, mem, locs, adv⟩ := by
+          (if new_undecided then (1:Felt) else 0) :: tail, mem, locs, adv, evts⟩ := by
   unfold execWithEnv
   simp only [List.foldlM]
   miden_step; miden_step  -- movup 3, movup 3
@@ -83,12 +83,12 @@ private theorem gt_iteration_init
     (b_i a_i : Felt) (tail : List Felt)
     (mem locs : Nat → Felt) (adv : List Felt) :
     execWithEnv wordProcEnv 2
-      ⟨(0:Felt) :: (1:Felt) :: b_i :: a_i :: tail, mem, locs, adv⟩
+      ⟨(0:Felt) :: (1:Felt) :: b_i :: a_i :: tail, mem, locs, adv, evts⟩
       [.inst (.movup 3), .inst (.movup 3), .inst (.dup 0), .inst (.dup 2),
        .inst (.eq), .inst (.movdn 3), .inst (.lt), .inst (.dup 3),
        .inst (.and), .inst (.or), .inst (.movdn 2), .inst (.and), .inst (.swap 1)] =
     some ⟨(if decide (a_i.val < b_i.val) then (1:Felt) else 0) ::
-          (if (b_i == a_i) then (1:Felt) else 0) :: tail, mem, locs, adv⟩ :=
+          (if (b_i == a_i) then (1:Felt) else 0) :: tail, mem, locs, adv, evts⟩ :=
   gt_iteration false true b_i a_i tail mem locs adv
 
 /-- `word::gt` correctly compares two words lexicographically. -/
@@ -101,7 +101,7 @@ theorem word_gt_correct
                   || ((b3 == a3) && (b2 == a2) && (b1 == a1) && decide (a0.val < b0.val))
     execWithEnv wordProcEnv 3 s Miden.Core.Word.gt =
     some (s.withStack ((if result then (1:Felt) else 0) :: rest)) := by
-  obtain ⟨stk, mem, locs, adv⟩ := s
+  obtain ⟨stk, mem, locs, adv, evts⟩ := s
   simp only [MidenState.withStack] at hs ⊢
   subst hs
   -- Unfold procedure and resolve arrange call

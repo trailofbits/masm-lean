@@ -29,7 +29,7 @@ theorem u128_clo_correct
           Felt.ofNat (u32CountLeadingZeros (u32Max - 1 - c.val)) + 32
       else
         Felt.ofNat (u32CountLeadingZeros (u32Max - 1 - d.val))) :: rest)) := by
-  obtain ⟨stk, mem, locs, adv⟩ := s
+  obtain ⟨stk, mem, locs, adv, evts⟩ := s
   simp only [MidenState.withStack] at hs ⊢
   subst hs
   unfold exec Miden.Core.U128.clo execWithEnv

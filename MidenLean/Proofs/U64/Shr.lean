@@ -220,9 +220,9 @@ private theorem shr_chunk1_correct
     let pow_lo := pow.lo32
     let pow_hi := pow.hi32
     let denom := pow_hi + pow_lo
-    exec 42 ⟨shift :: lo :: hi :: rest, mem, locs, adv⟩ shr_chunk1 =
+    exec 42 ⟨shift :: lo :: hi :: rest, mem, locs, adv, evts⟩ shr_chunk1 =
       some ⟨Felt.ofNat (hi.val % denom.val) ::
-        Felt.ofNat (hi.val / denom.val) :: pow_lo :: lo :: rest, mem, locs, adv⟩ := by
+        Felt.ofNat (hi.val / denom.val) :: pow_lo :: lo :: rest, mem, locs, adv, evts⟩ := by
   unfold exec shr_chunk1 execWithEnv
   simp only [List.foldlM]
   miden_movup
@@ -256,7 +256,7 @@ private theorem shr_chunk2_correct
     let pow_lo_eq0 : Felt := if pow_lo == (0 : Felt) then 1 else 0
     let cond := !decide (pow_lo.val < pow_lo_eq0.val)
     let diff := Felt.ofNat (u32OverflowingSub pow_lo.val pow_lo_eq0.val).2
-    exec 42 ⟨hi_rem :: hi_quot :: pow_lo :: lo :: rest, mem, locs, adv⟩ shr_chunk2 =
+    exec 42 ⟨hi_rem :: hi_quot :: pow_lo :: lo :: rest, mem, locs, adv, evts⟩ shr_chunk2 =
       some ⟨Felt.ofNat (lo.val % diff.val) :: Felt.ofNat (lo.val / diff.val) ::
         hi_quot :: hi_rem :: diff :: (if cond then (1 : Felt) else 0) :: rest,
         mem, locs, adv⟩ := by
@@ -294,10 +294,10 @@ private theorem shr_chunk3_correct
     (hdiff_ne_zero : (diff == (0 : Felt)) = false) :
     let cond_felt : Felt := if cond then 1 else 0
     let mix := lo_quot + (((4294967296 : Felt) * cond_felt) * diff⁻¹) * hi_rem
-    exec 42 ⟨lo_rem :: lo_quot :: hi_quot :: hi_rem :: diff :: cond_felt :: rest, mem, locs, adv⟩
+    exec 42 ⟨lo_rem :: lo_quot :: hi_quot :: hi_rem :: diff :: cond_felt :: rest, mem, locs, adv, evts⟩
         shr_chunk3 =
       some ⟨(if cond then hi_quot else mix) :: (if cond then mix else hi_quot) ::
-        cond_felt :: rest, mem, locs, adv⟩ := by
+        cond_felt :: rest, mem, locs, adv, evts⟩ := by
   unfold exec shr_chunk3 execWithEnv
   simp only [List.foldlM]
   miden_swap
@@ -346,7 +346,7 @@ theorem u64_shr_correct
       if cond then
         (lo_quot + (4294967296 : Felt) * diff⁻¹ * hi_rem) :: hi_quot :: rest
       else hi_quot :: (0 : Felt) :: rest)) := by
-  obtain ⟨stk, mem, locs, adv⟩ := s
+  obtain ⟨stk, mem, locs, adv, evts⟩ := s
   simp only [MidenState.withStack] at hs ⊢
   subst hs
   rw [shr_decomp, MidenLean.exec_append]

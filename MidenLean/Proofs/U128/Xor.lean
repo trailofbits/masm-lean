@@ -23,7 +23,7 @@ theorem u128_xor_correct
       Felt.ofNat (b1.val ^^^ a1.val) ::
       Felt.ofNat (b2.val ^^^ a2.val) ::
       Felt.ofNat (b3.val ^^^ a3.val) :: rest)) := by
-  obtain ⟨stk, mem, locs, adv⟩ := s
+  obtain ⟨stk, mem, locs, adv, evts⟩ := s
   simp only [MidenState.withStack] at hs ⊢
   subst hs
   unfold exec Miden.Core.U128.xor execWithEnv

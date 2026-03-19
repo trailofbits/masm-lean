@@ -12,17 +12,19 @@ structure MidenState where
   locals : Nat → Felt
   /-- The advice stack (nondeterministic input). -/
   advice : List Felt
+  /-- Emitted event IDs (most recent first). -/
+  events : List Felt := []
 
 /-- Default 0-initialized memory. -/
 def zeroMemory : Nat → Felt := fun _ => 0
 
 /-- Create a state with the given stack and empty memory. -/
 def MidenState.ofStack (s : List Felt) : MidenState :=
-  { stack := s, memory := zeroMemory, locals := zeroMemory, advice := [] }
+  { stack := s, memory := zeroMemory, locals := zeroMemory, advice := [], events := [] }
 
 /-- Create a state with the given stack and advice stack. -/
 def MidenState.ofStackAdvice (s : List Felt) (adv : List Felt) : MidenState :=
-  { stack := s, memory := zeroMemory, locals := zeroMemory, advice := adv }
+  { stack := s, memory := zeroMemory, locals := zeroMemory, advice := adv, events := [] }
 
 /-- Write a single felt to memory at the given address. -/
 def MidenState.writeMemory (s : MidenState) (addr : Nat) (v : Felt) : MidenState :=

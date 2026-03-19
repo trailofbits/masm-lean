@@ -13,7 +13,7 @@ theorem u64_overflowing_add_run
     (mem locs : Nat → Felt) (adv : List Felt)
     (ha_lo : a_lo.isU32 = true) (ha_hi : a_hi.isU32 = true)
     (hb_lo : b_lo.isU32 = true) (hb_hi : b_hi.isU32 = true) :
-    execWithEnv env (fuel + 1) ⟨b_lo :: b_hi :: a_lo :: a_hi :: rest, mem, locs, adv⟩
+    execWithEnv env (fuel + 1) ⟨b_lo :: b_hi :: a_lo :: a_hi :: rest, mem, locs, adv, evts⟩
       Miden.Core.U64.overflowing_add =
     some ⟨
       Felt.ofNat ((a_hi.val + b_hi.val + (b_lo.val + a_lo.val) / 2 ^ 32) / 2 ^ 32) ::
@@ -57,7 +57,7 @@ theorem u64_overflowing_add_correct
       Felt.ofNat (hi_sum / 2 ^ 32) ::
       Felt.ofNat (lo_sum % 2 ^ 32) ::
       Felt.ofNat (hi_sum % 2 ^ 32) :: rest)) := by
-  obtain ⟨stk, mem, locs, adv⟩ := s
+  obtain ⟨stk, mem, locs, adv, evts⟩ := s
   simp only [MidenState.withStack] at hs ⊢
   subst hs
   simpa [exec] using

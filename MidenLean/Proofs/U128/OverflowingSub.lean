@@ -196,9 +196,9 @@ private theorem chunk1_correct
     (mem locs : Nat → Felt) (adv : List Felt)
     (ha0 : a0.isU32 = true) (hb0 : b0.isU32 = true) :
     execWithEnv env (fuel + 1)
-      ⟨b0 :: b1 :: b2 :: b3 :: a0 :: a1 :: a2 :: a3 :: rest, mem, locs, adv⟩
+      ⟨b0 :: b1 :: b2 :: b3 :: a0 :: a1 :: a2 :: a3 :: rest, mem, locs, adv, evts⟩
       chunk1 =
-    some ⟨stage1a a0 a1 a2 a3 b0 b1 b2 b3 rest, mem, locs, adv⟩ := by
+    some ⟨stage1a a0 a1 a2 a3 b0 b1 b2 b3 rest, mem, locs, adv, evts⟩ := by
   unfold chunk1 execWithEnv
   simp only [List.foldlM]
   miden_movup
@@ -217,9 +217,9 @@ private theorem chunk2_correct
     (mem locs : Nat → Felt) (adv : List Felt)
     (ha1 : a1.isU32 = true) (hb1 : b1.isU32 = true) :
     execWithEnv env (fuel + 1)
-      ⟨stage1a a0 a1 a2 a3 b0 b1 b2 b3 rest, mem, locs, adv⟩
+      ⟨stage1a a0 a1 a2 a3 b0 b1 b2 b3 rest, mem, locs, adv, evts⟩
       chunk2 =
-    some ⟨stage1b a0 a1 a2 a3 b0 b1 b2 b3 rest, mem, locs, adv⟩ := by
+    some ⟨stage1b a0 a1 a2 a3 b0 b1 b2 b3 rest, mem, locs, adv, evts⟩ := by
   unfold stage1a chunk2 execWithEnv
   simp only [List.foldlM]
   miden_movdn
@@ -237,9 +237,9 @@ private theorem chunk3_correct
     (mem locs : Nat → Felt) (adv : List Felt)
     (ha1 : a1.isU32 = true) (hb1 : b1.isU32 = true) :
     execWithEnv env (fuel + 1)
-      ⟨stage1b a0 a1 a2 a3 b0 b1 b2 b3 rest, mem, locs, adv⟩
+      ⟨stage1b a0 a1 a2 a3 b0 b1 b2 b3 rest, mem, locs, adv, evts⟩
       chunk3 =
-    some ⟨stage1c a0 a1 a2 a3 b0 b1 b2 b3 rest, mem, locs, adv⟩ := by
+    some ⟨stage1c a0 a1 a2 a3 b0 b1 b2 b3 rest, mem, locs, adv, evts⟩ := by
   unfold stage1b chunk3 execWithEnv
   simp only [List.foldlM]
   have ha1_lt : a1.val < 2 ^ 32 := by simpa [Felt.isU32, decide_eq_true_eq] using ha1
@@ -269,9 +269,9 @@ private theorem chunk4_correct
     (mem locs : Nat → Felt) (adv : List Felt)
     (ha2 : a2.isU32 = true) (hb2 : b2.isU32 = true) :
     execWithEnv env (fuel + 1)
-      ⟨stage1c a0 a1 a2 a3 b0 b1 b2 b3 rest, mem, locs, adv⟩
+      ⟨stage1c a0 a1 a2 a3 b0 b1 b2 b3 rest, mem, locs, adv, evts⟩
       chunk4 =
-    some ⟨stage2a a0 a1 a2 a3 b0 b1 b2 b3 rest, mem, locs, adv⟩ := by
+    some ⟨stage2a a0 a1 a2 a3 b0 b1 b2 b3 rest, mem, locs, adv, evts⟩ := by
   unfold stage1c chunk4 execWithEnv
   simp only [List.foldlM]
   unfold sub1Adj sub1 sub0
@@ -296,9 +296,9 @@ private theorem chunk5_correct
     (mem locs : Nat → Felt) (adv : List Felt)
     (ha2 : a2.isU32 = true) (hb2 : b2.isU32 = true) :
     execWithEnv env (fuel + 1)
-      ⟨stage2a a0 a1 a2 a3 b0 b1 b2 b3 rest, mem, locs, adv⟩
+      ⟨stage2a a0 a1 a2 a3 b0 b1 b2 b3 rest, mem, locs, adv, evts⟩
       chunk5 =
-    some ⟨stage2b a0 a1 a2 a3 b0 b1 b2 b3 rest, mem, locs, adv⟩ := by
+    some ⟨stage2b a0 a1 a2 a3 b0 b1 b2 b3 rest, mem, locs, adv, evts⟩ := by
   unfold stage2a chunk5 execWithEnv
   simp only [List.foldlM]
   have ha2_lt : a2.val < 2 ^ 32 := by simpa [Felt.isU32, decide_eq_true_eq] using ha2
@@ -326,9 +326,9 @@ private theorem chunk6_correct
     (mem locs : Nat → Felt) (adv : List Felt)
     (ha3 : a3.isU32 = true) (hb3 : b3.isU32 = true) :
     execWithEnv env (fuel + 1)
-      ⟨stage2b a0 a1 a2 a3 b0 b1 b2 b3 rest, mem, locs, adv⟩
+      ⟨stage2b a0 a1 a2 a3 b0 b1 b2 b3 rest, mem, locs, adv, evts⟩
       chunk6 =
-    some ⟨stage3a a0 a1 a2 a3 b0 b1 b2 b3 rest, mem, locs, adv⟩ := by
+    some ⟨stage3a a0 a1 a2 a3 b0 b1 b2 b3 rest, mem, locs, adv, evts⟩ := by
   unfold stage2b chunk6 execWithEnv
   simp only [List.foldlM]
   unfold sub2Adj sub2
@@ -353,9 +353,9 @@ private theorem chunk7_correct
     (mem locs : Nat → Felt) (adv : List Felt)
     (ha3 : a3.isU32 = true) (hb3 : b3.isU32 = true) :
     execWithEnv env (fuel + 1)
-      ⟨stage3a a0 a1 a2 a3 b0 b1 b2 b3 rest, mem, locs, adv⟩
+      ⟨stage3a a0 a1 a2 a3 b0 b1 b2 b3 rest, mem, locs, adv, evts⟩
       chunk7 =
-    some ⟨stage3b a0 a1 a2 a3 b0 b1 b2 b3 rest, mem, locs, adv⟩ := by
+    some ⟨stage3b a0 a1 a2 a3 b0 b1 b2 b3 rest, mem, locs, adv, evts⟩ := by
   unfold stage3a chunk7 execWithEnv
   simp only [List.foldlM]
   have ha3_lt : a3.val < 2 ^ 32 := by simpa [Felt.isU32, decide_eq_true_eq] using ha3
@@ -383,9 +383,9 @@ private theorem chunk8_correct
     (a0 a1 a2 a3 b0 b1 b2 b3 : Felt) (rest : List Felt)
     (mem locs : Nat → Felt) (adv : List Felt) :
     execWithEnv env (fuel + 1)
-      ⟨stage3b a0 a1 a2 a3 b0 b1 b2 b3 rest, mem, locs, adv⟩
+      ⟨stage3b a0 a1 a2 a3 b0 b1 b2 b3 rest, mem, locs, adv, evts⟩
       chunk8 =
-    some ⟨u128OverflowingSubResult a0 a1 a2 a3 b0 b1 b2 b3 rest, mem, locs, adv⟩ := by
+    some ⟨u128OverflowingSubResult a0 a1 a2 a3 b0 b1 b2 b3 rest, mem, locs, adv, evts⟩ := by
   unfold stage3b chunk8 execWithEnv
   simp only [List.foldlM]
   unfold sub3Adj sub3
@@ -413,9 +413,9 @@ theorem u128_overflowing_sub_run
     (hb0 : b0.isU32 = true) (hb1 : b1.isU32 = true)
     (hb2 : b2.isU32 = true) (hb3 : b3.isU32 = true) :
     execWithEnv env (fuel + 1)
-      ⟨b0 :: b1 :: b2 :: b3 :: a0 :: a1 :: a2 :: a3 :: rest, mem, locs, adv⟩
+      ⟨b0 :: b1 :: b2 :: b3 :: a0 :: a1 :: a2 :: a3 :: rest, mem, locs, adv, evts⟩
       Miden.Core.U128.overflowing_sub =
-    some ⟨u128OverflowingSubResult a0 a1 a2 a3 b0 b1 b2 b3 rest, mem, locs, adv⟩ := by
+    some ⟨u128OverflowingSubResult a0 a1 a2 a3 b0 b1 b2 b3 rest, mem, locs, adv, evts⟩ := by
   rw [overflowing_sub_decomp, execWithEnv_append]
   rw [chunk1_correct env fuel a0 a1 a2 a3 b0 b1 b2 b3 rest mem locs adv ha0 hb0]
   miden_bind
@@ -453,7 +453,7 @@ theorem u128_overflowing_sub_correct
     (hb2 : b2.isU32 = true) (hb3 : b3.isU32 = true) :
     exec 49 s Miden.Core.U128.overflowing_sub =
     some (s.withStack (u128OverflowingSubResult a0 a1 a2 a3 b0 b1 b2 b3 rest)) := by
-  obtain ⟨stk, mem, locs, adv⟩ := s
+  obtain ⟨stk, mem, locs, adv, evts⟩ := s
   simp only [MidenState.withStack] at hs ⊢
   subst hs
   simpa [exec] using

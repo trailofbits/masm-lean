@@ -139,7 +139,7 @@ private theorem rotr_h2_ok (b : Bool)
     exec 35
       ⟨prod1_hi :: prod1_lo :: pow :: hi ::
         (if b then (1 : Felt) else 0) ::
-        rest, mem, locs, adv⟩ rotr_h2 =
+        rest, mem, locs, adv, evts⟩ rotr_h2 =
     some ⟨
       (if !b then
         cross.lo32 :: (cross.hi32 + prod1_lo) :: rest
@@ -186,7 +186,7 @@ theorem u64_rotr_correct
       else
         (cross.hi32 + prod1.lo32) :: cross.lo32 ::
           rest)) := by
-  obtain ⟨stk, mem, locs, adv⟩ := s
+  obtain ⟨stk, mem, locs, adv, evts⟩ := s
   simp only [MidenState.withStack] at hs ⊢
   subst hs
   rw [rotr_split, exec_append,

@@ -22,13 +22,13 @@ theorem u64_clo_correct (lo hi : Felt) (rest : List Felt) (s : MidenState)
       (if hi == (4294967295 : Felt)
        then Felt.ofNat (u32CountLeadingZeros (lo.val ^^^ (u32Max - 1))) + 32
        else Felt.ofNat (u32CountLeadingZeros (hi.val ^^^ (u32Max - 1)))) :: rest)) := by
-  obtain ⟨stk, mem, locs, adv⟩ := s
+  obtain ⟨stk, mem, locs, adv, evts⟩ := s
   simp only [MidenState.withStack] at hs ⊢
   subst hs
   unfold exec Miden.Core.U64.clo execWithEnv
   simp only [List.foldlM]
   change (do
-    let s' ← execInstruction ⟨lo :: hi :: rest, mem, locs, adv⟩ (.swap 1)
+    let s' ← execInstruction ⟨lo :: hi :: rest, mem, locs, adv, evts⟩ (.swap 1)
     let s' ← execInstruction s' (.dup 0)
     let s' ← execInstruction s' (.eqImm 4294967295)
     let s' ← (match s'.stack with

@@ -20,13 +20,13 @@ theorem u64_or_correct
     some (s.withStack (
       Felt.ofNat (b_lo.val ||| a_lo.val) ::
       Felt.ofNat (b_hi.val ||| a_hi.val) :: rest)) := by
-  obtain ⟨stk, mem, locs, adv⟩ := s
+  obtain ⟨stk, mem, locs, adv, evts⟩ := s
   simp only [MidenState.withStack] at hs ⊢
   subst hs
   unfold exec Miden.Core.U64.or execWithEnv
   simp only [List.foldlM]
   change (do
-    let s' ← execInstruction ⟨b_lo :: b_hi :: a_lo :: a_hi :: rest, mem, locs, adv⟩ (.movup 2)
+    let s' ← execInstruction ⟨b_lo :: b_hi :: a_lo :: a_hi :: rest, mem, locs, adv, evts⟩ (.movup 2)
     let s' ← execInstruction s' (.u32Or)
     let s' ← execInstruction s' (.swap 2)
     let s' ← execInstruction s' (.u32Or)
