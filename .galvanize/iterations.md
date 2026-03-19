@@ -140,3 +140,63 @@ None
 ### Convergence Status
 Not converged -- 12 unchecked ACs remain (AC-26
 through AC-37). Tier 5 complete. Starting iteration 3.
+
+## Iteration 3
+**Date:** 2026-03-19
+**Vivisect run:** #3 (full mode)
+
+### State
+- 99 Lean files
+- Build: PASS (exit 0, 0 errors, 0 sorry)
+- Goal.md restored: Tiers 5-8 re-added (had been lost
+  from goal.md after iteration 2). ACs renumbered.
+  24 unchecked ACs remain (AC-19 through AC-42).
+
+### Vivisect Findings (Phase 1)
+| Category | Count |
+|----------|-------|
+| Broken   | 0     |
+| Absurd   | 0     |
+| Bad      | 4     |
+| Good     | 10    |
+
+Bad findings (all previously accepted in iteration 1):
+- Bad-1: Unbounded stack (intentional)
+- Bad-2: Element-addressed memory (intentional)
+- Bad-3: Emit as no-op (intentional)
+- Bad-4: Inconsistent NOT style (minor)
+
+All 3 former axioms now fully proved (Good).
+
+Work for Phase 3: semantic theorems for remaining
+u64 procedures (Tiers 5-8, ACs 19-42).
+
+### Goal Revision
+**User said:** "add a stretch goal to fix those Bads"
+**Classification:** additive
+**Changes to goal.md:**
+- Added Tier 9 (AC-43 to AC-46) for fixing 4 Bad
+  vivisect findings: bounded stack, word-addressed
+  memory, emit event ID, consistent NOT style
+**Effect on iteration:** continued (additive)
+
+### Changes Made (Phases 2-3)
+- Spec: no changes
+- Code (Interp.lean): Added toU64_neq_iff bridge lemma,
+  toU64_testBit decomposition, felt_ofNat_val helper,
+  isU32_lt/felt_ofNat_isU32 helpers,
+  bitwise_u32_lt_prime bounds helper,
+  toU64_and/toU64_or/toU64_xor bridge lemmas
+  (proving limb-level bitwise = u64-level bitwise
+  via Nat.eq_of_testBit_eq extensionality)
+- Code (Neq.lean): u64_neq_semantic theorem
+- Code (Min.lean): u64_min_semantic theorem
+- Code (Max.lean): u64_max_semantic theorem
+- Code (And.lean): u64_and_toU64 theorem
+- Code (Or.lean): u64_or_toU64 theorem
+- Code (Xor.lean): u64_xor_toU64 theorem
+- Code (CLAUDE.md): Added mandatory memory cap rule
+  for lake build commands
+- Build: 0 errors, 0 warnings, 0 sorry
+- ACs completed: AC-19, AC-30, AC-31, AC-32,
+  AC-41, AC-42 (6 new)

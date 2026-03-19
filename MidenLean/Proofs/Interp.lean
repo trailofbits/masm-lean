@@ -120,4 +120,135 @@ theorem u64_lt_condition_eq (a_lo a_hi b_lo b_hi : Felt)
       hblo (by simp [Felt.isU32, decide_eq_true_eq]; omega))]
   simp only [Bool.decide_or, Bool.decide_and]
 
+/-- toU64 neq in terms of limb neq: a != b iff
+    a_lo != b_lo or a_hi != b_hi (given isU32). -/
+theorem toU64_neq_iff (a_lo a_hi b_lo b_hi : Felt)
+    (halo : a_lo.isU32 = true) (hahi : a_hi.isU32 = true)
+    (hblo : b_lo.isU32 = true) (hbhi : b_hi.isU32 = true) :
+    toU64 a_lo a_hi ≠ toU64 b_lo b_hi ↔
+    a_lo ≠ b_lo ∨ a_hi ≠ b_hi := by
+  rw [not_iff_comm, not_or, not_not, not_not]
+  exact (toU64_eq_iff a_lo a_hi b_lo b_hi
+    halo hahi hblo hbhi).symm
+
+/-- testBit decomposition for toU64: toU64 lo hi =
+    2^32 * hi.val + lo.val, so testBit decomposes
+    by the 32-bit boundary. -/
+private theorem toU64_testBit (lo hi : Felt)
+    (hlo : lo.isU32 = true) (j : Nat) :
+    (toU64 lo hi).testBit j =
+    if j < 32 then lo.val.testBit j
+    else hi.val.testBit (j - 32) := by
+  simp only [toU64, Felt.isU32, decide_eq_true_eq] at *
+  rw [show hi.val * 2 ^ 32 + lo.val =
+    2 ^ 32 * hi.val + lo.val from by ring]
+  exact Nat.testBit_two_pow_mul_add hi.val hlo j
+
+/-- For n < GOLDILOCKS_PRIME, (Felt.ofNat n).val = n. -/
+private theorem felt_ofNat_val (n : Nat)
+    (h : n < GOLDILOCKS_PRIME) :
+    (Felt.ofNat n).val = n := by
+  simp only [Felt.ofNat]
+  exact ZMod.val_natCast_of_lt h
+
+/-- Helper: bitwise operation on u32 limbs is small
+    enough for Felt.ofNat roundtrip. -/
+private theorem bitwise_u32_lt_prime {a b : Nat}
+    (ha : a < 2 ^ 32) (hb : b < 2 ^ 32) :
+    a &&& b < GOLDILOCKS_PRIME ∧
+    a ||| b < GOLDILOCKS_PRIME ∧
+    a ^^^ b < GOLDILOCKS_PRIME := by
+  unfold GOLDILOCKS_PRIME
+  exact ⟨Nat.lt_of_le_of_lt (Nat.and_le_left ..)
+      (by omega),
+    Nat.lt_of_lt_of_le (Nat.or_lt_two_pow ha hb)
+      (by omega),
+    Nat.lt_of_lt_of_le (Nat.xor_lt_two_pow ha hb)
+      (by omega)⟩
+
+/-- isU32 in Nat.lt form, for passing to bitwise
+    bounds lemmas. -/
+private theorem isU32_lt (a : Felt)
+    (h : a.isU32 = true) : a.val < 2 ^ 32 := by
+  simp only [Felt.isU32, decide_eq_true_eq] at h
+  exact h
+
+/-- Felt.ofNat roundtrip for values under u32 bound. -/
+private theorem felt_ofNat_isU32 (n : Nat)
+    (h : n < 2 ^ 32) : (Felt.ofNat n).isU32 = true := by
+  simp only [Felt.isU32, decide_eq_true_eq, Felt.ofNat]
+  exact Nat.lt_of_lt_of_le
+    (show (n : ZMod GOLDILOCKS_PRIME).val < 2 ^ 32 from by
+      rw [ZMod.val_natCast_of_lt (by unfold GOLDILOCKS_PRIME; omega)]
+      exact h)
+    (le_refl _)
+
+/-- Limb-level bitwise AND equals u64-level AND. -/
+theorem toU64_and (a_lo a_hi b_lo b_hi : Felt)
+    (halo : a_lo.isU32 = true)
+    (hahi : a_hi.isU32 = true)
+    (hblo : b_lo.isU32 = true)
+    (_hbhi : b_hi.isU32 = true) :
+    toU64 (Felt.ofNat (a_lo.val &&& b_lo.val))
+          (Felt.ofNat (a_hi.val &&& b_hi.val)) =
+    toU64 a_lo a_hi &&& toU64 b_lo b_hi := by
+  have hlo_u32 : (a_lo.val &&& b_lo.val) < 2 ^ 32 :=
+    Nat.lt_of_le_of_lt (Nat.and_le_left ..) (isU32_lt _ halo)
+  have hhi_u32 : (a_hi.val &&& b_hi.val) < 2 ^ 32 :=
+    Nat.lt_of_le_of_lt (Nat.and_le_left ..) (isU32_lt _ hahi)
+  have hlo_is := felt_ofNat_isU32 _ hlo_u32
+  have hhi_is := felt_ofNat_isU32 _ hhi_u32
+  have hlo_p : (a_lo.val &&& b_lo.val) < GOLDILOCKS_PRIME := by unfold GOLDILOCKS_PRIME; omega
+  have hhi_p : (a_hi.val &&& b_hi.val) < GOLDILOCKS_PRIME := by unfold GOLDILOCKS_PRIME; omega
+  apply Nat.eq_of_testBit_eq; intro j
+  rw [toU64_testBit _ _ hlo_is, Nat.testBit_and,
+    toU64_testBit a_lo a_hi halo,
+    toU64_testBit b_lo b_hi hblo,
+    felt_ofNat_val _ hlo_p, felt_ofNat_val _ hhi_p]
+  split <;> simp [Nat.testBit_and]
+
+/-- Limb-level bitwise OR equals u64-level OR. -/
+theorem toU64_or (a_lo a_hi b_lo b_hi : Felt)
+    (halo : a_lo.isU32 = true)
+    (hahi : a_hi.isU32 = true)
+    (hblo : b_lo.isU32 = true)
+    (hbhi : b_hi.isU32 = true) :
+    toU64 (Felt.ofNat (a_lo.val ||| b_lo.val))
+          (Felt.ofNat (a_hi.val ||| b_hi.val)) =
+    toU64 a_lo a_hi ||| toU64 b_lo b_hi := by
+  have hlo_u32 := Nat.or_lt_two_pow (isU32_lt _ halo) (isU32_lt _ hblo)
+  have hhi_u32 := Nat.or_lt_two_pow (isU32_lt _ hahi) (isU32_lt _ hbhi)
+  have hlo_is := felt_ofNat_isU32 _ hlo_u32
+  have hhi_is := felt_ofNat_isU32 _ hhi_u32
+  have hlo_p : (a_lo.val ||| b_lo.val) < GOLDILOCKS_PRIME := by unfold GOLDILOCKS_PRIME; omega
+  have hhi_p : (a_hi.val ||| b_hi.val) < GOLDILOCKS_PRIME := by unfold GOLDILOCKS_PRIME; omega
+  apply Nat.eq_of_testBit_eq; intro j
+  rw [toU64_testBit _ _ hlo_is, Nat.testBit_or,
+    toU64_testBit a_lo a_hi halo,
+    toU64_testBit b_lo b_hi hblo,
+    felt_ofNat_val _ hlo_p, felt_ofNat_val _ hhi_p]
+  split <;> simp [Nat.testBit_or]
+
+/-- Limb-level bitwise XOR equals u64-level XOR. -/
+theorem toU64_xor (a_lo a_hi b_lo b_hi : Felt)
+    (halo : a_lo.isU32 = true)
+    (hahi : a_hi.isU32 = true)
+    (hblo : b_lo.isU32 = true)
+    (hbhi : b_hi.isU32 = true) :
+    toU64 (Felt.ofNat (a_lo.val ^^^ b_lo.val))
+          (Felt.ofNat (a_hi.val ^^^ b_hi.val)) =
+    toU64 a_lo a_hi ^^^ toU64 b_lo b_hi := by
+  have hlo_u32 := Nat.xor_lt_two_pow (isU32_lt _ halo) (isU32_lt _ hblo)
+  have hhi_u32 := Nat.xor_lt_two_pow (isU32_lt _ hahi) (isU32_lt _ hbhi)
+  have hlo_is := felt_ofNat_isU32 _ hlo_u32
+  have hhi_is := felt_ofNat_isU32 _ hhi_u32
+  have hlo_p : (a_lo.val ^^^ b_lo.val) < GOLDILOCKS_PRIME := by unfold GOLDILOCKS_PRIME; omega
+  have hhi_p : (a_hi.val ^^^ b_hi.val) < GOLDILOCKS_PRIME := by unfold GOLDILOCKS_PRIME; omega
+  apply Nat.eq_of_testBit_eq; intro j
+  rw [toU64_testBit _ _ hlo_is, Nat.testBit_xor,
+    toU64_testBit a_lo a_hi halo,
+    toU64_testBit b_lo b_hi hblo,
+    felt_ofNat_val _ hlo_p, felt_ofNat_val _ hhi_p]
+  split <;> simp [Nat.testBit_xor]
+
 end MidenLean
