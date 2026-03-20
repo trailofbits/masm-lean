@@ -1,8 +1,34 @@
+import MidenLean.Proofs.Helpers
 import MidenLean.Generated.U128
 
 namespace MidenLean.Proofs
 
 open MidenLean
+
+theorem stepU32WrappingSubLocal (mem locs : Nat → Felt) (adv : List Felt)
+    (a b : Felt) (rest : List Felt)
+    (ha : a.isU32 = true) (hb : b.isU32 = true) :
+    execInstruction ⟨b :: a :: rest, mem, locs, adv⟩ .u32WrappingSub =
+      some ⟨Felt.ofNat (u32OverflowingSub a.val b.val).2 :: rest, mem, locs, adv⟩ := by
+  unfold execInstruction execU32WrappingSub
+  simp [ha, hb, MidenState.withStack]
+
+theorem stepU32ShrLocal (mem locs : Nat → Felt) (adv : List Felt)
+    (a b : Felt) (rest : List Felt)
+    (ha : a.isU32 = true) (hb : b.isU32 = true)
+    (hshift : b.val ≤ 31) :
+    execInstruction ⟨b :: a :: rest, mem, locs, adv⟩ .u32Shr =
+      some ⟨Felt.ofNat (a.val / 2 ^ b.val) :: rest, mem, locs, adv⟩ := by
+  unfold execInstruction execU32Shr
+  simp [ha, hb, show ¬b.val > 31 by omega, MidenState.withStack]
+
+theorem u32Shr_result_isU32 (a shift : Felt)
+    (ha : a.isU32 = true) :
+    (Felt.ofNat (a.val / 2 ^ shift.val)).isU32 = true := by
+  apply felt_ofNat_isU32_of_lt
+  have ha_lt : a.val < 2 ^ 32 := by
+    simpa [Felt.isU32, decide_eq_true_eq] using ha
+  exact lt_of_le_of_lt (Nat.div_le_self _ _) ha_lt
 
 /-- Procedure environment for manual u128 proofs that call other u128 procedures. -/
 def u128ProcEnv : ProcEnv := fun name =>
