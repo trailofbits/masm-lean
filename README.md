@@ -20,7 +20,7 @@ Manual proof files are organized per procedure:
 - **`MidenLean/Proofs/U128/Common.lean`** contains shared proof support for the `u128` proof tree.
 - **`MidenLean/Proofs/Word/`** contains the `word` correctness theorems, one file per procedure.
 
-The current checked manual proofs cover 67 procedures: 31 in `u64`, 25 in `u128`, 11 in `word`.
+The current checked manual proofs cover 71 procedures: 31 in `u64`, 29 in `u128`, 11 in `word`.
 
 ### `u64` (31 / 31)
 
@@ -58,7 +58,7 @@ The current checked manual proofs cover 67 procedures: 31 in `u64`, 25 in `u128`
 | `u64::wrapping_sub` | `u64_wrapping_sub_correct` | `u64::wrapping_sub` correctly computes wrapping subtraction of two u64 values. | `MidenLean/Proofs/U64/Sub.lean` |
 | `u64::xor` | `u64_xor_correct` | `u64::xor` correctly computes bitwise XOR of two u64 values. | `MidenLean/Proofs/U64/Xor.lean` |
 
-### `u128` (25 / 36)
+### `u128` (29 / 36)
 
 | Procedure | Theorem | Summary | Manual proof file |
 | --- | --- | --- | --- |
@@ -81,6 +81,10 @@ The current checked manual proofs cover 67 procedures: 31 in `u64`, 25 in `u128`
 | `u128::overflowing_add` | `u128_overflowing_add_correct` | `u128::overflowing_add` correctly computes addition of two 128-bit values with carry. | `MidenLean/Proofs/U128/OverflowingAdd.lean` |
 | `u128::overflowing_mul` | `u128_overflowing_mul_correct` | `u128::overflowing_mul` correctly computes the low 128 bits of the product and an overflow flag. | `MidenLean/Proofs/U128/OverflowingMul.lean` |
 | `u128::overflowing_sub` | `u128_overflowing_sub_correct` | `u128::overflowing_sub` correctly computes subtraction of two 128-bit values with borrow. | `MidenLean/Proofs/U128/OverflowingSub.lean` |
+| `u128::shr_k0` | `u128_shr_k0_correct` | `u128::shr_k0` right-shifts a 128-bit value by a nonzero bit count smaller than one limb. | `MidenLean/Proofs/U128/ShrK0.lean` |
+| `u128::shr_k1` | `u128_shr_k1_correct` | `u128::shr_k1` right-shifts a 128-bit value by one whole limb plus an additional bit count smaller than one limb. | `MidenLean/Proofs/U128/ShrK1.lean` |
+| `u128::shr_k2` | `u128_shr_k2_correct` | `u128::shr_k2` right-shifts a 128-bit value by two whole limbs plus an additional bit count smaller than one limb. | `MidenLean/Proofs/U128/ShrK2.lean` |
+| `u128::shr_k3` | `u128_shr_k3_correct` | `u128::shr_k3` shifts the highest u32 limb right by the given bit count and leaves any lower-word padding in `rest`. | `MidenLean/Proofs/U128/ShrK3.lean` |
 | `u128::widening_add` | `u128_widening_add_correct` | `u128::widening_add` correctly computes widening addition of two 128-bit values. | `MidenLean/Proofs/U128/WideningAdd.lean` |
 | `u128::widening_mul` | `u128_widening_mul_correct` | `u128::widening_mul` correctly computes the low 128 bits of the product and moves the overflow flag to the end. | `MidenLean/Proofs/U128/WideningMul.lean` |
 | `u128::wrapping_add` | `u128_wrapping_add_correct` | `u128::wrapping_add` correctly computes wrapping addition of two 128-bit values. | `MidenLean/Proofs/U128/WrappingAdd.lean` |
