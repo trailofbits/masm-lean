@@ -20,7 +20,7 @@ Manual proof files are organized per procedure:
 - **`MidenLean/Proofs/U128/Common.lean`** contains shared proof support for the `u128` proof tree.
 - **`MidenLean/Proofs/Word/`** contains the `word` correctness theorems, one file per procedure.
 
-The current checked manual proofs cover 71 procedures: 31 in `u64`, 29 in `u128`, 11 in `word`.
+The current checked manual proofs cover 73 procedures: 31 in `u64`, 31 in `u128`, 11 in `word`.
 
 ### `u64` (31 / 31)
 
@@ -38,7 +38,7 @@ The current checked manual proofs cover 71 procedures: 31 in `u64`, 29 in `u128`
 | `u64::gt` | `u64_gt_correct` | `u64::gt` correctly compares two u64 values. | `MidenLean/Proofs/U64/Gt.lean` |
 | `u64::gte` | `u64_gte_correct` | `u64::gte` correctly compares two u64 values. | `MidenLean/Proofs/U64/Gte.lean` |
 | `u64::lt` | `u64_lt_correct` | `u64::lt` correctly compares two u64 values. | `MidenLean/Proofs/U64/Lt.lean` |
-| `u64::lte` | `u64_lte_correct` | `u64::lte` correctly compares two u64 values. | `MidenLean/Proofs/U64/Lte.lean` |
+| `u64::lte` | `u64_lte_correct` | `u64::lte` correctly computes two u64 values. | `MidenLean/Proofs/U64/Lte.lean` |
 | `u64::max` | `u64_max_correct` | `u64::max` correctly computes the maximum of two u64 values. | `MidenLean/Proofs/U64/Max.lean` |
 | `u64::min` | `u64_min_correct` | `u64::min` correctly computes the minimum of two u64 values. | `MidenLean/Proofs/U64/Min.lean` |
 | `u64::mod` | `u64_mod_correct` | `u64::mod` computes the remainder of two u64 values by calling divmod, then rearranging the stack to keep only the remainder. | `MidenLean/Proofs/U64/Mod.lean` |
@@ -58,7 +58,7 @@ The current checked manual proofs cover 71 procedures: 31 in `u64`, 29 in `u128`
 | `u64::wrapping_sub` | `u64_wrapping_sub_correct` | `u64::wrapping_sub` correctly computes wrapping subtraction of two u64 values. | `MidenLean/Proofs/U64/Sub.lean` |
 | `u64::xor` | `u64_xor_correct` | `u64::xor` correctly computes bitwise XOR of two u64 values. | `MidenLean/Proofs/U64/Xor.lean` |
 
-### `u128` (29 / 36)
+### `u128` (31 / 36)
 
 | Procedure | Theorem | Summary | Manual proof file |
 | --- | --- | --- | --- |
@@ -81,6 +81,8 @@ The current checked manual proofs cover 71 procedures: 31 in `u64`, 29 in `u128`
 | `u128::overflowing_add` | `u128_overflowing_add_correct` | `u128::overflowing_add` correctly computes addition of two 128-bit values with carry. | `MidenLean/Proofs/U128/OverflowingAdd.lean` |
 | `u128::overflowing_mul` | `u128_overflowing_mul_correct` | `u128::overflowing_mul` correctly computes the low 128 bits of the product and an overflow flag. | `MidenLean/Proofs/U128/OverflowingMul.lean` |
 | `u128::overflowing_sub` | `u128_overflowing_sub_correct` | `u128::overflowing_sub` correctly computes subtraction of two 128-bit values with borrow. | `MidenLean/Proofs/U128/OverflowingSub.lean` |
+| `u128::shl` | `u128_shl_correct` | `u128::shl` correctly computes the left shift of a 128-bit value by a given amount. | `MidenLean/Proofs/U128/Shl.lean` |
+| `u128::shr` | `u128_shr_correct` | `u128::shr` correctly computes the right shift of a 128-bit value by a given amount. | `MidenLean/Proofs/U128/Shr.lean` |
 | `u128::shr_k0` | `u128_shr_k0_correct` | `u128::shr_k0` right-shifts a 128-bit value by a nonzero bit count smaller than one limb. | `MidenLean/Proofs/U128/ShrK0.lean` |
 | `u128::shr_k1` | `u128_shr_k1_correct` | `u128::shr_k1` right-shifts a 128-bit value by one whole limb plus an additional bit count smaller than one limb. | `MidenLean/Proofs/U128/ShrK1.lean` |
 | `u128::shr_k2` | `u128_shr_k2_correct` | `u128::shr_k2` right-shifts a 128-bit value by two whole limbs plus an additional bit count smaller than one limb. | `MidenLean/Proofs/U128/ShrK2.lean` |
