@@ -214,7 +214,14 @@ set_option maxHeartbeats 16000000 in
 /-- `u64::rotr` correctly right-rotates a u64 value.
     Input stack:  [shift, lo, hi] ++ rest
     Output stack: [result_lo, result_hi] ++ rest
-    Requires shift.isU32 (for u32Lt and u32And). -/
+    Requires shift.isU32 (for u32Lt and u32And).
+
+    Note: unlike `u64_rotl_correct`, this theorem does NOT require `lo.isU32`
+    or `hi.isU32`. This asymmetry is genuine — rotr uses field-level `mul` and
+    `u32split` (which work on any Felt), while rotl uses `u32WidenMul` /
+    `u32WidenMadd` (which require u32 inputs and return `none` otherwise).
+    The result only represents a meaningful rotation when `lo` and `hi` are
+    valid u32 limbs of a u64 value. -/
 theorem u64_rotr_correct
     (lo hi shift : Felt) (rest : List Felt) (s : MidenState)
     (hs : s.stack = shift :: lo :: hi :: rest)
