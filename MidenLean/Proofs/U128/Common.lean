@@ -117,4 +117,75 @@ theorem toNat_def (x : U128) :
 
 end U128
 
+-- ============================================================================
+-- Comparison bridging lemmas
+-- ============================================================================
+
+/-- Helper: val of a Felt conditional (if p then 1 else 0) -/
+private theorem felt_ite_val (p : Prop) [Decidable p] :
+    (if p then (1 : Felt) else (0 : Felt)).val = if p then 1 else 0 := by
+  split <;> simp [Felt.val_one']
+
+private theorem u128_borrow1_eq (a0 a1 b0 b1 : Felt)
+    (ha0 : a0.isU32 = true) (ha1 : a1.isU32 = true)
+    (hb0 : b0.isU32 = true) (hb1 : b1.isU32 = true) :
+    u128Borrow1 a0 a1 b0 b1 =
+    if decide (a1.val * 2^32 + a0.val < b1.val * 2^32 + b0.val) then (1 : Felt) else 0 := by
+  simp only [Felt.isU32, decide_eq_true_eq] at ha0 ha1 hb0 hb1
+  unfold u128Borrow1 u128Sub0 u128Sub1 u32OverflowingSub u32Max
+  congr 1; apply propext
+  simp only [Bool.or_eq_true, decide_eq_true_eq]
+  constructor
+  · intro h; rcases h with h | h
+    · split_ifs at h <;> omega
+    · omega
+  · intro h
+    by_cases h1 : a1.val < b1.val
+    · right; exact h1
+    · left; split_ifs <;> omega
+
+private theorem u128_borrow2_eq (a0 a1 a2 b0 b1 b2 : Felt)
+    (ha0 : a0.isU32 = true) (ha1 : a1.isU32 = true) (ha2 : a2.isU32 = true)
+    (hb0 : b0.isU32 = true) (hb1 : b1.isU32 = true) (hb2 : b2.isU32 = true) :
+    u128Borrow2 a0 a1 a2 b0 b1 b2 =
+    if decide (a2.val * 2^64 + a1.val * 2^32 + a0.val <
+              b2.val * 2^64 + b1.val * 2^32 + b0.val) then (1 : Felt) else 0 := by
+  simp only [Felt.isU32, decide_eq_true_eq] at ha0 ha1 ha2 hb0 hb1 hb2
+  unfold u128Borrow2 u128Sub2 u32OverflowingSub u32Max
+  rw [u128_borrow1_eq a0 a1 b0 b1 (by simpa [Felt.isU32]) (by simpa [Felt.isU32])
+    (by simpa [Felt.isU32]) (by simpa [Felt.isU32])]
+  rw [felt_ite_val]
+  congr 1; apply propext
+  simp only [Bool.or_eq_true, decide_eq_true_eq]
+  constructor
+  · intro h; rcases h with h | h
+    · split_ifs at h <;> omega
+    · omega
+  · intro h
+    by_cases h2 : a2.val < b2.val
+    · right; exact h2
+    · left; split_ifs <;> omega
+
+/-- The 4-limb borrow-based comparison is equivalent to `a.toNat < b.toNat`. -/
+theorem u128LtBool_iff_lt (a b : U128) :
+    u128LtBool a.a0 a.a1 a.a2 a.a3 b.a0 b.a1 b.a2 b.a3 =
+    decide (a.toNat < b.toNat) := by
+  unfold u128LtBool u128Sub3 u32OverflowingSub u32Max
+  rw [u128_borrow2_eq a.a0 a.a1 a.a2 b.a0 b.a1 b.a2
+    a.a0_u32 a.a1_u32 a.a2_u32 b.a0_u32 b.a1_u32 b.a2_u32]
+  rw [felt_ite_val]
+  simp only [U128.toNat]
+  have ha0' := a.a0_u32; have ha1' := a.a1_u32; have ha2' := a.a2_u32; have ha3' := a.a3_u32
+  have hb0' := b.a0_u32; have hb1' := b.a1_u32; have hb2' := b.a2_u32; have hb3' := b.a3_u32
+  simp only [Felt.isU32, decide_eq_true_eq] at ha0' ha1' ha2' ha3' hb0' hb1' hb2' hb3'
+  -- Case-split on a3 vs b3 and the 3-limb borrow condition
+  by_cases h3 : a.a3.val < b.a3.val
+  · simp [decide_eq_true h3]; omega
+  · by_cases h3e : a.a3.val = b.a3.val
+    · simp only [h3e]
+      split_ifs <;> simp_all <;> omega
+    · have h3gt : a.a3.val > b.a3.val := by omega
+      simp [show ¬(a.a3.val < b.a3.val) from h3]
+      split_ifs <;> simp_all <;> omega
+
 end MidenLean.Proofs
