@@ -43,4 +43,52 @@ theorem toNat_def (x : U64) : x.toNat = x.hi.val * 2^32 + x.lo.val := rfl
 
 end U64
 
+-- ============================================================================
+-- Comparison bridging lemma
+-- ============================================================================
+
+/-- The hi_eq check in comparison formulas is equivalent to a_hi.val = b_hi.val
+    for u32 inputs. -/
+theorem hi_eq_iff_val_eq (a_hi b_hi : Felt)
+    (ha : a_hi.isU32 = true) (hb : b_hi.isU32 = true) :
+    (Felt.ofNat (u32OverflowingSub a_hi.val b_hi.val).2 == (0 : Felt)) =
+    decide (a_hi.val = b_hi.val) := by
+  simp only [Felt.isU32, decide_eq_true_eq] at ha hb
+  -- LHS is decide (Felt.ofNat ... = 0)
+  show decide _ = decide _
+  apply decide_eq_decide.mpr
+  constructor
+  · intro h
+    have hval := u32OverflowingSub_snd_val a_hi.val b_hi.val (by omega) (by omega)
+    have : (Felt.ofNat (u32OverflowingSub a_hi.val b_hi.val).2).val = 0 := by
+      rw [h]; rfl
+    rw [hval] at this
+    exact (u32OverflowingSub_snd_eq_zero_iff a_hi.val b_hi.val (by omega) (by omega)).mp this
+  · intro h
+    have : (u32OverflowingSub a_hi.val b_hi.val).2 = 0 :=
+      (u32OverflowingSub_snd_eq_zero_iff a_hi.val b_hi.val (by omega) (by omega)).mpr h
+    simp [this, Felt.ofNat]
+
+/-- The borrow-based comparison formula is equivalent to `a.toNat < b.toNat`.
+
+    This bridges the low-level formula used in `u64_lt_raw` to the
+    high-level mathematical comparison. -/
+theorem u64_borrow_iff_lt (a b : U64) :
+    let borrow_lo := decide (a.lo.val < b.lo.val)
+    let borrow_hi := decide (a.hi.val < b.hi.val)
+    let hi_eq := Felt.ofNat (u32OverflowingSub a.hi.val b.hi.val).2 == (0 : Felt)
+    (borrow_hi || (hi_eq && borrow_lo)) = decide (a.toNat < b.toNat) := by
+  simp only
+  rw [hi_eq_iff_val_eq a.hi b.hi a.hi_u32 b.hi_u32]
+  simp only [U64.toNat]
+  have halo := a.lo_u32; have hahi := a.hi_u32
+  have hblo := b.lo_u32; have hbhi := b.hi_u32
+  simp only [Felt.isU32, decide_eq_true_eq] at halo hahi hblo hbhi
+  -- Case split on all three boolean decisions
+  cases h1 : decide (a.hi.val < b.hi.val) <;>
+  cases h2 : decide (a.hi.val = b.hi.val) <;>
+  cases h3 : decide (a.lo.val < b.lo.val) <;>
+  simp_all [decide_eq_true_eq, decide_eq_false_iff_not] <;>
+  omega
+
 end MidenLean.Proofs
