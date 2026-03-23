@@ -14,7 +14,7 @@ set_option maxHeartbeats 8000000 in
     Output stack: [result] ++ rest
     where result = 1 iff a ≤ b (as u64), else 0.
     Computed as !(a > b). -/
-theorem u64_lte_correct
+theorem u64_lte_raw
     (a_lo a_hi b_lo b_hi : Felt) (rest : List Felt) (s : MidenState)
     (hs : s.stack = b_lo :: b_hi :: a_lo :: a_hi :: rest)
     (ha_lo : a_lo.isU32 = true) (ha_hi : a_hi.isU32 = true)
@@ -53,5 +53,18 @@ theorem u64_lte_correct
   rw [stepOrIte]; dsimp only []
   -- not
   rw [stepNotIte]
+
+/-- `u64::lte` pushes 1 iff `a.toNat ≤ b.toNat`.
+    Input stack:  [b_lo, b_hi, a_lo, a_hi] ++ rest
+    Output stack: [(if a ≤ b then 1 else 0)] ++ rest -/
+theorem u64_lte_correct (a b : U64) (rest : List Felt) (s : MidenState)
+    (hs : s.stack = b.lo :: b.hi :: a.lo :: a.hi :: rest) :
+    execWithEnv u64ProcEnv 20 s Miden.Core.U64.lte =
+    some (s.withStack (
+      (if decide (a.toNat ≤ b.toNat) then (1 : Felt) else 0) :: rest)) := by
+  rw [u64_lte_raw a.lo a.hi b.lo b.hi rest s hs a.lo_u32 a.hi_u32 b.lo_u32 b.hi_u32]
+  simp only [u64_borrow_iff_lt b a]
+  congr 1; congr 1; congr 1; congr 1
+  cases h : decide (b.toNat < a.toNat) <;> simp_all
 
 end MidenLean.Proofs

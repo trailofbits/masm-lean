@@ -1,3 +1,4 @@
+import MidenLean.Proofs.U64.Common
 import MidenLean.Proofs.Tactics
 import MidenLean.Generated.U64
 
@@ -13,7 +14,7 @@ set_option maxHeartbeats 8000000 in
     Output stack: [result] ++ rest
     where result = 1 iff a > b (as u64), else 0.
     The comparison is: b_hi < a_hi, or (b_hi == a_hi and b_lo < a_lo). -/
-theorem u64_gt_correct
+theorem u64_gt_raw
     (a_lo a_hi b_lo b_hi : Felt) (rest : List Felt) (s : MidenState)
     (hs : s.stack = b_lo :: b_hi :: a_lo :: a_hi :: rest)
     (ha_lo : a_lo.isU32 = true) (ha_hi : a_hi.isU32 = true)
@@ -60,5 +61,16 @@ theorem u64_gt_correct
   -- Convert borrow_hi to boolean ite form for stepOrIte
   rw [u32OverflowingSub_borrow_ite b_hi.val a_hi.val]
   rw [stepOrIte]; dsimp only [bind, Bind.bind, Option.bind, pure, Pure.pure]
+
+/-- `u64::gt` pushes 1 iff `a.toNat > b.toNat`.
+    Input stack:  [b_lo, b_hi, a_lo, a_hi] ++ rest
+    Output stack: [(if a > b then 1 else 0)] ++ rest -/
+theorem u64_gt_correct (a b : U64) (rest : List Felt) (s : MidenState)
+    (hs : s.stack = b.lo :: b.hi :: a.lo :: a.hi :: rest) :
+    exec 20 s Miden.Core.U64.gt =
+    some (s.withStack (
+      (if decide (b.toNat < a.toNat) then (1 : Felt) else 0) :: rest)) := by
+  rw [u64_gt_raw a.lo a.hi b.lo b.hi rest s hs a.lo_u32 a.hi_u32 b.lo_u32 b.hi_u32]
+  simp only [u64_borrow_iff_lt b a]
 
 end MidenLean.Proofs

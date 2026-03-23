@@ -15,7 +15,7 @@ set_option maxHeartbeats 16000000 in
     Output stack: [max_lo, max_hi] ++ rest
     lt is called on [a_lo, a_hi, b_lo, b_hi], computing b < a.
     If b < a, returns a; otherwise returns b. -/
-theorem u64_max_correct
+theorem u64_max_raw
     (a_lo a_hi b_lo b_hi : Felt) (rest : List Felt) (s : MidenState)
     (hs : s.stack = b_lo :: b_hi :: a_lo :: a_hi :: rest)
     (ha_lo : a_lo.isU32 = true) (ha_hi : a_hi.isU32 = true)
@@ -72,5 +72,18 @@ theorem u64_max_correct
   miden_step
   -- Instruction 10: cdrop
   rw [stepCdropIte]
+
+/-- `u64::max` pushes the limbs of `max(a, b)`.
+    Input stack:  [b_lo, b_hi, a_lo, a_hi] ++ rest
+    Output stack: [max_lo, max_hi] ++ rest
+    Returns a if b < a, otherwise b. -/
+theorem u64_max_correct (a b : U64) (rest : List Felt) (s : MidenState)
+    (hs : s.stack = b.lo :: b.hi :: a.lo :: a.hi :: rest) :
+    execWithEnv u64ProcEnv 20 s Miden.Core.U64.max =
+    some (s.withStack (
+      (if decide (b.toNat < a.toNat) then a.lo else b.lo) ::
+      (if decide (b.toNat < a.toNat) then a.hi else b.hi) :: rest)) := by
+  rw [u64_max_raw a.lo a.hi b.lo b.hi rest s hs a.lo_u32 a.hi_u32 b.lo_u32 b.hi_u32]
+  simp only [u64_borrow_iff_lt b a]
 
 end MidenLean.Proofs

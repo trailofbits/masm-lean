@@ -14,7 +14,7 @@ set_option maxHeartbeats 16000000 in
     Input stack:  [b_lo, b_hi, a_lo, a_hi] ++ rest
     Output stack: [min_lo, min_hi] ++ rest
     If b > a (as u64), returns a; otherwise returns b. -/
-theorem u64_min_correct
+theorem u64_min_raw
     (a_lo a_hi b_lo b_hi : Felt) (rest : List Felt) (s : MidenState)
     (hs : s.stack = b_lo :: b_hi :: a_lo :: a_hi :: rest)
     (ha_lo : a_lo.isU32 = true) (ha_hi : a_hi.isU32 = true)
@@ -71,5 +71,18 @@ theorem u64_min_correct
   miden_step
   -- Instruction 10: cdrop
   rw [stepCdropIte]
+
+/-- `u64::min` pushes the limbs of `min(a, b)`.
+    Input stack:  [b_lo, b_hi, a_lo, a_hi] ++ rest
+    Output stack: [min_lo, min_hi] ++ rest
+    Returns a if a < b, otherwise b. -/
+theorem u64_min_correct (a b : U64) (rest : List Felt) (s : MidenState)
+    (hs : s.stack = b.lo :: b.hi :: a.lo :: a.hi :: rest) :
+    execWithEnv u64ProcEnv 20 s Miden.Core.U64.min =
+    some (s.withStack (
+      (if decide (a.toNat < b.toNat) then a.lo else b.lo) ::
+      (if decide (a.toNat < b.toNat) then a.hi else b.hi) :: rest)) := by
+  rw [u64_min_raw a.lo a.hi b.lo b.hi rest s hs a.lo_u32 a.hi_u32 b.lo_u32 b.hi_u32]
+  simp only [u64_borrow_iff_lt a b]
 
 end MidenLean.Proofs
