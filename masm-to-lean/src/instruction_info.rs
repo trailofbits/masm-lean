@@ -990,6 +990,11 @@ pub fn instruction_info(inst: &Instruction) -> InstructionInfo {
             info.comment_name = "u32Div".into();
             info.is_known = true;
         }
+        U32DivImm(_) => {
+            info.stack_effect = Some(StackEffect::new(1, 1));
+            info.comment_name = "u32Div (imm)".into();
+            info.is_known = true;
+        }
         U32Mod => {
             info.stack_effect = Some(StackEffect::new(2, 1));
             info.comment_name = "u32Mod".into();
@@ -1197,6 +1202,31 @@ pub fn instruction_info(inst: &Instruction) -> InstructionInfo {
         LocStore(_) => {
             info.stack_effect = Some(StackEffect::with_depth(1, 0, 1));
             info.comment_name = "locStore".into();
+            info.is_known = true;
+        }
+        LocLoadWBe(_) | LocLoadWLe(_) => {
+            // Overwrites top 4 elements with word from local memory
+            info.stack_effect = Some(StackEffect::with_depth(4, 4, 4));
+            info.comment_name = if matches!(inst, LocLoadWBe(_)) {
+                "locLoadwBe".into()
+            } else {
+                "locLoadwLe".into()
+            };
+            info.is_known = true;
+        }
+        LocStoreWBe(_) | LocStoreWLe(_) => {
+            // Stores top 4 elements to local memory (keeps them on stack)
+            info.stack_effect = Some(StackEffect::with_depth(0, 0, 4));
+            info.comment_name = if matches!(inst, LocStoreWBe(_)) {
+                "locStorewBe".into()
+            } else {
+                "locStorewLe".into()
+            };
+            info.is_known = true;
+        }
+        Locaddr(_) => {
+            info.stack_effect = Some(StackEffect::new(0, 1));
+            info.comment_name = "locaddr".into();
             info.is_known = true;
         }
 
