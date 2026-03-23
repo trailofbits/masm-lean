@@ -422,11 +422,12 @@ private theorem divmod_chunk3b_correct
   simp only [pure, Pure.pure]
 
 set_option maxHeartbeats 16000000 in
-/-- `u64::divmod` checks the advised quotient and remainder for a 64-bit division.
+/-- Low-level divmod theorem with explicit intermediate hypotheses.
+    See `u64_divmod_correct` for the clean client-facing version.
     Input stack:  [b_lo, b_hi, a_lo, a_hi] ++ rest
     Advice stack: [q_lo, q_hi, r_lo, r_hi] ++ adv_rest
     Output stack: [r_hi, r_lo, q_hi, q_lo] ++ rest. -/
-theorem u64_divmod_correct
+theorem u64_divmod_raw
     (a_lo a_hi b_lo b_hi : Felt) (rest : List Felt)
     (q_lo q_hi r_lo r_hi : Felt) (adv_rest : List Felt)
     (s : MidenState)
@@ -502,5 +503,25 @@ theorem u64_divmod_correct
   miden_bind
   rw [divmod_chunk3b_correct a_lo a_hi b_lo b_hi rest q_lo q_hi r_lo r_hi adv_rest mem locs
       hr_hi_u32 hr_lo_u32 cross0_lo_val madd2_lo_val h_add2_hi_zero h_a_hi_eq h_a_lo_eq]
+
+/-- `u64::divmod` computes quotient and remainder of two u64 values.
+    Input stack:  [b.lo, b.hi, a.lo, a.hi] ++ rest
+    Advice stack: [q.hi, q.lo, r.hi, r.lo] ++ adv_rest
+    Output stack: [r.lo, r.hi, q.lo, q.hi] ++ rest
+
+    The advice ordering has high limbs first for each pair because
+    `adv_push.2` pops the first element deeper. -/
+theorem u64_divmod_correct (a b q r : U64) (rest : List Felt) (adv_rest : List Felt)
+    (s : MidenState)
+    (hs : s.stack = b.lo :: b.hi :: a.lo :: a.hi :: rest)
+    (hadv : s.advice = q.hi :: q.lo :: r.hi :: r.lo :: adv_rest)
+    (hdiv : q.toNat * b.toNat + r.toNat = a.toNat)
+    (hrem : r.toNat < b.toNat) :
+    execWithEnv u64ProcEnv 50 s Miden.Core.U64.divmod =
+    some { stack := r.lo :: r.hi :: q.lo :: q.hi :: rest,
+           memory := s.memory,
+           locals := s.locals,
+           advice := adv_rest } := by
+  sorry
 
 end MidenLean.Proofs

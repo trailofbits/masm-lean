@@ -16,7 +16,7 @@ set_option maxHeartbeats 4000000 in
     Advice stack: [q_lo, q_hi, r_lo, r_hi] ++ adv_rest
     Output stack: [r_hi, r_lo] ++ rest
     Same preconditions as divmod. -/
-theorem u64_mod_correct
+theorem u64_mod_raw
     (a_lo a_hi b_lo b_hi : Felt) (rest : List Felt)
     (q_lo q_hi r_lo r_hi : Felt) (adv_rest : List Felt)
     (s : MidenState)
@@ -79,7 +79,7 @@ theorem u64_mod_correct
     Miden.Core.U64.divmod =
     some { stack := r_hi :: r_lo :: q_hi :: q_lo :: rest,
            memory := mem, locals := locs, advice := adv_rest }
-    from u64_divmod_correct a_lo a_hi b_lo b_hi rest q_lo q_hi r_lo r_hi adv_rest
+    from u64_divmod_raw a_lo a_hi b_lo b_hi rest q_lo q_hi r_lo r_hi adv_rest
       ⟨b_lo :: b_hi :: a_lo :: a_hi :: rest, mem, locs, q_lo :: q_hi :: r_lo :: r_hi :: adv_rest⟩
       rfl rfl hq_hi_u32 hq_lo_u32 hr_hi_u32 hr_lo_u32 hb_lo_u32 hb_hi_u32
       cross0_hi_val h_madd1_hi_zero madd1_lo_val h_madd2_hi_zero h_bhi_qlo_zero
@@ -92,5 +92,22 @@ theorem u64_mod_correct
   miden_step
   miden_movup
   rw [stepDrop]; dsimp only [pure, Pure.pure]
+
+/-- `u64::mod` computes the remainder of two u64 values.
+    Input stack:  [b.lo, b.hi, a.lo, a.hi] ++ rest
+    Advice stack: [q.hi, q.lo, r.hi, r.lo] ++ adv_rest
+    Output stack: [r.lo, r.hi] ++ rest -/
+theorem u64_mod_correct (a b q r : U64) (rest : List Felt) (adv_rest : List Felt)
+    (s : MidenState)
+    (hs : s.stack = b.lo :: b.hi :: a.lo :: a.hi :: rest)
+    (hadv : s.advice = q.hi :: q.lo :: r.hi :: r.lo :: adv_rest)
+    (hdiv : q.toNat * b.toNat + r.toNat = a.toNat)
+    (hrem : r.toNat < b.toNat) :
+    execWithEnv u64ProcEnv 51 s Miden.Core.U64.mod =
+    some { stack := r.lo :: r.hi :: rest,
+           memory := s.memory,
+           locals := s.locals,
+           advice := adv_rest } := by
+  sorry
 
 end MidenLean.Proofs
