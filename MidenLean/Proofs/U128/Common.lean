@@ -82,4 +82,39 @@ def u128LtBool (a0 a1 a2 a3 b0 b1 b2 b3 : Felt) : Bool :=
 def u128GtBool (a0 a1 a2 a3 b0 b1 b2 b3 : Felt) : Bool :=
   u128LtBool b0 b1 b2 b3 a0 a1 a2 a3
 
+-- ============================================================================
+-- U128 type: a 128-bit unsigned integer as four u32 Felt limbs
+-- ============================================================================
+
+/-- A 128-bit unsigned integer represented as four u32 Felt limbs (little-endian).
+    `a0` is the least significant limb, `a3` is the most significant. -/
+structure U128 where
+  a0 : Felt
+  a1 : Felt
+  a2 : Felt
+  a3 : Felt
+  a0_u32 : a0.isU32 = true
+  a1_u32 : a1.isU32 = true
+  a2_u32 : a2.isU32 = true
+  a3_u32 : a3.isU32 = true
+
+namespace U128
+
+/-- Reconstruct the natural number value:
+    `a3 * 2^96 + a2 * 2^64 + a1 * 2^32 + a0`. -/
+def toNat (x : U128) : Nat :=
+  x.a3.val * 2^96 + x.a2.val * 2^64 + x.a1.val * 2^32 + x.a0.val
+
+theorem toNat_lt (x : U128) : x.toNat < 2^128 := by
+  unfold toNat
+  have h0 := x.a0_u32; have h1 := x.a1_u32
+  have h2 := x.a2_u32; have h3 := x.a3_u32
+  simp only [Felt.isU32, decide_eq_true_eq] at *
+  omega
+
+theorem toNat_def (x : U128) :
+    x.toNat = x.a3.val * 2^96 + x.a2.val * 2^64 + x.a1.val * 2^32 + x.a0.val := rfl
+
+end U128
+
 end MidenLean.Proofs
