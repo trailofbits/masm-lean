@@ -91,4 +91,38 @@ theorem u64_borrow_iff_lt (a b : U64) :
   simp_all [decide_eq_true_eq, decide_eq_false_iff_not] <;>
   omega
 
+-- ============================================================================
+-- Arithmetic bridging lemmas
+-- ============================================================================
+
+/-- The carry-based addition formula reconstructs to `a.toNat + b.toNat`. -/
+theorem u64_carry_add_spec (a_lo a_hi b_lo b_hi : Nat)
+    (ha_lo : a_lo < 2^32) (ha_hi : a_hi < 2^32)
+    (hb_lo : b_lo < 2^32) (hb_hi : b_hi < 2^32) :
+    let lo_sum := a_lo + b_lo
+    let carry := lo_sum / 2^32
+    let hi_sum := a_hi + b_hi + carry
+    let overflow := hi_sum / 2^32
+    overflow * 2^64 + (hi_sum % 2^32) * 2^32 + lo_sum % 2^32 =
+    (a_hi * 2^32 + a_lo) + (b_hi * 2^32 + b_lo) := by
+  omega
+
+/-- The overflowing_sub borrow is equivalent to `a.toNat < b.toNat`. -/
+theorem u64_sub_borrow_iff_lt (a b : U64) :
+    let sub_lo := u32OverflowingSub a.lo.val b.lo.val
+    let sub_hi := u32OverflowingSub a.hi.val b.hi.val
+    let borrow_adj := decide (sub_hi.2 < sub_lo.1)
+    let borrow_hi := decide (a.hi.val < b.hi.val)
+    (borrow_adj || borrow_hi) = decide (a.toNat < b.toNat) := by
+  simp only [U64.toNat]
+  have halo := a.lo_u32; have hahi := a.hi_u32
+  have hblo := b.lo_u32; have hbhi := b.hi_u32
+  simp only [Felt.isU32, decide_eq_true_eq] at halo hahi hblo hbhi
+  unfold u32OverflowingSub u32Max
+  -- Resolve all if-then-else conditions, then case-split on decides
+  split_ifs <;>
+  cases h1 : decide (a.hi.val < b.hi.val) <;>
+  simp_all [decide_eq_true_eq, decide_eq_false_iff_not] <;>
+  omega
+
 end MidenLean.Proofs

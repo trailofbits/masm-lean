@@ -1,3 +1,4 @@
+import MidenLean.Proofs.U64.Common
 import MidenLean.Proofs.Tactics
 import MidenLean.Generated.U64
 
@@ -13,7 +14,7 @@ set_option maxHeartbeats 8000000 in
     Output stack: [borrow, diff_lo, diff_hi] ++ rest
     where (diff_hi, diff_lo) is the u64 difference a - b,
     and borrow = 1 iff the subtraction underflowed. -/
-theorem u64_overflowing_sub_correct
+theorem u64_overflowing_sub_raw
     (a_lo a_hi b_lo b_hi : Felt) (rest : List Felt) (s : MidenState)
     (hs : s.stack = b_lo :: b_hi :: a_lo :: a_hi :: rest)
     (ha_lo : a_lo.isU32 = true) (ha_hi : a_hi.isU32 = true)
@@ -77,5 +78,21 @@ theorem u64_overflowing_sub_correct
   miden_movup
   miden_swap
   dsimp only [pure, Pure.pure]
+
+/-- `u64::overflowing_sub` computes `a - b` with underflow detection.
+    Input stack:  [b_lo, b_hi, a_lo, a_hi] ++ rest
+    Output stack: [borrow, diff_lo, diff_hi] ++ rest
+    where borrow = 1 iff a < b (as u64). -/
+theorem u64_overflowing_sub_correct (a b : U64) (rest : List Felt) (s : MidenState)
+    (hs : s.stack = b.lo :: b.hi :: a.lo :: a.hi :: rest) :
+    exec 20 s Miden.Core.U64.overflowing_sub =
+    some (s.withStack (
+      let sub_lo := u32OverflowingSub a.lo.val b.lo.val
+      let sub_hi := u32OverflowingSub a.hi.val b.hi.val
+      let sub_adj := u32OverflowingSub sub_hi.2 sub_lo.1
+      (if decide (a.toNat < b.toNat) then (1 : Felt) else 0) ::
+      Felt.ofNat sub_lo.2 :: Felt.ofNat sub_adj.2 :: rest)) := by
+  rw [u64_overflowing_sub_raw a.lo a.hi b.lo b.hi rest s hs a.lo_u32 a.hi_u32 b.lo_u32 b.hi_u32]
+  simp only [u64_sub_borrow_iff_lt a b]
 
 end MidenLean.Proofs

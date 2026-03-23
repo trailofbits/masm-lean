@@ -14,7 +14,7 @@ set_option maxHeartbeats 4000000 in
     Input stack:  [b_lo, b_hi, a_lo, a_hi] ++ rest
     Output stack: [c_lo, c_hi] ++ rest
     where `(c_hi, c_lo)` is the low 64 bits of `a + b`. -/
-theorem u64_wrapping_add_correct
+theorem u64_wrapping_add_raw
     (a_lo a_hi b_lo b_hi : Felt) (rest : List Felt) (s : MidenState)
     (hs : s.stack = b_lo :: b_hi :: a_lo :: a_hi :: rest)
     (ha_lo : a_lo.isU32 = true) (ha_hi : a_hi.isU32 = true)
@@ -46,5 +46,24 @@ theorem u64_wrapping_add_correct
   miden_bind
   rw [stepDrop]
   dsimp only [bind, Bind.bind, Option.bind, pure, Pure.pure]
+
+/-- `u64::wrapping_add` computes `(a + b) mod 2^64`.
+    Input stack:  [b_lo, b_hi, a_lo, a_hi] ++ rest
+    Output stack: [sum_lo, sum_hi] ++ rest -/
+theorem u64_wrapping_add_correct (a b : U64) (rest : List Felt) (s : MidenState)
+    (hs : s.stack = b.lo :: b.hi :: a.lo :: a.hi :: rest) :
+    execWithEnv u64ProcEnv 10 s Miden.Core.U64.wrapping_add =
+    some (s.withStack (
+      let sum := a.toNat + b.toNat
+      Felt.ofNat (sum % 2^32) ::
+      Felt.ofNat ((sum / 2^32) % 2^32) :: rest)) := by
+  rw [u64_wrapping_add_raw a.lo a.hi b.lo b.hi rest s hs a.lo_u32 a.hi_u32 b.lo_u32 b.hi_u32]
+  simp only [U64.toNat]
+  have halo := a.lo_u32; have hahi := a.hi_u32
+  have hblo := b.lo_u32; have hbhi := b.hi_u32
+  simp only [Felt.isU32, decide_eq_true_eq] at halo hahi hblo hbhi
+  congr 1; congr 1; congr 1
+  · congr 1; omega
+  · congr 1; congr 1; congr 1; omega
 
 end MidenLean.Proofs
