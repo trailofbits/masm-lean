@@ -166,4 +166,50 @@ theorem u32OverflowingSub_borrow_ite (a b : Nat) :
       ≤ (2^32 - 1) * (2^32 - 1) / 2^32 := Nat.div_le_div_right h3
     _ < GOLDILOCKS_PRIME := by unfold GOLDILOCKS_PRIME; native_decide
 
+-- ============================================================================
+-- Felt arithmetic round-trip lemmas for bridging proofs
+-- ============================================================================
+
+/-- Felt addition round-trips when the sum stays below the prime. -/
+@[miden_bound] theorem felt_add_val_no_wrap (a b : Felt)
+    (h : a.val + b.val < GOLDILOCKS_PRIME) :
+    (a + b).val = a.val + b.val := by
+  show (a + b).val = a.val + b.val
+  rw [ZMod.val_add]
+  exact Nat.mod_eq_of_lt h
+
+/-- Felt subtraction round-trips when a ≥ b (no underflow). -/
+@[miden_bound] theorem felt_sub_val_no_wrap (a b : Felt)
+    (hab : b.val ≤ a.val) :
+    (a - b).val = a.val - b.val := by
+  show (a - b).val = a.val - b.val
+  rw [ZMod.val_sub (by exact hab)]
+
+/-- Felt multiplication round-trips when the product stays below the prime. -/
+@[miden_bound] theorem felt_mul_val_no_wrap (a b : Felt)
+    (h : a.val * b.val < GOLDILOCKS_PRIME) :
+    (a * b).val = a.val * b.val := by
+  show (a * b).val = a.val * b.val
+  rw [ZMod.val_mul]
+  exact Nat.mod_eq_of_lt h
+
+/-- u32OverflowingSub result round-trips through Felt.ofNat when inputs are u32. -/
+@[miden_bound] theorem u32OverflowingSub_snd_val (a b : Nat)
+    (ha : a < 2^32) (hb : b < 2^32) :
+    (Felt.ofNat (u32OverflowingSub a b).2).val = (u32OverflowingSub a b).2 := by
+  apply felt_ofNat_val_lt
+  apply u32_val_lt_prime
+  unfold u32OverflowingSub u32Max; split <;> omega
+
+/-- u32OverflowingSub subtraction result is zero iff inputs are equal (for u32 inputs). -/
+theorem u32OverflowingSub_snd_eq_zero_iff (a b : Nat)
+    (ha : a < 2^32) (hb : b < 2^32) :
+    (u32OverflowingSub a b).2 = 0 ↔ a = b := by
+  unfold u32OverflowingSub u32Max; split <;> (constructor <;> intro h <;> omega)
+
+/-- u32OverflowingSub borrow is 1 iff a < b. -/
+theorem u32OverflowingSub_fst_eq_one_iff (a b : Nat) :
+    (u32OverflowingSub a b).1 = 1 ↔ a < b := by
+  unfold u32OverflowingSub; split <;> (constructor <;> intro h <;> omega)
+
 end MidenLean
