@@ -155,8 +155,8 @@ inductive Instruction where
   | locLoad (idx : Nat)
   | locStore (idx : Nat)
   | locLoadwBe (idx : Nat)
-  | locLoadwLe (idx : Nat)
   | locStorewBe (idx : Nat)
+  | locLoadwLe (idx : Nat)
   | locStorewLe (idx : Nat)
   | locaddr (idx : Nat)
 
