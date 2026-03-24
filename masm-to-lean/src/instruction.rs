@@ -311,6 +311,11 @@ pub fn translate_instruction(inst: &Instruction) -> Result<String> {
         U32WideningMadd => ".u32WidenMadd".into(),
         U32WrappingMadd => ".u32WrappingMadd".into(),
 
+        U32Div => ".u32Div".into(),
+        U32DivImm(imm) => {
+            let v = u32_imm(imm)?;
+            return Ok(format!(".inst (.push {v}), .inst .u32Div"));
+        }
         U32DivMod => ".u32DivMod".into(),
         U32DivModImm(imm) => {
             let v = u32_imm(imm)?;
@@ -366,6 +371,11 @@ pub fn translate_instruction(inst: &Instruction) -> Result<String> {
         // Procedure locals
         LocLoad(idx) => format!(".locLoad {}", u16_imm(idx)?),
         LocStore(idx) => format!(".locStore {}", u16_imm(idx)?),
+        LocLoadWBe(idx) => format!(".locLoadwBe {}", u16_imm(idx)?),
+        LocLoadWLe(idx) => format!(".locLoadwLe {}", u16_imm(idx)?),
+        LocStoreWBe(idx) => format!(".locStorewBe {}", u16_imm(idx)?),
+        LocStoreWLe(idx) => format!(".locStorewLe {}", u16_imm(idx)?),
+        Locaddr(idx) => format!(".locaddr {}", u16_imm(idx)?),
 
         // Advice stack
         AdvPush(imm) => match imm {
@@ -400,11 +410,102 @@ pub fn translate_instruction(inst: &Instruction) -> Result<String> {
 #[cfg(test)]
 mod tests {
     use super::translate_instruction;
-    use miden_assembly_syntax::ast::Instruction;
+    use miden_assembly_syntax::ast::{ImmU16, ImmU32, Instruction};
+    use miden_assembly_syntax::debuginfo::Span;
 
     #[test]
     fn translates_u32_wrapping_madd() {
         let lean = translate_instruction(&Instruction::U32WrappingMadd).unwrap();
         assert_eq!(lean, ".u32WrappingMadd");
+    }
+
+    // --- Local word memory instructions ---
+
+    #[test]
+    fn translates_loc_loadw_be() {
+        let imm = ImmU16::Value(Span::unknown(4u16));
+        let lean = translate_instruction(&Instruction::LocLoadWBe(imm)).unwrap();
+        assert_eq!(lean, ".locLoadwBe 4");
+    }
+
+    #[test]
+    fn translates_loc_loadw_le() {
+        let imm = ImmU16::Value(Span::unknown(8u16));
+        let lean = translate_instruction(&Instruction::LocLoadWLe(imm)).unwrap();
+        assert_eq!(lean, ".locLoadwLe 8");
+    }
+
+    #[test]
+    fn translates_loc_storew_be() {
+        let imm = ImmU16::Value(Span::unknown(0u16));
+        let lean = translate_instruction(&Instruction::LocStoreWBe(imm)).unwrap();
+        assert_eq!(lean, ".locStorewBe 0");
+    }
+
+    #[test]
+    fn translates_loc_storew_le() {
+        let imm = ImmU16::Value(Span::unknown(12u16));
+        let lean = translate_instruction(&Instruction::LocStoreWLe(imm)).unwrap();
+        assert_eq!(lean, ".locStorewLe 12");
+    }
+
+    #[test]
+    fn translates_locaddr() {
+        let imm = ImmU16::Value(Span::unknown(32u16));
+        let lean = translate_instruction(&Instruction::Locaddr(imm)).unwrap();
+        assert_eq!(lean, ".locaddr 32");
+    }
+
+    #[test]
+    fn translates_loc_loadw_be_zero_index() {
+        let imm = ImmU16::Value(Span::unknown(0u16));
+        let lean = translate_instruction(&Instruction::LocLoadWBe(imm)).unwrap();
+        assert_eq!(lean, ".locLoadwBe 0");
+    }
+
+    // --- U32Div instructions ---
+
+    #[test]
+    fn translates_u32_div() {
+        let lean = translate_instruction(&Instruction::U32Div).unwrap();
+        assert_eq!(lean, ".u32Div");
+    }
+
+    #[test]
+    fn translates_u32_div_imm() {
+        let imm = ImmU32::Value(Span::unknown(4u32));
+        let lean = translate_instruction(&Instruction::U32DivImm(imm)).unwrap();
+        // Should expand to push + op (multi-instruction)
+        assert_eq!(lean, ".inst (.push 4), .inst .u32Div");
+    }
+
+    // --- Negative: constant immediates should error ---
+
+    #[test]
+    fn loc_loadw_be_constant_errors() {
+        let imm = ImmU16::Constant(
+            miden_assembly_syntax::ast::Ident::new("SOME_CONST").unwrap(),
+        );
+        let result = translate_instruction(&Instruction::LocLoadWBe(imm));
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("unresolved constant"));
+    }
+
+    #[test]
+    fn locaddr_constant_errors() {
+        let imm = ImmU16::Constant(
+            miden_assembly_syntax::ast::Ident::new("OFFSET").unwrap(),
+        );
+        let result = translate_instruction(&Instruction::Locaddr(imm));
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn u32_div_imm_constant_errors() {
+        let imm = ImmU32::Constant(
+            miden_assembly_syntax::ast::Ident::new("DIVISOR").unwrap(),
+        );
+        let result = translate_instruction(&Instruction::U32DivImm(imm));
+        assert!(result.is_err());
     }
 }

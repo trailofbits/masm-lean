@@ -191,6 +191,7 @@ impl<'a> StackSimulator<'a> {
                         | Instruction::U32WrappingSubImm(_)
                         | Instruction::U32WideningMulImm(_)
                         | Instruction::U32WrappingMulImm(_)
+                        | Instruction::U32DivImm(_)
                         | Instruction::U32DivModImm(_)
                         | Instruction::U32ModImm(_)
                 ) {
@@ -464,6 +465,65 @@ mod tests {
         let effect = analyze_block(&block);
         assert_eq!(effect.input_arity, 2);
         assert_eq!(effect.net_effect, -1);
+    }
+
+    #[test]
+    fn test_instruction_effect_loc_loadw_be() {
+        use miden_assembly_syntax::ast::ImmU16;
+        let imm = ImmU16::Value(Span::unknown(4u16));
+        let effect = instruction_effect(&Instruction::LocLoadWBe(imm)).unwrap();
+        // Overwrites top 4 elements with word from local memory
+        assert_eq!(effect.pops, 4);
+        assert_eq!(effect.pushes, 4);
+        assert_eq!(effect.required_depth, 4);
+    }
+
+    #[test]
+    fn test_instruction_effect_loc_storew_be() {
+        use miden_assembly_syntax::ast::ImmU16;
+        let imm = ImmU16::Value(Span::unknown(0u16));
+        let effect = instruction_effect(&Instruction::LocStoreWBe(imm)).unwrap();
+        // Stores top 4 elements, keeps them on stack
+        assert_eq!(effect.pops, 0);
+        assert_eq!(effect.pushes, 0);
+        assert_eq!(effect.required_depth, 4);
+    }
+
+    #[test]
+    fn test_instruction_effect_locaddr() {
+        use miden_assembly_syntax::ast::ImmU16;
+        let imm = ImmU16::Value(Span::unknown(32u16));
+        let effect = instruction_effect(&Instruction::Locaddr(imm)).unwrap();
+        // Pushes one address onto the stack
+        assert_eq!(effect.pops, 0);
+        assert_eq!(effect.pushes, 1);
+    }
+
+    #[test]
+    fn test_instruction_effect_u32_div() {
+        let effect = instruction_effect(&Instruction::U32Div).unwrap();
+        assert_eq!(effect.pops, 2);
+        assert_eq!(effect.pushes, 1);
+    }
+
+    #[test]
+    fn test_instruction_effect_u32_div_imm() {
+        use miden_assembly_syntax::ast::ImmU32;
+        let imm = ImmU32::Value(Span::unknown(4u32));
+        let effect = instruction_effect(&Instruction::U32DivImm(imm)).unwrap();
+        // Imm variant: consumes 1 (the dividend), produces 1 (quotient)
+        assert_eq!(effect.pops, 1);
+        assert_eq!(effect.pushes, 1);
+    }
+
+    #[test]
+    fn test_u32_div_imm_counts_as_two_instructions() {
+        use miden_assembly_syntax::ast::ImmU32;
+        let imm = ImmU32::Value(Span::unknown(4u32));
+        let block = make_block(vec![Instruction::U32DivImm(imm)]);
+        let effect = analyze_block(&block);
+        // U32DivImm expands to push + u32Div = 2 instructions
+        assert_eq!(effect.instruction_count, 2);
     }
 
     #[test]
