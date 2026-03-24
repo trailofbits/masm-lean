@@ -50,17 +50,19 @@ theorem u64_widening_add_raw
   dsimp only [pure, Pure.pure]
 
 /-- `u64::widening_add` computes the full 65-bit sum of two u64 values.
-    Input stack:  [b_lo, b_hi, a_lo, a_hi] ++ rest
-    Output stack: [sum_lo, sum_hi, overflow] ++ rest -/
+    Input stack:  [b.lo, b.hi, a.lo, a.hi] ++ rest
+    Output stack: [(a + b).lo, (a + b).hi, overflow] ++ rest -/
 theorem u64_widening_add_correct (a b : U64) (rest : List Felt) (s : MidenState)
     (hs : s.stack = b.lo :: b.hi :: a.lo :: a.hi :: rest) :
     execWithEnv u64ProcEnv 10 s Miden.Core.U64.widening_add =
     some (s.withStack (
-      let sum := a.toNat + b.toNat
-      Felt.ofNat (sum % 2^32) ::
-      Felt.ofNat ((sum / 2^32) % 2^32) ::
-      (if sum ≥ 2^64 then (1 : Felt) else 0) :: rest)) := by
+      (a + b).lo :: (a + b).hi ::
+      (if a.toNat + b.toNat ≥ 2^64 then (1 : Felt) else 0) :: rest)) := by
   rw [u64_widening_add_raw a.lo a.hi b.lo b.hi rest s hs a.lo_u32 a.hi_u32 b.lo_u32 b.hi_u32]
+  show _ = some (s.withStack (
+    Felt.ofNat ((a.toNat + b.toNat) % 2^32) ::
+    Felt.ofNat (((a.toNat + b.toNat) / 2^32) % 2^32) ::
+    (if a.toNat + b.toNat ≥ 2^64 then (1 : Felt) else 0) :: rest))
   simp only [U64.toNat]
   have halo := a.lo_u32; have hahi := a.hi_u32
   have hblo := b.lo_u32; have hbhi := b.hi_u32

@@ -60,16 +60,16 @@ theorem u128_lt_raw
   simpa using u128_lt_run 41 a0 a1 a2 a3 b0 b1 b2 b3 rest mem locs adv
     ha0 ha1 ha2 ha3 hb0 hb1 hb2 hb3
 
-/-- `u128::lt` pushes 1 iff `a.toNat < b.toNat`.
+/-- `u128::lt` pushes 1 iff `a < b`.
     Input stack:  [b0, b1, b2, b3, a0, a1, a2, a3] ++ rest
     Output stack: [(if a < b then 1 else 0)] ++ rest -/
 theorem u128_lt_correct (a b : U128) (rest : List Felt) (s : MidenState)
     (hs : s.stack = b.a0 :: b.a1 :: b.a2 :: b.a3 :: a.a0 :: a.a1 :: a.a2 :: a.a3 :: rest) :
     execWithEnv u128ProcEnv 43 s Miden.Core.U128.lt =
     some (s.withStack (
-      (if decide (a.toNat < b.toNat) then (1 : Felt) else 0) :: rest)) := by
+      (if decide (a < b) then (1 : Felt) else 0) :: rest)) := by
   rw [u128_lt_raw a.a0 a.a1 a.a2 a.a3 b.a0 b.a1 b.a2 b.a3 rest s hs
     a.a0_u32 a.a1_u32 a.a2_u32 a.a3_u32 b.a0_u32 b.a1_u32 b.a2_u32 b.a3_u32]
-  simp only [u128LtBool_iff_lt a b]
+  simp only [u128LtBool_iff_lt a b]; rfl
 
 end MidenLean.Proofs

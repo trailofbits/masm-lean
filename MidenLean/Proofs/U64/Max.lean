@@ -73,17 +73,31 @@ theorem u64_max_raw
   -- Instruction 10: cdrop
   rw [stepCdropIte]
 
-/-- `u64::max` pushes the limbs of `max(a, b)`.
-    Input stack:  [b_lo, b_hi, a_lo, a_hi] ++ rest
-    Output stack: [max_lo, max_hi] ++ rest
-    Returns a if b < a, otherwise b. -/
-theorem u64_max_correct (a b : U64) (rest : List Felt) (s : MidenState)
+/-- `u64::max` intermediate: uses `decide (b < a)` on individual limbs. -/
+theorem u64_max_ite (a b : U64) (rest : List Felt) (s : MidenState)
     (hs : s.stack = b.lo :: b.hi :: a.lo :: a.hi :: rest) :
     execWithEnv u64ProcEnv 20 s Miden.Core.U64.max =
     some (s.withStack (
-      (if decide (b.toNat < a.toNat) then a.lo else b.lo) ::
-      (if decide (b.toNat < a.toNat) then a.hi else b.hi) :: rest)) := by
+      (if decide (b < a) then a.lo else b.lo) ::
+      (if decide (b < a) then a.hi else b.hi) :: rest)) := by
   rw [u64_max_raw a.lo a.hi b.lo b.hi rest s hs a.lo_u32 a.hi_u32 b.lo_u32 b.hi_u32]
-  simp only [u64_borrow_iff_lt b a]
+  simp only [u64_borrow_iff_lt b a]; rfl
+
+/-- `u64::max` correctly computes the maximum of two u64 values.
+    Input stack:  [b.lo, b.hi, a.lo, a.hi] ++ rest
+    Output stack: [(max a b).lo, (max a b).hi] ++ rest -/
+theorem u64_max_correct (a b : U64) (rest : List Felt) (s : MidenState)
+    (hs : s.stack = b.lo :: b.hi :: a.lo :: a.hi :: rest) :
+    execWithEnv u64ProcEnv 20 s Miden.Core.U64.max =
+    some (s.withStack ((max a b).lo :: (max a b).hi :: rest)) := by
+  have h := u64_max_ite a b rest s hs
+  simp only [U64.max_def, U64.le_iff_toNat_le, U64.lt_iff_toNat_lt]
+  by_cases hab : b.toNat < a.toNat
+  · simp [hab, Nat.le_of_lt hab] at h ⊢; exact h
+  · simp [hab] at h ⊢
+    by_cases hle : b.toNat ≤ a.toNat
+    · have := U64.eq_of_toNat_eq (Nat.le_antisymm (Nat.le_of_not_lt hab) hle)
+      subst this; simp only [Nat.le_refl, ite_true]; exact h
+    · simp [hle]; exact h
 
 end MidenLean.Proofs

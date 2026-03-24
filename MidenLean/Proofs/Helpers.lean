@@ -212,4 +212,25 @@ theorem u32OverflowingSub_fst_eq_one_iff (a b : Nat) :
     (u32OverflowingSub a b).1 = 1 ↔ a < b := by
   unfold u32OverflowingSub; split <;> (constructor <;> intro h <;> omega)
 
+/-- Two Felt values are equal when they have the same val. -/
+theorem felt_eq_ofNat_of_val_eq (a : Felt) (n : Nat) (h : a.val = n)
+    (hn : n < GOLDILOCKS_PRIME) : a = Felt.ofNat n := by
+  unfold Felt.ofNat
+  have : (n : Felt).val = n := ZMod.val_cast_of_lt hn
+  exact_mod_cast Fin.val_injective (by omega : a.val = (n : Felt).val)
+
+/-- Felt.ofNat 0 is beq-equal to 0. -/
+theorem felt_ofNat_beq_zero (n : Nat) (h : n = 0) :
+    (Felt.ofNat n == (0 : Felt)) = true := by
+  subst h; simp [Felt.ofNat]
+
+/-- A Felt product is beq-equal to 0 when the Nat product is 0. -/
+theorem felt_mul_beq_zero (a b : Felt) (h : a.val * b.val = 0)
+    (hlt : a.val * b.val < GOLDILOCKS_PRIME) :
+    ((a * b : Felt) == (0 : Felt)) = true := by
+  rw [beq_iff_eq]
+  have hmul : (a * b).val = 0 := by rw [felt_mul_val_no_wrap a b hlt]; exact h
+  have hzero : (0 : Felt).val = 0 := Felt.val_zero'
+  exact_mod_cast Fin.val_injective (by omega : (a * b).val = (0 : Felt).val)
+
 end MidenLean

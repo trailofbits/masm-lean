@@ -80,19 +80,18 @@ theorem u64_overflowing_sub_raw
   dsimp only [pure, Pure.pure]
 
 /-- `u64::overflowing_sub` computes `a - b` with underflow detection.
-    Input stack:  [b_lo, b_hi, a_lo, a_hi] ++ rest
-    Output stack: [borrow, diff_lo, diff_hi] ++ rest
-    where borrow = 1 iff a < b (as u64). -/
+    Input stack:  [b.lo, b.hi, a.lo, a.hi] ++ rest
+    Output stack: [borrow, (a - b).lo, (a - b).hi] ++ rest
+    where borrow = 1 iff a < b. -/
 theorem u64_overflowing_sub_correct (a b : U64) (rest : List Felt) (s : MidenState)
     (hs : s.stack = b.lo :: b.hi :: a.lo :: a.hi :: rest) :
     exec 20 s Miden.Core.U64.overflowing_sub =
     some (s.withStack (
-      let sub_lo := u32OverflowingSub a.lo.val b.lo.val
-      let sub_hi := u32OverflowingSub a.hi.val b.hi.val
-      let sub_adj := u32OverflowingSub sub_hi.2 sub_lo.1
-      (if decide (a.toNat < b.toNat) then (1 : Felt) else 0) ::
-      Felt.ofNat sub_lo.2 :: Felt.ofNat sub_adj.2 :: rest)) := by
+      (if decide (a < b) then (1 : Felt) else 0) ::
+      (a - b).lo :: (a - b).hi :: rest)) := by
   rw [u64_overflowing_sub_raw a.lo a.hi b.lo b.hi rest s hs a.lo_u32 a.hi_u32 b.lo_u32 b.hi_u32]
-  simp only [u64_sub_borrow_iff_lt a b]
+  have ⟨hlo, hhi⟩ := u64_sub_limbs_felt a b
+  dsimp only
+  simp only [u64_sub_borrow_iff_lt a b, hlo, hhi, U64.lt_iff_toNat_lt]
 
 end MidenLean.Proofs

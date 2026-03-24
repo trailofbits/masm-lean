@@ -67,30 +67,31 @@ theorem u64_overflowing_add_raw
       ha_lo ha_hi hb_lo hb_hi
 
 /-- `u64::overflowing_add` computes `a + b` with overflow detection.
-    Input stack:  [b_lo, b_hi, a_lo, a_hi] ++ rest
-    Output stack: [overflow, sum_lo, sum_hi] ++ rest
+    Input stack:  [b.lo, b.hi, a.lo, a.hi] ++ rest
+    Output stack: [overflow, (a + b).lo, (a + b).hi] ++ rest
     where overflow = 1 iff the addition overflowed 64 bits. -/
 theorem u64_overflowing_add_correct (a b : U64) (rest : List Felt) (s : MidenState)
     (hs : s.stack = b.lo :: b.hi :: a.lo :: a.hi :: rest) :
     exec 10 s Miden.Core.U64.overflowing_add =
     some (s.withStack (
-      let sum := a.toNat + b.toNat
-      (if sum ≥ 2^64 then (1 : Felt) else 0) ::
-      Felt.ofNat (sum % 2^32) :: Felt.ofNat ((sum / 2^32) % 2^32) :: rest)) := by
+      (if a.toNat + b.toNat ≥ 2^64 then (1 : Felt) else 0) ::
+      (a + b).lo :: (a + b).hi :: rest)) := by
   rw [u64_overflowing_add_raw a.lo a.hi b.lo b.hi rest s hs a.lo_u32 a.hi_u32 b.lo_u32 b.hi_u32]
+  show _ = some (s.withStack (
+    (if a.toNat + b.toNat ≥ 2^64 then (1 : Felt) else 0) ::
+    Felt.ofNat ((a.toNat + b.toNat) % 2^32) ::
+    Felt.ofNat (((a.toNat + b.toNat) / 2^32) % 2^32) :: rest))
   simp only [U64.toNat]
   have halo := a.lo_u32; have hahi := a.hi_u32
   have hblo := b.lo_u32; have hbhi := b.hi_u32
   simp only [Felt.isU32, decide_eq_true_eq] at halo hahi hblo hbhi
   congr 1; congr 1; congr 1
-  · -- overflow: Felt.ofNat (hi_sum / 2^32) = if sum ≥ 2^64 then 1 else 0
-    split_ifs with hge
+  · split_ifs with hge
     · have h : (a.hi.val + b.hi.val + (b.lo.val + a.lo.val) / 2 ^ 32) / 2 ^ 32 = 1 := by omega
       rw [h]; rfl
     · have h : (a.hi.val + b.hi.val + (b.lo.val + a.lo.val) / 2 ^ 32) / 2 ^ 32 = 0 := by omega
       rw [h]; rfl
-  · -- lo and hi limbs
-    congr 1
+  · congr 1
     · congr 1; omega
     · congr 1; congr 1; congr 1; omega
 

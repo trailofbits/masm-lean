@@ -31,31 +31,31 @@ The current checked manual proofs cover 74 procedures: 31 in `u64`, 32 in `u128`
 | `u64::clz` | `u64_clz_correct` | `u64::clz` correctly counts leading zeros of a u64 value. | `MidenLean/Proofs/U64/Clz.lean` |
 | `u64::cto` | `u64_cto_correct` | `u64::cto` correctly counts trailing ones of a u64 value. | `MidenLean/Proofs/U64/Cto.lean` |
 | `u64::ctz` | `u64_ctz_correct` | `u64::ctz` correctly counts trailing zeros of a u64 value. | `MidenLean/Proofs/U64/Ctz.lean` |
-| `u64::div` | `u64_div_correct` | `u64::div` computes the quotient of two u64 values. | `MidenLean/Proofs/U64/Div.lean` |
-| `u64::divmod` | `u64_divmod_correct` | `u64::divmod` computes quotient and remainder of two u64 values. | `MidenLean/Proofs/U64/Divmod.lean` |
+| `u64::div` | `u64_div_correct` | `u64::div` verifies and returns the quotient of two u64 values. Execution succeeds iff the advice-supplied q and r satisfy q * b + r = a and r < b. | `MidenLean/Proofs/U64/Div.lean` |
+| `u64::divmod` | `u64_divmod_correct` | `u64::divmod` verifies the Euclidean division of two u64 values. Execution succeeds iff the advice-supplied quotient q and remainder r satisfy q * b + r = a and r < b. | `MidenLean/Proofs/U64/Divmod.lean` |
 | `u64::eq` | `u64_eq_correct` | `u64::eq` correctly tests equality of two u64 values. | `MidenLean/Proofs/U64/Eq.lean` |
 | `u64::eqz` | `u64_eqz_correct` | `u64::eqz` correctly tests whether a u64 value is zero. | `MidenLean/Proofs/U64/Eqz.lean` |
-| `u64::gt` | `u64_gt_correct` | `u64::gt` pushes 1 iff `a.toNat > b.toNat`. | `MidenLean/Proofs/U64/Gt.lean` |
-| `u64::gte` | `u64_gte_correct` | `u64::gte` pushes 1 iff `a.toNat ≥ b.toNat`. | `MidenLean/Proofs/U64/Gte.lean` |
-| `u64::lt` | `u64_lt_correct` | `u64::lt` pushes 1 iff `a.toNat < b.toNat`. | `MidenLean/Proofs/U64/Lt.lean` |
-| `u64::lte` | `u64_lte_correct` | `u64::lte` pushes 1 iff `a.toNat ≤ b.toNat`. | `MidenLean/Proofs/U64/Lte.lean` |
-| `u64::max` | `u64_max_correct` | `u64::max` pushes the limbs of `max(a, b)`. | `MidenLean/Proofs/U64/Max.lean` |
-| `u64::min` | `u64_min_correct` | `u64::min` pushes the limbs of `min(a, b)`. | `MidenLean/Proofs/U64/Min.lean` |
-| `u64::mod` | `u64_mod_correct` | `u64::mod` computes the remainder of two u64 values. | `MidenLean/Proofs/U64/Mod.lean` |
+| `u64::gt` | `u64_gt_correct` | `u64::gt` pushes 1 iff `a > b` (as u64). | `MidenLean/Proofs/U64/Gt.lean` |
+| `u64::gte` | `u64_gte_correct` | `u64::gte` pushes 1 iff `a ≥ b` (as u64). | `MidenLean/Proofs/U64/Gte.lean` |
+| `u64::lt` | `u64_lt_correct` | `u64::lt` pushes 1 iff `a < b` (as u64). | `MidenLean/Proofs/U64/Lt.lean` |
+| `u64::lte` | `u64_lte_correct` | `u64::lte` pushes 1 iff `a ≤ b` (as u64). | `MidenLean/Proofs/U64/Lte.lean` |
+| `u64::max` | `u64_max_correct` | `u64::max` correctly computes the maximum of two u64 values. | `MidenLean/Proofs/U64/Max.lean` |
+| `u64::min` | `u64_min_correct` | `u64::min` correctly computes the minimum of two u64 values. | `MidenLean/Proofs/U64/Min.lean` |
+| `u64::mod` | `u64_mod_correct` | `u64::mod` verifies and returns the remainder of two u64 values. Execution succeeds iff the advice-supplied q and r satisfy q * b + r = a and r < b. | `MidenLean/Proofs/U64/Mod.lean` |
 | `u64::neq` | `u64_neq_correct` | `u64::neq` correctly tests inequality of two u64 values. | `MidenLean/Proofs/U64/Neq.lean` |
 | `u64::or` | `u64_or_correct` | `u64::or` correctly computes bitwise OR of two u64 values. | `MidenLean/Proofs/U64/Or.lean` |
 | `u64::overflowing_add` | `u64_overflowing_add_correct` | `u64::overflowing_add` computes `a + b` with overflow detection. | `MidenLean/Proofs/U64/OverflowingAdd.lean` |
-| `u64::overflowing_sub` | `u64_overflowing_sub_correct` | `u64::overflowing_sub` computes `a - b` with underflow detection. | `MidenLean/Proofs/U64/OverflowingSub.lean` |
-| `u64::rotl` | `u64_rotl_correct` | `u64::rotl` correctly left-rotates a u64 value. | `MidenLean/Proofs/U64/Rotl.lean` |
-| `u64::rotr` | `u64_rotr_correct` | `u64::rotr` correctly right-rotates a u64 value. | `MidenLean/Proofs/U64/Rotr.lean` |
-| `u64::shl` | `u64_shl_correct` | `u64::shl` correctly left-shifts a u64 value. | `MidenLean/Proofs/U64/Shl.lean` |
-| `u64::shr` | `u64_shr_correct` | `u64::shr` correctly right-shifts a u64 value. | `MidenLean/Proofs/U64/Shr.lean` |
-| `u64::u32assert4` | `u64_u32assert4_correct` | `u64::u32assert4` validates that four stack elements are u32 values. | `MidenLean/Proofs/U64/U32Assert4.lean` |
+| `u64::overflowing_sub` | `u64_overflowing_sub_correct` | `u64::overflowing_sub` computes `a - b` with underflow detection using `U64` types. | `MidenLean/Proofs/U64/OverflowingSub.lean` |
+| `u64::rotl` | `u64_rotl_correct` | `u64::rotl` correctly left-rotates a u64 value by `shift` bits. | `MidenLean/Proofs/U64/Rotl.lean` |
+| `u64::rotr` | `u64_rotr_correct` | `u64::rotr` correctly right-rotates a u64 value by `shift` bits. | `MidenLean/Proofs/U64/Rotr.lean` |
+| `u64::shl` | `u64_shl_correct` | `u64::shl` correctly left-shifts a u64 value by `shift` bits. | `MidenLean/Proofs/U64/Shl.lean` |
+| `u64::shr` | `u64_shr_correct` | `u64::shr` correctly right-shifts a u64 value by `shift` bits. | `MidenLean/Proofs/U64/Shr.lean` |
+| `u64::u32assert4` | `u64_u32assert4_correct` | `u64::u32assert4` succeeds and leaves the stack unchanged iff all four top elements are u32 values. | `MidenLean/Proofs/U64/U32Assert4.lean` |
 | `u64::widening_add` | `u64_widening_add_correct` | `u64::widening_add` computes the full 65-bit sum of two u64 values. | `MidenLean/Proofs/U64/WideningAdd.lean` |
-| `u64::widening_mul` | `u64_widening_mul_correct` | `u64::widening_mul` correctly computes the full 128-bit product of two u64 values. | `MidenLean/Proofs/U64/WideningMul.lean` |
+| `u64::widening_mul` | `u64_widening_mul_correct` | `u64::widening_mul` computes the full 128-bit product `a * b`. | `MidenLean/Proofs/U64/WideningMul.lean` |
 | `u64::wrapping_add` | `u64_wrapping_add_correct` | `u64::wrapping_add` computes `(a + b) mod 2^64`. | `MidenLean/Proofs/U64/WrappingAdd.lean` |
-| `u64::wrapping_mul` | `u64_wrapping_mul_correct` | `u64::wrapping_mul` correctly computes the low 64 bits of the product of two u64 values. | `MidenLean/Proofs/U64/WrappingMul.lean` |
-| `u64::wrapping_sub` | `u64_wrapping_sub_correct` | `u64::wrapping_sub` correctly computes wrapping subtraction of two u64 values. | `MidenLean/Proofs/U64/Sub.lean` |
+| `u64::wrapping_mul` | `u64_wrapping_mul_correct` | `u64::wrapping_mul` computes the low 64 bits of the product `a * b`. | `MidenLean/Proofs/U64/WrappingMul.lean` |
+| `u64::wrapping_sub` | `u64_wrapping_sub_correct` | `u64::wrapping_sub` correctly computes `a - b` as a `U64` value. | `MidenLean/Proofs/U64/Sub.lean` |
 | `u64::xor` | `u64_xor_correct` | `u64::xor` correctly computes bitwise XOR of two u64 values. | `MidenLean/Proofs/U64/Xor.lean` |
 
 ### `u128` (32 / 36)
@@ -69,10 +69,10 @@ The current checked manual proofs cover 74 procedures: 31 in `u64`, 32 in `u128`
 | `u128::ctz` | `u128_ctz_correct` | `u128::ctz` correctly counts trailing zeros of a u128 value. | `MidenLean/Proofs/U128/Ctz.lean` |
 | `u128::eq` | `u128_eq_correct` | `u128::eq` correctly tests equality of two 128-bit values. | `MidenLean/Proofs/U128/Eq.lean` |
 | `u128::eqz` | `u128_eqz_correct` | `u128::eqz` correctly tests whether a 128-bit value is zero. | `MidenLean/Proofs/U128/Eqz.lean` |
-| `u128::gt` | `u128_gt_correct` | `u128::gt` pushes 1 iff `a.toNat > b.toNat`. | `MidenLean/Proofs/U128/Gt.lean` |
-| `u128::gte` | `u128_gte_correct` | `u128::gte` pushes 1 iff `a.toNat ≥ b.toNat`. | `MidenLean/Proofs/U128/Gte.lean` |
-| `u128::lt` | `u128_lt_correct` | `u128::lt` pushes 1 iff `a.toNat < b.toNat`. | `MidenLean/Proofs/U128/Lt.lean` |
-| `u128::lte` | `u128_lte_correct` | `u128::lte` pushes 1 iff `a.toNat ≤ b.toNat`. | `MidenLean/Proofs/U128/Lte.lean` |
+| `u128::gt` | `u128_gt_correct` | `u128::gt` pushes 1 iff `b < a` (i.e. `a > b`). | `MidenLean/Proofs/U128/Gt.lean` |
+| `u128::gte` | `u128_gte_correct` | `u128::gte` pushes 1 iff `b ≤ a` (i.e. `a ≥ b`). | `MidenLean/Proofs/U128/Gte.lean` |
+| `u128::lt` | `u128_lt_correct` | `u128::lt` pushes 1 iff `a < b`. | `MidenLean/Proofs/U128/Lt.lean` |
+| `u128::lte` | `u128_lte_correct` | `u128::lte` pushes 1 iff `a ≤ b`. | `MidenLean/Proofs/U128/Lte.lean` |
 | `u128::max` | `u128_max_correct` | `u128::max` pushes the limbs of `max(a, b)`. | `MidenLean/Proofs/U128/Max.lean` |
 | `u128::min` | `u128_min_correct` | `u128::min` pushes the limbs of `min(a, b)`. | `MidenLean/Proofs/U128/Min.lean` |
 | `u128::neq` | `u128_neq_correct` | `u128::neq` correctly tests inequality of two 128-bit values. | `MidenLean/Proofs/U128/Neq.lean` |

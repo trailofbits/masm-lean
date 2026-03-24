@@ -1,3 +1,5 @@
+import MidenLean.Proofs.U64.Common
+import MidenLean.Proofs.U128.Common
 import MidenLean.Proofs.Tactics
 import MidenLean.Generated.U64
 
@@ -236,12 +238,11 @@ private theorem widening_mul_chunk2_correct
   simp only [pure, Pure.pure]
 
 set_option maxHeartbeats 12000000 in
-/-- `u64::widening_mul` correctly computes the full 128-bit product of two u64 values.
+/-- Raw version of `u64::widening_mul` with explicit Felt arguments.
     Input stack:  [b_lo, b_hi, a_lo, a_hi] ++ rest
     Output stack: [c0, c1, c2, c3] ++ rest
-    where (c3, c2, c1, c0) is the 128-bit product a * b.
-    Requires a_lo, a_hi, b_lo, b_hi to be u32 for the u32 checked arithmetic. -/
-theorem u64_widening_mul_correct
+    where (c3, c2, c1, c0) is the 128-bit product a * b. -/
+theorem u64_widening_mul_raw
     (a_lo a_hi b_lo b_hi : Felt) (rest : List Felt) (s : MidenState)
     (hs : s.stack = b_lo :: b_hi :: a_lo :: a_hi :: rest)
     (ha_lo : a_lo.isU32 = true) (ha_hi : a_hi.isU32 = true)
@@ -270,5 +271,70 @@ theorem u64_widening_mul_correct
   let widenAdd := cross1 / 2 ^ 32 + high % 2 ^ 32
   simpa [prod0, cross1, cross2, high, widenAdd] using
     (widening_mul_chunk2_correct a_lo a_hi b_lo b_hi rest mem locs adv ha_lo ha_hi hb_lo hb_hi)
+
+private theorem schoolbook_widening_mul_eq (al ah bl bh : Nat) :
+    let p0 := bl * al
+    let c1 := bh * al + p0 / 2^32
+    let c2 := bl * ah + c1 % 2^32
+    let high := bh * ah + c2 / 2^32
+    let wa := c1 / 2^32 + high % 2^32
+    (wa / 2^32 + high / 2^32) * 2^96 + (wa % 2^32) * 2^64 +
+    (c2 % 2^32) * 2^32 + p0 % 2^32 = (ah * 2^32 + al) * (bh * 2^32 + bl) := by
+  simp only
+  have h1 := Nat.div_add_mod (bl * al) (2^32)
+  have h2 := Nat.div_add_mod (bh * al + bl * al / 2^32) (2^32)
+  have h3 := Nat.div_add_mod (bl * ah + (bh * al + bl * al / 2^32) % 2^32) (2^32)
+  have h4 := Nat.div_add_mod (bh * ah + (bl * ah + (bh * al + bl * al / 2^32) % 2^32) / 2^32) (2^32)
+  have h5 := Nat.div_add_mod ((bh * al + bl * al / 2^32) / 2^32 +
+    (bh * ah + (bl * ah + (bh * al + bl * al / 2^32) % 2^32) / 2^32) % 2^32) (2^32)
+  nlinarith
+
+private theorem limbs_from_reconstruction (c0 c1 c2 c3 n : Nat)
+    (h0 : c0 < 2^32) (h1 : c1 < 2^32) (h2 : c2 < 2^32)
+    (hn : n < 2^128)
+    (hrec : c3 * 2^96 + c2 * 2^64 + c1 * 2^32 + c0 = n) :
+    c0 = n % 2^32 ∧ c1 = (n / 2^32) % 2^32 ∧ c2 = (n / 2^64) % 2^32 ∧
+    c3 = (n / 2^96) % 2^32 := by
+  omega
+
+/-- `u64::widening_mul` computes the full 128-bit product `a * b`.
+    Input stack:  [b.lo, b.hi, a.lo, a.hi] ++ rest
+    Output stack: [c0, c1, c2, c3] ++ rest
+    where (c3, c2, c1, c0) are the four u32 limbs of the 128-bit product. -/
+theorem u64_widening_mul_correct (a b : U64) (rest : List Felt) (s : MidenState)
+    (hs : s.stack = b.lo :: b.hi :: a.lo :: a.hi :: rest) :
+    exec 30 s Miden.Core.U64.widening_mul =
+    some (s.withStack (
+      let p := a.toNat * b.toNat
+      Felt.ofNat (p % 2^32) ::
+      Felt.ofNat ((p / 2^32) % 2^32) ::
+      Felt.ofNat ((p / 2^64) % 2^32) ::
+      Felt.ofNat ((p / 2^96) % 2^32) :: rest)) := by
+  rw [u64_widening_mul_raw a.lo a.hi b.lo b.hi rest s hs a.lo_u32 a.hi_u32 b.lo_u32 b.hi_u32]
+  simp only [U64.toNat]
+  -- Resolve Felt addition in c3: Felt.ofNat x + Felt.ofNat y = Felt.ofNat (x + y)
+  have felt_ofNat_add : ∀ (x y : Nat), Felt.ofNat x + Felt.ofNat y = Felt.ofNat (x + y) := by
+    intros x y; show (x : Felt) + (y : Felt) = ((x + y : Nat) : Felt); exact (Nat.cast_add x y).symm
+  conv_lhs => arg 1; arg 2; arg 2; arg 2; arg 2; arg 1; rw [felt_ofNat_add]
+  set al := a.lo.val; set ah := a.hi.val; set bl := b.lo.val; set bh := b.hi.val
+  have hal : al < 2^32 := by simpa [Felt.isU32] using a.lo_u32
+  have hah : ah < 2^32 := by simpa [Felt.isU32] using a.hi_u32
+  have hbl : bl < 2^32 := by simpa [Felt.isU32] using b.lo_u32
+  have hbh : bh < 2^32 := by simpa [Felt.isU32] using b.hi_u32
+  -- Reconstruction: schoolbook limbs sum to the product
+  have hrec := schoolbook_widening_mul_eq al ah bl bh
+  -- Product bound (nonlinear, needs nlinarith)
+  have hprod_lt : (ah * 2^32 + al) * (bh * 2^32 + bl) < 2^128 := by
+    nlinarith [Nat.mul_le_mul (show ah * 2^32 + al ≤ 2^64 - 1 by omega)
+                              (show bh * 2^32 + bl ≤ 2^64 - 1 by omega)]
+  -- Derive all four limb equalities from reconstruction + bounds
+  have hlimbs := limbs_from_reconstruction _ _ _ _ _ (by omega) (by omega) (by omega) hprod_lt hrec
+  congr 1; congr 1; congr 1
+  · congr 1; exact hlimbs.1
+  · congr 1; congr 1
+    · exact hlimbs.2.1
+    · congr 1; congr 1
+      · exact hlimbs.2.2.1
+      · congr 1; congr 1; exact hlimbs.2.2.2
 
 end MidenLean.Proofs

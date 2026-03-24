@@ -54,14 +54,14 @@ theorem u64_gte_raw
   -- not
   rw [stepNotIte]
 
-/-- `u64::gte` pushes 1 iff `a.toNat ≥ b.toNat`.
+/-- `u64::gte` pushes 1 iff `a ≥ b` (as u64).
     Input stack:  [b_lo, b_hi, a_lo, a_hi] ++ rest
-    Output stack: [(if a ≥ b then 1 else 0)] ++ rest -/
+    Output stack: [(if b ≤ a then 1 else 0)] ++ rest -/
 theorem u64_gte_correct (a b : U64) (rest : List Felt) (s : MidenState)
     (hs : s.stack = b.lo :: b.hi :: a.lo :: a.hi :: rest) :
     execWithEnv u64ProcEnv 20 s Miden.Core.U64.gte =
     some (s.withStack (
-      (if decide (b.toNat ≤ a.toNat) then (1 : Felt) else 0) :: rest)) := by
+      (if b ≤ a then (1 : Felt) else 0) :: rest)) := by
   rw [u64_gte_raw a.lo a.hi b.lo b.hi rest s hs a.lo_u32 a.hi_u32 b.lo_u32 b.hi_u32]
   simp only [u64_borrow_iff_lt a b]
   congr 1; congr 1; congr 1; congr 1

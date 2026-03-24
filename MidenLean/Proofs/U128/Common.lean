@@ -115,6 +115,68 @@ theorem toNat_lt (x : U128) : x.toNat < 2^128 := by
 theorem toNat_def (x : U128) :
     x.toNat = x.a3.val * 2^96 + x.a2.val * 2^64 + x.a1.val * 2^32 + x.a0.val := rfl
 
+/-- Construct a U128 from a natural number (taken mod 2^128). -/
+def ofNat (n : Nat) : U128 where
+  a0 := Felt.ofNat (n % 2^32)
+  a1 := Felt.ofNat ((n / 2^32) % 2^32)
+  a2 := Felt.ofNat ((n / 2^64) % 2^32)
+  a3 := Felt.ofNat ((n / 2^96) % 2^32)
+  a0_u32 := u32_mod_isU32 n
+  a1_u32 := u32_mod_isU32 (n / 2^32)
+  a2_u32 := u32_mod_isU32 (n / 2^64)
+  a3_u32 := u32_mod_isU32 (n / 2^96)
+
+@[simp] theorem ofNat_toNat (n : Nat) : (U128.ofNat n).toNat = n % 2^128 := by
+  unfold ofNat toNat
+  have h0 : (Felt.ofNat (n % 2^32)).val = n % 2^32 :=
+    felt_ofNat_val_lt _ (by unfold GOLDILOCKS_PRIME; omega)
+  have h1 : (Felt.ofNat ((n / 2^32) % 2^32)).val = (n / 2^32) % 2^32 :=
+    felt_ofNat_val_lt _ (by unfold GOLDILOCKS_PRIME; omega)
+  have h2 : (Felt.ofNat ((n / 2^64) % 2^32)).val = (n / 2^64) % 2^32 :=
+    felt_ofNat_val_lt _ (by unfold GOLDILOCKS_PRIME; omega)
+  have h3 : (Felt.ofNat ((n / 2^96) % 2^32)).val = (n / 2^96) % 2^32 :=
+    felt_ofNat_val_lt _ (by unfold GOLDILOCKS_PRIME; omega)
+  rw [h0, h1, h2, h3]; omega
+
+@[simp] theorem ofNat_a0 (n : Nat) :
+    (U128.ofNat n).a0 = Felt.ofNat (n % 2^32) := rfl
+
+@[simp] theorem ofNat_a1 (n : Nat) :
+    (U128.ofNat n).a1 = Felt.ofNat ((n / 2^32) % 2^32) := rfl
+
+@[simp] theorem ofNat_a2 (n : Nat) :
+    (U128.ofNat n).a2 = Felt.ofNat ((n / 2^64) % 2^32) := rfl
+
+@[simp] theorem ofNat_a3 (n : Nat) :
+    (U128.ofNat n).a3 = Felt.ofNat ((n / 2^96) % 2^32) := rfl
+
+end U128
+
+-- Arithmetic instances
+instance : Add U128 where add a b := U128.ofNat (a.toNat + b.toNat)
+instance : Sub U128 where sub a b := U128.ofNat (a.toNat + 2^128 - b.toNat)
+instance : Mul U128 where mul a b := U128.ofNat (a.toNat * b.toNat)
+
+-- Comparison instances
+instance : LT U128 where lt a b := a.toNat < b.toNat
+instance : LE U128 where le a b := a.toNat ≤ b.toNat
+instance (a b : U128) : Decidable (a < b) := inferInstanceAs (Decidable (a.toNat < b.toNat))
+instance (a b : U128) : Decidable (a ≤ b) := inferInstanceAs (Decidable (a.toNat ≤ b.toNat))
+
+namespace U128
+
+@[simp] theorem lt_iff_toNat_lt (a b : U128) : a < b ↔ a.toNat < b.toNat := Iff.rfl
+@[simp] theorem le_iff_toNat_le (a b : U128) : a ≤ b ↔ a.toNat ≤ b.toNat := Iff.rfl
+
+@[simp] theorem toNat_add (a b : U128) : (a + b).toNat = (a.toNat + b.toNat) % 2^128 :=
+  ofNat_toNat _
+
+@[simp] theorem toNat_sub (a b : U128) : (a - b).toNat = (a.toNat + 2^128 - b.toNat) % 2^128 :=
+  ofNat_toNat _
+
+@[simp] theorem toNat_mul (a b : U128) : (a * b).toNat = (a.toNat * b.toNat) % 2^128 :=
+  ofNat_toNat _
+
 end U128
 
 -- ============================================================================

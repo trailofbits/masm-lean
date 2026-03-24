@@ -1,3 +1,4 @@
+import MidenLean.Proofs.U64.Common
 import MidenLean.Proofs.Tactics
 import MidenLean.Generated.U64
 
@@ -8,12 +9,11 @@ open MidenLean.StepLemmas
 open MidenLean.Tactics
 
 set_option maxHeartbeats 8000000 in
-/-- `u64::wrapping_mul` correctly computes the low 64 bits of the product of two u64 values.
+/-- Raw version of `u64::wrapping_mul` with explicit Felt arguments.
     Input stack:  [b_lo, b_hi, a_lo, a_hi] ++ rest
     Output stack: [c_lo, c_hi] ++ rest
-    where c_lo is the low 32 bits and c_hi the high 32 bits of (a * b) mod 2^64.
-    Requires a_lo and b_lo to be u32 for intermediate value recovery. -/
-theorem u64_wrapping_mul_correct
+    where c_lo is the low 32 bits and c_hi the high 32 bits of (a * b) mod 2^64. -/
+theorem u64_wrapping_mul_raw
     (a_lo a_hi b_lo b_hi : Felt) (rest : List Felt) (s : MidenState)
     (hs : s.stack = b_lo :: b_hi :: a_lo :: a_hi :: rest)
     (ha_lo : a_lo.isU32 = true) (ha_hi : a_hi.isU32 = true)
@@ -86,5 +86,21 @@ theorem u64_wrapping_mul_correct
   rw [stepDrop]; miden_bind
   miden_swap
   dsimp only [pure, Pure.pure]
+
+/-- `u64::wrapping_mul` computes the low 64 bits of the product `a * b`.
+    Input stack:  [b.lo, b.hi, a.lo, a.hi] ++ rest
+    Output stack: [(a * b).lo, (a * b).hi] ++ rest -/
+theorem u64_wrapping_mul_correct (a b : U64) (rest : List Felt) (s : MidenState)
+    (hs : s.stack = b.lo :: b.hi :: a.lo :: a.hi :: rest) :
+    exec 20 s Miden.Core.U64.wrapping_mul =
+    some (s.withStack ((a * b).lo :: (a * b).hi :: rest)) := by
+  rw [u64_wrapping_mul_raw a.lo a.hi b.lo b.hi rest s hs a.lo_u32 a.hi_u32 b.lo_u32 b.hi_u32]
+  show _ = some (s.withStack (
+    Felt.ofNat ((a.toNat * b.toNat) % 2^32) ::
+    Felt.ofNat (((a.toNat * b.toNat) / 2^32) % 2^32) :: rest))
+  simp only [U64.toNat]
+  congr 1; congr 1; congr 1
+  · congr 1; ring_nf; omega
+  · congr 1; congr 1; ring_nf; omega
 
 end MidenLean.Proofs

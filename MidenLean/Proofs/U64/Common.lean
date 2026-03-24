@@ -41,7 +41,181 @@ theorem toNat_lt (x : U64) : x.toNat < 2^64 := by
 
 theorem toNat_def (x : U64) : x.toNat = x.hi.val * 2^32 + x.lo.val := rfl
 
+/-- Construct a U64 from a natural number (taken mod 2^64). -/
+def ofNat (n : Nat) : U64 where
+  lo := Felt.ofNat (n % 2^32)
+  hi := Felt.ofNat ((n / 2^32) % 2^32)
+  lo_u32 := u32_mod_isU32 n
+  hi_u32 := u32_mod_isU32 (n / 2^32)
+
+@[simp] theorem ofNat_toNat (n : Nat) : (U64.ofNat n).toNat = n % 2^64 := by
+  unfold ofNat toNat
+  have h1 : (Felt.ofNat (n % 2^32)).val = n % 2^32 :=
+    felt_ofNat_val_lt _ (by unfold GOLDILOCKS_PRIME; omega)
+  have h2 : (Felt.ofNat ((n / 2^32) % 2^32)).val = (n / 2^32) % 2^32 :=
+    felt_ofNat_val_lt _ (by unfold GOLDILOCKS_PRIME; omega)
+  rw [h1, h2]; omega
+
+@[simp] theorem ofNat_lo (n : Nat) :
+    (U64.ofNat n).lo = Felt.ofNat (n % 2^32) := rfl
+
+@[simp] theorem ofNat_hi (n : Nat) :
+    (U64.ofNat n).hi = Felt.ofNat ((n / 2^32) % 2^32) := rfl
+
+-- Extensionality: two U64s with the same lo and hi are equal.
+@[ext] theorem ext {a b : U64} (hlo : a.lo = b.lo) (hhi : a.hi = b.hi) : a = b := by
+  cases a; cases b; simp_all
+
+theorem toNat_injective : Function.Injective U64.toNat := by
+  intro a b hab
+  have halo := a.lo_u32; have hahi := a.hi_u32
+  have hblo := b.lo_u32; have hbhi := b.hi_u32
+  simp only [Felt.isU32, decide_eq_true_eq] at *
+  unfold toNat at hab
+  apply ext
+  · exact ZMod.val_injective _ (by omega)
+  · exact ZMod.val_injective _ (by omega)
+
+theorem eq_of_toNat_eq {a b : U64} (h : a.toNat = b.toNat) : a = b :=
+  toNat_injective h
+
 end U64
+
+-- Arithmetic instances
+instance : Add U64 where add a b := U64.ofNat (a.toNat + b.toNat)
+instance : Sub U64 where sub a b := U64.ofNat (a.toNat + 2^64 - b.toNat)
+instance : Mul U64 where mul a b := U64.ofNat (a.toNat * b.toNat)
+
+-- Comparison instances
+instance : LT U64 where lt a b := a.toNat < b.toNat
+instance : LE U64 where le a b := a.toNat ≤ b.toNat
+instance (a b : U64) : Decidable (a < b) := inferInstanceAs (Decidable (a.toNat < b.toNat))
+instance (a b : U64) : Decidable (a ≤ b) := inferInstanceAs (Decidable (a.toNat ≤ b.toNat))
+
+namespace U64
+
+@[simp] theorem lt_iff_toNat_lt (a b : U64) : a < b ↔ a.toNat < b.toNat := Iff.rfl
+@[simp] theorem le_iff_toNat_le (a b : U64) : a ≤ b ↔ a.toNat ≤ b.toNat := Iff.rfl
+
+@[simp] theorem toNat_add (a b : U64) : (a + b).toNat = (a.toNat + b.toNat) % 2^64 :=
+  ofNat_toNat _
+
+@[simp] theorem toNat_sub (a b : U64) : (a - b).toNat = (a.toNat + 2^64 - b.toNat) % 2^64 :=
+  ofNat_toNat _
+
+@[simp] theorem toNat_mul (a b : U64) : (a * b).toNat = (a.toNat * b.toNat) % 2^64 :=
+  ofNat_toNat _
+
+end U64
+
+-- Bitwise instances
+instance : AndOp U64 where and a b := {
+  lo := Felt.ofNat (a.lo.val &&& b.lo.val)
+  hi := Felt.ofNat (a.hi.val &&& b.hi.val)
+  lo_u32 := felt_ofNat_isU32_of_lt _ (Nat.lt_of_le_of_lt Nat.and_le_left
+    (by have := a.lo_u32; simp [Felt.isU32, decide_eq_true_eq] at this; exact this))
+  hi_u32 := felt_ofNat_isU32_of_lt _ (Nat.lt_of_le_of_lt Nat.and_le_left
+    (by have := a.hi_u32; simp [Felt.isU32, decide_eq_true_eq] at this; exact this))
+}
+
+instance : OrOp U64 where or a b := {
+  lo := Felt.ofNat (a.lo.val ||| b.lo.val)
+  hi := Felt.ofNat (a.hi.val ||| b.hi.val)
+  lo_u32 := felt_ofNat_isU32_of_lt _ (Nat.or_lt_two_pow
+    (by have := a.lo_u32; simp [Felt.isU32, decide_eq_true_eq] at this; exact this)
+    (by have := b.lo_u32; simp [Felt.isU32, decide_eq_true_eq] at this; exact this))
+  hi_u32 := felt_ofNat_isU32_of_lt _ (Nat.or_lt_two_pow
+    (by have := a.hi_u32; simp [Felt.isU32, decide_eq_true_eq] at this; exact this)
+    (by have := b.hi_u32; simp [Felt.isU32, decide_eq_true_eq] at this; exact this))
+}
+
+instance : XorOp U64 where xor a b := {
+  lo := Felt.ofNat (a.lo.val ^^^ b.lo.val)
+  hi := Felt.ofNat (a.hi.val ^^^ b.hi.val)
+  lo_u32 := felt_ofNat_isU32_of_lt _ (Nat.xor_lt_two_pow
+    (by have := a.lo_u32; simp [Felt.isU32, decide_eq_true_eq] at this; exact this)
+    (by have := b.lo_u32; simp [Felt.isU32, decide_eq_true_eq] at this; exact this))
+  hi_u32 := felt_ofNat_isU32_of_lt _ (Nat.xor_lt_two_pow
+    (by have := a.hi_u32; simp [Felt.isU32, decide_eq_true_eq] at this; exact this)
+    (by have := b.hi_u32; simp [Felt.isU32, decide_eq_true_eq] at this; exact this))
+}
+
+-- Equality instance
+instance : BEq U64 where beq a b := (a.lo == b.lo) && (a.hi == b.hi)
+
+-- Min/Max instances
+instance : Min U64 where min a b := if a ≤ b then a else b
+instance : Max U64 where max a b := if b ≤ a then a else b
+
+namespace U64
+
+@[simp] theorem and_lo (a b : U64) : (a &&& b).lo = Felt.ofNat (a.lo.val &&& b.lo.val) := rfl
+@[simp] theorem and_hi (a b : U64) : (a &&& b).hi = Felt.ofNat (a.hi.val &&& b.hi.val) := rfl
+@[simp] theorem or_lo (a b : U64) : (a ||| b).lo = Felt.ofNat (a.lo.val ||| b.lo.val) := rfl
+@[simp] theorem or_hi (a b : U64) : (a ||| b).hi = Felt.ofNat (a.hi.val ||| b.hi.val) := rfl
+@[simp] theorem xor_lo (a b : U64) : (a ^^^ b).lo = Felt.ofNat (a.lo.val ^^^ b.lo.val) := rfl
+@[simp] theorem xor_hi (a b : U64) : (a ^^^ b).hi = Felt.ofNat (a.hi.val ^^^ b.hi.val) := rfl
+
+@[simp] theorem beq_iff (a b : U64) : (a == b) = ((a.lo == b.lo) && (a.hi == b.hi)) := rfl
+
+theorem beq_comm (a b : U64) : (a == b) = (b == a) := by
+  simp only [beq_iff, Bool.beq_comm (a := a.lo), Bool.beq_comm (a := a.hi), Bool.and_comm]
+
+theorem bne_iff (a b : U64) : (a != b) = ((a.lo != b.lo) || (a.hi != b.hi)) := by
+  simp only [bne, beq_iff, Bool.not_and, bne]
+
+theorem bne_comm (a b : U64) : (a != b) = (b != a) := by
+  simp only [bne, beq_comm]
+
+@[simp] theorem min_def (a b : U64) : min a b = if a ≤ b then a else b := rfl
+@[simp] theorem max_def (a b : U64) : max a b = if b ≤ a then a else b := rfl
+
+-- Bit counting operations
+
+/-- Count leading zeros of a 64-bit value. -/
+def countLeadingZeros (a : U64) : Nat :=
+  if a.hi.val = 0 then u32CountLeadingZeros a.lo.val + 32
+  else u32CountLeadingZeros a.hi.val
+
+/-- Count leading ones of a 64-bit value. -/
+def countLeadingOnes (a : U64) : Nat :=
+  if a.hi.val = 2^32 - 1 then u32CountLeadingOnes a.lo.val + 32
+  else u32CountLeadingOnes a.hi.val
+
+/-- Count trailing zeros of a 64-bit value. -/
+def countTrailingZeros (a : U64) : Nat :=
+  if a.lo.val = 0 then u32CountTrailingZeros a.hi.val + 32
+  else u32CountTrailingZeros a.lo.val
+
+/-- Count trailing ones of a 64-bit value. -/
+def countTrailingOnes (a : U64) : Nat :=
+  if a.lo.val = 2^32 - 1 then u32CountTrailingOnes a.hi.val + 32
+  else u32CountTrailingOnes a.lo.val
+
+-- Shift and rotation operations
+
+/-- Left-shift a u64 value by `n` bits (mod 2^64). -/
+def shl (a : U64) (n : Nat) : U64 := ofNat (a.toNat * 2^n)
+
+/-- Right-shift a u64 value by `n` bits. -/
+def shr (a : U64) (n : Nat) : U64 := ofNat (a.toNat / 2^n)
+
+/-- Left-rotate a u64 value by `n` bits. -/
+def rotl (a : U64) (n : Nat) : U64 :=
+  let n' := n % 64
+  ofNat (a.toNat * 2^n' + a.toNat / 2^(64 - n'))
+
+/-- Right-rotate a u64 value by `n` bits. -/
+def rotr (a : U64) (n : Nat) : U64 :=
+  let n' := n % 64
+  ofNat (a.toNat / 2^n' + a.toNat * 2^(64 - n'))
+
+end U64
+
+/-- `Felt.ofNat` distributes over addition. -/
+theorem felt_ofNat_add (n m : Nat) :
+    Felt.ofNat (n + m) = Felt.ofNat n + Felt.ofNat m := by
+  simp [Felt.ofNat, Nat.cast_add]
 
 -- ============================================================================
 -- Comparison bridging lemma
@@ -124,5 +298,96 @@ theorem u64_sub_borrow_iff_lt (a b : U64) :
   cases h1 : decide (a.hi.val < b.hi.val) <;>
   simp_all [decide_eq_true_eq, decide_eq_false_iff_not] <;>
   omega
+
+-- ============================================================================
+-- Subtraction bridging lemma
+-- ============================================================================
+
+/-- The limb-by-limb u32OverflowingSub computes the same result as
+    `(a - b : U64)`, i.e. `U64.ofNat (a.toNat + 2^64 - b.toNat)`. -/
+theorem u64_sub_limbs (a b : U64) :
+    let sub_lo := u32OverflowingSub a.lo.val b.lo.val
+    let sub_hi := u32OverflowingSub a.hi.val b.hi.val
+    let sub_final := u32OverflowingSub sub_hi.2 sub_lo.1
+    sub_lo.2 = (a.toNat + 2^64 - b.toNat) % 2^32 ∧
+    sub_final.2 = ((a.toNat + 2^64 - b.toNat) / 2^32) % 2^32 := by
+  simp only
+  have halo := a.lo_u32; have hahi := a.hi_u32
+  have hblo := b.lo_u32; have hbhi := b.hi_u32
+  simp only [Felt.isU32, decide_eq_true_eq] at halo hahi hblo hbhi
+  unfold u32OverflowingSub u32Max U64.toNat
+  split_ifs <;> omega
+
+/-- Corollary: the Felt values from the subtraction limb computation match
+    `(a - b).lo` and `(a - b).hi`. -/
+theorem u64_sub_limbs_felt (a b : U64) :
+    let sub_lo := u32OverflowingSub a.lo.val b.lo.val
+    let sub_hi := u32OverflowingSub a.hi.val b.hi.val
+    let sub_final := u32OverflowingSub sub_hi.2 sub_lo.1
+    Felt.ofNat sub_lo.2 = (a - b).lo ∧ Felt.ofNat sub_final.2 = (a - b).hi := by
+  have ⟨h1, h2⟩ := u64_sub_limbs a b
+  exact ⟨congrArg Felt.ofNat h1, congrArg Felt.ofNat h2⟩
+
+-- ============================================================================
+-- Schoolbook multiplication helpers (used by rotl, rotr)
+-- ============================================================================
+
+/-- Schoolbook identity: multiplying a 2-limb value (hi, lo) by P decomposes as
+    (hi * P + lo / Q) * 2^32 + P * (lo % Q) when P * Q = 2^32. -/
+theorem schoolbook_mul_eq (P Q hi lo : Nat) (hPQ : P * Q = 2 ^ 32) :
+    (hi * 2 ^ 32 + lo) * P = (hi * P + lo / Q) * 2 ^ 32 + P * (lo % Q) := by
+  suffices h : (hi * (P * Q) + lo) * P = (hi * P + lo / Q) * (P * Q) + P * (lo % Q) by
+    rwa [hPQ] at h
+  conv_lhs => rw [show lo = Q * (lo / Q) + lo % Q from (Nat.div_add_mod lo Q).symm]
+  ring
+
+/-- The cross remainder hi % Q * P + lo / Q < P * Q. -/
+theorem cross_remainder_lt (P Q hi lo : Nat)
+    (hP_pos : 0 < P) (hQ_pos : 0 < Q)
+    (h_lo_div : lo / Q < P) :
+    hi % Q * P + lo / Q < P * Q := by
+  have h_bound : (hi % Q + 1) * P ≤ Q * P :=
+    Nat.mul_le_mul_right P (Nat.mod_lt hi hQ_pos)
+  nlinarith [Nat.mul_comm Q P]
+
+/-- The cross-term high word: (hi * P + lo / Q) / 2^32 = hi / Q. -/
+theorem cross_div_eq (P Q hi lo : Nat) (hPQ : P * Q = 2 ^ 32)
+    (hP_pos : 0 < P) (hQ_pos : 0 < Q)
+    (h_lo_div : lo / Q < P) :
+    (hi * P + lo / Q) / 2 ^ 32 = hi / Q := by
+  have h_rem := cross_remainder_lt P Q hi lo hP_pos hQ_pos h_lo_div
+  have h_dm := (Nat.div_add_mod hi Q).symm
+  have h_eq : hi * P + lo / Q = (hi % Q * P + lo / Q) + hi / Q * 2 ^ 32 := by
+    conv_lhs => rw [show hi = Q * (hi / Q) + hi % Q from h_dm]
+    rw [show (Q * (hi / Q) + hi % Q) * P + lo / Q =
+      (hi % Q * P + lo / Q) + hi / Q * (P * Q) from by ring, hPQ]
+  rw [h_eq, Nat.add_mul_div_right _ _ (by positivity : 0 < 2 ^ 32),
+      Nat.div_eq_of_lt (by rwa [hPQ] at h_rem), Nat.zero_add]
+
+/-- Non-overlap: hi / Q + P * (lo % Q) < 2^32. -/
+theorem limb_non_overlap (P Q hi lo : Nat) (hPQ : P * Q = 2 ^ 32)
+    (hP_pos : 0 < P) (hQ_pos : 0 < Q)
+    (hhi : hi < 2 ^ 32) (hlo : lo < 2 ^ 32) :
+    hi / Q + P * (lo % Q) < 2 ^ 32 := by
+  rw [← hPQ]
+  have h_div_lt : hi / Q < P := by
+    rw [Nat.div_lt_iff_lt_mul hQ_pos]; omega
+  have h_bound : P * (lo % Q + 1) ≤ P * Q :=
+    Nat.mul_le_mul_left P (Nat.mod_lt lo hQ_pos)
+  nlinarith
+
+/-- lo / Q < P when lo < 2^32 and P * Q = 2^32. -/
+theorem lo_div_lt_of_u32 (P Q lo : Nat) (hPQ : P * Q = 2 ^ 32)
+    (hQ_pos : 0 < Q) (hlo : lo < 2 ^ 32) :
+    lo / Q < P := by
+  rw [Nat.div_lt_iff_lt_mul hQ_pos]; omega
+
+/-- Division of a 2-limb value by 2^32 * Q equals hi / Q. -/
+theorem u64_div_large_pow (hi lo Q : Nat) (hQ_pos : 0 < Q) (hlo : lo < 2 ^ 32) :
+    (hi * 2 ^ 32 + lo) / (2 ^ 32 * Q) = hi / Q := by
+  rw [show hi * 2 ^ 32 + lo = lo + hi * 2 ^ 32 from by omega,
+      ← Nat.div_div_eq_div_mul,
+      Nat.add_mul_div_right _ _ (show 0 < 2 ^ 32 from by positivity),
+      Nat.div_eq_of_lt hlo, Nat.zero_add]
 
 end MidenLean.Proofs

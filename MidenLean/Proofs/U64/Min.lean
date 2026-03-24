@@ -72,17 +72,32 @@ theorem u64_min_raw
   -- Instruction 10: cdrop
   rw [stepCdropIte]
 
-/-- `u64::min` pushes the limbs of `min(a, b)`.
-    Input stack:  [b_lo, b_hi, a_lo, a_hi] ++ rest
-    Output stack: [min_lo, min_hi] ++ rest
-    Returns a if a < b, otherwise b. -/
-theorem u64_min_correct (a b : U64) (rest : List Felt) (s : MidenState)
+/-- `u64::min` intermediate: uses `decide (a < b)` on individual limbs. -/
+theorem u64_min_ite (a b : U64) (rest : List Felt) (s : MidenState)
     (hs : s.stack = b.lo :: b.hi :: a.lo :: a.hi :: rest) :
     execWithEnv u64ProcEnv 20 s Miden.Core.U64.min =
     some (s.withStack (
-      (if decide (a.toNat < b.toNat) then a.lo else b.lo) ::
-      (if decide (a.toNat < b.toNat) then a.hi else b.hi) :: rest)) := by
+      (if decide (a < b) then a.lo else b.lo) ::
+      (if decide (a < b) then a.hi else b.hi) :: rest)) := by
   rw [u64_min_raw a.lo a.hi b.lo b.hi rest s hs a.lo_u32 a.hi_u32 b.lo_u32 b.hi_u32]
-  simp only [u64_borrow_iff_lt a b]
+  simp only [u64_borrow_iff_lt a b]; rfl
+
+/-- `u64::min` correctly computes the minimum of two u64 values.
+    Input stack:  [b.lo, b.hi, a.lo, a.hi] ++ rest
+    Output stack: [(min a b).lo, (min a b).hi] ++ rest -/
+theorem u64_min_correct (a b : U64) (rest : List Felt) (s : MidenState)
+    (hs : s.stack = b.lo :: b.hi :: a.lo :: a.hi :: rest) :
+    execWithEnv u64ProcEnv 20 s Miden.Core.U64.min =
+    some (s.withStack ((min a b).lo :: (min a b).hi :: rest)) := by
+  have h := u64_min_ite a b rest s hs
+  simp only [U64.min_def, U64.le_iff_toNat_le, U64.lt_iff_toNat_lt]
+  by_cases hab : a.toNat < b.toNat
+  · simp [hab, Nat.le_of_lt hab] at h ⊢; exact h
+  · simp [hab] at h ⊢
+    by_cases hle : a.toNat ≤ b.toNat
+    · -- a.toNat = b.toNat, so a = b
+      have := U64.eq_of_toNat_eq (Nat.le_antisymm hle (Nat.le_of_not_lt hab))
+      subst this; simp only [Nat.le_refl, ite_true]; exact h
+    · simp [hle]; exact h
 
 end MidenLean.Proofs

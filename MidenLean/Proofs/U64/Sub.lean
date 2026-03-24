@@ -1,6 +1,5 @@
 import MidenLean.Proofs.U64.Common
 import MidenLean.Proofs.Tactics
-import MidenLean.Generated.U64
 
 namespace MidenLean.Proofs
 
@@ -64,17 +63,15 @@ theorem u64_wrapping_sub_raw
   miden_swap
   dsimp only [pure, Pure.pure]
 
-/-- `u64::wrapping_sub` correctly computes wrapping subtraction of two u64 values.
-    Input stack:  [b_lo, b_hi, a_lo, a_hi] ++ rest
-    Output stack: [diff_lo, diff_hi] ++ rest -/
+/-- `u64::wrapping_sub` correctly computes `a - b` as a u64 value.
+    Input stack:  [b.lo, b.hi, a.lo, a.hi] ++ rest
+    Output stack: [(a - b).lo, (a - b).hi] ++ rest -/
 theorem u64_wrapping_sub_correct (a b : U64) (rest : List Felt) (s : MidenState)
     (hs : s.stack = b.lo :: b.hi :: a.lo :: a.hi :: rest) :
     exec 20 s Miden.Core.U64.wrapping_sub =
-    some (s.withStack (
-      let sub_lo := u32OverflowingSub a.lo.val b.lo.val
-      let sub_hi := u32OverflowingSub a.hi.val b.hi.val
-      let sub_final := u32OverflowingSub sub_hi.2 sub_lo.1
-      Felt.ofNat sub_lo.2 :: Felt.ofNat sub_final.2 :: rest)) := by
-  exact u64_wrapping_sub_raw a.lo a.hi b.lo b.hi rest s hs a.lo_u32 a.hi_u32 b.lo_u32 b.hi_u32
+    some (s.withStack ((a - b).lo :: (a - b).hi :: rest)) := by
+  have h := u64_wrapping_sub_raw a.lo a.hi b.lo b.hi rest s hs a.lo_u32 a.hi_u32 b.lo_u32 b.hi_u32
+  have ⟨hlo, hhi⟩ := u64_sub_limbs_felt a b
+  rw [h]; simp only [hlo, hhi]
 
 end MidenLean.Proofs

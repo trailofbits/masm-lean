@@ -1,5 +1,5 @@
+import MidenLean.Proofs.U64.Common
 import MidenLean.Proofs.Tactics
-import MidenLean.Generated.U64
 
 namespace MidenLean.Proofs
 
@@ -20,12 +20,8 @@ private theorem lo32_isU32 (a : Felt) : a.lo32.isU32 = true := by
   exact Nat.mod_lt _ (by decide)
 
 set_option maxHeartbeats 16000000 in
-/-- `u64::shl` correctly left-shifts a u64 value.
-    Input stack:  [shift, lo, hi] ++ rest
-    Output stack: [result_lo, result_hi] ++ rest
-    Computed as wrapping_mul(lo, hi, lo32(2^shift), hi32(2^shift)).
-    Requires shift ≤ 63 (for pow2), lo and hi are u32 (for wrapping_mul internals). -/
-theorem u64_shl_correct
+/-- `u64::shl` raw: result in terms of schoolbook multiplication of limbs. -/
+theorem u64_shl_raw
     (lo hi shift : Felt) (rest : List Felt) (s : MidenState)
     (hs : s.stack = shift :: lo :: hi :: rest)
     (hshift : shift.val ≤ 63)
@@ -119,5 +115,40 @@ theorem u64_shl_correct
   miden_swap
   rw [stepDrop]; miden_bind
   miden_swap
+
+/-- `u64::shl` correctly left-shifts a u64 value by `shift` bits.
+    Input stack:  [shift, a.lo, a.hi] ++ rest
+    Output stack: [(a.shl shift).lo, (a.shl shift).hi] ++ rest -/
+theorem u64_shl_correct (a : U64) (shift : Felt) (rest : List Felt) (s : MidenState)
+    (hs : s.stack = shift :: a.lo :: a.hi :: rest)
+    (hshift : shift.val ≤ 63) :
+    execWithEnv shlProcEnv 20 s Miden.Core.U64.shl =
+    some (s.withStack ((a.shl shift.val).lo :: (a.shl shift.val).hi :: rest)) := by
+  rw [u64_shl_raw a.lo a.hi shift rest s hs hshift a.lo_u32 a.hi_u32]
+  -- Recover lo32/hi32 val to natural numbers
+  have hpow_val : (Felt.ofNat (2 ^ shift.val)).val = 2 ^ shift.val :=
+    felt_ofNat_val_lt _ (by
+      calc 2 ^ shift.val ≤ 2 ^ 63 := Nat.pow_le_pow_right (by omega) hshift
+        _ < GOLDILOCKS_PRIME := by unfold GOLDILOCKS_PRIME; native_decide)
+  have hlo32_val : (Felt.ofNat (2 ^ shift.val)).lo32.val = 2 ^ shift.val % 2^32 := by
+    simp only [Felt.lo32]; rw [hpow_val]; exact felt_ofNat_val_lt _ (u32_mod_lt_prime _)
+  have hhi32_val : (Felt.ofNat (2 ^ shift.val)).hi32.val = 2 ^ shift.val / 2^32 := by
+    simp only [Felt.hi32]; rw [hpow_val]
+    exact felt_ofNat_val_lt _ (by
+      calc 2 ^ shift.val / 2^32 ≤ 2^63 / 2^32 :=
+        Nat.div_le_div_right (Nat.pow_le_pow_right (by omega) hshift)
+        _ < GOLDILOCKS_PRIME := by unfold GOLDILOCKS_PRIME; native_decide)
+  -- Bridge to shl definition: show the raw result matches (a.toNat * 2^shift.val)
+  dsimp only
+  rw [hlo32_val, hhi32_val]
+  show _ = some (s.withStack (
+    Felt.ofNat ((a.toNat * 2 ^ shift.val) % 2^32) ::
+    Felt.ofNat (((a.toNat * 2 ^ shift.val) / 2^32) % 2^32) :: rest))
+  simp only [U64.toNat]
+  have h_split : 2 ^ shift.val = 2^32 * (2 ^ shift.val / 2^32) + 2 ^ shift.val % 2^32 :=
+    (Nat.div_add_mod _ _).symm
+  congr 1; congr 1; congr 1
+  · congr 1; (conv_rhs => rw [h_split]); ring_nf; omega
+  · congr 1; congr 1; (conv_rhs => rw [h_split]); ring_nf; omega
 
 end MidenLean.Proofs

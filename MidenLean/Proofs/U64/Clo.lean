@@ -1,3 +1,4 @@
+import MidenLean.Proofs.U64.Common
 import MidenLean.Proofs.Tactics
 import MidenLean.Generated.U64
 
@@ -8,13 +9,8 @@ open MidenLean.StepLemmas
 open MidenLean.Tactics
 
 set_option maxHeartbeats 8000000 in
-/-- `u64::clo` correctly counts leading ones of a u64 value.
-    Input stack:  [lo, hi] ++ rest
-    Output stack: [result] ++ rest
-    where result = if hi == 0xFFFFFFFF then clo(lo) + 32 else clo(hi).
-    clo(x) is expressed as u32CountLeadingZeros(u32Max - 1 - x) since
-    u32CountLeadingOnes is private to Semantics. -/
-theorem u64_clo_correct (lo hi : Felt) (rest : List Felt) (s : MidenState)
+/-- `u64::clo` raw: result in terms of u32CountLeadingZeros on complemented limbs. -/
+theorem u64_clo_raw (lo hi : Felt) (rest : List Felt) (s : MidenState)
     (hs : s.stack = lo :: hi :: rest)
     (hlo : lo.isU32 = true) (hhi : hi.isU32 = true) :
     exec 20 s Miden.Core.U64.clo =
@@ -57,5 +53,25 @@ theorem u64_clo_correct (lo hi : Felt) (rest : List Felt) (s : MidenState)
     rw [stepSwap (hn := by decide) (htop := rfl) (hnth := rfl)]; miden_bind
     rw [stepDrop]; miden_bind
     rw [stepU32Clo (ha := hhi)]
+
+/-- `u64::clo` correctly counts leading ones of a u64 value.
+    Input stack:  [a.lo, a.hi] ++ rest
+    Output stack: [Felt.ofNat a.countLeadingOnes] ++ rest -/
+theorem u64_clo_correct (a : U64) (rest : List Felt) (s : MidenState)
+    (hs : s.stack = a.lo :: a.hi :: rest) :
+    exec 20 s Miden.Core.U64.clo =
+    some (s.withStack (Felt.ofNat a.countLeadingOnes :: rest)) := by
+  have h := u64_clo_raw a.lo a.hi rest s hs a.lo_u32 a.hi_u32
+  unfold U64.countLeadingOnes u32CountLeadingOnes
+  by_cases hhi : a.hi.val = 2^32 - 1
+  · rw [if_pos hhi, felt_ofNat_add]
+    have : a.hi = (4294967295 : Felt) := Fin.ext (by simpa using hhi)
+    simp only [this, beq_self_eq_true, ite_true] at h; exact h
+  · rw [if_neg hhi]
+    have : a.hi ≠ (4294967295 : Felt) := fun heq => hhi (by
+      have := congrArg ZMod.val heq; simpa using this)
+    simp only [show (a.hi == (4294967295 : Felt)) = false from decide_eq_false this,
+      ite_false] at h
+    exact h
 
 end MidenLean.Proofs

@@ -62,15 +62,15 @@ theorem u64_gt_raw
   rw [u32OverflowingSub_borrow_ite b_hi.val a_hi.val]
   rw [stepOrIte]; dsimp only [bind, Bind.bind, Option.bind, pure, Pure.pure]
 
-/-- `u64::gt` pushes 1 iff `a.toNat > b.toNat`.
+/-- `u64::gt` pushes 1 iff `a > b` (as u64).
     Input stack:  [b_lo, b_hi, a_lo, a_hi] ++ rest
-    Output stack: [(if a > b then 1 else 0)] ++ rest -/
+    Output stack: [(if b < a then 1 else 0)] ++ rest -/
 theorem u64_gt_correct (a b : U64) (rest : List Felt) (s : MidenState)
     (hs : s.stack = b.lo :: b.hi :: a.lo :: a.hi :: rest) :
     exec 20 s Miden.Core.U64.gt =
     some (s.withStack (
-      (if decide (b.toNat < a.toNat) then (1 : Felt) else 0) :: rest)) := by
+      (if decide (b < a) then (1 : Felt) else 0) :: rest)) := by
   rw [u64_gt_raw a.lo a.hi b.lo b.hi rest s hs a.lo_u32 a.hi_u32 b.lo_u32 b.hi_u32]
-  simp only [u64_borrow_iff_lt b a]
+  simp only [u64_borrow_iff_lt b a]; rfl
 
 end MidenLean.Proofs

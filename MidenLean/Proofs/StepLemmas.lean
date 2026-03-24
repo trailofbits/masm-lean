@@ -149,6 +149,26 @@ set_option maxHeartbeats 400000 in
   simp [MidenState.withStack]
 
 -- ============================================================================
+-- Assertion failure lemmas (for forward-direction proofs)
+-- ============================================================================
+
+set_option maxHeartbeats 400000 in
+/-- assertWithError returns none when the top value is not 1. -/
+theorem stepAssertWithError_none (msg : String) (mem locs : Nat → Felt) (adv : List Felt)
+    (a : Felt) (rest : List Felt) (h : a.val ≠ 1) :
+    execInstruction ⟨a :: rest, mem, locs, adv⟩ (.assertWithError msg) = none := by
+  unfold execInstruction execAssert
+  simp [MidenState.withStack, show ¬(a.val == 1) = true from by simp [h]]
+
+set_option maxHeartbeats 400000 in
+/-- assertEqWithError returns none when the top two values differ. -/
+theorem stepAssertEqWithError_none (msg : String) (mem locs : Nat → Felt) (adv : List Felt)
+    (a b : Felt) (rest : List Felt) (h : a ≠ b) :
+    execInstruction ⟨b :: a :: rest, mem, locs, adv⟩ (.assertEqWithError msg) = none := by
+  unfold execInstruction execAssertEq
+  simp [MidenState.withStack, show ¬(a == b) = true from by simp [h]]
+
+-- ============================================================================
 -- U32 assertions
 -- ============================================================================
 
