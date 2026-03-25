@@ -352,4 +352,24 @@ theorem u128_shr_k0_raw
     Miden.Core.U128.shr_k0, List.nil_append, List.cons_append] at h ⊢
   exact h
 
+set_option maxHeartbeats 4000000 in
+/-- `u128::shr_k0` correctly right-shifts a u128 value by a nonzero amount smaller than 32 bits.
+    Input stack:  [shift, a.a0, a.a1, a.a2, a.a3] ++ rest
+    Output stack: [(a.shr shift).a0, (a.shr shift).a1, (a.shr shift).a2, (a.shr shift).a3] ++ rest -/
+theorem u128_shr_k0_correct
+    (a : U128) (shift : U32) (rest : List Felt) (s : MidenState)
+    (hs : s.stack = shift.val :: a.a0.val :: a.a1.val :: a.a2.val :: a.a3.val :: rest)
+    (hshift_pos : 0 < shift.toNat)
+    (hshift_lt32 : shift.toNat < 32) :
+    exec 51 s Miden.Core.U128.shr_k0 =
+    some (s.withStack (
+      (a.shr shift.toNat).a0.val :: (a.shr shift.toNat).a1.val ::
+      (a.shr shift.toNat).a2.val :: (a.shr shift.toNat).a3.val :: rest)) := by
+  have hshift_le31 : shift.toNat ≤ 31 := Nat.le_pred_of_lt hshift_lt32
+  have hraw := u128_shr_k0_raw shift.val a.a0.val a.a1.val a.a2.val a.a3.val rest s hs
+    shift.isU32 a.a0.isU32 a.a1.isU32 a.a2.isU32 a.a3.isU32
+    (by simpa [U32.toNat] using hshift_pos) (by simpa [U32.toNat] using hshift_le31)
+  obtain ⟨h0, h1, h2, h3⟩ := U128.shr_lt32_limbs a shift.toNat hshift_pos hshift_lt32
+  simpa [U32.toNat, h0, h1, h2, h3] using hraw
+
 end MidenLean.Proofs

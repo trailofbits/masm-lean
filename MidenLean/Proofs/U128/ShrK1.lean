@@ -307,4 +307,38 @@ theorem u128_shr_k1_raw
       List.nil_append, List.cons_append] at h
     rw [h]; rfl
 
+set_option maxHeartbeats 4000000 in
+/-- `u128::shr_k1` correctly returns the low three limbs of a u128 value shifted right by `32 + shift` bits.
+    Input stack:  [shift, a.a0, a.a1, a.a2, a.a3] ++ rest
+    Output stack: [(a.shr (32 + shift)).a0, (a.shr (32 + shift)).a1, (a.shr (32 + shift)).a2] ++ rest -/
+theorem u128_shr_k1_correct
+    (a : U128) (shift : U32) (rest : List Felt) (s : MidenState)
+    (hs : s.stack = shift.val :: a.a0.val :: a.a1.val :: a.a2.val :: a.a3.val :: rest)
+    (hshift_lt32 : shift.toNat < 32) :
+    exec 43 s Miden.Core.U128.shr_k1 =
+    some (s.withStack (
+      (a.shr (32 + shift.toNat)).a0.val ::
+      (a.shr (32 + shift.toNat)).a1.val ::
+      (a.shr (32 + shift.toNat)).a2.val :: rest)) := by
+  have hshift_le31 : shift.toNat ≤ 31 := Nat.le_pred_of_lt hshift_lt32
+  have hraw := u128_shr_k1_raw shift.val a.a0.val a.a1.val a.a2.val a.a3.val rest s hs
+    shift.isU32 a.a1.isU32 a.a2.isU32 a.a3.isU32 (by simpa [U32.toNat] using hshift_le31)
+  by_cases hzero : shift.toNat = 0
+  · have hshift0 : shift.val = (0 : Felt) := by
+      apply ZMod.val_injective
+      simpa [U32.toNat, Felt.val_zero'] using hzero
+    obtain ⟨h0, h1, h2, h3⟩ := U128.shr_32_limbs a
+    clear h3
+    simpa [U32.toNat, hzero, hshift0, h0, h1, h2] using hraw
+  · have hpos : 0 < shift.toNat := Nat.pos_of_ne_zero hzero
+    have hshift_ne0 : shift.val ≠ (0 : Felt) := by
+      intro h
+      apply hzero
+      simpa [U32.toNat, Felt.val_zero'] using congrArg ZMod.val h
+    have hshift0b : (shift.val == (0 : Felt)) = false := by
+      exact Bool.eq_false_iff.mpr (fun h => hshift_ne0 (beq_iff_eq.mp h))
+    obtain ⟨h0, h1, h2, h3⟩ := U128.shr_32_add_limbs a shift.toNat hpos hshift_lt32
+    clear h3
+    simpa [U32.toNat, hshift0b, h0, h1, h2] using hraw
+
 end MidenLean.Proofs

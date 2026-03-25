@@ -967,6 +967,147 @@ theorem toNat_div_2_32 (a : U128) :
   have h2 := a.a2.val_lt; have h3 := a.a3.val_lt
   omega
 
+theorem shr_96_add_limbs (a : U128) (b_nat : Nat) :
+    (a.shr (96 + b_nat)).a0.val = Felt.ofNat (a.a3.val.val / 2^b_nat) ∧
+    (a.shr (96 + b_nat)).a1.val = (0 : Felt) ∧
+    (a.shr (96 + b_nat)).a2.val = (0 : Felt) ∧
+    (a.shr (96 + b_nat)).a3.val = (0 : Felt) := by
+  have hdiv : a.toNat / 2^(96 + b_nat) = a.a3.val.val / 2^b_nat := by
+    rw [show (2 : Nat)^(96 + b_nat) = 2^96 * 2^b_nat from by rw [← Nat.pow_add]]
+    rw [← Nat.div_div_eq_div_mul, U128.toNat_div_2_96]
+  have hlt : a.a3.val.val / 2^b_nat < 2^32 :=
+    lt_of_le_of_lt (Nat.div_le_self _ _) a.a3.val_lt
+  obtain ⟨h0, h1, h2, h3⟩ := U128.ofNat_of_lt_2_32 _ hlt
+  simp only [U128.shr]
+  rw [hdiv]
+  exact ⟨h0, h1, h2, h3⟩
+
+theorem shr_64_limbs (a : U128) :
+    (a.shr 64).a0.val = a.a2.val ∧
+    (a.shr 64).a1.val = a.a3.val ∧
+    (a.shr 64).a2.val = (0 : Felt) ∧
+    (a.shr 64).a3.val = (0 : Felt) := by
+  have hdiv : a.toNat / 2^64 = a.a3.val.val * 2^32 + a.a2.val.val :=
+    U128.toNat_div_2_64 a
+  obtain ⟨h0, h1, h2, h3⟩ := U128.ofNat_of_lt_2_64 a.a3.val.val a.a2.val.val
+    a.a3.val_lt a.a2.val_lt
+  simp only [U128.shr]
+  rw [hdiv]
+  exact ⟨h0.trans (U32.ofNat_val a.a2), h1.trans (U32.ofNat_val a.a3), h2, h3⟩
+
+theorem shr_64_add_limbs (a : U128) (b_nat : Nat) (hb_pos : 0 < b_nat) (hb : b_nat < 32) :
+    (a.shr (64 + b_nat)).a0.val =
+      Felt.ofNat ((a.a2.val.val / 2^b_nat) ||| ((a.a3.val.val * 2^(32 - b_nat)) % 2^32)) ∧
+    (a.shr (64 + b_nat)).a1.val = Felt.ofNat (a.a3.val.val / 2^b_nat) ∧
+    (a.shr (64 + b_nat)).a2.val = (0 : Felt) ∧
+    (a.shr (64 + b_nat)).a3.val = (0 : Felt) := by
+  have hdiv : a.toNat / 2^(64 + b_nat) = (a.a3.val.val * 2^32 + a.a2.val.val) / 2^b_nat := by
+    rw [show (2 : Nat)^(64 + b_nat) = 2^64 * 2^b_nat from by rw [← Nat.pow_add]]
+    rw [← Nat.div_div_eq_div_mul, U128.toNat_div_2_64]
+  let lo := (a.a2.val.val / 2^b_nat) ||| ((a.a3.val.val * 2^(32 - b_nat)) % 2^32)
+  let hi := a.a3.val.val / 2^b_nat
+  have hhi_lt : hi < 2^32 := by
+    dsimp [hi]
+    exact lt_of_le_of_lt (Nat.div_le_self _ _) a.a3.val_lt
+  have hlo_lt : lo < 2^32 := by
+    dsimp [lo]
+    exact Nat.or_lt_two_pow
+      (lt_of_le_of_lt (Nat.div_le_self _ _) a.a2.val_lt)
+      (Nat.mod_lt _ (by positivity))
+  have hpair : (a.a3.val.val * 2^32 + a.a2.val.val) / 2^b_nat = hi * 2^32 + lo := by
+    simpa [hi, lo] using
+      u32_pair_shr_decomp a.a2.val.val a.a3.val.val b_nat a.a2.val_lt hb_pos hb
+  obtain ⟨h0, h1, h2, h3⟩ := U128.ofNat_of_lt_2_64 hi lo hhi_lt hlo_lt
+  simp only [U128.shr]
+  rw [hdiv, hpair]
+  exact ⟨h0, h1, h2, h3⟩
+
+theorem shr_32_limbs (a : U128) :
+    (a.shr 32).a0.val = a.a1.val ∧
+    (a.shr 32).a1.val = a.a2.val ∧
+    (a.shr 32).a2.val = a.a3.val ∧
+    (a.shr 32).a3.val = (0 : Felt) := by
+  have hdiv : a.toNat / 2^32 = a.a3.val.val * 2^64 + a.a2.val.val * 2^32 + a.a1.val.val :=
+    U128.toNat_div_2_32 a
+  obtain ⟨h0, h1, h2, h3⟩ := U128.ofNat_of_lt_2_96 a.a3.val.val a.a2.val.val a.a1.val.val
+    a.a3.val_lt a.a2.val_lt a.a1.val_lt
+  simp only [U128.shr]
+  rw [hdiv]
+  exact ⟨h0.trans (U32.ofNat_val a.a1), h1.trans (U32.ofNat_val a.a2),
+    h2.trans (U32.ofNat_val a.a3), h3⟩
+
+theorem shr_32_add_limbs (a : U128) (b_nat : Nat) (hb_pos : 0 < b_nat) (hb : b_nat < 32) :
+    (a.shr (32 + b_nat)).a0.val =
+      Felt.ofNat ((a.a1.val.val / 2^b_nat) ||| ((a.a2.val.val * 2^(32 - b_nat)) % 2^32)) ∧
+    (a.shr (32 + b_nat)).a1.val =
+      Felt.ofNat ((a.a2.val.val / 2^b_nat) ||| ((a.a3.val.val * 2^(32 - b_nat)) % 2^32)) ∧
+    (a.shr (32 + b_nat)).a2.val = Felt.ofNat (a.a3.val.val / 2^b_nat) ∧
+    (a.shr (32 + b_nat)).a3.val = (0 : Felt) := by
+  let l0 := (a.a1.val.val / 2^b_nat) ||| ((a.a2.val.val * 2^(32 - b_nat)) % 2^32)
+  let l1 := (a.a2.val.val / 2^b_nat) ||| ((a.a3.val.val * 2^(32 - b_nat)) % 2^32)
+  let l2 := a.a3.val.val / 2^b_nat
+  have hl0_lt : l0 < 2^32 := by
+    dsimp [l0]
+    exact u32_shr_or_lt a.a1.val.val a.a2.val.val b_nat a.a1.val_lt hb_pos hb
+  have hl1_lt : l1 < 2^32 := by
+    dsimp [l1]
+    exact u32_shr_or_lt a.a2.val.val a.a3.val.val b_nat a.a2.val_lt hb_pos hb
+  have hl2_lt : l2 < 2^32 := by
+    dsimp [l2]
+    exact lt_of_le_of_lt (Nat.div_le_self _ _) a.a3.val_lt
+  have hdiv : a.toNat / 2^(32 + b_nat) =
+      l2 * 2^64 + l1 * 2^32 + l0 := by
+    rw [show (2 : Nat)^(32 + b_nat) = 2^32 * 2^b_nat from by rw [← Nat.pow_add]]
+    rw [← Nat.div_div_eq_div_mul, U128.toNat_div_2_32]
+    simpa [l0, l1, l2] using
+      u128_three_limb_shr_decomp a.a1.val.val a.a2.val.val a.a3.val.val b_nat
+        a.a1.val_lt a.a2.val_lt hb_pos hb
+  obtain ⟨h0, h1, h2, h3⟩ := U128.ofNat_of_lt_2_96 l2 l1 l0 hl2_lt hl1_lt hl0_lt
+  simp only [U128.shr]
+  rw [hdiv]
+  refine ⟨?_, ?_, ?_, ?_⟩
+  · simpa [l0] using h0
+  · simpa [l1] using h1
+  · simpa [l2] using h2
+  · exact h3
+
+theorem shr_lt32_limbs (a : U128) (b_nat : Nat) (hb_pos : 0 < b_nat) (hb : b_nat < 32) :
+    (a.shr b_nat).a0.val =
+      Felt.ofNat ((a.a0.val.val / 2^b_nat) ||| ((a.a1.val.val * 2^(32 - b_nat)) % 2^32)) ∧
+    (a.shr b_nat).a1.val =
+      Felt.ofNat ((a.a1.val.val / 2^b_nat) ||| ((a.a2.val.val * 2^(32 - b_nat)) % 2^32)) ∧
+    (a.shr b_nat).a2.val =
+      Felt.ofNat ((a.a2.val.val / 2^b_nat) ||| ((a.a3.val.val * 2^(32 - b_nat)) % 2^32)) ∧
+    (a.shr b_nat).a3.val = Felt.ofNat (a.a3.val.val / 2^b_nat) := by
+  let l0 := (a.a0.val.val / 2^b_nat) ||| ((a.a1.val.val * 2^(32 - b_nat)) % 2^32)
+  let l1 := (a.a1.val.val / 2^b_nat) ||| ((a.a2.val.val * 2^(32 - b_nat)) % 2^32)
+  let l2 := (a.a2.val.val / 2^b_nat) ||| ((a.a3.val.val * 2^(32 - b_nat)) % 2^32)
+  let l3 := a.a3.val.val / 2^b_nat
+  have hl0_lt : l0 < 2^32 := by
+    dsimp [l0]
+    exact u32_shr_or_lt a.a0.val.val a.a1.val.val b_nat a.a0.val_lt hb_pos hb
+  have hl1_lt : l1 < 2^32 := by
+    dsimp [l1]
+    exact u32_shr_or_lt a.a1.val.val a.a2.val.val b_nat a.a1.val_lt hb_pos hb
+  have hl2_lt : l2 < 2^32 := by
+    dsimp [l2]
+    exact u32_shr_or_lt a.a2.val.val a.a3.val.val b_nat a.a2.val_lt hb_pos hb
+  have hl3_lt : l3 < 2^32 := by
+    dsimp [l3]
+    exact lt_of_le_of_lt (Nat.div_le_self _ _) a.a3.val_lt
+  have hdiv : a.toNat / 2^b_nat = l3 * 2^96 + l2 * 2^64 + l1 * 2^32 + l0 := by
+    simpa [U128.toNat, l0, l1, l2, l3] using
+      u128_four_limb_shr_decomp a.a0.val.val a.a1.val.val a.a2.val.val a.a3.val.val b_nat
+        a.a0.val_lt a.a1.val_lt a.a2.val_lt hb_pos hb
+  obtain ⟨h0, h1, h2, h3⟩ := U128.ofNat_of_limbs l3 l2 l1 l0 hl3_lt hl2_lt hl1_lt hl0_lt
+  simp only [U128.shr]
+  rw [hdiv]
+  refine ⟨?_, ?_, ?_, ?_⟩
+  · simpa [l0] using h0
+  · simpa [l1] using h1
+  · simpa [l2] using h2
+  · simpa [l3] using h3
+
 end U128
 
 end MidenLean.Proofs
