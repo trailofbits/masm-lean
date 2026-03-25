@@ -205,7 +205,7 @@ set_option maxHeartbeats 4000000 in
     Input stack:  [shift, a0, a1, a2, a3] ++ rest
     Output stack: [r0, r1] ++ rest
     where `r0` and `r1` are the low-to-high u32 limbs of `(a3:a2:a1:a0) >> (64 + shift)`. -/
-theorem u128_shr_k2_correct
+theorem u128_shr_k2_raw
     (shift a0 a1 a2 a3 : Felt) (rest : List Felt) (s : MidenState)
     (hs : s.stack = shift :: a0 :: a1 :: a2 :: a3 :: rest)
     (hshift_u32 : shift.isU32 = true)

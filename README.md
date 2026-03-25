@@ -20,7 +20,7 @@ Manual proof files are organized per procedure:
 - **`MidenLean/Proofs/U128/Common.lean`** contains shared proof support for the `u128` proof tree.
 - **`MidenLean/Proofs/Word/`** contains the `word` correctness theorems, one file per procedure.
 
-The current checked manual proofs cover 74 procedures: 31 in `u64`, 32 in `u128`, 11 in `word`.
+The current checked manual proofs cover 67 procedures: 31 in `u64`, 25 in `u128`, 11 in `word`.
 
 ### `u64` (31 / 31)
 
@@ -58,15 +58,15 @@ The current checked manual proofs cover 74 procedures: 31 in `u64`, 32 in `u128`
 | `u64::wrapping_sub` | `u64_wrapping_sub_correct` | `u64::wrapping_sub` correctly computes `a - b` as a u64 value. | `MidenLean/Proofs/U64/Sub.lean` |
 | `u64::xor` | `u64_xor_correct` | `u64::xor` correctly computes bitwise XOR of two u64 values. | `MidenLean/Proofs/U64/Xor.lean` |
 
-### `u128` (32 / 36)
+### `u128` (25 / 36)
 
 | Procedure | Theorem | Summary | Manual proof file |
 | --- | --- | --- | --- |
 | `u128::and` | `u128_and_correct` | `u128::and` correctly computes bitwise AND of two 128-bit values. | `MidenLean/Proofs/U128/And.lean` |
-| `u128::clo` | `u128_clo_correct` | `u128::clo` correctly counts leading ones of a u128 value. | `MidenLean/Proofs/U128/Clo.lean` |
-| `u128::clz` | `u128_clz_correct` | `u128::clz` correctly counts leading zeros of a u128 value. | `MidenLean/Proofs/U128/Clz.lean` |
-| `u128::cto` | `u128_cto_correct` | `u128::cto` correctly counts trailing ones of a u128 value. | `MidenLean/Proofs/U128/Cto.lean` |
-| `u128::ctz` | `u128_ctz_correct` | `u128::ctz` correctly counts trailing zeros of a u128 value. | `MidenLean/Proofs/U128/Ctz.lean` |
+| `u128::clo` | `u128_clo_correct` | `u128::clo` pushes the count of leading ones of a 128-bit value. | `MidenLean/Proofs/U128/Clo.lean` |
+| `u128::clz` | `u128_clz_correct` | `u128::clz` pushes the count of leading zeros of a 128-bit value. | `MidenLean/Proofs/U128/Clz.lean` |
+| `u128::cto` | `u128_cto_correct` | `u128::cto` pushes the count of trailing ones of a 128-bit value. | `MidenLean/Proofs/U128/Cto.lean` |
+| `u128::ctz` | `u128_ctz_correct` | `u128::ctz` pushes the count of trailing zeros of a 128-bit value. | `MidenLean/Proofs/U128/Ctz.lean` |
 | `u128::eq` | `u128_eq_correct` | `u128::eq` correctly tests equality of two 128-bit values. | `MidenLean/Proofs/U128/Eq.lean` |
 | `u128::eqz` | `u128_eqz_correct` | `u128::eqz` correctly tests whether a 128-bit value is zero. | `MidenLean/Proofs/U128/Eqz.lean` |
 | `u128::gt` | `u128_gt_correct` | `u128::gt` pushes 1 iff `b < a` (i.e. `a > b`). | `MidenLean/Proofs/U128/Gt.lean` |
@@ -76,23 +76,16 @@ The current checked manual proofs cover 74 procedures: 31 in `u64`, 32 in `u128`
 | `u128::max` | `u128_max_correct` | `u128::max` pushes the limbs of `max(a, b)`. | `MidenLean/Proofs/U128/Max.lean` |
 | `u128::min` | `u128_min_correct` | `u128::min` pushes the limbs of `min(a, b)`. | `MidenLean/Proofs/U128/Min.lean` |
 | `u128::neq` | `u128_neq_correct` | `u128::neq` correctly tests inequality of two 128-bit values. | `MidenLean/Proofs/U128/Neq.lean` |
-| `u128::not` | `u128_not_correct` | `u128::not` correctly computes the bitwise complement of a 128-bit value. | `MidenLean/Proofs/U128/Not.lean` |
+| `u128::not` | `u128_not_correct` | `u128::not` pushes the limbs of `~~~a` (bitwise complement). | `MidenLean/Proofs/U128/Not.lean` |
 | `u128::or` | `u128_or_correct` | `u128::or` correctly computes bitwise OR of two 128-bit values. | `MidenLean/Proofs/U128/Or.lean` |
-| `u128::overflowing_add` | `u128_overflowing_add_correct` | `u128::overflowing_add` correctly computes addition of two 128-bit values with carry. | `MidenLean/Proofs/U128/OverflowingAdd.lean` |
-| `u128::overflowing_mul` | `u128_overflowing_mul_correct` | `u128::overflowing_mul` correctly computes the low 128 bits of the product and an overflow flag. | `MidenLean/Proofs/U128/OverflowingMul.lean` |
-| `u128::overflowing_sub` | `u128_overflowing_sub_correct` | `u128::overflowing_sub` correctly computes subtraction of two 128-bit values with borrow. | `MidenLean/Proofs/U128/OverflowingSub.lean` |
-| `u128::rotl` | `u128_rotl_correct` | `u128::rotl` correctly left-rotates a 128-bit value by `shift` positions (0 ≤ shift < 128). When shift = 0, the output is identity. When shift ≠ 0, the output limbs are the bitwise OR of the corresponding `u128::shl(shift)` and `u128::shr(128−shift)` output limbs. The shl and shr sub-procedure results are provided as parametric hypotheses; their individual correctness is proved in `u128_shl_correct` and `u128_shr_correct`. | `MidenLean/Proofs/U128/Rotl.lean` |
-| `u128::shl` | `u128_shl_correct` | `u128::shl` correctly computes the left shift of a 128-bit value by a given amount. | `MidenLean/Proofs/U128/Shl.lean` |
-| `u128::shr` | `u128_shr_correct` | `u128::shr` correctly computes the right shift of a 128-bit value by a given amount. | `MidenLean/Proofs/U128/Shr.lean` |
-| `u128::shr_k0` | `u128_shr_k0_correct` | `u128::shr_k0` right-shifts a 128-bit value by a nonzero bit count smaller than one limb. | `MidenLean/Proofs/U128/ShrK0.lean` |
-| `u128::shr_k1` | `u128_shr_k1_correct` | `u128::shr_k1` right-shifts a 128-bit value by one whole limb plus an additional bit count smaller than one limb. | `MidenLean/Proofs/U128/ShrK1.lean` |
-| `u128::shr_k2` | `u128_shr_k2_correct` | `u128::shr_k2` right-shifts a 128-bit value by two whole limbs plus an additional bit count smaller than one limb. | `MidenLean/Proofs/U128/ShrK2.lean` |
-| `u128::shr_k3` | `u128_shr_k3_correct` | `u128::shr_k3` shifts the highest u32 limb right by the given bit count and leaves any lower-word padding in `rest`. | `MidenLean/Proofs/U128/ShrK3.lean` |
-| `u128::widening_add` | `u128_widening_add_correct` | `u128::widening_add` correctly computes widening addition of two 128-bit values. | `MidenLean/Proofs/U128/WideningAdd.lean` |
-| `u128::widening_mul` | `u128_widening_mul_correct` | `u128::widening_mul` correctly computes the low 128 bits of the product and moves the overflow flag to the end. | `MidenLean/Proofs/U128/WideningMul.lean` |
-| `u128::wrapping_add` | `u128_wrapping_add_correct` | `u128::wrapping_add` correctly computes wrapping addition of two 128-bit values. | `MidenLean/Proofs/U128/WrappingAdd.lean` |
-| `u128::wrapping_mul` | `u128_wrapping_mul_correct` | `u128::wrapping_mul` correctly computes the low 128 bits of the product of two 128-bit values. | `MidenLean/Proofs/U128/WrappingMul.lean` |
-| `u128::wrapping_sub` | `u128_wrapping_sub_correct` | `u128::wrapping_sub` correctly computes wrapping subtraction of two 128-bit values. | `MidenLean/Proofs/U128/WrappingSub.lean` |
+| `u128::overflowing_add` | `u128_overflowing_add_correct` | `u128::overflowing_add` correctly computes `a + b` with overflow detection. | `MidenLean/Proofs/U128/OverflowingAdd.lean` |
+| `u128::overflowing_mul` | `u128_overflowing_mul_correct` | `u128::overflowing_mul` correctly computes the low 128 bits of the product `a * b` and an overflow flag. | `MidenLean/Proofs/U128/OverflowingMul.lean` |
+| `u128::overflowing_sub` | `u128_overflowing_sub_correct` | `u128::overflowing_sub` correctly computes `a - b` with underflow detection. | `MidenLean/Proofs/U128/OverflowingSub.lean` |
+| `u128::widening_add` | `u128_widening_add_correct` | `u128::widening_add` correctly computes `a + b` with carry-out moved to the end. | `MidenLean/Proofs/U128/WideningAdd.lean` |
+| `u128::widening_mul` | `u128_widening_mul_correct` | `u128::widening_mul` correctly computes `(a * b) mod 2^128` and an overflow flag. | `MidenLean/Proofs/U128/WideningMul.lean` |
+| `u128::wrapping_add` | `u128_wrapping_add_correct` | `u128::wrapping_add` correctly computes `(a + b) mod 2^128` for two 128-bit values. | `MidenLean/Proofs/U128/WrappingAdd.lean` |
+| `u128::wrapping_mul` | `u128_wrapping_mul_correct` | `u128::wrapping_mul` correctly computes `(a * b) mod 2^128` for two 128-bit values. | `MidenLean/Proofs/U128/WrappingMul.lean` |
+| `u128::wrapping_sub` | `u128_wrapping_sub_correct` | `u128::wrapping_sub` correctly computes `(a - b) mod 2^128` for two 128-bit values. | `MidenLean/Proofs/U128/WrappingSub.lean` |
 | `u128::xor` | `u128_xor_correct` | `u128::xor` correctly computes bitwise XOR of two 128-bit values. | `MidenLean/Proofs/U128/Xor.lean` |
 
 ### `word` (11 / 11)

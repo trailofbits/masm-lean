@@ -363,7 +363,7 @@ set_option maxHeartbeats 8000000 in
     Output stack: [r0, r1, r2, r3] ++ rest
     where `r0..r3` are the u32 limbs of `(a << shift) mod 2^128`, computed via
     multiplication by `2^shift` using `wrapping_mul`. -/
-theorem u128_shl_correct
+theorem u128_shl_raw
     (shift a0 a1 a2 a3 : Felt) (rest : List Felt) (s : MidenState)
     (hs : s.stack = shift :: a0 :: a1 :: a2 :: a3 :: rest)
     (hshift_u32 : shift.isU32 = true)

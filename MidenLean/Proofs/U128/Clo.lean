@@ -1,3 +1,4 @@
+import MidenLean.Proofs.U128.Common
 import MidenLean.Proofs.Tactics
 import MidenLean.Generated.U128
 
@@ -8,12 +9,12 @@ open MidenLean.StepLemmas
 open MidenLean.Tactics
 
 set_option maxHeartbeats 12000000 in
-/-- `u128::clo` correctly counts leading ones of a u128 value.
+/-- `u128::clo` correctly counts leading ones of a u128 value (raw limb version).
     Input stack:  [a, b, c, d] ++ rest
     Output stack: [result] ++ rest
     where `a..d` are low-to-high u32 limbs and the result is the number of
     leading one bits in the 128-bit value. -/
-theorem u128_clo_correct
+theorem u128_clo_raw
     (a b c d : Felt) (rest : List Felt) (s : MidenState)
     (hs : s.stack = a :: b :: c :: d :: rest)
     (ha : a.isU32 = true) (hb : b.isU32 = true)
@@ -115,5 +116,46 @@ theorem u128_clo_correct
     rw [stepDrop]
     miden_bind
     rw [stepU32Clo (ha := hd)]
+
+/-- `u128::clo` pushes the count of leading ones of a 128-bit value.
+    Input stack:  [a.a0, a.a1, a.a2, a.a3] ++ rest
+    Output stack: [countLeadingOnes a] ++ rest -/
+theorem u128_clo_correct (a : U128) (rest : List Felt) (s : MidenState)
+    (hs : s.stack = a.a0.val :: a.a1.val :: a.a2.val :: a.a3.val :: rest) :
+    exec 33 s Miden.Core.U128.clo =
+    some (s.withStack (Felt.ofNat (U128.countLeadingOnes a) :: rest)) := by
+  have h := u128_clo_raw a.a0.val a.a1.val a.a2.val a.a3.val rest s hs
+    a.a0.isU32 a.a1.isU32 a.a2.isU32 a.a3.isU32
+  unfold U128.countLeadingOnes u32CountLeadingOnes
+  by_cases h3 : a.a3.val.val = 2^32 - 1
+  · rw [if_pos h3]
+    have : a.a3.val = (4294967295 : Felt) := Fin.ext (by simpa using h3)
+    simp only [this, beq_self_eq_true, ite_true] at h
+    by_cases h2 : a.a2.val.val = 2^32 - 1
+    · rw [if_pos h2]
+      have : a.a2.val = (4294967295 : Felt) := Fin.ext (by simpa using h2)
+      simp only [this, beq_self_eq_true, ite_true] at h
+      by_cases h1 : a.a1.val.val = 2^32 - 1
+      · rw [if_pos h1, felt_ofNat_add]
+        have : a.a1.val = (4294967295 : Felt) := Fin.ext (by simpa using h1)
+        simp only [this, beq_self_eq_true, ite_true] at h; exact h
+      · rw [if_neg h1, felt_ofNat_add]
+        have : a.a1.val ≠ (4294967295 : Felt) := fun heq => h1 (by
+          have := congr_arg ZMod.val heq; simpa using this)
+        simp only [show (a.a1.val == (4294967295 : Felt)) = false from
+          decide_eq_false this, ite_false] at h
+        exact h
+    · rw [if_neg h2, felt_ofNat_add]
+      have : a.a2.val ≠ (4294967295 : Felt) := fun heq => h2 (by
+        have := congr_arg ZMod.val heq; simpa using this)
+      simp only [show (a.a2.val == (4294967295 : Felt)) = false from
+        decide_eq_false this, ite_false] at h
+      exact h
+  · rw [if_neg h3]
+    have : a.a3.val ≠ (4294967295 : Felt) := fun heq => h3 (by
+      have := congr_arg ZMod.val heq; simpa using this)
+    simp only [show (a.a3.val == (4294967295 : Felt)) = false from
+      decide_eq_false this, ite_false] at h
+    exact h
 
 end MidenLean.Proofs

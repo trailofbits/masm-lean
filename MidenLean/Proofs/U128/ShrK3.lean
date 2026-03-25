@@ -14,7 +14,7 @@ set_option maxHeartbeats 4000000 in
     Input stack:  [shift, a0, a1, a2, a3] ++ rest
     Output stack: [a3 >> shift] ++ rest
     Requires `shift` and `a3` to be u32 values, with `shift ≤ 31`. -/
-theorem u128_shr_k3_correct
+theorem u128_shr_k3_raw
     (shift a0 a1 a2 a3 : Felt) (rest : List Felt) (s : MidenState)
     (hs : s.stack = shift :: a0 :: a1 :: a2 :: a3 :: rest)
     (hshift_u32 : shift.isU32 = true)

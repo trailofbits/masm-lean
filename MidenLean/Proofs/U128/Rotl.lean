@@ -342,8 +342,8 @@ set_option maxHeartbeats 8000000 in
     When shift = 0, the output is identity. When shift ≠ 0, the output limbs are the
     bitwise OR of the corresponding `u128::shl(shift)` and `u128::shr(128−shift)` output limbs.
     The shl and shr sub-procedure results are provided as parametric hypotheses; their
-    individual correctness is proved in `u128_shl_correct` and `u128_shr_correct`. -/
-theorem u128_rotl_correct (fuel : Nat)
+    individual correctness is proved in `u128_shl_raw` and `u128_shr_raw`. -/
+theorem u128_rotl_raw (fuel : Nat)
     (shift a0 a1 a2 a3 : Felt) (rest : List Felt) (s : MidenState)
     (hs : s.stack = shift :: a0 :: a1 :: a2 :: a3 :: rest)
     (hshift_u32 : shift.isU32 = true)

@@ -441,12 +441,12 @@ theorem u128_overflowing_sub_run
   exact chunk8_correct env fuel a0 a1 a2 a3 b0 b1 b2 b3 rest mem locs adv
 
 set_option maxHeartbeats 8000000 in
-/-- `u128::overflowing_sub` correctly computes subtraction of two 128-bit values with borrow.
+/-- `u128::overflowing_sub` correctly computes subtraction of two 128-bit values with borrow (raw limb version).
     Input stack:  [b0, b1, b2, b3, a0, a1, a2, a3] ++ rest
     Output stack: [borrow, d0, d1, d2, d3] ++ rest
     where `d0..d3` are the low-to-high limbs of `a - b`,
     and `borrow = 1` iff the subtraction underflowed. -/
-theorem u128_overflowing_sub_correct
+theorem u128_overflowing_sub_raw
     (a0 a1 a2 a3 b0 b1 b2 b3 : Felt) (rest : List Felt) (s : MidenState)
     (hs : s.stack = b0 :: b1 :: b2 :: b3 :: a0 :: a1 :: a2 :: a3 :: rest)
     (ha0 : a0.isU32 = true) (ha1 : a1.isU32 = true)
@@ -461,5 +461,38 @@ theorem u128_overflowing_sub_correct
   simpa [exec] using
     u128_overflowing_sub_run (fun _ => none) 48 a0 a1 a2 a3 b0 b1 b2 b3 rest mem locs adv
       ha0 ha1 ha2 ha3 hb0 hb1 hb2 hb3
+
+/-- `u128::overflowing_sub` correctly computes `a - b` with underflow detection.
+    Input stack:  [b.a0, b.a1, b.a2, b.a3, a.a0, a.a1, a.a2, a.a3] ++ rest
+    Output stack: [borrow, (a−b).a0, (a−b).a1, (a−b).a2, (a−b).a3] ++ rest
+    where borrow = 1 iff `a < b`. -/
+theorem u128_overflowing_sub_correct (a b : U128) (rest : List Felt) (s : MidenState)
+    (hs : s.stack = b.a0.val :: b.a1.val :: b.a2.val :: b.a3.val ::
+                    a.a0.val :: a.a1.val :: a.a2.val :: a.a3.val :: rest) :
+    exec 49 s Miden.Core.U128.overflowing_sub =
+    some (s.withStack (
+      (if decide (a < b) then (1 : Felt) else 0) ::
+      (a - b).a0.val :: (a - b).a1.val :: (a - b).a2.val :: (a - b).a3.val :: rest)) := by
+  have h := u128_overflowing_sub_raw a.a0.val a.a1.val a.a2.val a.a3.val
+    b.a0.val b.a1.val b.a2.val b.a3.val rest s hs
+    a.a0.isU32 a.a1.isU32 a.a2.isU32 a.a3.isU32
+    b.a0.isU32 b.a1.isU32 b.a2.isU32 b.a3.isU32
+  rw [h]; congr 1; congr 1
+  simp only [u128OverflowingSubResult, sub0, sub1Adj, sub2Adj, sub3Adj,
+    sub1, sub2, sub3, borrow1, borrow2]
+  obtain ⟨br0, br1, br2, br3, bro⟩ := u128_sub_borrow_bridge a b
+  simp only [u128Sub0, u128Sub1, u128Sub2, u128Sub3, u128Borrow1, u128Borrow2] at br0 br1 br2 br3
+  simp only [br0, br1, br2, br3, bro]
+
+/-- Expansion of `u128WrappingSubResult` in terms of public U128 operations. -/
+theorem u128WrappingSubResult_eq (a b : U128) (rest : List Felt) :
+    u128WrappingSubResult a.a0.val a.a1.val a.a2.val a.a3.val
+      b.a0.val b.a1.val b.a2.val b.a3.val rest =
+    (a - b).a0.val :: (a - b).a1.val :: (a - b).a2.val :: (a - b).a3.val :: rest := by
+  simp only [u128WrappingSubResult, sub0, sub1Adj, sub2Adj, sub3Adj,
+    sub1, sub2, sub3, borrow1, borrow2]
+  obtain ⟨br0, br1, br2, br3, -⟩ := u128_sub_borrow_bridge a b
+  simp only [u128Sub0, u128Sub1, u128Sub2, u128Sub3, u128Borrow1, u128Borrow2] at br0 br1 br2 br3
+  simp only [br0, br1, br2, br3]
 
 end MidenLean.Proofs

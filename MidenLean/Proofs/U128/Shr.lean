@@ -415,7 +415,7 @@ private theorem shr_branch_k0 (fuel : Nat)
   -- Now: execWithEnv u128ProcEnv (fuel+1) ⟨b :: a0 :: a1 :: a2 :: a3 :: rest, ...⟩ shr_k0
   rw [shr_k0_env_bridge (fuel + 1) _ (by omega)]
   -- Now: exec 51 ⟨b :: a0 :: ...⟩ shr_k0
-  have h := u128_shr_k0_correct b a0 a1 a2 a3 rest
+  have h := u128_shr_k0_raw b a0 a1 a2 a3 rest
     ⟨b :: a0 :: a1 :: a2 :: a3 :: rest, mem, locs, adv⟩
     rfl hb_u32 ha0 ha1 ha2 ha3 hb_pos hb_le31
   simp only [MidenState.withStack] at h
@@ -456,7 +456,7 @@ private theorem shr_branch_k1 (fuel : Nat)
   miden_movdn
   -- Stack: b :: a0 :: a1 :: a2 :: a3 :: 0 :: rest
   rw [shr_k1_env_bridge (fuel + 2) _ (by omega)]
-  have h := u128_shr_k1_correct b a0 a1 a2 a3
+  have h := u128_shr_k1_raw b a0 a1 a2 a3
     ((0 : Felt) :: rest)
     ⟨b :: a0 :: a1 :: a2 :: a3 :: (0 : Felt) :: rest, mem, locs, adv⟩
     rfl hb_u32 ha1 ha2 ha3 hb_le31
@@ -498,7 +498,7 @@ private theorem shr_branch_k2 (fuel : Nat)
   miden_movdn
   -- Stack: b :: a0 :: a1 :: a2 :: a3 :: 0 :: 0 :: rest
   rw [shr_k2_env_bridge (fuel + 2) _ (by omega)]
-  have h := u128_shr_k2_correct b a0 a1 a2 a3
+  have h := u128_shr_k2_raw b a0 a1 a2 a3
     ((0 : Felt) :: (0 : Felt) :: rest)
     ⟨b :: a0 :: a1 :: a2 :: a3 :: (0 : Felt) :: (0 : Felt) :: rest, mem, locs, adv⟩
     rfl hb_u32 ha2 ha3 hb_le31
@@ -538,7 +538,7 @@ private theorem shr_branch_k3 (fuel : Nat)
   miden_movdn
   -- Stack: b :: a0 :: a1 :: a2 :: a3 :: 0 :: 0 :: 0 :: rest
   rw [shr_k3_env_bridge (fuel + 1) _ (by omega)]
-  have h := u128_shr_k3_correct b a0 a1 a2 a3
+  have h := u128_shr_k3_raw b a0 a1 a2 a3
     ((0 : Felt) :: (0 : Felt) :: (0 : Felt) :: rest)
     ⟨b :: a0 :: a1 :: a2 :: a3 :: (0 : Felt) :: (0 : Felt) :: (0 : Felt) :: rest, mem, locs, adv⟩
     rfl hb_u32 ha3 hb_le31
@@ -736,7 +736,7 @@ set_option maxHeartbeats 16000000 in
     amount. Input stack: [shift, a0, a1, a2, a3] ++ rest (shift < 128, a0..a3
     are u32 limbs low-to-high). Dispatches to shr_k0..k3 based on
     k = shift / 32, with b = shift % 32 as the sub-limb shift. -/
-theorem u128_shr_correct
+theorem u128_shr_raw
     (shift a0 a1 a2 a3 : Felt) (rest : List Felt) (s : MidenState)
     (hs : s.stack = shift :: a0 :: a1 :: a2 :: a3 :: rest)
     (hshift_u32 : shift.isU32 = true)

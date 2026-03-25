@@ -1,3 +1,4 @@
+import MidenLean.Proofs.U128.Common
 import MidenLean.Proofs.Tactics
 import MidenLean.Generated.U128
 
@@ -8,11 +9,7 @@ open MidenLean.StepLemmas
 open MidenLean.Tactics
 
 set_option maxHeartbeats 4000000 in
-/-- `u128::eqz` correctly tests whether a 128-bit value is zero.
-    Input stack:  [a, b, c, d] ++ rest
-    Output stack: [is_zero] ++ rest
-    where is_zero = 1 iff all four input limbs are zero. -/
-theorem u128_eqz_correct
+theorem u128_eqz_raw
     (a b c d : Felt) (rest : List Felt) (s : MidenState)
     (hs : s.stack = a :: b :: c :: d :: rest) :
     exec 15 s Miden.Core.U128.eqz =
@@ -41,5 +38,16 @@ theorem u128_eqz_correct
   miden_bind
   rw [stepAndIte]
   dsimp only [bind, Bind.bind, Option.bind, pure, Pure.pure]
+
+/-- `u128::eqz` correctly tests whether a 128-bit value is zero.
+    Input stack:  [a.a0, a.a1, a.a2, a.a3] ++ rest
+    Output stack: [(if a == 0 then 1 else 0)] ++ rest -/
+theorem u128_eqz_correct (a : U128) (rest : List Felt) (s : MidenState)
+    (hs : s.stack = a.a0.val :: a.a1.val :: a.a2.val :: a.a3.val :: rest) :
+    exec 15 s Miden.Core.U128.eqz =
+    some (s.withStack (
+      (if a == U128.ofNat 0 then (1 : Felt) else 0) :: rest)) := by
+  simp only [U128.beq_iff, U128.ofNat]
+  exact u128_eqz_raw a.a0.val a.a1.val a.a2.val a.a3.val rest s hs
 
 end MidenLean.Proofs
