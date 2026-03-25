@@ -91,10 +91,10 @@ theorem u64_wrapping_mul_raw
     Input stack:  [b.lo, b.hi, a.lo, a.hi] ++ rest
     Output stack: [(a * b).lo, (a * b).hi] ++ rest -/
 theorem u64_wrapping_mul_correct (a b : U64) (rest : List Felt) (s : MidenState)
-    (hs : s.stack = b.lo :: b.hi :: a.lo :: a.hi :: rest) :
+    (hs : s.stack = b.lo.val :: b.hi.val :: a.lo.val :: a.hi.val :: rest) :
     exec 20 s Miden.Core.U64.wrapping_mul =
-    some (s.withStack ((a * b).lo :: (a * b).hi :: rest)) := by
-  rw [u64_wrapping_mul_raw a.lo a.hi b.lo b.hi rest s hs a.lo_u32 a.hi_u32 b.lo_u32 b.hi_u32]
+    some (s.withStack ((a * b).lo.val :: (a * b).hi.val :: rest)) := by
+  rw [u64_wrapping_mul_raw a.lo.val a.hi.val b.lo.val b.hi.val rest s hs a.lo.isU32 a.hi.isU32 b.lo.isU32 b.hi.isU32]
   show _ = some (s.withStack (
     Felt.ofNat ((a.toNat * b.toNat) % 2^32) ::
     Felt.ofNat (((a.toNat * b.toNat) / 2^32) % 2^32) :: rest))

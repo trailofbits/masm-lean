@@ -464,17 +464,17 @@ set_option maxHeartbeats 8000000 in
     Input stack:  [shift, a.lo, a.hi] ++ rest
     Output stack: [(a.shr shift).lo, (a.shr shift).hi] ++ rest -/
 theorem u64_shr_correct (a : U64) (shift : Felt) (rest : List Felt) (s : MidenState)
-    (hs : s.stack = shift :: a.lo :: a.hi :: rest)
+    (hs : s.stack = shift :: a.lo.val :: a.hi.val :: rest)
     (hshift : shift.val ≤ 63) :
     exec 42 s Miden.Core.U64.shr =
-    some (s.withStack ((a.shr shift.val).lo :: (a.shr shift.val).hi :: rest)) := by
-  rw [u64_shr_raw a.lo a.hi shift rest s hs hshift a.lo_u32 a.hi_u32]
+    some (s.withStack ((a.shr shift.val).lo.val :: (a.shr shift.val).hi.val :: rest)) := by
+  rw [u64_shr_raw a.lo.val a.hi.val shift rest s hs hshift a.lo.isU32 a.hi.isU32]
   -- Recover key bounds
-  have hlo_u32 := a.lo_u32
-  have hlo_lt : a.lo.val < 2^32 := by
+  have hlo_u32 := a.lo.isU32
+  have hlo_lt : a.lo.val.val < 2^32 := by
     simp [Felt.isU32, decide_eq_true_eq] at hlo_u32; exact hlo_u32
-  have hhi_u32 := a.hi_u32
-  have hhi_lt : a.hi.val < 2^32 := by
+  have hhi_u32 := a.hi.isU32
+  have hhi_lt : a.hi.val.val < 2^32 := by
     simp [Felt.isU32, decide_eq_true_eq] at hhi_u32; exact hhi_u32
   have hpow_val := pow2_val_eq shift hshift
   -- Target: show result = (a.shr shift.val).lo :: (a.shr shift.val).hi :: rest
@@ -517,25 +517,25 @@ theorem u64_shr_correct (a : U64) (shift : Felt) (rest : List Felt) (s : MidenSt
     rw [show ((Felt.ofNat (2 ^ shift.val)).hi32 + (Felt.ofNat (2 ^ shift.val)).lo32).val =
         2 ^ shift.val from by rw [pow2_denom_val shift hshift, h_hi32_val, h_lo32_val]; omega]
     -- Use nat identities
-    have h_div := shr_toNat_div_lt32 a.hi.val a.lo.val shift.val hhi_lt hlo_lt h32
-    have h_lo_sum_lt := shr_lo_sum_lt a.hi.val a.lo.val shift.val hhi_lt hlo_lt h32
-    have h_hi_eq : (a.hi.val * 2 ^ 32 + a.lo.val) / 2 ^ shift.val / 2 ^ 32 = a.hi.val / 2^shift.val := by
-      rw [h_div, show a.hi.val / 2^shift.val * 2^32 +
-        a.hi.val % 2^shift.val * 2^(32 - shift.val) + a.lo.val / 2^shift.val =
-        (a.hi.val % 2^shift.val * 2^(32 - shift.val) + a.lo.val / 2^shift.val) +
-        a.hi.val / 2^shift.val * 2^32 from by omega,
+    have h_div := shr_toNat_div_lt32 a.hi.val.val a.lo.val.val shift.val hhi_lt hlo_lt h32
+    have h_lo_sum_lt := shr_lo_sum_lt a.hi.val.val a.lo.val.val shift.val hhi_lt hlo_lt h32
+    have h_hi_eq : (a.hi.val.val * 2 ^ 32 + a.lo.val.val) / 2 ^ shift.val / 2 ^ 32 = a.hi.val.val / 2^shift.val := by
+      rw [h_div, show a.hi.val.val / 2^shift.val * 2^32 +
+        a.hi.val.val % 2^shift.val * 2^(32 - shift.val) + a.lo.val.val / 2^shift.val =
+        (a.hi.val.val % 2^shift.val * 2^(32 - shift.val) + a.lo.val.val / 2^shift.val) +
+        a.hi.val.val / 2^shift.val * 2^32 from by omega,
         Nat.add_mul_div_right _ _ (show (0:Nat) < 2^32 from by positivity),
         Nat.div_eq_of_lt h_lo_sum_lt, Nat.zero_add]
-    have h_lo_eq : (a.hi.val * 2 ^ 32 + a.lo.val) / 2 ^ shift.val % 2 ^ 32 =
-        (a.hi.val % 2^shift.val) * 2^(32 - shift.val) + a.lo.val / 2^shift.val := by
-      rw [h_div, show a.hi.val / 2^shift.val * 2^32 +
-        a.hi.val % 2^shift.val * 2^(32 - shift.val) + a.lo.val / 2^shift.val =
-        a.hi.val / 2^shift.val * 2^32 +
-        (a.hi.val % 2^shift.val * 2^(32 - shift.val) + a.lo.val / 2^shift.val) from by omega,
+    have h_lo_eq : (a.hi.val.val * 2 ^ 32 + a.lo.val.val) / 2 ^ shift.val % 2 ^ 32 =
+        (a.hi.val.val % 2^shift.val) * 2^(32 - shift.val) + a.lo.val.val / 2^shift.val := by
+      rw [h_div, show a.hi.val.val / 2^shift.val * 2^32 +
+        a.hi.val.val % 2^shift.val * 2^(32 - shift.val) + a.lo.val.val / 2^shift.val =
+        a.hi.val.val / 2^shift.val * 2^32 +
+        (a.hi.val.val % 2^shift.val * 2^(32 - shift.val) + a.lo.val.val / 2^shift.val) from by omega,
         Nat.mul_add_mod_of_lt h_lo_sum_lt]
     rw [h_lo_eq, h_hi_eq]
     -- Hi limb
-    have h_hi_lt : a.hi.val / 2^shift.val < 2^32 :=
+    have h_hi_lt : a.hi.val.val / 2^shift.val < 2^32 :=
       Nat.lt_of_le_of_lt (Nat.div_le_self _ _) hhi_lt
     -- Field inverse: 4294967296 * (Felt.ofNat (2^n))⁻¹ = Felt.ofNat (2^(32-n))
     rw [felt_pow2_inv shift.val h32]
@@ -575,10 +575,10 @@ theorem u64_shr_correct (a : U64) (shift : Felt) (rest : List Felt) (s : MidenSt
       rw [pow2_denom_val shift hshift, h_hi32_val, h_lo32_val]; omega
     rw [h_denom_val]
     -- Use the >= 32 nat identity
-    have h_nat := shr_toNat_ge32 a.hi.val a.lo.val shift.val hhi_lt hlo_lt h32
+    have h_nat := shr_toNat_ge32 a.hi.val.val a.lo.val.val shift.val hhi_lt hlo_lt h32
     rw [h_nat]
     -- result < 2^32
-    have h_result_lt : a.hi.val / 2^(shift.val - 32) < 2^32 :=
+    have h_result_lt : a.hi.val.val / 2^(shift.val - 32) < 2^32 :=
       Nat.lt_of_le_of_lt (Nat.div_le_self _ _) hhi_lt
     congr 1; congr 1; congr 1
     · congr 1; exact (Nat.mod_eq_of_lt h_result_lt).symm

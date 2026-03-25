@@ -1008,10 +1008,10 @@ private theorem divmod_forward_arith (ql qh bl bh rl rh al ah : Nat)
     satisfy q * b + r = a and r < b. -/
 theorem u64_divmod_correct (a b q r : U64) (rest : List Felt) (adv_rest : List Felt)
     (s : MidenState)
-    (hs : s.stack = b.lo :: b.hi :: a.lo :: a.hi :: rest)
-    (hadv : s.advice = q.hi :: q.lo :: r.hi :: r.lo :: adv_rest) :
+    (hs : s.stack = b.lo.val :: b.hi.val :: a.lo.val :: a.hi.val :: rest)
+    (hadv : s.advice = q.hi.val :: q.lo.val :: r.hi.val :: r.lo.val :: adv_rest) :
     execWithEnv u64ProcEnv 50 s Miden.Core.U64.divmod =
-    some { stack := r.lo :: r.hi :: q.lo :: q.hi :: rest,
+    some { stack := r.lo.val :: r.hi.val :: q.lo.val :: q.hi.val :: rest,
            memory := s.memory,
            locals := s.locals,
            advice := adv_rest }
@@ -1022,39 +1022,39 @@ theorem u64_divmod_correct (a b q r : U64) (rest : List Felt) (adv_rest : List F
     obtain ⟨stk, mem, locs, adv⟩ := s
     simp only [] at hs hadv; subst hs; subst hadv
     -- Extract u32 bounds
-    have hql_b : q.lo.val < 2^32 := by
-      have := q.lo_u32; simp only [Felt.isU32, decide_eq_true_eq] at this; exact this
-    have hqh_b : q.hi.val < 2^32 := by
-      have := q.hi_u32; simp only [Felt.isU32, decide_eq_true_eq] at this; exact this
-    have hbl_b : b.lo.val < 2^32 := by
-      have := b.lo_u32; simp only [Felt.isU32, decide_eq_true_eq] at this; exact this
-    have hbh_b : b.hi.val < 2^32 := by
-      have := b.hi_u32; simp only [Felt.isU32, decide_eq_true_eq] at this; exact this
-    have hrl_b : r.lo.val < 2^32 := by
-      have := r.lo_u32; simp only [Felt.isU32, decide_eq_true_eq] at this; exact this
-    have hrh_b : r.hi.val < 2^32 := by
-      have := r.hi_u32; simp only [Felt.isU32, decide_eq_true_eq] at this; exact this
+    have hql_b : q.lo.val.val < 2^32 := by
+      have := q.lo.isU32; simp only [Felt.isU32, decide_eq_true_eq] at this; exact this
+    have hqh_b : q.hi.val.val < 2^32 := by
+      have := q.hi.isU32; simp only [Felt.isU32, decide_eq_true_eq] at this; exact this
+    have hbl_b : b.lo.val.val < 2^32 := by
+      have := b.lo.isU32; simp only [Felt.isU32, decide_eq_true_eq] at this; exact this
+    have hbh_b : b.hi.val.val < 2^32 := by
+      have := b.hi.isU32; simp only [Felt.isU32, decide_eq_true_eq] at this; exact this
+    have hrl_b : r.lo.val.val < 2^32 := by
+      have := r.lo.isU32; simp only [Felt.isU32, decide_eq_true_eq] at this; exact this
+    have hrh_b : r.hi.val.val < 2^32 := by
+      have := r.hi.isU32; simp only [Felt.isU32, decide_eq_true_eq] at this; exact this
     -- Abbreviations (arithmetic meaning: ql = lo limb of q, qh = hi limb)
     -- Note the name swap: advice order q.hi,q.lo maps to raw q_lo,q_hi
-    set ql := q.lo.val with ql_def
-    set qh := q.hi.val with qh_def
-    set bl := b.lo.val with bl_def
-    set bh := b.hi.val with bh_def
-    set rl := r.lo.val with rl_def
-    set rh := r.hi.val with rh_def
+    set ql := q.lo.val.val with ql_def
+    set qh := q.hi.val.val with qh_def
+    set bl := b.lo.val.val with bl_def
+    set bh := b.hi.val.val with bh_def
+    set rl := r.lo.val.val with rl_def
+    set rh := r.hi.val.val with rh_def
     -- Extract condition 1: madd1_hi_zero (from chunk1a assertion)
     have h_cond1 : (Felt.ofNat ((bh * ql + (bl * ql) / 2^32) / 2^32) == (0 : Felt)) = true := by
       by_contra h_not
-      have := divmod_chunk1a_none a.lo a.hi b.lo b.hi rest q.hi q.lo r.hi r.lo adv_rest
-        mem locs q.lo_u32 q.hi_u32 b.lo_u32 b.hi_u32 h_not
+      have := divmod_chunk1a_none a.lo.val a.hi.val b.lo.val b.hi.val rest q.hi.val q.lo.val r.hi.val r.lo.val adv_rest
+        mem locs q.lo.isU32 q.hi.isU32 b.lo.isU32 b.hi.isU32 h_not
       rw [divmod_decomp, execWithEnv_append] at hexec
       rw [this] at hexec
       simp [bind, Bind.bind, Option.bind] at hexec
     -- Use chunk1a_correct to determine the intermediate state
     rw [divmod_decomp, execWithEnv_append] at hexec
-    rw [divmod_chunk1a_correct a.lo a.hi b.lo b.hi rest q.hi q.lo r.hi r.lo adv_rest mem locs
-        q.lo_u32 q.hi_u32 b.lo_u32 b.hi_u32
-        (felt_ofNat_val_lt _ (u32_prod_div_lt_prime b.lo q.lo b.lo_u32 q.lo_u32))
+    rw [divmod_chunk1a_correct a.lo.val a.hi.val b.lo.val b.hi.val rest q.hi.val q.lo.val r.hi.val r.lo.val adv_rest mem locs
+        q.lo.isU32 q.hi.isU32 b.lo.isU32 b.hi.isU32
+        (felt_ofNat_val_lt _ (u32_prod_div_lt_prime b.lo.val q.lo.val b.lo.isU32 q.lo.isU32))
         h_cond1] at hexec
     simp only [bind, Bind.bind, Option.bind] at hexec
     rw [execWithEnv_append] at hexec
@@ -1062,42 +1062,42 @@ theorem u64_divmod_correct (a b q r : U64) (rest : List Felt) (adv_rest : List F
     have h_cond2 : (Felt.ofNat ((bl * qh +
         (bh * ql + (bl * ql) / 2^32) % 2^32) / 2^32) == (0 : Felt)) = true := by
       by_contra h_not
-      rw [divmod_chunk1b_none a.lo a.hi b.lo b.hi rest q.hi q.lo r.hi r.lo adv_rest mem locs
-          q.hi_u32 b.lo_u32 (felt_ofNat_val_lt _ (u32_mod_lt_prime _)) h_not] at hexec
+      rw [divmod_chunk1b_none a.lo.val a.hi.val b.lo.val b.hi.val rest q.hi.val q.lo.val r.hi.val r.lo.val adv_rest mem locs
+          q.hi.isU32 b.lo.isU32 (felt_ofNat_val_lt _ (u32_mod_lt_prime _)) h_not] at hexec
       simp [bind, Bind.bind, Option.bind] at hexec
-    rw [divmod_chunk1b_correct a.lo a.hi b.lo b.hi rest q.hi q.lo r.hi r.lo adv_rest mem locs
-        q.hi_u32 b.lo_u32 (felt_ofNat_val_lt _ (u32_mod_lt_prime _)) h_cond2] at hexec
+    rw [divmod_chunk1b_correct a.lo.val a.hi.val b.lo.val b.hi.val rest q.hi.val q.lo.val r.hi.val r.lo.val adv_rest mem locs
+        q.hi.isU32 b.lo.isU32 (felt_ofNat_val_lt _ (u32_mod_lt_prime _)) h_cond2] at hexec
     simp only [bind, Bind.bind, Option.bind] at hexec
     rw [execWithEnv_append] at hexec
     -- Extract condition 3: bhi * qhi = 0 (from chunk1c assertion)
-    have h_cond3 : ((b.hi * q.hi : Felt) == (0 : Felt)) = true := by
+    have h_cond3 : ((b.hi.val * q.hi.val : Felt) == (0 : Felt)) = true := by
       by_contra h_not
-      rw [divmod_chunk1c_none a.lo a.hi b.lo b.hi rest q.hi q.lo r.hi r.lo adv_rest mem locs
+      rw [divmod_chunk1c_none a.lo.val a.hi.val b.lo.val b.hi.val rest q.hi.val q.lo.val r.hi.val r.lo.val adv_rest mem locs
           h_not] at hexec
       simp [bind, Bind.bind, Option.bind] at hexec
-    rw [divmod_chunk1c_correct a.lo a.hi b.lo b.hi rest q.hi q.lo r.hi r.lo adv_rest mem locs
-        r.lo_u32 r.hi_u32 h_cond3] at hexec
+    rw [divmod_chunk1c_correct a.lo.val a.hi.val b.lo.val b.hi.val rest q.hi.val q.lo.val r.hi.val r.lo.val adv_rest mem locs
+        r.lo.isU32 r.hi.isU32 h_cond3] at hexec
     simp only [bind, Bind.bind, Option.bind] at hexec
     rw [execWithEnv_append] at hexec
     -- Extract condition 4: lt_result (from chunk2 assertion)
     have h_cond4 :
-        let borrow_lo := decide (r.lo.val < b.lo.val)
-        let borrow_hi := decide (r.hi.val < b.hi.val)
-        let hi_eq := Felt.ofNat (u32OverflowingSub r.hi.val b.hi.val).2 == (0 : Felt)
+        let borrow_lo := decide (r.lo.val.val < b.lo.val.val)
+        let borrow_hi := decide (r.hi.val.val < b.hi.val.val)
+        let hi_eq := Felt.ofNat (u32OverflowingSub r.hi.val.val b.hi.val.val).2 == (0 : Felt)
         (borrow_hi || (hi_eq && borrow_lo)) = true := by
       by_contra h_not
-      rw [divmod_chunk2_none a.lo a.hi b.lo b.hi rest q.hi q.lo r.hi r.lo adv_rest mem locs
-          r.lo_u32 r.hi_u32 b.lo_u32 b.hi_u32 h_not] at hexec
+      rw [divmod_chunk2_none a.lo.val a.hi.val b.lo.val b.hi.val rest q.hi.val q.lo.val r.hi.val r.lo.val adv_rest mem locs
+          r.lo.isU32 r.hi.isU32 b.lo.isU32 b.hi.isU32 h_not] at hexec
       simp [bind, Bind.bind, Option.bind] at hexec
-    rw [divmod_chunk2_correct a.lo a.hi b.lo b.hi rest q.hi q.lo r.hi r.lo adv_rest mem locs
-        r.lo_u32 r.hi_u32 b.lo_u32 b.hi_u32 h_cond4] at hexec
+    rw [divmod_chunk2_correct a.lo.val a.hi.val b.lo.val b.hi.val rest q.hi.val q.lo.val r.hi.val r.lo.val adv_rest mem locs
+        r.lo.isU32 r.hi.isU32 b.lo.isU32 b.hi.isU32 h_cond4] at hexec
     simp only [bind, Bind.bind, Option.bind] at hexec
     rw [execWithEnv_append] at hexec
     -- chunk3a: no assertions
     have cross0_lo_val : (Felt.ofNat ((bl * ql) % 2^32)).val = (bl * ql) % 2^32 :=
       felt_ofNat_val_lt _ (u32_mod_lt_prime _)
-    rw [divmod_chunk3a_correct a.lo a.hi b.lo b.hi rest q.hi q.lo r.hi r.lo adv_rest mem locs
-        r.lo_u32 cross0_lo_val] at hexec
+    rw [divmod_chunk3a_correct a.lo.val a.hi.val b.lo.val b.hi.val rest q.hi.val q.lo.val r.hi.val r.lo.val adv_rest mem locs
+        r.lo.isU32 cross0_lo_val] at hexec
     simp only [bind, Bind.bind, Option.bind] at hexec
     -- chunk3b: three assertions
     have madd2_lo_val : (Felt.ofNat ((bl * qh +
@@ -1109,22 +1109,22 @@ theorem u64_divmod_correct (a b q r : U64) (rest : List Felt) (adv_rest : List F
         (bl * qh + (bh * ql + (bl * ql) / 2^32) % 2^32) % 2^32 +
         (rl + (bl * ql) % 2^32) / 2^32) / 2^32) == (0 : Felt)) = true := by
       by_contra h_not
-      rw [divmod_chunk3b_none_add2 a.lo a.hi b.lo b.hi rest q.hi q.lo r.hi r.lo adv_rest mem locs
-          r.lo_u32 r.hi_u32 cross0_lo_val madd2_lo_val h_not] at hexec
+      rw [divmod_chunk3b_none_add2 a.lo.val a.hi.val b.lo.val b.hi.val rest q.hi.val q.lo.val r.hi.val r.lo.val adv_rest mem locs
+          r.lo.isU32 r.hi.isU32 cross0_lo_val madd2_lo_val h_not] at hexec
       simp at hexec
     -- Condition 6: a_hi equality
-    have h_cond6 : a.hi = Felt.ofNat ((rh +
+    have h_cond6 : a.hi.val = Felt.ofNat ((rh +
         (bl * qh + (bh * ql + (bl * ql) / 2^32) % 2^32) % 2^32 +
         (rl + (bl * ql) % 2^32) / 2^32) % 2^32) := by
       by_contra h_not
-      rw [divmod_chunk3b_none_ahi a.lo a.hi b.lo b.hi rest q.hi q.lo r.hi r.lo adv_rest mem locs
-          r.lo_u32 r.hi_u32 cross0_lo_val madd2_lo_val h_cond5 h_not] at hexec
+      rw [divmod_chunk3b_none_ahi a.lo.val a.hi.val b.lo.val b.hi.val rest q.hi.val q.lo.val r.hi.val r.lo.val adv_rest mem locs
+          r.lo.isU32 r.hi.isU32 cross0_lo_val madd2_lo_val h_cond5 h_not] at hexec
       simp at hexec
     -- Condition 7: a_lo equality
-    have h_cond7 : a.lo = Felt.ofNat ((rl + (bl * ql) % 2^32) % 2^32) := by
+    have h_cond7 : a.lo.val = Felt.ofNat ((rl + (bl * ql) % 2^32) % 2^32) := by
       by_contra h_not
-      rw [divmod_chunk3b_none_alo a.lo a.hi b.lo b.hi rest q.hi q.lo r.hi r.lo adv_rest mem locs
-          r.lo_u32 r.hi_u32 cross0_lo_val madd2_lo_val h_cond5 h_cond6 h_not] at hexec
+      rw [divmod_chunk3b_none_alo a.lo.val a.hi.val b.lo.val b.hi.val rest q.hi.val q.lo.val r.hi.val r.lo.val adv_rest mem locs
+          r.lo.isU32 r.hi.isU32 cross0_lo_val madd2_lo_val h_cond5 h_cond6 h_not] at hexec
       simp at hexec
     -- Lift conditions to Nat level
     -- Product upper bounds for omega (nonlinear products need explicit hints)
@@ -1138,10 +1138,10 @@ theorem u64_divmod_correct (a b q r : U64) (rest : List Felt) (adv_rest : List F
       (show qh ≤ 2^32 - 1 from by omega)
     -- bh * qh = 0
     have hbq_nat : bh * qh = 0 := by
-      have hfelt : b.hi * q.hi = (0 : Felt) := LawfulBEq.eq_of_beq h_cond3
+      have hfelt : b.hi.val * q.hi.val = (0 : Felt) := LawfulBEq.eq_of_beq h_cond3
       have hprod_lt : bh * qh < GOLDILOCKS_PRIME := by unfold GOLDILOCKS_PRIME; omega
-      have h1 := felt_mul_val_no_wrap b.hi q.hi hprod_lt
-      have h2 : (b.hi * q.hi).val = 0 := by rw [hfelt]; exact Felt.val_zero'
+      have h1 := felt_mul_val_no_wrap b.hi.val q.hi.val hprod_lt
+      have h2 : (b.hi.val * q.hi.val).val = 0 := by rw [hfelt]; exact Felt.val_zero'
       linarith
     -- Helper: Felt.ofNat n == 0 with n < GOLDILOCKS_PRIME implies n = 0
     have lift_zero : ∀ (n : Nat), n < GOLDILOCKS_PRIME →
@@ -1162,13 +1162,13 @@ theorem u64_divmod_correct (a b q r : U64) (rest : List Felt) (adv_rest : List F
         (rl + (bl * ql) % 2^32) / 2^32) / 2^32 = 0 :=
       lift_zero _ (by unfold GOLDILOCKS_PRIME; omega) h_cond5
     -- a_hi val equality
-    have h_ah_nat : a.hi.val = (rh + (bl * qh + (bh * ql + (bl * ql) / 2^32) % 2^32) % 2^32 +
+    have h_ah_nat : a.hi.val.val = (rh + (bl * qh + (bh * ql + (bl * ql) / 2^32) % 2^32) % 2^32 +
         (rl + (bl * ql) % 2^32) / 2^32) % 2^32 := by
       have h := congrArg ZMod.val h_cond6
       rw [felt_ofNat_val_lt _ (u32_mod_lt_prime _)] at h
       exact h
     -- a_lo val equality
-    have h_al_nat : a.lo.val = (rl + (bl * ql) % 2^32) % 2^32 := by
+    have h_al_nat : a.lo.val.val = (rl + (bl * ql) % 2^32) % 2^32 := by
       have h := congrArg ZMod.val h_cond7
       rw [felt_ofNat_val_lt _ (u32_mod_lt_prime _)] at h
       exact h
@@ -1181,23 +1181,23 @@ theorem u64_divmod_correct (a b q r : U64) (rest : List Felt) (adv_rest : List F
     constructor
     · -- q*b+r=a
       unfold U64.toNat
-      exact divmod_forward_arith ql qh bl bh rl rh a.lo.val a.hi.val
+      exact divmod_forward_arith ql qh bl bh rl rh a.lo.val.val a.hi.val.val
         hql_b hqh_b hbl_b hbh_b hrl_b hrh_b hbq_nat h_madd1_nat h_madd2_nat
         h_add2_nat h_ah_nat h_al_nat
     · exact h_lt
   · -- Backward: derive raw hypotheses from q*b+r=a ∧ r<b, apply u64_divmod_raw
     intro ⟨hdiv, hlt⟩
     -- Extract u32 bounds
-    have hql := q.lo_u32; have hqh := q.hi_u32
-    have hrl := r.lo_u32; have hrh := r.hi_u32
-    have hbl := b.lo_u32; have hbh := b.hi_u32
-    have hal := a.lo_u32; have hah := a.hi_u32
+    have hql := q.lo.isU32; have hqh := q.hi.isU32
+    have hrl := r.lo.isU32; have hrh := r.hi.isU32
+    have hbl := b.lo.isU32; have hbh := b.hi.isU32
+    have hal := a.lo.isU32; have hah := a.hi.isU32
     simp only [Felt.isU32, decide_eq_true_eq] at *
     -- Set up shorthand for val
-    set ql := q.lo.val; set qh := q.hi.val
-    set bl := b.lo.val; set bh := b.hi.val
-    set rl := r.lo.val; set rh := r.hi.val
-    set al := a.lo.val; set ah := a.hi.val
+    set ql := q.lo.val.val; set qh := q.hi.val.val
+    set bl := b.lo.val.val; set bh := b.hi.val.val
+    set rl := r.lo.val.val; set rh := r.hi.val.val
+    set al := a.lo.val.val; set ah := a.hi.val.val
     -- Rewrite toNat in terms of val
     simp only [U64.toNat] at hdiv hlt
     -- Get all Nat-level conditions from the arithmetic helper
@@ -1208,10 +1208,10 @@ theorem u64_divmod_correct (a b q r : U64) (rest : List Felt) (adv_rest : List F
     have hbq_nat := divmod_bh_qh_zero ql qh bl bh rl rh al ah
       hql hqh hbl hbh hal hah hdiv
     -- Apply u64_divmod_raw (q_lo=q.hi, q_hi=q.lo, r_lo=r.hi, r_hi=r.lo)
-    exact u64_divmod_raw a.lo a.hi b.lo b.hi rest q.hi q.lo r.hi r.lo adv_rest
-      s hs hadv q.lo_u32 q.hi_u32 r.lo_u32 r.hi_u32 b.lo_u32 b.hi_u32
+    exact u64_divmod_raw a.lo.val a.hi.val b.lo.val b.hi.val rest q.hi.val q.lo.val r.hi.val r.lo.val adv_rest
+      s hs hadv q.lo.isU32 q.hi.isU32 r.lo.isU32 r.hi.isU32 b.lo.isU32 b.hi.isU32
       -- cross0_hi_val
-      (MidenLean.felt_ofNat_val_lt _ (MidenLean.u32_prod_div_lt_prime b.lo q.lo b.lo_u32 q.lo_u32))
+      (MidenLean.felt_ofNat_val_lt _ (MidenLean.u32_prod_div_lt_prime b.lo.val q.lo.val b.lo.isU32 q.lo.isU32))
       -- h_madd1_hi_zero
       (MidenLean.felt_ofNat_beq_zero _ h_madd1)
       -- madd1_lo_val
@@ -1219,7 +1219,7 @@ theorem u64_divmod_correct (a b q r : U64) (rest : List Felt) (adv_rest : List F
       -- h_madd2_hi_zero
       (MidenLean.felt_ofNat_beq_zero _ h_madd2)
       -- h_bhi_qlo_zero (b_hi * q_lo = b.hi * q.hi)
-      (MidenLean.felt_mul_beq_zero b.hi q.hi (by omega) (by unfold MidenLean.GOLDILOCKS_PRIME; nlinarith))
+      (MidenLean.felt_mul_beq_zero b.hi.val q.hi.val (by omega) (by unfold MidenLean.GOLDILOCKS_PRIME; nlinarith))
       -- cross0_lo_val
       (MidenLean.felt_ofNat_val_lt _ (MidenLean.u32_mod_lt_prime _))
       -- madd2_lo_val
@@ -1229,9 +1229,9 @@ theorem u64_divmod_correct (a b q r : U64) (rest : List Felt) (adv_rest : List F
       -- h_add2_hi_zero
       (MidenLean.felt_ofNat_beq_zero _ h_add2)
       -- h_a_hi_eq
-      (MidenLean.felt_eq_ofNat_of_val_eq a.hi _ h_ah (MidenLean.u32_mod_lt_prime _))
+      (MidenLean.felt_eq_ofNat_of_val_eq a.hi.val _ h_ah (MidenLean.u32_mod_lt_prime _))
       -- h_a_lo_eq
-      (MidenLean.felt_eq_ofNat_of_val_eq a.lo _ h_al (MidenLean.u32_mod_lt_prime _))
+      (MidenLean.felt_eq_ofNat_of_val_eq a.lo.val _ h_al (MidenLean.u32_mod_lt_prime _))
 
 /-- If divmod execution returns any result, the arithmetic conditions hold.
     This generalizes the forward direction of `u64_divmod_correct` to an
@@ -1239,81 +1239,81 @@ theorem u64_divmod_correct (a b q r : U64) (rest : List Felt) (adv_rest : List F
     `u64_mod_correct` where the divmod output is only partially observable. -/
 theorem divmod_conditions_of_exec (a b q r : U64) (rest : List Felt) (adv_rest : List Felt)
     (s : MidenState)
-    (hs : s.stack = b.lo :: b.hi :: a.lo :: a.hi :: rest)
-    (hadv : s.advice = q.hi :: q.lo :: r.hi :: r.lo :: adv_rest)
+    (hs : s.stack = b.lo.val :: b.hi.val :: a.lo.val :: a.hi.val :: rest)
+    (hadv : s.advice = q.hi.val :: q.lo.val :: r.hi.val :: r.lo.val :: adv_rest)
     {s' : MidenState}
     (hexec : execWithEnv u64ProcEnv 50 s Miden.Core.U64.divmod = some s') :
     q.toNat * b.toNat + r.toNat = a.toNat ∧ r.toNat < b.toNat := by
   obtain ⟨stk, mem, locs, adv⟩ := s
   simp only [] at hs hadv; subst hs; subst hadv
-  have hql_b : q.lo.val < 2^32 := by
-    have := q.lo_u32; simp only [Felt.isU32, decide_eq_true_eq] at this; exact this
-  have hqh_b : q.hi.val < 2^32 := by
-    have := q.hi_u32; simp only [Felt.isU32, decide_eq_true_eq] at this; exact this
-  have hbl_b : b.lo.val < 2^32 := by
-    have := b.lo_u32; simp only [Felt.isU32, decide_eq_true_eq] at this; exact this
-  have hbh_b : b.hi.val < 2^32 := by
-    have := b.hi_u32; simp only [Felt.isU32, decide_eq_true_eq] at this; exact this
-  have hrl_b : r.lo.val < 2^32 := by
-    have := r.lo_u32; simp only [Felt.isU32, decide_eq_true_eq] at this; exact this
-  have hrh_b : r.hi.val < 2^32 := by
-    have := r.hi_u32; simp only [Felt.isU32, decide_eq_true_eq] at this; exact this
-  set ql := q.lo.val with ql_def
-  set qh := q.hi.val with qh_def
-  set bl := b.lo.val with bl_def
-  set bh := b.hi.val with bh_def
-  set rl := r.lo.val with rl_def
-  set rh := r.hi.val with rh_def
+  have hql_b : q.lo.val.val < 2^32 := by
+    have := q.lo.isU32; simp only [Felt.isU32, decide_eq_true_eq] at this; exact this
+  have hqh_b : q.hi.val.val < 2^32 := by
+    have := q.hi.isU32; simp only [Felt.isU32, decide_eq_true_eq] at this; exact this
+  have hbl_b : b.lo.val.val < 2^32 := by
+    have := b.lo.isU32; simp only [Felt.isU32, decide_eq_true_eq] at this; exact this
+  have hbh_b : b.hi.val.val < 2^32 := by
+    have := b.hi.isU32; simp only [Felt.isU32, decide_eq_true_eq] at this; exact this
+  have hrl_b : r.lo.val.val < 2^32 := by
+    have := r.lo.isU32; simp only [Felt.isU32, decide_eq_true_eq] at this; exact this
+  have hrh_b : r.hi.val.val < 2^32 := by
+    have := r.hi.isU32; simp only [Felt.isU32, decide_eq_true_eq] at this; exact this
+  set ql := q.lo.val.val with ql_def
+  set qh := q.hi.val.val with qh_def
+  set bl := b.lo.val.val with bl_def
+  set bh := b.hi.val.val with bh_def
+  set rl := r.lo.val.val with rl_def
+  set rh := r.hi.val.val with rh_def
   have h_cond1 : (Felt.ofNat ((bh * ql + (bl * ql) / 2^32) / 2^32) == (0 : Felt)) = true := by
     by_contra h_not
-    have := divmod_chunk1a_none a.lo a.hi b.lo b.hi rest q.hi q.lo r.hi r.lo adv_rest
-      mem locs q.lo_u32 q.hi_u32 b.lo_u32 b.hi_u32 h_not
+    have := divmod_chunk1a_none a.lo.val a.hi.val b.lo.val b.hi.val rest q.hi.val q.lo.val r.hi.val r.lo.val adv_rest
+      mem locs q.lo.isU32 q.hi.isU32 b.lo.isU32 b.hi.isU32 h_not
     rw [divmod_decomp, execWithEnv_append] at hexec
     rw [this] at hexec
     simp [bind, Bind.bind, Option.bind] at hexec
   rw [divmod_decomp, execWithEnv_append] at hexec
-  rw [divmod_chunk1a_correct a.lo a.hi b.lo b.hi rest q.hi q.lo r.hi r.lo adv_rest mem locs
-      q.lo_u32 q.hi_u32 b.lo_u32 b.hi_u32
-      (felt_ofNat_val_lt _ (u32_prod_div_lt_prime b.lo q.lo b.lo_u32 q.lo_u32))
+  rw [divmod_chunk1a_correct a.lo.val a.hi.val b.lo.val b.hi.val rest q.hi.val q.lo.val r.hi.val r.lo.val adv_rest mem locs
+      q.lo.isU32 q.hi.isU32 b.lo.isU32 b.hi.isU32
+      (felt_ofNat_val_lt _ (u32_prod_div_lt_prime b.lo.val q.lo.val b.lo.isU32 q.lo.isU32))
       h_cond1] at hexec
   simp only [bind, Bind.bind, Option.bind] at hexec
   rw [execWithEnv_append] at hexec
   have h_cond2 : (Felt.ofNat ((bl * qh +
       (bh * ql + (bl * ql) / 2^32) % 2^32) / 2^32) == (0 : Felt)) = true := by
     by_contra h_not
-    rw [divmod_chunk1b_none a.lo a.hi b.lo b.hi rest q.hi q.lo r.hi r.lo adv_rest mem locs
-        q.hi_u32 b.lo_u32 (felt_ofNat_val_lt _ (u32_mod_lt_prime _)) h_not] at hexec
+    rw [divmod_chunk1b_none a.lo.val a.hi.val b.lo.val b.hi.val rest q.hi.val q.lo.val r.hi.val r.lo.val adv_rest mem locs
+        q.hi.isU32 b.lo.isU32 (felt_ofNat_val_lt _ (u32_mod_lt_prime _)) h_not] at hexec
     simp [bind, Bind.bind, Option.bind] at hexec
-  rw [divmod_chunk1b_correct a.lo a.hi b.lo b.hi rest q.hi q.lo r.hi r.lo adv_rest mem locs
-      q.hi_u32 b.lo_u32 (felt_ofNat_val_lt _ (u32_mod_lt_prime _)) h_cond2] at hexec
+  rw [divmod_chunk1b_correct a.lo.val a.hi.val b.lo.val b.hi.val rest q.hi.val q.lo.val r.hi.val r.lo.val adv_rest mem locs
+      q.hi.isU32 b.lo.isU32 (felt_ofNat_val_lt _ (u32_mod_lt_prime _)) h_cond2] at hexec
   simp only [bind, Bind.bind, Option.bind] at hexec
   rw [execWithEnv_append] at hexec
-  have h_cond3 : ((b.hi * q.hi : Felt) == (0 : Felt)) = true := by
+  have h_cond3 : ((b.hi.val * q.hi.val : Felt) == (0 : Felt)) = true := by
     by_contra h_not
-    rw [divmod_chunk1c_none a.lo a.hi b.lo b.hi rest q.hi q.lo r.hi r.lo adv_rest mem locs
+    rw [divmod_chunk1c_none a.lo.val a.hi.val b.lo.val b.hi.val rest q.hi.val q.lo.val r.hi.val r.lo.val adv_rest mem locs
         h_not] at hexec
     simp [bind, Bind.bind, Option.bind] at hexec
-  rw [divmod_chunk1c_correct a.lo a.hi b.lo b.hi rest q.hi q.lo r.hi r.lo adv_rest mem locs
-      r.lo_u32 r.hi_u32 h_cond3] at hexec
+  rw [divmod_chunk1c_correct a.lo.val a.hi.val b.lo.val b.hi.val rest q.hi.val q.lo.val r.hi.val r.lo.val adv_rest mem locs
+      r.lo.isU32 r.hi.isU32 h_cond3] at hexec
   simp only [bind, Bind.bind, Option.bind] at hexec
   rw [execWithEnv_append] at hexec
   have h_cond4 :
-      let borrow_lo := decide (r.lo.val < b.lo.val)
-      let borrow_hi := decide (r.hi.val < b.hi.val)
-      let hi_eq := Felt.ofNat (u32OverflowingSub r.hi.val b.hi.val).2 == (0 : Felt)
+      let borrow_lo := decide (r.lo.val.val < b.lo.val.val)
+      let borrow_hi := decide (r.hi.val.val < b.hi.val.val)
+      let hi_eq := Felt.ofNat (u32OverflowingSub r.hi.val.val b.hi.val.val).2 == (0 : Felt)
       (borrow_hi || (hi_eq && borrow_lo)) = true := by
     by_contra h_not
-    rw [divmod_chunk2_none a.lo a.hi b.lo b.hi rest q.hi q.lo r.hi r.lo adv_rest mem locs
-        r.lo_u32 r.hi_u32 b.lo_u32 b.hi_u32 h_not] at hexec
+    rw [divmod_chunk2_none a.lo.val a.hi.val b.lo.val b.hi.val rest q.hi.val q.lo.val r.hi.val r.lo.val adv_rest mem locs
+        r.lo.isU32 r.hi.isU32 b.lo.isU32 b.hi.isU32 h_not] at hexec
     simp [bind, Bind.bind, Option.bind] at hexec
-  rw [divmod_chunk2_correct a.lo a.hi b.lo b.hi rest q.hi q.lo r.hi r.lo adv_rest mem locs
-      r.lo_u32 r.hi_u32 b.lo_u32 b.hi_u32 h_cond4] at hexec
+  rw [divmod_chunk2_correct a.lo.val a.hi.val b.lo.val b.hi.val rest q.hi.val q.lo.val r.hi.val r.lo.val adv_rest mem locs
+      r.lo.isU32 r.hi.isU32 b.lo.isU32 b.hi.isU32 h_cond4] at hexec
   simp only [bind, Bind.bind, Option.bind] at hexec
   rw [execWithEnv_append] at hexec
   have cross0_lo_val : (Felt.ofNat ((bl * ql) % 2^32)).val = (bl * ql) % 2^32 :=
     felt_ofNat_val_lt _ (u32_mod_lt_prime _)
-  rw [divmod_chunk3a_correct a.lo a.hi b.lo b.hi rest q.hi q.lo r.hi r.lo adv_rest mem locs
-      r.lo_u32 cross0_lo_val] at hexec
+  rw [divmod_chunk3a_correct a.lo.val a.hi.val b.lo.val b.hi.val rest q.hi.val q.lo.val r.hi.val r.lo.val adv_rest mem locs
+      r.lo.isU32 cross0_lo_val] at hexec
   simp only [bind, Bind.bind, Option.bind] at hexec
   have madd2_lo_val : (Felt.ofNat ((bl * qh +
       (bh * ql + (bl * ql) / 2^32) % 2^32) % 2^32)).val =
@@ -1323,20 +1323,20 @@ theorem divmod_conditions_of_exec (a b q r : U64) (rest : List Felt) (adv_rest :
       (bl * qh + (bh * ql + (bl * ql) / 2^32) % 2^32) % 2^32 +
       (rl + (bl * ql) % 2^32) / 2^32) / 2^32) == (0 : Felt)) = true := by
     by_contra h_not
-    rw [divmod_chunk3b_none_add2 a.lo a.hi b.lo b.hi rest q.hi q.lo r.hi r.lo adv_rest mem locs
-        r.lo_u32 r.hi_u32 cross0_lo_val madd2_lo_val h_not] at hexec
+    rw [divmod_chunk3b_none_add2 a.lo.val a.hi.val b.lo.val b.hi.val rest q.hi.val q.lo.val r.hi.val r.lo.val adv_rest mem locs
+        r.lo.isU32 r.hi.isU32 cross0_lo_val madd2_lo_val h_not] at hexec
     simp at hexec
-  have h_cond6 : a.hi = Felt.ofNat ((rh +
+  have h_cond6 : a.hi.val = Felt.ofNat ((rh +
       (bl * qh + (bh * ql + (bl * ql) / 2^32) % 2^32) % 2^32 +
       (rl + (bl * ql) % 2^32) / 2^32) % 2^32) := by
     by_contra h_not
-    rw [divmod_chunk3b_none_ahi a.lo a.hi b.lo b.hi rest q.hi q.lo r.hi r.lo adv_rest mem locs
-        r.lo_u32 r.hi_u32 cross0_lo_val madd2_lo_val h_cond5 h_not] at hexec
+    rw [divmod_chunk3b_none_ahi a.lo.val a.hi.val b.lo.val b.hi.val rest q.hi.val q.lo.val r.hi.val r.lo.val adv_rest mem locs
+        r.lo.isU32 r.hi.isU32 cross0_lo_val madd2_lo_val h_cond5 h_not] at hexec
     simp at hexec
-  have h_cond7 : a.lo = Felt.ofNat ((rl + (bl * ql) % 2^32) % 2^32) := by
+  have h_cond7 : a.lo.val = Felt.ofNat ((rl + (bl * ql) % 2^32) % 2^32) := by
     by_contra h_not
-    rw [divmod_chunk3b_none_alo a.lo a.hi b.lo b.hi rest q.hi q.lo r.hi r.lo adv_rest mem locs
-        r.lo_u32 r.hi_u32 cross0_lo_val madd2_lo_val h_cond5 h_cond6 h_not] at hexec
+    rw [divmod_chunk3b_none_alo a.lo.val a.hi.val b.lo.val b.hi.val rest q.hi.val q.lo.val r.hi.val r.lo.val adv_rest mem locs
+        r.lo.isU32 r.hi.isU32 cross0_lo_val madd2_lo_val h_cond5 h_cond6 h_not] at hexec
     simp at hexec
   have hprod_bl_ql := Nat.mul_le_mul (show bl ≤ 2^32 - 1 from by omega)
     (show ql ≤ 2^32 - 1 from by omega)
@@ -1347,10 +1347,10 @@ theorem divmod_conditions_of_exec (a b q r : U64) (rest : List Felt) (adv_rest :
   have hprod_bh_qh := Nat.mul_le_mul (show bh ≤ 2^32 - 1 from by omega)
     (show qh ≤ 2^32 - 1 from by omega)
   have hbq_nat : bh * qh = 0 := by
-    have hfelt : b.hi * q.hi = (0 : Felt) := LawfulBEq.eq_of_beq h_cond3
+    have hfelt : b.hi.val * q.hi.val = (0 : Felt) := LawfulBEq.eq_of_beq h_cond3
     have hprod_lt : bh * qh < GOLDILOCKS_PRIME := by unfold GOLDILOCKS_PRIME; omega
-    have h1 := felt_mul_val_no_wrap b.hi q.hi hprod_lt
-    have h2 : (b.hi * q.hi).val = 0 := by rw [hfelt]; exact Felt.val_zero'
+    have h1 := felt_mul_val_no_wrap b.hi.val q.hi.val hprod_lt
+    have h2 : (b.hi.val * q.hi.val).val = 0 := by rw [hfelt]; exact Felt.val_zero'
     linarith
   have lift_zero : ∀ (n : Nat), n < GOLDILOCKS_PRIME →
       (Felt.ofNat n == (0 : Felt)) = true → n = 0 := by
@@ -1366,12 +1366,12 @@ theorem divmod_conditions_of_exec (a b q r : U64) (rest : List Felt) (adv_rest :
   have h_add2_nat : (rh + (bl * qh + (bh * ql + (bl * ql) / 2^32) % 2^32) % 2^32 +
       (rl + (bl * ql) % 2^32) / 2^32) / 2^32 = 0 :=
     lift_zero _ (by unfold GOLDILOCKS_PRIME; omega) h_cond5
-  have h_ah_nat : a.hi.val = (rh + (bl * qh + (bh * ql + (bl * ql) / 2^32) % 2^32) % 2^32 +
+  have h_ah_nat : a.hi.val.val = (rh + (bl * qh + (bh * ql + (bl * ql) / 2^32) % 2^32) % 2^32 +
       (rl + (bl * ql) % 2^32) / 2^32) % 2^32 := by
     have h := congrArg ZMod.val h_cond6
     rw [felt_ofNat_val_lt _ (u32_mod_lt_prime _)] at h
     exact h
-  have h_al_nat : a.lo.val = (rl + (bl * ql) % 2^32) % 2^32 := by
+  have h_al_nat : a.lo.val.val = (rl + (bl * ql) % 2^32) % 2^32 := by
     have h := congrArg ZMod.val h_cond7
     rw [felt_ofNat_val_lt _ (u32_mod_lt_prime _)] at h
     exact h
@@ -1382,7 +1382,7 @@ theorem divmod_conditions_of_exec (a b q r : U64) (rest : List Felt) (adv_rest :
     exact of_decide_eq_true h_cond4
   constructor
   · unfold U64.toNat
-    exact divmod_forward_arith ql qh bl bh rl rh a.lo.val a.hi.val
+    exact divmod_forward_arith ql qh bl bh rl rh a.lo.val.val a.hi.val.val
       hql_b hqh_b hbl_b hbh_b hrl_b hrh_b hbq_nat h_madd1_nat h_madd2_nat
       h_add2_nat h_ah_nat h_al_nat
   · exact h_lt

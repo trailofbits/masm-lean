@@ -56,18 +56,18 @@ theorem u64_ctz_raw (lo hi : Felt) (rest : List Felt) (s : MidenState)
     Input stack:  [a.lo, a.hi] ++ rest
     Output stack: [Felt.ofNat a.countTrailingZeros] ++ rest -/
 theorem u64_ctz_correct (a : U64) (rest : List Felt) (s : MidenState)
-    (hs : s.stack = a.lo :: a.hi :: rest) :
+    (hs : s.stack = a.lo.val :: a.hi.val :: rest) :
     exec 20 s Miden.Core.U64.ctz =
     some (s.withStack (Felt.ofNat a.countTrailingZeros :: rest)) := by
-  have h := u64_ctz_raw a.lo a.hi rest s hs a.lo_u32 a.hi_u32
+  have h := u64_ctz_raw a.lo.val a.hi.val rest s hs a.lo.isU32 a.hi.isU32
   unfold U64.countTrailingZeros
-  by_cases hlo : a.lo.val = 0
+  by_cases hlo : a.lo.val.val = 0
   · rw [if_pos hlo, felt_ofNat_add]
-    have : a.lo = (0 : Felt) := Fin.ext hlo
+    have : a.lo.val = (0 : Felt) := Fin.ext hlo
     simp only [this, beq_self_eq_true, ite_true] at h; exact h
   · rw [if_neg hlo]
-    have : a.lo ≠ (0 : Felt) := fun heq => hlo (by rw [heq]; rfl)
-    simp only [show (a.lo == (0 : Felt)) = false from decide_eq_false this, ite_false] at h
+    have : a.lo.val ≠ (0 : Felt) := fun heq => hlo (by rw [heq]; rfl)
+    simp only [show (a.lo.val == (0 : Felt)) = false from decide_eq_false this, ite_false] at h
     exact h
 
 end MidenLean.Proofs

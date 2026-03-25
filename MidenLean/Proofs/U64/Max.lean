@@ -75,21 +75,21 @@ theorem u64_max_raw
 
 /-- `u64::max` intermediate: uses `decide (b < a)` on individual limbs. -/
 theorem u64_max_ite (a b : U64) (rest : List Felt) (s : MidenState)
-    (hs : s.stack = b.lo :: b.hi :: a.lo :: a.hi :: rest) :
+    (hs : s.stack = b.lo.val :: b.hi.val :: a.lo.val :: a.hi.val :: rest) :
     execWithEnv u64ProcEnv 20 s Miden.Core.U64.max =
     some (s.withStack (
-      (if decide (b < a) then a.lo else b.lo) ::
-      (if decide (b < a) then a.hi else b.hi) :: rest)) := by
-  rw [u64_max_raw a.lo a.hi b.lo b.hi rest s hs a.lo_u32 a.hi_u32 b.lo_u32 b.hi_u32]
+      (if decide (b < a) then a.lo.val else b.lo.val) ::
+      (if decide (b < a) then a.hi.val else b.hi.val) :: rest)) := by
+  rw [u64_max_raw a.lo.val a.hi.val b.lo.val b.hi.val rest s hs a.lo.isU32 a.hi.isU32 b.lo.isU32 b.hi.isU32]
   simp only [u64_borrow_iff_lt b a]; rfl
 
 /-- `u64::max` correctly computes the maximum of two u64 values.
     Input stack:  [b.lo, b.hi, a.lo, a.hi] ++ rest
     Output stack: [(max a b).lo, (max a b).hi] ++ rest -/
 theorem u64_max_correct (a b : U64) (rest : List Felt) (s : MidenState)
-    (hs : s.stack = b.lo :: b.hi :: a.lo :: a.hi :: rest) :
+    (hs : s.stack = b.lo.val :: b.hi.val :: a.lo.val :: a.hi.val :: rest) :
     execWithEnv u64ProcEnv 20 s Miden.Core.U64.max =
-    some (s.withStack ((max a b).lo :: (max a b).hi :: rest)) := by
+    some (s.withStack ((max a b).lo.val :: (max a b).hi.val :: rest)) := by
   have h := u64_max_ite a b rest s hs
   simp only [U64.max_def, U64.le_iff_toNat_le, U64.lt_iff_toNat_lt]
   by_cases hab : b.toNat < a.toNat

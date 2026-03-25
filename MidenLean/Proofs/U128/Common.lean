@@ -1,4 +1,4 @@
-import MidenLean.Proofs.Helpers
+import MidenLean.Proofs.U32.Common
 import MidenLean.Generated.U128
 
 namespace MidenLean.Proofs
@@ -21,14 +21,6 @@ theorem stepU32ShrLocal (mem locs : Nat → Felt) (adv : List Felt)
       some ⟨Felt.ofNat (a.val / 2 ^ b.val) :: rest, mem, locs, adv⟩ := by
   unfold execInstruction execU32Shr
   simp [ha, hb, show ¬b.val > 31 by omega, MidenState.withStack]
-
-theorem u32Shr_result_isU32 (a shift : Felt)
-    (ha : a.isU32 = true) :
-    (Felt.ofNat (a.val / 2 ^ shift.val)).isU32 = true := by
-  apply felt_ofNat_isU32_of_lt
-  have ha_lt : a.val < 2 ^ 32 := by
-    simpa [Felt.isU32, decide_eq_true_eq] using ha
-  exact lt_of_le_of_lt (Nat.div_le_self _ _) ha_lt
 
 /-- Procedure environment for manual u128 proofs that call other u128 procedures. -/
 def u128ProcEnv : ProcEnv := fun name =>
@@ -83,48 +75,39 @@ def u128GtBool (a0 a1 a2 a3 b0 b1 b2 b3 : Felt) : Bool :=
   u128LtBool b0 b1 b2 b3 a0 a1 a2 a3
 
 -- ============================================================================
--- U128 type: a 128-bit unsigned integer as four u32 Felt limbs
+-- U128 type: a 128-bit unsigned integer as four U32 limbs
 -- ============================================================================
 
-/-- A 128-bit unsigned integer represented as four u32 Felt limbs (little-endian).
+/-- A 128-bit unsigned integer represented as four U32 limbs (little-endian).
     `a0` is the least significant limb, `a3` is the most significant. -/
 structure U128 where
-  a0 : Felt
-  a1 : Felt
-  a2 : Felt
-  a3 : Felt
-  a0_u32 : a0.isU32 = true
-  a1_u32 : a1.isU32 = true
-  a2_u32 : a2.isU32 = true
-  a3_u32 : a3.isU32 = true
+  a0 : U32
+  a1 : U32
+  a2 : U32
+  a3 : U32
 
 namespace U128
 
 /-- Reconstruct the natural number value:
     `a3 * 2^96 + a2 * 2^64 + a1 * 2^32 + a0`. -/
 def toNat (x : U128) : Nat :=
-  x.a3.val * 2^96 + x.a2.val * 2^64 + x.a1.val * 2^32 + x.a0.val
+  x.a3.val.val * 2^96 + x.a2.val.val * 2^64 + x.a1.val.val * 2^32 + x.a0.val.val
 
 theorem toNat_lt (x : U128) : x.toNat < 2^128 := by
   unfold toNat
-  have h0 := x.a0_u32; have h1 := x.a1_u32
-  have h2 := x.a2_u32; have h3 := x.a3_u32
-  simp only [Felt.isU32, decide_eq_true_eq] at *
+  have h0 := x.a0.val_lt; have h1 := x.a1.val_lt
+  have h2 := x.a2.val_lt; have h3 := x.a3.val_lt
   omega
 
 theorem toNat_def (x : U128) :
-    x.toNat = x.a3.val * 2^96 + x.a2.val * 2^64 + x.a1.val * 2^32 + x.a0.val := rfl
+    x.toNat = x.a3.val.val * 2^96 + x.a2.val.val * 2^64 + x.a1.val.val * 2^32 + x.a0.val.val := rfl
 
 /-- Construct a U128 from a natural number (taken mod 2^128). -/
 def ofNat (n : Nat) : U128 where
-  a0 := Felt.ofNat (n % 2^32)
-  a1 := Felt.ofNat ((n / 2^32) % 2^32)
-  a2 := Felt.ofNat ((n / 2^64) % 2^32)
-  a3 := Felt.ofNat ((n / 2^96) % 2^32)
-  a0_u32 := u32_mod_isU32 n
-  a1_u32 := u32_mod_isU32 (n / 2^32)
-  a2_u32 := u32_mod_isU32 (n / 2^64)
-  a3_u32 := u32_mod_isU32 (n / 2^96)
+  a0 := ⟨Felt.ofNat (n % 2^32), u32_mod_isU32 n⟩
+  a1 := ⟨Felt.ofNat ((n / 2^32) % 2^32), u32_mod_isU32 (n / 2^32)⟩
+  a2 := ⟨Felt.ofNat ((n / 2^64) % 2^32), u32_mod_isU32 (n / 2^64)⟩
+  a3 := ⟨Felt.ofNat ((n / 2^96) % 2^32), u32_mod_isU32 (n / 2^96)⟩
 
 @[simp] theorem ofNat_toNat (n : Nat) : (U128.ofNat n).toNat = n % 2^128 := by
   unfold ofNat toNat
@@ -139,16 +122,16 @@ def ofNat (n : Nat) : U128 where
   rw [h0, h1, h2, h3]; omega
 
 @[simp] theorem ofNat_a0 (n : Nat) :
-    (U128.ofNat n).a0 = Felt.ofNat (n % 2^32) := rfl
+    (U128.ofNat n).a0.val = Felt.ofNat (n % 2^32) := rfl
 
 @[simp] theorem ofNat_a1 (n : Nat) :
-    (U128.ofNat n).a1 = Felt.ofNat ((n / 2^32) % 2^32) := rfl
+    (U128.ofNat n).a1.val = Felt.ofNat ((n / 2^32) % 2^32) := rfl
 
 @[simp] theorem ofNat_a2 (n : Nat) :
-    (U128.ofNat n).a2 = Felt.ofNat ((n / 2^64) % 2^32) := rfl
+    (U128.ofNat n).a2.val = Felt.ofNat ((n / 2^64) % 2^32) := rfl
 
 @[simp] theorem ofNat_a3 (n : Nat) :
-    (U128.ofNat n).a3 = Felt.ofNat ((n / 2^96) % 2^32) := rfl
+    (U128.ofNat n).a3.val = Felt.ofNat ((n / 2^96) % 2^32) := rfl
 
 end U128
 
@@ -230,24 +213,25 @@ private theorem u128_borrow2_eq (a0 a1 a2 b0 b1 b2 : Felt)
 
 /-- The 4-limb borrow-based comparison is equivalent to `a.toNat < b.toNat`. -/
 theorem u128LtBool_iff_lt (a b : U128) :
-    u128LtBool a.a0 a.a1 a.a2 a.a3 b.a0 b.a1 b.a2 b.a3 =
+    u128LtBool a.a0.val a.a1.val a.a2.val a.a3.val b.a0.val b.a1.val b.a2.val b.a3.val =
     decide (a.toNat < b.toNat) := by
   unfold u128LtBool u128Sub3 u32OverflowingSub u32Max
-  rw [u128_borrow2_eq a.a0 a.a1 a.a2 b.a0 b.a1 b.a2
-    a.a0_u32 a.a1_u32 a.a2_u32 b.a0_u32 b.a1_u32 b.a2_u32]
+  rw [u128_borrow2_eq a.a0.val a.a1.val a.a2.val b.a0.val b.a1.val b.a2.val
+    a.a0.isU32 a.a1.isU32 a.a2.isU32 b.a0.isU32 b.a1.isU32 b.a2.isU32]
   rw [felt_ite_val]
   simp only [U128.toNat]
-  have ha0' := a.a0_u32; have ha1' := a.a1_u32; have ha2' := a.a2_u32; have ha3' := a.a3_u32
-  have hb0' := b.a0_u32; have hb1' := b.a1_u32; have hb2' := b.a2_u32; have hb3' := b.a3_u32
-  simp only [Felt.isU32, decide_eq_true_eq] at ha0' ha1' ha2' ha3' hb0' hb1' hb2' hb3'
+  have ha0' := a.a0.val_lt; have ha1' := a.a1.val_lt
+  have ha2' := a.a2.val_lt; have ha3' := a.a3.val_lt
+  have hb0' := b.a0.val_lt; have hb1' := b.a1.val_lt
+  have hb2' := b.a2.val_lt; have hb3' := b.a3.val_lt
   -- Case-split on a3 vs b3 and the 3-limb borrow condition
-  by_cases h3 : a.a3.val < b.a3.val
+  by_cases h3 : a.a3.val.val < b.a3.val.val
   · simp [decide_eq_true h3]; omega
-  · by_cases h3e : a.a3.val = b.a3.val
+  · by_cases h3e : a.a3.val.val = b.a3.val.val
     · simp only [h3e]
       split_ifs <;> simp_all <;> omega
-    · have h3gt : a.a3.val > b.a3.val := by omega
-      simp [show ¬(a.a3.val < b.a3.val) from h3]
+    · have h3gt : a.a3.val.val > b.a3.val.val := by omega
+      simp [show ¬(a.a3.val.val < b.a3.val.val) from h3]
       split_ifs <;> simp_all <;> omega
 
 end MidenLean.Proofs

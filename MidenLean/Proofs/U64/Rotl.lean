@@ -10,11 +10,6 @@ open MidenLean.Tactics
 private theorem felt31_val : (31 : Felt).val = 31 :=
   felt_ofNat_val_lt 31 (by unfold GOLDILOCKS_PRIME; omega)
 
-private theorem felt31_isU32 : (31 : Felt).isU32 = true := by
-  simp only [Felt.isU32, decide_eq_true_eq]
-  rw [felt31_val]
-  omega
-
 private def rotl_chunk1 : List Op := [
   .inst (.movup 2),
   .inst (.swap 1),
@@ -71,7 +66,7 @@ private theorem rotl_chunk1_correct
   rw [stepPush]
   miden_bind
   miden_dup
-  rw [stepU32OverflowSub (ha := felt31_isU32) (hb := hshift_u32)]
+  rw [stepU32OverflowSub (ha := U32.felt31_isU32) (hb := hshift_u32)]
   miden_bind
   rw [felt31_val]
   simp only [pure, Pure.pure]
@@ -101,7 +96,7 @@ private theorem rotl_chunk2_correct
   miden_movdn
   rw [stepPush]
   miden_bind
-  rw [stepU32And (ha := hshift_u32) (hb := felt31_isU32)]
+  rw [stepU32And (ha := hshift_u32) (hb := U32.felt31_isU32)]
   miden_bind
   rw [felt31_val]
   rw [stepPow2 (ha := by rw [h_eff_val]; omega)]
@@ -319,18 +314,18 @@ set_option maxHeartbeats 16000000 in
     Input stack:  [shift, a.lo, a.hi] ++ rest
     Output stack: [(a.rotl shift).lo, (a.rotl shift).hi] ++ rest -/
 theorem u64_rotl_correct (a : U64) (shift : Felt) (rest : List Felt) (s : MidenState)
-    (hs : s.stack = shift :: a.lo :: a.hi :: rest)
+    (hs : s.stack = shift :: a.lo.val :: a.hi.val :: rest)
     (hshift : shift.val ≤ 63) :
     exec 30 s Miden.Core.U64.rotl =
-    some (s.withStack ((a.rotl shift.val).lo :: (a.rotl shift.val).hi :: rest)) := by
+    some (s.withStack ((a.rotl shift.val).lo.val :: (a.rotl shift.val).hi.val :: rest)) := by
   have hshift_u32 : shift.isU32 = true := by
     simp only [Felt.isU32, decide_eq_true_eq]; omega
-  rw [u64_rotl_raw a.lo a.hi shift rest s hs hshift_u32 a.lo_u32 a.hi_u32]
+  rw [u64_rotl_raw a.lo.val a.hi.val shift rest s hs hshift_u32 a.lo.isU32 a.hi.isU32]
   -- Recover u32 bounds
-  have hlo_lt : a.lo.val < 2 ^ 32 := by
-    have h := a.lo_u32; simp [Felt.isU32, decide_eq_true_eq] at h; exact h
-  have hhi_lt : a.hi.val < 2 ^ 32 := by
-    have h := a.hi_u32; simp [Felt.isU32, decide_eq_true_eq] at h; exact h
+  have hlo_lt : a.lo.val.val < 2 ^ 32 := by
+    have h := a.lo.isU32; simp [Felt.isU32, decide_eq_true_eq] at h; exact h
+  have hhi_lt : a.hi.val.val < 2 ^ 32 := by
+    have h := a.hi.isU32; simp [Felt.isU32, decide_eq_true_eq] at h; exact h
   -- Case split on shift > 31
   cases h31 : decide (31 < shift.val) <;> simp only [Bool.false_eq_true, ↓reduceIte]
   · -- Case 1: shift ≤ 31 (no swap)
@@ -342,7 +337,7 @@ theorem u64_rotl_correct (a : U64) (shift : Felt) (rest : List Felt) (s : MidenS
     simp only [U64.rotl, U64.ofNat_lo, U64.ofNat_hi,
       show shift.val % 64 = shift.val from Nat.mod_eq_of_lt (by omega)]
     simp only [U64.toNat]
-    have ⟨h1, h2⟩ := rotl_nat_case1 a.hi.val a.lo.val shift.val hhi_lt hlo_lt (by omega)
+    have ⟨h1, h2⟩ := rotl_nat_case1 a.hi.val.val a.lo.val.val shift.val hhi_lt hlo_lt (by omega)
     rw [show 2 ^ (64 - shift.val) = 2 ^ 32 * 2 ^ (32 - shift.val) from by
       rw [← Nat.pow_add]; congr 1; omega]
     congr 1; congr 1; congr 1
@@ -364,17 +359,17 @@ theorem u64_rotl_correct (a : U64) (shift : Felt) (rest : List Felt) (s : MidenS
       rw [show 2 ^ shift.val = 2 ^ (shift.val - 32) * 2 ^ 32 from by
             rw [← Nat.pow_add]; congr 1; omega,
           show 64 - shift.val = 32 - (shift.val - 32) from by omega,
-          show (a.hi.val * 2 ^ 32 + a.lo.val) / 2 ^ (32 - (shift.val - 32)) =
-            a.hi.val * 2 ^ (shift.val - 32) + a.lo.val / 2 ^ (32 - (shift.val - 32)) from by
-            rw [show a.hi.val * 2 ^ 32 = a.hi.val * 2 ^ (shift.val - 32) * 2 ^ (32 - (shift.val - 32)) from by
+          show (a.hi.val.val * 2 ^ 32 + a.lo.val.val) / 2 ^ (32 - (shift.val - 32)) =
+            a.hi.val.val * 2 ^ (shift.val - 32) + a.lo.val.val / 2 ^ (32 - (shift.val - 32)) from by
+            rw [show a.hi.val.val * 2 ^ 32 = a.hi.val.val * 2 ^ (shift.val - 32) * 2 ^ (32 - (shift.val - 32)) from by
               rw [Nat.mul_assoc, show 2 ^ (shift.val - 32) * 2 ^ (32 - (shift.val - 32)) = 2 ^ 32 from by
                 rw [← Nat.pow_add]; congr 1; omega],
-              show a.hi.val * 2 ^ (shift.val - 32) * 2 ^ (32 - (shift.val - 32)) + a.lo.val =
-                a.lo.val + a.hi.val * 2 ^ (shift.val - 32) * 2 ^ (32 - (shift.val - 32)) from by omega]
+              show a.hi.val.val * 2 ^ (shift.val - 32) * 2 ^ (32 - (shift.val - 32)) + a.lo.val.val =
+                a.lo.val.val + a.hi.val.val * 2 ^ (shift.val - 32) * 2 ^ (32 - (shift.val - 32)) from by omega]
             rw [Nat.add_mul_div_right _ _ (show 0 < 2 ^ (32 - (shift.val - 32)) from by positivity)]
             omega]
     have heff_le : shift.val - 32 ≤ 31 := by omega
-    have ⟨h1, h2⟩ := rotl_nat_case2 a.hi.val a.lo.val (shift.val - 32) hhi_lt hlo_lt heff_le
+    have ⟨h1, h2⟩ := rotl_nat_case2 a.hi.val.val a.lo.val.val (shift.val - 32) hhi_lt hlo_lt heff_le
     congr 1; congr 1; congr 1
     · exact congrArg Felt.ofNat h1
     · congr 1; rw [← felt_ofNat_add]; exact congrArg Felt.ofNat h2

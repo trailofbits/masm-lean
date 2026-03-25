@@ -13,9 +13,6 @@ open MidenLean.Tactics
 -- Helper lemmas
 -- ============================================================================
 
-private theorem felt128_isU32' : (128 : Felt).isU32 = true := by
-  apply felt_ofNat_isU32_of_lt; norm_num
-
 private theorem felt128_val' : (128 : Felt).val = 128 :=
   felt_ofNat_val_lt 128 (by unfold GOLDILOCKS_PRIME; omega)
 
@@ -179,7 +176,7 @@ private theorem rotl_mid_setup_correct (env : ProcEnv) (fuel : Nat)
   rw [stepPush]
   miden_bind
   miden_swap
-  rw [stepU32WrappingSubLocal (ha := felt128_isU32') (hb := hshift_u32)]
+  rw [stepU32WrappingSubLocal (ha := U32.felt128_isU32) (hb := hshift_u32)]
   miden_bind
   simp only [felt128_val']
 

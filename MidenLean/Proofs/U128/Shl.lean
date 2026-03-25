@@ -12,26 +12,11 @@ open MidenLean.Tactics
 -- Helper lemmas
 -- ============================================================================
 
-private theorem felt128_isU32 : (128 : Felt).isU32 = true := by
-  apply felt_ofNat_isU32_of_lt; norm_num
-
-private theorem felt64_isU32 : (64 : Felt).isU32 = true := by
-  apply felt_ofNat_isU32_of_lt; norm_num
-
 private theorem felt128_val : (128 : Felt).val = 128 :=
   felt_ofNat_val_lt 128 (by unfold GOLDILOCKS_PRIME; omega)
 
 private theorem felt64_val : (64 : Felt).val = 64 :=
   felt_ofNat_val_lt 64 (by unfold GOLDILOCKS_PRIME; omega)
-
-private theorem lo32_isU32 (a : Felt) : a.lo32.isU32 = true := by
-  unfold Felt.lo32; exact u32_mod_isU32 a.val
-
-private theorem hi32_isU32_of_val_lt_2_64 (a : Felt) (h : a.val < 2 ^ 64) :
-    a.hi32.isU32 = true := by
-  unfold Felt.hi32
-  apply felt_ofNat_isU32_of_lt
-  exact Nat.div_lt_of_lt_mul (by omega)
 
 private theorem pow2_lt_prime (n : Nat) (h : n < 64) :
     2 ^ n < GOLDILOCKS_PRIME := by
@@ -131,14 +116,14 @@ private theorem shl_prefix_correct (env : ProcEnv) (fuel : Nat)
   dsimp only [bind, Bind.bind, Option.bind]
   miden_dup
   miden_step -- push 128
-  rw [stepU32Lt (ha := hshift_u32) (hb := felt128_isU32)]
+  rw [stepU32Lt (ha := hshift_u32) (hb := U32.felt128_isU32)]
   miden_bind
   simp only [felt128_val]
   rw [stepAssertWithError (h := by simp [hshift_lt128, Felt.val_one'])]
   miden_bind
   miden_dup
   miden_step -- push 64
-  rw [stepU32Lt (ha := hshift_u32) (hb := felt64_isU32)]
+  rw [stepU32Lt (ha := hshift_u32) (hb := U32.felt64_isU32)]
   miden_bind
   simp only [felt64_val]
   simp [pure, Pure.pure]
@@ -193,7 +178,7 @@ private theorem shl_false_setup_correct (env : ProcEnv) (fuel : Nat)
   simp only [List.foldlM]
   dsimp only [bind, Bind.bind, Option.bind]
   miden_step  -- push 64
-  rw [stepU32WrappingSubLocal (ha := hshift_u32) (hb := felt64_isU32)]
+  rw [stepU32WrappingSubLocal (ha := hshift_u32) (hb := U32.felt64_isU32)]
   miden_bind
   simp only [felt64_val]
   rw [stepPow2 (ha := sub64_le63 shift hshift_u32 hshift_ge64 hshift_lt128)]
@@ -236,8 +221,8 @@ private theorem shl_true_branch_correct (fuel : Nat)
     (Felt.ofNat (2 ^ shift.val)).hi32
     0 0
     rest mem locs adv ha0 ha1 ha2 ha3
-    (lo32_isU32 _)
-    (hi32_isU32_of_val_lt_2_64 _ (pow2_val_lt_2_64 shift.val hshift_lt64))
+    (U32.lo32_isU32 _)
+    (U32.hi32_isU32_of_val_lt_2_64 _ (pow2_val_lt_2_64 shift.val hshift_lt64))
     (by apply felt_ofNat_isU32_of_lt; norm_num)
     (by apply felt_ofNat_isU32_of_lt; norm_num)]
 
@@ -279,8 +264,8 @@ private theorem shl_false_branch_correct (fuel : Nat)
     rest mem locs adv ha0 ha1 ha2 ha3
     (by apply felt_ofNat_isU32_of_lt; norm_num)
     (by apply felt_ofNat_isU32_of_lt; norm_num)
-    (lo32_isU32 _)
-    (hi32_isU32_of_val_lt_2_64 _
+    (U32.lo32_isU32 _)
+    (U32.hi32_isU32_of_val_lt_2_64 _
       (pow2_val_lt_2_64 _ (sub64_lt64 shift hshift_u32 hshift_ge64 hshift_lt128)))]
 
 -- ============================================================================

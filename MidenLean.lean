@@ -10,6 +10,7 @@ import MidenLean.Proofs.SimpAttrs
 import MidenLean.Proofs.Helpers
 import MidenLean.Proofs.StepLemmas
 import MidenLean.Proofs.Tactics
+import MidenLean.Proofs.U32.Common
 import MidenLean.Proofs.U64.Common
 import MidenLean.Proofs.U64.Eq
 import MidenLean.Proofs.U64.Sub

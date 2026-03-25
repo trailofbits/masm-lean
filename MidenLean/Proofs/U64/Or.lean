@@ -44,10 +44,10 @@ theorem u64_or_raw
     Input stack:  [b.lo, b.hi, a.lo, a.hi] ++ rest
     Output stack: [(a ||| b).lo, (a ||| b).hi] ++ rest -/
 theorem u64_or_correct (a b : U64) (rest : List Felt) (s : MidenState)
-    (hs : s.stack = b.lo :: b.hi :: a.lo :: a.hi :: rest) :
+    (hs : s.stack = b.lo.val :: b.hi.val :: a.lo.val :: a.hi.val :: rest) :
     exec 10 s Miden.Core.U64.or =
-    some (s.withStack ((a ||| b).lo :: (a ||| b).hi :: rest)) := by
-  simp only [U64.or_lo, U64.or_hi, Nat.or_comm a.lo.val, Nat.or_comm a.hi.val]
-  exact u64_or_raw a.lo a.hi b.lo b.hi rest s hs a.lo_u32 a.hi_u32 b.lo_u32 b.hi_u32
+    some (s.withStack ((a ||| b).lo.val :: (a ||| b).hi.val :: rest)) := by
+  simp only [U64.or_lo, U64.or_hi, Nat.or_comm a.lo.val.val, Nat.or_comm a.hi.val.val]
+  exact u64_or_raw a.lo.val a.hi.val b.lo.val b.hi.val rest s hs a.lo.isU32 a.hi.isU32 b.lo.isU32 b.hi.isU32
 
 end MidenLean.Proofs

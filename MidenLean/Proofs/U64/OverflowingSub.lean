@@ -84,12 +84,12 @@ theorem u64_overflowing_sub_raw
     Output stack: [borrow, (a - b).lo, (a - b).hi] ++ rest
     where borrow = 1 iff a < b. -/
 theorem u64_overflowing_sub_correct (a b : U64) (rest : List Felt) (s : MidenState)
-    (hs : s.stack = b.lo :: b.hi :: a.lo :: a.hi :: rest) :
+    (hs : s.stack = b.lo.val :: b.hi.val :: a.lo.val :: a.hi.val :: rest) :
     exec 20 s Miden.Core.U64.overflowing_sub =
     some (s.withStack (
       (if decide (a < b) then (1 : Felt) else 0) ::
-      (a - b).lo :: (a - b).hi :: rest)) := by
-  rw [u64_overflowing_sub_raw a.lo a.hi b.lo b.hi rest s hs a.lo_u32 a.hi_u32 b.lo_u32 b.hi_u32]
+      (a - b).lo.val :: (a - b).hi.val :: rest)) := by
+  rw [u64_overflowing_sub_raw a.lo.val a.hi.val b.lo.val b.hi.val rest s hs a.lo.isU32 a.hi.isU32 b.lo.isU32 b.hi.isU32]
   have ⟨hlo, hhi⟩ := u64_sub_limbs_felt a b
   dsimp only
   simp only [u64_sub_borrow_iff_lt a b, hlo, hhi, U64.lt_iff_toNat_lt]

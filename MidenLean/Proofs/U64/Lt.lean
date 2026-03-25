@@ -65,11 +65,11 @@ theorem u64_lt_raw
     Input stack:  [b_lo, b_hi, a_lo, a_hi] ++ rest
     Output stack: [(if a < b then 1 else 0)] ++ rest -/
 theorem u64_lt_correct (a b : U64) (rest : List Felt) (s : MidenState)
-    (hs : s.stack = b.lo :: b.hi :: a.lo :: a.hi :: rest) :
+    (hs : s.stack = b.lo.val :: b.hi.val :: a.lo.val :: a.hi.val :: rest) :
     exec 20 s Miden.Core.U64.lt =
     some (s.withStack (
       (if decide (a < b) then (1 : Felt) else 0) :: rest)) := by
-  rw [u64_lt_raw a.lo a.hi b.lo b.hi rest s hs a.lo_u32 a.hi_u32 b.lo_u32 b.hi_u32]
+  rw [u64_lt_raw a.lo.val a.hi.val b.lo.val b.hi.val rest s hs a.lo.isU32 a.hi.isU32 b.lo.isU32 b.hi.isU32]
   simp only [u64_borrow_iff_lt a b]; rfl
 
 end MidenLean.Proofs

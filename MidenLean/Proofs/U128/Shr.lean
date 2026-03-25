@@ -16,20 +16,11 @@ open MidenLean.Tactics
 -- Helper lemmas
 -- ============================================================================
 
-private theorem felt128_isU32 : (128 : Felt).isU32 = true := by
-  apply felt_ofNat_isU32_of_lt; norm_num
-
 private theorem felt128_val : (128 : Felt).val = 128 :=
   felt_ofNat_val_lt 128 (by unfold GOLDILOCKS_PRIME; omega)
 
-private theorem felt31_isU32 : (31 : Felt).isU32 = true := by
-  apply felt_ofNat_isU32_of_lt; norm_num
-
 private theorem felt31_val : (31 : Felt).val = 31 :=
   felt_ofNat_val_lt 31 (by unfold GOLDILOCKS_PRIME; omega)
-
-private theorem felt5_isU32 : (5 : Felt).isU32 = true := by
-  apply felt_ofNat_isU32_of_lt; norm_num
 
 private theorem felt5_val : (5 : Felt).val = 5 :=
   felt_ofNat_val_lt 5 (by unfold GOLDILOCKS_PRIME; omega)
@@ -358,7 +349,7 @@ private theorem shr_prefix_correct (env : ProcEnv) (fuel : Nat)
   dsimp only [bind, Bind.bind, Option.bind]
   miden_dup
   miden_step -- push 128
-  rw [stepU32Lt (ha := hshift_u32) (hb := felt128_isU32)]
+  rw [stepU32Lt (ha := hshift_u32) (hb := U32.felt128_isU32)]
   miden_bind
   simp only [felt128_val]
   rw [stepAssertWithError (h := by simp [hshift_lt128, Felt.val_one'])]
@@ -386,12 +377,12 @@ private theorem shr_nonzero_setup_correct (env : ProcEnv) (fuel : Nat)
   dsimp only [bind, Bind.bind, Option.bind]
   miden_dup
   miden_step -- push 31
-  rw [stepU32And (ha := hshift_u32) (hb := felt31_isU32)]
+  rw [stepU32And (ha := hshift_u32) (hb := U32.felt31_isU32)]
   miden_bind
   simp only [felt31_val]
   miden_swap
   miden_step -- push 5
-  rw [stepU32ShrLocal (ha := hshift_u32) (hb := felt5_isU32) (hshift := by rw [felt5_val]; omega)]
+  rw [stepU32ShrLocal (ha := hshift_u32) (hb := U32.felt5_isU32) (hshift := by rw [felt5_val]; omega)]
   miden_bind
   simp only [felt5_val]
   simp [pure, Pure.pure]

@@ -64,12 +64,12 @@ theorem u128_lt_raw
     Input stack:  [b0, b1, b2, b3, a0, a1, a2, a3] ++ rest
     Output stack: [(if a < b then 1 else 0)] ++ rest -/
 theorem u128_lt_correct (a b : U128) (rest : List Felt) (s : MidenState)
-    (hs : s.stack = b.a0 :: b.a1 :: b.a2 :: b.a3 :: a.a0 :: a.a1 :: a.a2 :: a.a3 :: rest) :
+    (hs : s.stack = b.a0.val :: b.a1.val :: b.a2.val :: b.a3.val :: a.a0.val :: a.a1.val :: a.a2.val :: a.a3.val :: rest) :
     execWithEnv u128ProcEnv 43 s Miden.Core.U128.lt =
     some (s.withStack (
       (if decide (a < b) then (1 : Felt) else 0) :: rest)) := by
-  rw [u128_lt_raw a.a0 a.a1 a.a2 a.a3 b.a0 b.a1 b.a2 b.a3 rest s hs
-    a.a0_u32 a.a1_u32 a.a2_u32 a.a3_u32 b.a0_u32 b.a1_u32 b.a2_u32 b.a3_u32]
+  rw [u128_lt_raw a.a0.val a.a1.val a.a2.val a.a3.val b.a0.val b.a1.val b.a2.val b.a3.val rest s hs
+    a.a0.isU32 a.a1.isU32 a.a2.isU32 a.a3.isU32 b.a0.isU32 b.a1.isU32 b.a2.isU32 b.a3.isU32]
   simp only [u128LtBool_iff_lt a b]; rfl
 
 end MidenLean.Proofs

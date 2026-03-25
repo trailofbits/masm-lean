@@ -13,12 +13,6 @@ private def shlProcEnv : ProcEnv := fun name =>
   | "wrapping_mul" => some Miden.Core.U64.wrapping_mul
   | _ => none
 
-/-- lo32 is u32. -/
-private theorem lo32_isU32 (a : Felt) : a.lo32.isU32 = true := by
-  simp only [Felt.lo32, Felt.isU32, decide_eq_true_eq]
-  rw [felt_ofNat_val_lt _ (u32_mod_lt_prime _)]
-  exact Nat.mod_lt _ (by decide)
-
 set_option maxHeartbeats 16000000 in
 /-- `u64::shl` raw: result in terms of schoolbook multiplication of limbs. -/
 theorem u64_shl_raw
@@ -49,7 +43,7 @@ theorem u64_shl_raw
   miden_swap
   -- wrapping_mul body on [lo, hi, pow_lo, pow_hi | rest]
   -- Establish isU32 for pow_lo
-  have h_pow_lo_u32 : (Felt.ofNat (2 ^ shift.val)).lo32.isU32 = true := lo32_isU32 _
+  have h_pow_lo_u32 : (Felt.ofNat (2 ^ shift.val)).lo32.isU32 = true := U32.lo32_isU32 _
   miden_dup; miden_dup
   -- u32WidenMul: pow_lo * lo
   rw [stepU32WidenMul (ha := h_pow_lo_u32) (hb := hlo)]; miden_bind
@@ -120,11 +114,11 @@ theorem u64_shl_raw
     Input stack:  [shift, a.lo, a.hi] ++ rest
     Output stack: [(a.shl shift).lo, (a.shl shift).hi] ++ rest -/
 theorem u64_shl_correct (a : U64) (shift : Felt) (rest : List Felt) (s : MidenState)
-    (hs : s.stack = shift :: a.lo :: a.hi :: rest)
+    (hs : s.stack = shift :: a.lo.val :: a.hi.val :: rest)
     (hshift : shift.val ≤ 63) :
     execWithEnv shlProcEnv 20 s Miden.Core.U64.shl =
-    some (s.withStack ((a.shl shift.val).lo :: (a.shl shift.val).hi :: rest)) := by
-  rw [u64_shl_raw a.lo a.hi shift rest s hs hshift a.lo_u32 a.hi_u32]
+    some (s.withStack ((a.shl shift.val).lo.val :: (a.shl shift.val).hi.val :: rest)) := by
+  rw [u64_shl_raw a.lo.val a.hi.val shift rest s hs hshift a.lo.isU32 a.hi.isU32]
   -- Recover lo32/hi32 val to natural numbers
   have hpow_val : (Felt.ofNat (2 ^ shift.val)).val = 2 ^ shift.val :=
     felt_ofNat_val_lt _ (by

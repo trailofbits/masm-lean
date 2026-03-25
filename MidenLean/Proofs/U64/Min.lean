@@ -74,21 +74,21 @@ theorem u64_min_raw
 
 /-- `u64::min` intermediate: uses `decide (a < b)` on individual limbs. -/
 theorem u64_min_ite (a b : U64) (rest : List Felt) (s : MidenState)
-    (hs : s.stack = b.lo :: b.hi :: a.lo :: a.hi :: rest) :
+    (hs : s.stack = b.lo.val :: b.hi.val :: a.lo.val :: a.hi.val :: rest) :
     execWithEnv u64ProcEnv 20 s Miden.Core.U64.min =
     some (s.withStack (
-      (if decide (a < b) then a.lo else b.lo) ::
-      (if decide (a < b) then a.hi else b.hi) :: rest)) := by
-  rw [u64_min_raw a.lo a.hi b.lo b.hi rest s hs a.lo_u32 a.hi_u32 b.lo_u32 b.hi_u32]
+      (if decide (a < b) then a.lo.val else b.lo.val) ::
+      (if decide (a < b) then a.hi.val else b.hi.val) :: rest)) := by
+  rw [u64_min_raw a.lo.val a.hi.val b.lo.val b.hi.val rest s hs a.lo.isU32 a.hi.isU32 b.lo.isU32 b.hi.isU32]
   simp only [u64_borrow_iff_lt a b]; rfl
 
 /-- `u64::min` correctly computes the minimum of two u64 values.
     Input stack:  [b.lo, b.hi, a.lo, a.hi] ++ rest
     Output stack: [(min a b).lo, (min a b).hi] ++ rest -/
 theorem u64_min_correct (a b : U64) (rest : List Felt) (s : MidenState)
-    (hs : s.stack = b.lo :: b.hi :: a.lo :: a.hi :: rest) :
+    (hs : s.stack = b.lo.val :: b.hi.val :: a.lo.val :: a.hi.val :: rest) :
     execWithEnv u64ProcEnv 20 s Miden.Core.U64.min =
-    some (s.withStack ((min a b).lo :: (min a b).hi :: rest)) := by
+    some (s.withStack ((min a b).lo.val :: (min a b).hi.val :: rest)) := by
   have h := u64_min_ite a b rest s hs
   simp only [U64.min_def, U64.le_iff_toNat_le, U64.lt_iff_toNat_lt]
   by_cases hab : a.toNat < b.toNat

@@ -71,25 +71,25 @@ theorem u64_overflowing_add_raw
     Output stack: [overflow, (a + b).lo, (a + b).hi] ++ rest
     where overflow = 1 iff the addition overflowed 64 bits. -/
 theorem u64_overflowing_add_correct (a b : U64) (rest : List Felt) (s : MidenState)
-    (hs : s.stack = b.lo :: b.hi :: a.lo :: a.hi :: rest) :
+    (hs : s.stack = b.lo.val :: b.hi.val :: a.lo.val :: a.hi.val :: rest) :
     exec 10 s Miden.Core.U64.overflowing_add =
     some (s.withStack (
       (if a.toNat + b.toNat ≥ 2^64 then (1 : Felt) else 0) ::
-      (a + b).lo :: (a + b).hi :: rest)) := by
-  rw [u64_overflowing_add_raw a.lo a.hi b.lo b.hi rest s hs a.lo_u32 a.hi_u32 b.lo_u32 b.hi_u32]
+      (a + b).lo.val :: (a + b).hi.val :: rest)) := by
+  rw [u64_overflowing_add_raw a.lo.val a.hi.val b.lo.val b.hi.val rest s hs a.lo.isU32 a.hi.isU32 b.lo.isU32 b.hi.isU32]
   show _ = some (s.withStack (
     (if a.toNat + b.toNat ≥ 2^64 then (1 : Felt) else 0) ::
     Felt.ofNat ((a.toNat + b.toNat) % 2^32) ::
     Felt.ofNat (((a.toNat + b.toNat) / 2^32) % 2^32) :: rest))
   simp only [U64.toNat]
-  have halo := a.lo_u32; have hahi := a.hi_u32
-  have hblo := b.lo_u32; have hbhi := b.hi_u32
+  have halo := a.lo.isU32; have hahi := a.hi.isU32
+  have hblo := b.lo.isU32; have hbhi := b.hi.isU32
   simp only [Felt.isU32, decide_eq_true_eq] at halo hahi hblo hbhi
   congr 1; congr 1; congr 1
   · split_ifs with hge
-    · have h : (a.hi.val + b.hi.val + (b.lo.val + a.lo.val) / 2 ^ 32) / 2 ^ 32 = 1 := by omega
+    · have h : (a.hi.val.val + b.hi.val.val + (b.lo.val.val + a.lo.val.val) / 2 ^ 32) / 2 ^ 32 = 1 := by omega
       rw [h]; rfl
-    · have h : (a.hi.val + b.hi.val + (b.lo.val + a.lo.val) / 2 ^ 32) / 2 ^ 32 = 0 := by omega
+    · have h : (a.hi.val.val + b.hi.val.val + (b.lo.val.val + a.lo.val.val) / 2 ^ 32) / 2 ^ 32 = 0 := by omega
       rw [h]; rfl
   · congr 1
     · congr 1; omega

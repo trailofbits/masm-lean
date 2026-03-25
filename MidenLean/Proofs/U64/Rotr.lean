@@ -10,18 +10,8 @@ open MidenLean.Tactics
 private theorem felt31_val : (31 : Felt).val = 31 :=
   felt_ofNat_val_lt 31 (by unfold GOLDILOCKS_PRIME; omega)
 
-private theorem felt31_isU32 : (31 : Felt).isU32 = true := by
-  simp only [Felt.isU32, decide_eq_true_eq]
-  rw [felt31_val]
-  omega
-
 private theorem felt32_val : (32 : Felt).val = 32 :=
   felt_ofNat_val_lt 32 (by unfold GOLDILOCKS_PRIME; omega)
-
-private theorem felt32_isU32 : (32 : Felt).isU32 = true := by
-  simp only [Felt.isU32, decide_eq_true_eq]
-  rw [felt32_val]
-  omega
 
 private theorem stepU32WrappingSubLocal (mem locs : Nat → Felt) (adv : List Felt)
     (a b : Felt) (rest : List Felt)
@@ -114,7 +104,7 @@ private theorem rotr_chunk1_correct
   rw [stepPush]
   miden_bind
   miden_dup
-  rw [stepU32Lt (ha := felt31_isU32) (hb := hshift_u32)]
+  rw [stepU32Lt (ha := U32.felt31_isU32) (hb := hshift_u32)]
   miden_bind
   rw [felt31_val]
   rw [ite_prop_to_decide (p := 31 < shift.val)]
@@ -144,13 +134,13 @@ private theorem rotr_chunk2_correct
   miden_movdn
   rw [stepPush]
   miden_bind
-  rw [stepU32And (ha := hshift_u32) (hb := felt31_isU32)]
+  rw [stepU32And (ha := hshift_u32) (hb := U32.felt31_isU32)]
   miden_bind
   rw [felt31_val]
   rw [stepPush]
   miden_bind
   miden_swap
-  rw [stepU32WrappingSubLocal (ha := felt32_isU32) (hb := h_shiftAnd31_u32)]
+  rw [stepU32WrappingSubLocal (ha := U32.felt32_isU32) (hb := h_shiftAnd31_u32)]
   miden_bind
   rw [felt32_val]
   rw [stepPow2 (ha := h_effShift_le_63)]
@@ -413,19 +403,19 @@ set_option maxHeartbeats 16000000 in
     Note: the MASM implementation has a Goldilocks field overflow when
     `shift % 32 = 0` (i.e. shift = 0 or 32), so we require `shift % 32 ≠ 0`. -/
 theorem u64_rotr_correct (a : U64) (shift : Felt) (rest : List Felt) (s : MidenState)
-    (hs : s.stack = shift :: a.lo :: a.hi :: rest)
+    (hs : s.stack = shift :: a.lo.val :: a.hi.val :: rest)
     (hshift : shift.val ≤ 63)
     (hshift_mod : shift.val % 32 ≠ 0) : -- Because of an implementation error in the MASM code
     exec 35 s Miden.Core.U64.rotr =
-    some (s.withStack ((a.rotr shift.val).lo :: (a.rotr shift.val).hi :: rest)) := by
+    some (s.withStack ((a.rotr shift.val).lo.val :: (a.rotr shift.val).hi.val :: rest)) := by
   have hshift_u32 : shift.isU32 = true := by
     simp only [Felt.isU32, decide_eq_true_eq]; omega
-  rw [u64_rotr_raw a.lo a.hi shift rest s hs hshift_u32]
+  rw [u64_rotr_raw a.lo.val a.hi.val shift rest s hs hshift_u32]
   -- Recover u32 bounds
-  have hlo_lt : a.lo.val < 2 ^ 32 := by
-    have h := a.lo_u32; simp [Felt.isU32, decide_eq_true_eq] at h; exact h
-  have hhi_lt : a.hi.val < 2 ^ 32 := by
-    have h := a.hi_u32; simp [Felt.isU32, decide_eq_true_eq] at h; exact h
+  have hlo_lt : a.lo.val.val < 2 ^ 32 := by
+    have h := a.lo.isU32; simp [Felt.isU32, decide_eq_true_eq] at h; exact h
+  have hhi_lt : a.hi.val.val < 2 ^ 32 := by
+    have h := a.hi.isU32; simp [Felt.isU32, decide_eq_true_eq] at h; exact h
   -- Simplify shiftAnd31 and effShift
   have h_and_le : shift.val &&& 31 ≤ 31 := Nat.and_le_right
   have h_and31_val : (Felt.ofNat (shift.val &&& 31)).val = shift.val &&& 31 :=
@@ -458,25 +448,25 @@ theorem u64_rotr_correct (a : U64) (shift : Felt) (rest : List Felt) (s : MidenS
         (Felt.ofNat (shift.val &&& 31)).val).2).val)).val ≤ 2 ^ 31 := by
       rw [h_pow_val, heff]; exact Nat.pow_le_pow_right (by omega) (by omega)
     -- Apply Felt bridge
-    have ⟨h_lo_eq, h_hi_eq⟩ := rotr_felt_bridge a.lo a.hi
+    have ⟨h_lo_eq, h_hi_eq⟩ := rotr_felt_bridge a.lo.val a.hi.val
       (Felt.ofNat (2 ^ (Felt.ofNat (u32OverflowingSub 32
         (Felt.ofNat (shift.val &&& 31)).val).2).val))
-      a.lo_u32 a.hi_u32 h_pow_le
+      a.lo.isU32 a.hi.isU32 h_pow_le
     rw [h_pow_val, heff] at h_lo_eq h_hi_eq
     -- Apply nat lemma
     set P := 2 ^ (32 - shift.val)
     set Q := 2 ^ shift.val
     have hPQ : P * Q = 2 ^ 32 := by rw [← Nat.pow_add]; congr 1; omega
-    have h_lp_div : P * a.lo.val / 2 ^ 32 = a.lo.val / Q := by
+    have h_lp_div : P * a.lo.val.val / 2 ^ 32 = a.lo.val.val / Q := by
       rw [show (2 : Nat) ^ 32 = P * Q from hPQ.symm]; exact Nat.mul_div_mul_left _ Q (by positivity)
-    have h_lp_mod : P * a.lo.val % 2 ^ 32 = P * (a.lo.val % Q) := by
-      rw [show (2 : Nat) ^ 32 = P * Q from hPQ.symm]; exact Nat.mul_mod_mul_left P a.lo.val Q
+    have h_lp_mod : P * a.lo.val.val % 2 ^ 32 = P * (a.lo.val.val % Q) := by
+      rw [show (2 : Nat) ^ 32 = P * Q from hPQ.symm]; exact Nat.mul_mod_mul_left P a.lo.val.val Q
     -- c = hi*P + lo/Q
-    have h_c_eq : a.hi.val * P + P * a.lo.val / 2 ^ 32 = a.hi.val * P + a.lo.val / Q := by
+    have h_c_eq : a.hi.val.val * P + P * a.lo.val.val / 2 ^ 32 = a.hi.val.val * P + a.lo.val.val / Q := by
       rw [h_lp_div]
     rw [h_c_eq] at h_lo_eq h_hi_eq
     rw [h_lp_mod] at h_hi_eq
-    have ⟨hnat1, hnat2⟩ := rotr_nat_case1 a.hi.val a.lo.val (32 - shift.val)
+    have ⟨hnat1, hnat2⟩ := rotr_nat_case1 a.hi.val.val a.lo.val.val (32 - shift.val)
       hhi_lt hlo_lt (by omega) (by omega)
     -- Simplify hnat1/hnat2: 32 - (32 - s) = s, fix associativity
     rw [show 32 - (32 - shift.val) = shift.val from by omega] at hnat1 hnat2
@@ -504,29 +494,29 @@ theorem u64_rotr_correct (a : U64) (shift : Felt) (rest : List Felt) (s : MidenS
         (Felt.ofNat (shift.val &&& 31)).val).2).val)).val ≤ 2 ^ 31 := by
       rw [h_pow_val, heff]; apply Nat.pow_le_pow_right (by omega); omega
     -- Apply Felt bridge
-    have ⟨h_lo_eq, h_hi_eq⟩ := rotr_felt_bridge a.lo a.hi
+    have ⟨h_lo_eq, h_hi_eq⟩ := rotr_felt_bridge a.lo.val a.hi.val
       (Felt.ofNat (2 ^ (Felt.ofNat (u32OverflowingSub 32
         (Felt.ofNat (shift.val &&& 31)).val).2).val))
-      a.lo_u32 a.hi_u32 h_pow_le
+      a.lo.isU32 a.hi.isU32 h_pow_le
     rw [h_pow_val, heff] at h_lo_eq h_hi_eq
     -- Apply nat lemma
     set eff := 64 - shift.val
     set P := 2 ^ eff
     set Q := 2 ^ (32 - eff)
     have hPQ : P * Q = 2 ^ 32 := by rw [← Nat.pow_add]; congr 1; omega
-    have h_lp_div : P * a.lo.val / 2 ^ 32 = a.lo.val / Q := by
+    have h_lp_div : P * a.lo.val.val / 2 ^ 32 = a.lo.val.val / Q := by
       rw [show (2 : Nat) ^ 32 = P * Q from hPQ.symm]; exact Nat.mul_div_mul_left _ Q (by positivity)
-    have h_lp_mod : P * a.lo.val % 2 ^ 32 = P * (a.lo.val % Q) := by
-      rw [show (2 : Nat) ^ 32 = P * Q from hPQ.symm]; exact Nat.mul_mod_mul_left P a.lo.val Q
+    have h_lp_mod : P * a.lo.val.val % 2 ^ 32 = P * (a.lo.val.val % Q) := by
+      rw [show (2 : Nat) ^ 32 = P * Q from hPQ.symm]; exact Nat.mul_mod_mul_left P a.lo.val.val Q
     -- Rewrite 32 - (shift.val - 32) = eff
     have h_eff_simp : 32 - (shift.val - 32) = eff := by omega
     rw [h_eff_simp] at h_lo_eq h_hi_eq
     -- c = hi*P + lo/Q
-    have h_c_eq : a.hi.val * P + P * a.lo.val / 2 ^ 32 = a.hi.val * P + a.lo.val / Q := by
+    have h_c_eq : a.hi.val.val * P + P * a.lo.val.val / 2 ^ 32 = a.hi.val.val * P + a.lo.val.val / Q := by
       rw [h_lp_div]
     rw [h_c_eq] at h_lo_eq h_hi_eq
     rw [h_lp_mod] at h_hi_eq
-    have ⟨hnat1, hnat2⟩ := rotr_nat_case2 a.hi.val a.lo.val eff
+    have ⟨hnat1, hnat2⟩ := rotr_nat_case2 a.hi.val.val a.lo.val.val eff
       hhi_lt hlo_lt (by omega) (by omega)
     -- Connect to U64.rotr definition
     simp only [U64.rotr, U64.ofNat_lo, U64.ofNat_hi,

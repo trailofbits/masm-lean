@@ -99,10 +99,10 @@ set_option maxHeartbeats 4000000 in
     Output stack: [q.lo, q.hi] ++ rest -/
 theorem u64_div_correct (a b q r : U64) (rest : List Felt) (adv_rest : List Felt)
     (s : MidenState)
-    (hs : s.stack = b.lo :: b.hi :: a.lo :: a.hi :: rest)
-    (hadv : s.advice = q.hi :: q.lo :: r.hi :: r.lo :: adv_rest) :
+    (hs : s.stack = b.lo.val :: b.hi.val :: a.lo.val :: a.hi.val :: rest)
+    (hadv : s.advice = q.hi.val :: q.lo.val :: r.hi.val :: r.lo.val :: adv_rest) :
     execWithEnv u64ProcEnv 51 s Miden.Core.U64.div =
-    some { stack := q.lo :: q.hi :: rest,
+    some { stack := q.lo.val :: q.hi.val :: rest,
            memory := s.memory,
            locals := s.locals,
            advice := adv_rest }
@@ -118,8 +118,8 @@ theorem u64_div_correct (a b q r : U64) (rest : List Felt) (adv_rest : List Felt
     -- Case split on divmod result
     revert hexec
     cases h_dm : execWithEnv u64ProcEnv 50
-      { stack := b.lo :: b.hi :: a.lo :: a.hi :: rest, memory := mem, locals := locs,
-        advice := q.hi :: q.lo :: r.hi :: r.lo :: adv_rest }
+      { stack := b.lo.val :: b.hi.val :: a.lo.val :: a.hi.val :: rest, memory := mem, locals := locs,
+        advice := q.hi.val :: q.lo.val :: r.hi.val :: r.lo.val :: adv_rest }
       Miden.Core.U64.divmod with
     | none => simp [bind, Bind.bind, Option.bind]
     | some val =>
@@ -128,8 +128,8 @@ theorem u64_div_correct (a b q r : U64) (rest : List Felt) (adv_rest : List Felt
   · -- Backward: conditions → div success
     intro ⟨hdiv, hlt⟩
     have h_divmod := (u64_divmod_correct a b q r rest adv_rest
-      ⟨b.lo :: b.hi :: a.lo :: a.hi :: rest, mem, locs,
-       q.hi :: q.lo :: r.hi :: r.lo :: adv_rest⟩ rfl rfl).mpr ⟨hdiv, hlt⟩
+      ⟨b.lo.val :: b.hi.val :: a.lo.val :: a.hi.val :: rest, mem, locs,
+       q.hi.val :: q.lo.val :: r.hi.val :: r.lo.val :: adv_rest⟩ rfl rfl).mpr ⟨hdiv, hlt⟩
     unfold Miden.Core.U64.div execWithEnv
     simp only [List.foldlM, u64ProcEnv]
     dsimp only [bind, Bind.bind, Option.bind]

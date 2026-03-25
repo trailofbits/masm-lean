@@ -41,11 +41,11 @@ theorem u64_eq_raw (b_lo b_hi a_lo a_hi : Felt) (rest : List Felt) (s : MidenSta
     Input stack:  [b.lo, b.hi, a.lo, a.hi] ++ rest
     Output stack: [if a == b then 1 else 0] ++ rest -/
 theorem u64_eq_correct (a b : U64) (rest : List Felt) (s : MidenState)
-    (hs : s.stack = b.lo :: b.hi :: a.lo :: a.hi :: rest) :
+    (hs : s.stack = b.lo.val :: b.hi.val :: a.lo.val :: a.hi.val :: rest) :
     exec 10 s Miden.Core.U64.eq =
     some (s.withStack (
       (if a == b then (1 : Felt) else 0) :: rest)) := by
-  have h := u64_eq_raw b.lo b.hi a.lo a.hi rest s hs
+  have h := u64_eq_raw b.lo.val b.hi.val a.lo.val a.hi.val rest s hs
   rw [U64.beq_comm a b]; exact h
 
 end MidenLean.Proofs

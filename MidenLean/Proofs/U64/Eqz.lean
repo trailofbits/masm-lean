@@ -37,11 +37,11 @@ theorem u64_eqz_raw
     Input stack:  [a.lo, a.hi] ++ rest
     Output stack: [if a == 0 then 1 else 0] ++ rest -/
 theorem u64_eqz_correct (a : U64) (rest : List Felt) (s : MidenState)
-    (hs : s.stack = a.lo :: a.hi :: rest) :
+    (hs : s.stack = a.lo.val :: a.hi.val :: rest) :
     exec 9 s Miden.Core.U64.eqz =
     some (s.withStack (
       (if a == U64.ofNat 0 then (1 : Felt) else 0) :: rest)) := by
   simp only [U64.beq_iff, U64.ofNat]
-  exact u64_eqz_raw a.lo a.hi rest s hs
+  exact u64_eqz_raw a.lo.val a.hi.val rest s hs
 
 end MidenLean.Proofs

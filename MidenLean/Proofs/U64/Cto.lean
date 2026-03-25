@@ -56,19 +56,19 @@ theorem u64_cto_raw (lo hi : Felt) (rest : List Felt) (s : MidenState)
     Input stack:  [a.lo, a.hi] ++ rest
     Output stack: [Felt.ofNat a.countTrailingOnes] ++ rest -/
 theorem u64_cto_correct (a : U64) (rest : List Felt) (s : MidenState)
-    (hs : s.stack = a.lo :: a.hi :: rest) :
+    (hs : s.stack = a.lo.val :: a.hi.val :: rest) :
     exec 20 s Miden.Core.U64.cto =
     some (s.withStack (Felt.ofNat a.countTrailingOnes :: rest)) := by
-  have h := u64_cto_raw a.lo a.hi rest s hs a.lo_u32 a.hi_u32
+  have h := u64_cto_raw a.lo.val a.hi.val rest s hs a.lo.isU32 a.hi.isU32
   unfold U64.countTrailingOnes u32CountTrailingOnes
-  by_cases hlo : a.lo.val = 2^32 - 1
+  by_cases hlo : a.lo.val.val = 2^32 - 1
   · rw [if_pos hlo, felt_ofNat_add]
-    have : a.lo = (4294967295 : Felt) := Fin.ext (by simpa using hlo)
+    have : a.lo.val = (4294967295 : Felt) := Fin.ext (by simpa using hlo)
     simp only [this, beq_self_eq_true, ite_true] at h; exact h
   · rw [if_neg hlo]
-    have : a.lo ≠ (4294967295 : Felt) := fun heq => hlo (by
+    have : a.lo.val ≠ (4294967295 : Felt) := fun heq => hlo (by
       have := congrArg ZMod.val heq; simpa using this)
-    simp only [show (a.lo == (4294967295 : Felt)) = false from decide_eq_false this,
+    simp only [show (a.lo.val == (4294967295 : Felt)) = false from decide_eq_false this,
       ite_false] at h
     exact h
 

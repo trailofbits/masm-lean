@@ -15,9 +15,6 @@ open MidenLean.Tactics
 private theorem felt32_val : (32 : Felt).val = 32 :=
   felt_ofNat_val_lt 32 (by unfold GOLDILOCKS_PRIME; omega)
 
-private theorem felt32_isU32 : (32 : Felt).isU32 = true := by
-  simp [Felt.isU32, felt32_val]
-
 private theorem shift_sub32_val
     (shift : Felt) (hshift : shift.val ≤ 31) :
     (Felt.ofNat (u32OverflowingSub 32 shift.val).2).val = 32 - shift.val := by
@@ -85,7 +82,7 @@ private theorem shr_k2_setup_correct
   rw [stepPush]
   miden_bind
   miden_dup
-  rw [stepU32WrappingSubLocal (ha := felt32_isU32) (hb := hshift_u32)]
+  rw [stepU32WrappingSubLocal (ha := U32.felt32_isU32) (hb := hshift_u32)]
   miden_bind
   simp only [felt32_val]
   have hpow_input_le63 : (Felt.ofNat (u32OverflowingSub 32 shift.val).2).val ≤ 63 := by
@@ -120,9 +117,9 @@ private theorem shr_k2_compute_correct
   have hpow_val : (Felt.ofNat (2 ^ (32 - shift.val))).val = 2 ^ (32 - shift.val) :=
     pow32_sub_val shift hshift_pos hshift
   have ha3_shr_u32 : (Felt.ofNat (a3.val / 2 ^ shift.val)).isU32 = true :=
-    u32Shr_result_isU32 a3 shift ha3_u32
+    U32.u32Shr_result_isU32 a3 shift ha3_u32
   have ha2_shr_u32 : (Felt.ofNat (a2.val / 2 ^ shift.val)).isU32 = true :=
-    u32Shr_result_isU32 a2 shift ha2_u32
+    U32.u32Shr_result_isU32 a2 shift ha2_u32
   miden_dup
   miden_dup
   rw [stepU32ShrLocal (ha := ha3_u32) (hb := hshift_u32) (hshift := hshift)]

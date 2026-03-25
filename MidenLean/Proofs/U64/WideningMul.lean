@@ -302,7 +302,7 @@ private theorem limbs_from_reconstruction (c0 c1 c2 c3 n : Nat)
     Output stack: [c0, c1, c2, c3] ++ rest
     where (c3, c2, c1, c0) are the four u32 limbs of the 128-bit product. -/
 theorem u64_widening_mul_correct (a b : U64) (rest : List Felt) (s : MidenState)
-    (hs : s.stack = b.lo :: b.hi :: a.lo :: a.hi :: rest) :
+    (hs : s.stack = b.lo.val :: b.hi.val :: a.lo.val :: a.hi.val :: rest) :
     exec 30 s Miden.Core.U64.widening_mul =
     some (s.withStack (
       let p := a.toNat * b.toNat
@@ -310,17 +310,17 @@ theorem u64_widening_mul_correct (a b : U64) (rest : List Felt) (s : MidenState)
       Felt.ofNat ((p / 2^32) % 2^32) ::
       Felt.ofNat ((p / 2^64) % 2^32) ::
       Felt.ofNat ((p / 2^96) % 2^32) :: rest)) := by
-  rw [u64_widening_mul_raw a.lo a.hi b.lo b.hi rest s hs a.lo_u32 a.hi_u32 b.lo_u32 b.hi_u32]
+  rw [u64_widening_mul_raw a.lo.val a.hi.val b.lo.val b.hi.val rest s hs a.lo.isU32 a.hi.isU32 b.lo.isU32 b.hi.isU32]
   simp only [U64.toNat]
   -- Resolve Felt addition in c3: Felt.ofNat x + Felt.ofNat y = Felt.ofNat (x + y)
   have felt_ofNat_add : ∀ (x y : Nat), Felt.ofNat x + Felt.ofNat y = Felt.ofNat (x + y) := by
     intros x y; show (x : Felt) + (y : Felt) = ((x + y : Nat) : Felt); exact (Nat.cast_add x y).symm
   conv_lhs => arg 1; arg 2; arg 2; arg 2; arg 2; arg 1; rw [felt_ofNat_add]
-  set al := a.lo.val; set ah := a.hi.val; set bl := b.lo.val; set bh := b.hi.val
-  have hal : al < 2^32 := by simpa [Felt.isU32] using a.lo_u32
-  have hah : ah < 2^32 := by simpa [Felt.isU32] using a.hi_u32
-  have hbl : bl < 2^32 := by simpa [Felt.isU32] using b.lo_u32
-  have hbh : bh < 2^32 := by simpa [Felt.isU32] using b.hi_u32
+  set al := a.lo.val.val; set ah := a.hi.val.val; set bl := b.lo.val.val; set bh := b.hi.val.val
+  have hal : al < 2^32 := by simpa [Felt.isU32] using a.lo.isU32
+  have hah : ah < 2^32 := by simpa [Felt.isU32] using a.hi.isU32
+  have hbl : bl < 2^32 := by simpa [Felt.isU32] using b.lo.isU32
+  have hbh : bh < 2^32 := by simpa [Felt.isU32] using b.hi.isU32
   -- Reconstruction: schoolbook limbs sum to the product
   have hrec := schoolbook_widening_mul_eq al ah bl bh
   -- Product bound (nonlinear, needs nlinarith)

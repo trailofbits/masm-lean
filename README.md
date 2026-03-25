@@ -45,7 +45,7 @@ The current checked manual proofs cover 74 procedures: 31 in `u64`, 32 in `u128`
 | `u64::neq` | `u64_neq_correct` | `u64::neq` correctly tests inequality of two u64 values. | `MidenLean/Proofs/U64/Neq.lean` |
 | `u64::or` | `u64_or_correct` | `u64::or` correctly computes bitwise OR of two u64 values. | `MidenLean/Proofs/U64/Or.lean` |
 | `u64::overflowing_add` | `u64_overflowing_add_correct` | `u64::overflowing_add` computes `a + b` with overflow detection. | `MidenLean/Proofs/U64/OverflowingAdd.lean` |
-| `u64::overflowing_sub` | `u64_overflowing_sub_correct` | `u64::overflowing_sub` computes `a - b` with underflow detection using `U64` types. | `MidenLean/Proofs/U64/OverflowingSub.lean` |
+| `u64::overflowing_sub` | `u64_overflowing_sub_correct` | `u64::overflowing_sub` computes `a - b` with underflow detection. | `MidenLean/Proofs/U64/OverflowingSub.lean` |
 | `u64::rotl` | `u64_rotl_correct` | `u64::rotl` correctly left-rotates a u64 value by `shift` bits. | `MidenLean/Proofs/U64/Rotl.lean` |
 | `u64::rotr` | `u64_rotr_correct` | `u64::rotr` correctly right-rotates a u64 value by `shift` bits. | `MidenLean/Proofs/U64/Rotr.lean` |
 | `u64::shl` | `u64_shl_correct` | `u64::shl` correctly left-shifts a u64 value by `shift` bits. | `MidenLean/Proofs/U64/Shl.lean` |
@@ -55,7 +55,7 @@ The current checked manual proofs cover 74 procedures: 31 in `u64`, 32 in `u128`
 | `u64::widening_mul` | `u64_widening_mul_correct` | `u64::widening_mul` computes the full 128-bit product `a * b`. | `MidenLean/Proofs/U64/WideningMul.lean` |
 | `u64::wrapping_add` | `u64_wrapping_add_correct` | `u64::wrapping_add` computes `(a + b) mod 2^64`. | `MidenLean/Proofs/U64/WrappingAdd.lean` |
 | `u64::wrapping_mul` | `u64_wrapping_mul_correct` | `u64::wrapping_mul` computes the low 64 bits of the product `a * b`. | `MidenLean/Proofs/U64/WrappingMul.lean` |
-| `u64::wrapping_sub` | `u64_wrapping_sub_correct` | `u64::wrapping_sub` correctly computes `a - b` as a `U64` value. | `MidenLean/Proofs/U64/Sub.lean` |
+| `u64::wrapping_sub` | `u64_wrapping_sub_correct` | `u64::wrapping_sub` correctly computes `a - b` as a u64 value. | `MidenLean/Proofs/U64/Sub.lean` |
 | `u64::xor` | `u64_xor_correct` | `u64::xor` correctly computes bitwise XOR of two u64 values. | `MidenLean/Proofs/U64/Xor.lean` |
 
 ### `u128` (32 / 36)
