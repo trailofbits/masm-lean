@@ -68,8 +68,7 @@ theorem u64_cto_correct (a : U64) (rest : List Felt) (s : MidenState)
   · rw [if_neg hlo]
     have : a.lo.val ≠ (4294967295 : Felt) := fun heq => hlo (by
       have := congrArg ZMod.val heq; simpa using this)
-    simp only [show (a.lo.val == (4294967295 : Felt)) = false from decide_eq_false this,
-      ite_false] at h
+    simp only [show (a.lo.val == (4294967295 : Felt)) = false from decide_eq_false this] at h
     exact h
 
 end MidenLean.Proofs

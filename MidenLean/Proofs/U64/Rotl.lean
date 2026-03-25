@@ -246,9 +246,9 @@ private theorem rotl_nat_case1 (hi lo eff : Nat)
     rw [show (2 : Nat) ^ 32 = P * Q from hPQ.symm]; exact Nat.mul_mod_mul_left P lo Q
   have h_lo_div_lt := lo_div_lt_of_u32 P Q lo hPQ hQ_pos hlo
   have h_xP := schoolbook_mul_eq P Q hi lo hPQ
-  have h_div := u64_div_large_pow hi lo Q hQ_pos hlo
-  have h_cross_div := cross_div_eq P Q hi lo hPQ hP_pos hQ_pos h_lo_div_lt
-  have h_nonoverlap := limb_non_overlap P Q hi lo hPQ hP_pos hQ_pos hhi hlo
+  have h_div := u64_div_large_pow hi lo Q hlo
+  have h_cross_div := cross_div_eq P Q hi lo hPQ hQ_pos h_lo_div_lt
+  have h_nonoverlap := limb_non_overlap P Q hi lo hPQ hQ_pos hhi
   -- Simplify cross and lo_prod terms on LHS, and v terms on RHS
   rw [h_lp_div, h_lp_mod, h_cross_div, h_div, h_xP]
   -- v = (hi*P+lo/Q) * 2^32 + P*(lo%Q) + hi/Q
@@ -283,8 +283,8 @@ private theorem rotl_nat_case2 (hi lo eff : Nat)
     rw [show (2 : Nat) ^ 32 = P * Q from hPQ.symm]; exact Nat.mul_mod_mul_left P lo Q
   have h_lo_div_lt := lo_div_lt_of_u32 P Q lo hPQ hQ_pos hlo
   have h_xP := schoolbook_mul_eq P Q hi lo hPQ
-  have h_cross_div := cross_div_eq P Q hi lo hPQ hP_pos hQ_pos h_lo_div_lt
-  have h_nonoverlap := limb_non_overlap P Q hi lo hPQ hP_pos hQ_pos hhi hlo
+  have h_cross_div := cross_div_eq P Q hi lo hPQ hQ_pos h_lo_div_lt
+  have h_nonoverlap := limb_non_overlap P Q hi lo hPQ hQ_pos hhi
   -- Simplify cross terms on LHS
   rw [h_lp_div, h_lp_mod, h_cross_div]
   -- Simplify v: (hi*2^32+lo)*(P*2^32) = ((hi*2^32+lo)*P)*2^32

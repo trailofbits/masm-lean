@@ -142,7 +142,7 @@ namespace U64
 @[simp] theorem beq_iff (a b : U64) : (a == b) = ((a.lo.val == b.lo.val) && (a.hi.val == b.hi.val)) := rfl
 
 theorem beq_comm (a b : U64) : (a == b) = (b == a) := by
-  simp only [beq_iff, Bool.beq_comm (a := a.lo.val), Bool.beq_comm (a := a.hi.val), Bool.and_comm]
+  simp only [beq_iff, Bool.beq_comm (a := a.lo.val), Bool.beq_comm (a := a.hi.val)]
 
 theorem bne_iff (a b : U64) : (a != b) = ((a.lo.val != b.lo.val) || (a.hi.val != b.hi.val)) := by
   simp only [bne, beq_iff, Bool.not_and, bne]
@@ -252,9 +252,7 @@ theorem u64_borrow_iff_lt (a b : U64) :
 -- ============================================================================
 
 /-- The carry-based addition formula reconstructs to `a.toNat + b.toNat`. -/
-theorem u64_carry_add_spec (a_lo a_hi b_lo b_hi : Nat)
-    (ha_lo : a_lo < 2^32) (ha_hi : a_hi < 2^32)
-    (hb_lo : b_lo < 2^32) (hb_hi : b_hi < 2^32) :
+theorem u64_carry_add_spec (a_lo a_hi b_lo b_hi : Nat) :
     let lo_sum := a_lo + b_lo
     let carry := lo_sum / 2^32
     let hi_sum := a_hi + b_hi + carry
@@ -322,8 +320,7 @@ theorem schoolbook_mul_eq (P Q hi lo : Nat) (hPQ : P * Q = 2 ^ 32) :
   ring
 
 /-- The cross remainder hi % Q * P + lo / Q < P * Q. -/
-theorem cross_remainder_lt (P Q hi lo : Nat)
-    (hP_pos : 0 < P) (hQ_pos : 0 < Q)
+theorem cross_remainder_lt (P Q hi lo : Nat) (hQ_pos : 0 < Q)
     (h_lo_div : lo / Q < P) :
     hi % Q * P + lo / Q < P * Q := by
   have h_bound : (hi % Q + 1) * P ≤ Q * P :=
@@ -332,10 +329,9 @@ theorem cross_remainder_lt (P Q hi lo : Nat)
 
 /-- The cross-term high word: (hi * P + lo / Q) / 2^32 = hi / Q. -/
 theorem cross_div_eq (P Q hi lo : Nat) (hPQ : P * Q = 2 ^ 32)
-    (hP_pos : 0 < P) (hQ_pos : 0 < Q)
-    (h_lo_div : lo / Q < P) :
+    (hQ_pos : 0 < Q) (h_lo_div : lo / Q < P) :
     (hi * P + lo / Q) / 2 ^ 32 = hi / Q := by
-  have h_rem := cross_remainder_lt P Q hi lo hP_pos hQ_pos h_lo_div
+  have h_rem := cross_remainder_lt P Q hi lo hQ_pos h_lo_div
   have h_dm := (Nat.div_add_mod hi Q).symm
   have h_eq : hi * P + lo / Q = (hi % Q * P + lo / Q) + hi / Q * 2 ^ 32 := by
     conv_lhs => rw [show hi = Q * (hi / Q) + hi % Q from h_dm]
@@ -346,8 +342,7 @@ theorem cross_div_eq (P Q hi lo : Nat) (hPQ : P * Q = 2 ^ 32)
 
 /-- Non-overlap: hi / Q + P * (lo % Q) < 2^32. -/
 theorem limb_non_overlap (P Q hi lo : Nat) (hPQ : P * Q = 2 ^ 32)
-    (hP_pos : 0 < P) (hQ_pos : 0 < Q)
-    (hhi : hi < 2 ^ 32) (hlo : lo < 2 ^ 32) :
+    (hQ_pos : 0 < Q) (hhi : hi < 2 ^ 32) :
     hi / Q + P * (lo % Q) < 2 ^ 32 := by
   rw [← hPQ]
   have h_div_lt : hi / Q < P := by
@@ -363,7 +358,7 @@ theorem lo_div_lt_of_u32 (P Q lo : Nat) (hPQ : P * Q = 2 ^ 32)
   rw [Nat.div_lt_iff_lt_mul hQ_pos]; omega
 
 /-- Division of a 2-limb value by 2^32 * Q equals hi / Q. -/
-theorem u64_div_large_pow (hi lo Q : Nat) (hQ_pos : 0 < Q) (hlo : lo < 2 ^ 32) :
+theorem u64_div_large_pow (hi lo Q : Nat) (hlo : lo < 2 ^ 32) :
     (hi * 2 ^ 32 + lo) / (2 ^ 32 * Q) = hi / Q := by
   rw [show hi * 2 ^ 32 + lo = lo + hi * 2 ^ 32 from by omega,
       ← Nat.div_div_eq_div_mul,

@@ -138,15 +138,15 @@ theorem u128_ctz_correct (a : U128) (rest : List Felt) (s : MidenState)
         simp only [this, beq_self_eq_true, ite_true] at h; exact h
       · rw [if_neg h2, felt_ofNat_add]
         have : a.a2.val ≠ (0 : Felt) := fun heq => h2 (by rw [heq]; rfl)
-        simp only [show (a.a2.val == (0 : Felt)) = false from decide_eq_false this, ite_false] at h
+        simp only [show (a.a2.val == (0 : Felt)) = false from decide_eq_false this] at h
         exact h
     · rw [if_neg h1, felt_ofNat_add]
       have : a.a1.val ≠ (0 : Felt) := fun heq => h1 (by rw [heq]; rfl)
-      simp only [show (a.a1.val == (0 : Felt)) = false from decide_eq_false this, ite_false] at h
+      simp only [show (a.a1.val == (0 : Felt)) = false from decide_eq_false this] at h
       exact h
   · rw [if_neg h0]
     have : a.a0.val ≠ (0 : Felt) := fun heq => h0 (by rw [heq]; rfl)
-    simp only [show (a.a0.val == (0 : Felt)) = false from decide_eq_false this, ite_false] at h
+    simp only [show (a.a0.val == (0 : Felt)) = false from decide_eq_false this] at h
     exact h
 
 end MidenLean.Proofs

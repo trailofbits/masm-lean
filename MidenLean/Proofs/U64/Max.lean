@@ -91,7 +91,7 @@ theorem u64_max_correct (a b : U64) (rest : List Felt) (s : MidenState)
     execWithEnv u64ProcEnv 20 s Miden.Core.U64.max =
     some (s.withStack ((max a b).lo.val :: (max a b).hi.val :: rest)) := by
   have h := u64_max_ite a b rest s hs
-  simp only [U64.max_def, U64.le_iff_toNat_le, U64.lt_iff_toNat_lt]
+  simp only [U64.max_def, U64.le_iff_toNat_le]
   by_cases hab : b.toNat < a.toNat
   · simp [hab, Nat.le_of_lt hab] at h ⊢; exact h
   · simp [hab] at h ⊢

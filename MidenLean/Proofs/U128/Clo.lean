@@ -143,19 +143,19 @@ theorem u128_clo_correct (a : U128) (rest : List Felt) (s : MidenState)
         have : a.a1.val ≠ (4294967295 : Felt) := fun heq => h1 (by
           have := congr_arg ZMod.val heq; simpa using this)
         simp only [show (a.a1.val == (4294967295 : Felt)) = false from
-          decide_eq_false this, ite_false] at h
+          decide_eq_false this] at h
         exact h
     · rw [if_neg h2, felt_ofNat_add]
       have : a.a2.val ≠ (4294967295 : Felt) := fun heq => h2 (by
         have := congr_arg ZMod.val heq; simpa using this)
       simp only [show (a.a2.val == (4294967295 : Felt)) = false from
-        decide_eq_false this, ite_false] at h
+        decide_eq_false this] at h
       exact h
   · rw [if_neg h3]
     have : a.a3.val ≠ (4294967295 : Felt) := fun heq => h3 (by
       have := congr_arg ZMod.val heq; simpa using this)
     simp only [show (a.a3.val == (4294967295 : Felt)) = false from
-      decide_eq_false this, ite_false] at h
+      decide_eq_false this] at h
     exact h
 
 end MidenLean.Proofs

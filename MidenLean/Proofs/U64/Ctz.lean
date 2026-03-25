@@ -67,7 +67,7 @@ theorem u64_ctz_correct (a : U64) (rest : List Felt) (s : MidenState)
     simp only [this, beq_self_eq_true, ite_true] at h; exact h
   · rw [if_neg hlo]
     have : a.lo.val ≠ (0 : Felt) := fun heq => hlo (by rw [heq]; rfl)
-    simp only [show (a.lo.val == (0 : Felt)) = false from decide_eq_false this, ite_false] at h
+    simp only [show (a.lo.val == (0 : Felt)) = false from decide_eq_false this] at h
     exact h
 
 end MidenLean.Proofs

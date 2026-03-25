@@ -473,7 +473,7 @@ private theorem divmod_chunk1a_none
     have h_ne : ¬(Felt.ofNat ((b_hi.val * q_hi.val +
         (b_lo.val * q_hi.val) / 2^32) / 2^32) = (0 : Felt)) := by
       intro heq; exact h_not (beq_iff_eq.mpr heq)
-    rw [if_neg h_ne]; simp [Felt.val_zero']
+    rw [if_neg h_ne]; simp
   rw [stepAssertWithError_none (h := h_val_ne)]
 
 set_option maxHeartbeats 12000000 in
@@ -514,7 +514,7 @@ private theorem divmod_chunk1b_none
     have h_ne : ¬(Felt.ofNat ((b_lo.val * q_lo.val +
         (b_hi.val * q_hi.val + (b_lo.val * q_hi.val) / 2^32) % 2^32) / 2^32) = (0 : Felt)) := by
       intro heq; exact h_not (beq_iff_eq.mpr heq)
-    rw [if_neg h_ne]; simp [Felt.val_zero']
+    rw [if_neg h_ne]; simp
   rw [stepAssertWithError_none (h := h_val_ne)]
 
 set_option maxHeartbeats 12000000 in
@@ -541,7 +541,7 @@ private theorem divmod_chunk1c_none
   have h_val_ne : (if (b_hi * q_lo : Felt) = (0 : Felt) then (1 : Felt) else 0).val ≠ 1 := by
     have h_ne : ¬((b_hi * q_lo : Felt) = (0 : Felt)) := by
       intro heq; exact h_not (beq_iff_eq.mpr heq)
-    rw [if_neg h_ne]; simp [Felt.val_zero']
+    rw [if_neg h_ne]; simp
   rw [stepAssertWithError_none (h := h_val_ne)]
 
 set_option maxHeartbeats 12000000 in
@@ -603,7 +603,7 @@ private theorem divmod_chunk2_none
          decide (r_hi.val < b_lo.val))) = true) := h_not
     rw [if_neg (show ¬((decide (r_lo.val < b_hi.val) || (Felt.ofNat (u32OverflowingSub r_lo.val b_hi.val).2 == 0) &&
         decide (r_hi.val < b_lo.val)) = true) from h_ne)]
-    simp [Felt.val_zero']
+    simp
   rw [stepAssertWithError_none (h := h_val_ne)]
 
 set_option maxHeartbeats 12000000 in
@@ -674,7 +674,7 @@ private theorem divmod_chunk3b_none_add2
           (b_hi.val * q_hi.val + (b_lo.val * q_hi.val) / 2^32) % 2^32) % 2^32 +
         (r_hi.val + (b_lo.val * q_hi.val) % 2^32) / 2^32) / 2^32) = (0 : Felt)) := by
       intro heq; exact h_not (beq_iff_eq.mpr heq)
-    rw [if_neg h_ne]; simp [Felt.val_zero']
+    rw [if_neg h_ne]; simp
   rw [stepAssertWithError_none (h := h_val_ne)]
 
 set_option maxHeartbeats 12000000 in
@@ -961,7 +961,7 @@ private theorem divmod_backward_arith (ql qh bl bh rl rh al ah : Nat)
   have hbq := divmod_bh_qh_zero ql qh bl bh rl rh al ah hql hqh hbl hbh hal hah hdiv
   rcases Nat.eq_zero_or_pos qh with rfl | hqh_pos
   · -- qh = 0: q*b = ql * (bh*2^32 + bl)
-    simp only [Nat.zero_mul, Nat.mul_zero, Nat.zero_add] at hdiv ⊢
+    simp only [Nat.zero_mul, Nat.zero_add] at hdiv ⊢
     have hprod : bh * ql * 2^32 + bl * ql + rh * 2^32 + rl = ah * 2^32 + al := by
       nlinarith [Nat.mul_comm ql bh, Nat.mul_comm ql bl]
     exact ⟨by omega, by omega, by omega, by omega, by omega⟩
@@ -972,15 +972,14 @@ private theorem divmod_backward_arith (ql qh bl bh rl rh al ah : Nat)
       · exfalso; have : bh * qh ≥ 1 := Nat.one_le_iff_ne_zero.mpr (by positivity)
         omega
     subst hbh0
-    simp only [Nat.zero_mul, Nat.mul_zero, Nat.zero_add] at hdiv ⊢
+    simp only [Nat.zero_mul, Nat.zero_add] at hdiv ⊢
     have hprod : bl * qh * 2^32 + bl * ql + rh * 2^32 + rl = ah * 2^32 + al := by
       nlinarith [Nat.mul_comm qh bl, Nat.mul_comm ql bl]
     exact ⟨by omega, by omega, by omega, by omega, by omega⟩
 
 set_option maxHeartbeats 800000 in
 private theorem divmod_forward_arith (ql qh bl bh rl rh al ah : Nat)
-    (hql : ql < 2^32) (hqh : qh < 2^32) (hbl : bl < 2^32) (hbh : bh < 2^32)
-    (hrl : rl < 2^32) (hrh : rh < 2^32)
+    (hqh : qh < 2^32) (hbh : bh < 2^32)
     (hbqh : bh * qh = 0)
     (h_madd1 : (bh * ql + bl * ql / 2^32) / 2^32 = 0)
     (h_madd2 : (bl * qh + (bh * ql + bl * ql / 2^32) % 2^32) / 2^32 = 0)
@@ -999,7 +998,7 @@ private theorem divmod_forward_arith (ql qh bl bh rl rh al ah : Nat)
       · exact h
       · exfalso; have : bh * qh ≥ 1 := Nat.one_le_iff_ne_zero.mpr (by positivity); omega
     subst hbh0
-    simp only [Nat.zero_mul, Nat.mul_zero, Nat.zero_add] at *
+    simp only [Nat.zero_mul, Nat.zero_add] at *
     have hprod : (qh * 2^32 + ql) * bl = bl * qh * 2^32 + bl * ql := by ring
     omega
 
@@ -1182,7 +1181,7 @@ theorem u64_divmod_correct (a b q r : U64) (rest : List Felt) (adv_rest : List F
     · -- q*b+r=a
       unfold U64.toNat
       exact divmod_forward_arith ql qh bl bh rl rh a.lo.val.val a.hi.val.val
-        hql_b hqh_b hbl_b hbh_b hrl_b hrh_b hbq_nat h_madd1_nat h_madd2_nat
+        hqh_b hbh_b hbq_nat h_madd1_nat h_madd2_nat
         h_add2_nat h_ah_nat h_al_nat
     · exact h_lt
   · -- Backward: derive raw hypotheses from q*b+r=a ∧ r<b, apply u64_divmod_raw
@@ -1383,7 +1382,7 @@ theorem divmod_conditions_of_exec (a b q r : U64) (rest : List Felt) (adv_rest :
   constructor
   · unfold U64.toNat
     exact divmod_forward_arith ql qh bl bh rl rh a.lo.val.val a.hi.val.val
-      hql_b hqh_b hbl_b hbh_b hrl_b hrh_b hbq_nat h_madd1_nat h_madd2_nat
+      hqh_b hbh_b hbq_nat h_madd1_nat h_madd2_nat
       h_add2_nat h_ah_nat h_al_nat
   · exact h_lt
 

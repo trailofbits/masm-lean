@@ -120,7 +120,7 @@ private theorem execWithEnv_append (env : ProcEnv) (fuel : Nat) (s : MidenState)
 private theorem shr_k0_pure_inst :
     ∀ op ∈ Miden.Core.U128.shr_k0, ∃ i, op = .inst i ∧ ∀ t, i ≠ .exec t := by
   intro op hmem
-  simp only [Miden.Core.U128.shr_k0, List.mem_cons, List.mem_singleton] at hmem
+  simp only [Miden.Core.U128.shr_k0, List.mem_cons] at hmem
   rcases hmem with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl |
     rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl |
     rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl |
@@ -131,7 +131,7 @@ private theorem shr_k0_pure_inst :
 private theorem shr_k3_pure_inst :
     ∀ op ∈ Miden.Core.U128.shr_k3, ∃ i, op = .inst i ∧ ∀ t, i ≠ .exec t := by
   intro op hmem
-  simp only [Miden.Core.U128.shr_k3, List.mem_cons, List.mem_singleton] at hmem
+  simp only [Miden.Core.U128.shr_k3, List.mem_cons] at hmem
   rcases hmem with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl
   all_goals exact ⟨_, rfl, fun _ h => Instruction.noConfusion h⟩
 
@@ -174,7 +174,8 @@ private theorem shr_k1_prefix_pure :
 private theorem shr_k1_then_pure :
     ∀ op ∈ shr_k1_then, ∃ i, op = .inst i ∧ ∀ t, i ≠ .exec t := by
   intro op hmem; simp [shr_k1_then] at hmem
-  rcases hmem with rfl | rfl <;> exact ⟨_, rfl, fun _ => by simp⟩
+  rcases hmem with rfl | rfl
+  exact ⟨_, rfl, fun _ => by simp⟩
 
 private theorem shr_k1_else_pure :
     ∀ op ∈ shr_k1_else, ∃ i, op = .inst i ∧ ∀ t, i ≠ .exec t := by
@@ -229,7 +230,8 @@ private theorem shr_k2_prefix_pure :
 private theorem shr_k2_then_pure :
     ∀ op ∈ shr_k2_then, ∃ i, op = .inst i ∧ ∀ t, i ≠ .exec t := by
   intro op hmem; simp [shr_k2_then] at hmem
-  rcases hmem with rfl | rfl | rfl <;> exact ⟨_, rfl, fun _ => by simp⟩
+  rcases hmem with rfl | rfl | rfl
+  exact ⟨_, rfl, fun _ => by simp⟩
 
 private theorem shr_k2_else_pure :
     ∀ op ∈ shr_k2_else, ∃ i, op = .inst i ∧ ∀ t, i ≠ .exec t := by
@@ -779,5 +781,273 @@ theorem u128_shr_raw
   have h := u128_shr_run 3 shift a0 a1 a2 a3 rest mem locs adv
     hshift_u32 hshift_lt128 ha0 ha1 ha2 ha3
   simpa using h
+
+-- ============================================================================
+-- Bridge helpers for u128_shr_correct
+-- ============================================================================
+
+-- Helper: shr limbs reduce to ofNat of division result
+private theorem shr_aI_eq (a : U128) (n : Nat) :
+    (a.shr n).a0.val = Felt.ofNat ((a.toNat / 2^n) % 2^32) ∧
+    (a.shr n).a1.val = Felt.ofNat ((a.toNat / 2^n / 2^32) % 2^32) ∧
+    (a.shr n).a2.val = Felt.ofNat ((a.toNat / 2^n / 2^64) % 2^32) ∧
+    (a.shr n).a3.val = Felt.ofNat ((a.toNat / 2^n / 2^96) % 2^32) := by
+  simp only [U128.shr, U128.ofNat_a0, U128.ofNat_a1, U128.ofNat_a2, U128.ofNat_a3,
+    Nat.div_div_eq_div_mul]
+  repeat constructor
+
+-- k=3 bridge: shift in [96, 128)
+private theorem shr_bridge_k3 (a : U128) (b_nat : Nat) :
+    (a.shr (96 + b_nat)).a0.val = Felt.ofNat (a.a3.val.val / 2^b_nat) ∧
+    (a.shr (96 + b_nat)).a1.val = (0 : Felt) ∧
+    (a.shr (96 + b_nat)).a2.val = (0 : Felt) ∧
+    (a.shr (96 + b_nat)).a3.val = (0 : Felt) := by
+  have hdiv : a.toNat / 2^(96 + b_nat) = a.a3.val.val / 2^b_nat := by
+    rw [show (2:Nat)^(96 + b_nat) = 2^96 * 2^b_nat from by rw [← Nat.pow_add]]
+    rw [← Nat.div_div_eq_div_mul, U128.toNat_div_2_96]
+  have hlt : a.a3.val.val / 2^b_nat < 2^32 :=
+    lt_of_le_of_lt (Nat.div_le_self _ _) a.a3.val_lt
+  obtain ⟨h0, h1, h2, h3⟩ := U128.ofNat_of_lt_2_32 _ hlt
+  simp only [U128.shr]
+  rw [hdiv]
+  exact ⟨h0, h1, h2, h3⟩
+
+-- k=2, b=0 bridge: shift = 64
+private theorem shr_bridge_k2_zero (a : U128) :
+    (a.shr 64).a0.val = a.a2.val ∧
+    (a.shr 64).a1.val = a.a3.val ∧
+    (a.shr 64).a2.val = (0 : Felt) ∧
+    (a.shr 64).a3.val = (0 : Felt) := by
+  have hdiv : a.toNat / 2^64 = a.a3.val.val * 2^32 + a.a2.val.val :=
+    U128.toNat_div_2_64 a
+  obtain ⟨h0, h1, h2, h3⟩ := U128.ofNat_of_lt_2_64 a.a3.val.val a.a2.val.val
+    a.a3.val_lt a.a2.val_lt
+  simp only [U128.shr]
+  rw [hdiv]
+  exact ⟨h0.trans (U32.ofNat_val a.a2), h1.trans (U32.ofNat_val a.a3), h2, h3⟩
+
+-- k=2, b>0 bridge: shift in (64, 96)
+private theorem shr_bridge_k2_pos (a : U128) (b_nat : Nat) (hb_pos : 0 < b_nat) (hb : b_nat < 32) :
+    (a.shr (64 + b_nat)).a0.val =
+      Felt.ofNat ((a.a2.val.val / 2^b_nat) ||| ((a.a3.val.val * 2^(32 - b_nat)) % 2^32)) ∧
+    (a.shr (64 + b_nat)).a1.val = Felt.ofNat (a.a3.val.val / 2^b_nat) ∧
+    (a.shr (64 + b_nat)).a2.val = (0 : Felt) ∧
+    (a.shr (64 + b_nat)).a3.val = (0 : Felt) := by
+  have hdiv : a.toNat / 2^(64 + b_nat) = (a.a3.val.val * 2^32 + a.a2.val.val) / 2^b_nat := by
+    rw [show (2:Nat)^(64 + b_nat) = 2^64 * 2^b_nat from by rw [← Nat.pow_add]]
+    rw [← Nat.div_div_eq_div_mul, U128.toNat_div_2_64]
+  let lo := (a.a2.val.val / 2^b_nat) ||| ((a.a3.val.val * 2^(32 - b_nat)) % 2^32)
+  let hi := a.a3.val.val / 2^b_nat
+  have hhi_lt : hi < 2^32 := by
+    dsimp [hi]
+    exact lt_of_le_of_lt (Nat.div_le_self _ _) a.a3.val_lt
+  have hlo_lt : lo < 2^32 := by
+    dsimp [lo]
+    exact Nat.or_lt_two_pow
+      (lt_of_le_of_lt (Nat.div_le_self _ _) a.a2.val_lt)
+      (Nat.mod_lt _ (by positivity))
+  have hpair : (a.a3.val.val * 2^32 + a.a2.val.val) / 2^b_nat = hi * 2^32 + lo := by
+    simpa [hi, lo] using
+      u32_pair_shr_decomp a.a2.val.val a.a3.val.val b_nat a.a2.val_lt hb_pos hb
+  obtain ⟨h0, h1, h2, h3⟩ := U128.ofNat_of_lt_2_64 hi lo hhi_lt hlo_lt
+  simp only [U128.shr]
+  rw [hdiv, hpair]
+  exact ⟨h0, h1, h2, h3⟩
+
+-- k=1, b=0 bridge: shift = 32
+private theorem shr_bridge_k1_zero (a : U128) :
+    (a.shr 32).a0.val = a.a1.val ∧
+    (a.shr 32).a1.val = a.a2.val ∧
+    (a.shr 32).a2.val = a.a3.val ∧
+    (a.shr 32).a3.val = (0 : Felt) := by
+  have hdiv : a.toNat / 2^32 = a.a3.val.val * 2^64 + a.a2.val.val * 2^32 + a.a1.val.val :=
+    U128.toNat_div_2_32 a
+  obtain ⟨h0, h1, h2, h3⟩ := U128.ofNat_of_lt_2_96 a.a3.val.val a.a2.val.val a.a1.val.val
+    a.a3.val_lt a.a2.val_lt a.a1.val_lt
+  simp only [U128.shr]
+  rw [hdiv]
+  exact ⟨h0.trans (U32.ofNat_val a.a1), h1.trans (U32.ofNat_val a.a2),
+    h2.trans (U32.ofNat_val a.a3), h3⟩
+
+-- k=1, b>0 bridge: shift in (32, 64)
+private theorem shr_bridge_k1_pos (a : U128) (b_nat : Nat) (hb_pos : 0 < b_nat) (hb : b_nat < 32) :
+    (a.shr (32 + b_nat)).a0.val =
+      Felt.ofNat ((a.a1.val.val / 2^b_nat) ||| ((a.a2.val.val * 2^(32 - b_nat)) % 2^32)) ∧
+    (a.shr (32 + b_nat)).a1.val =
+      Felt.ofNat ((a.a2.val.val / 2^b_nat) ||| ((a.a3.val.val * 2^(32 - b_nat)) % 2^32)) ∧
+    (a.shr (32 + b_nat)).a2.val = Felt.ofNat (a.a3.val.val / 2^b_nat) ∧
+    (a.shr (32 + b_nat)).a3.val = (0 : Felt) := by
+  let l0 := (a.a1.val.val / 2^b_nat) ||| ((a.a2.val.val * 2^(32 - b_nat)) % 2^32)
+  let l1 := (a.a2.val.val / 2^b_nat) ||| ((a.a3.val.val * 2^(32 - b_nat)) % 2^32)
+  let l2 := a.a3.val.val / 2^b_nat
+  have hl0_lt : l0 < 2^32 := by
+    dsimp [l0]
+    exact u32_shr_or_lt a.a1.val.val a.a2.val.val b_nat a.a1.val_lt hb_pos hb
+  have hl1_lt : l1 < 2^32 := by
+    dsimp [l1]
+    exact u32_shr_or_lt a.a2.val.val a.a3.val.val b_nat a.a2.val_lt hb_pos hb
+  have hl2_lt : l2 < 2^32 := by
+    dsimp [l2]
+    exact lt_of_le_of_lt (Nat.div_le_self _ _) a.a3.val_lt
+  have hdiv : a.toNat / 2^(32 + b_nat) =
+      l2 * 2^64 + l1 * 2^32 + l0 := by
+    rw [show (2:Nat)^(32 + b_nat) = 2^32 * 2^b_nat from by rw [← Nat.pow_add]]
+    rw [← Nat.div_div_eq_div_mul, U128.toNat_div_2_32]
+    simpa [l0, l1, l2] using
+      u128_three_limb_shr_decomp a.a1.val.val a.a2.val.val a.a3.val.val b_nat
+        a.a1.val_lt a.a2.val_lt hb_pos hb
+  obtain ⟨h0, h1, h2, h3⟩ := U128.ofNat_of_lt_2_96 l2 l1 l0 hl2_lt hl1_lt hl0_lt
+  simp only [U128.shr]
+  rw [hdiv]
+  refine ⟨?_, ?_, ?_, ?_⟩
+  · simpa [l0] using h0
+  · simpa [l1] using h1
+  · simpa [l2] using h2
+  · exact h3
+
+-- k=0 bridge: 0 < shift < 32
+private theorem shr_bridge_k0 (a : U128) (b_nat : Nat) (hb_pos : 0 < b_nat) (hb : b_nat < 32) :
+    (a.shr b_nat).a0.val =
+      Felt.ofNat ((a.a0.val.val / 2^b_nat) ||| ((a.a1.val.val * 2^(32 - b_nat)) % 2^32)) ∧
+    (a.shr b_nat).a1.val =
+      Felt.ofNat ((a.a1.val.val / 2^b_nat) ||| ((a.a2.val.val * 2^(32 - b_nat)) % 2^32)) ∧
+    (a.shr b_nat).a2.val =
+      Felt.ofNat ((a.a2.val.val / 2^b_nat) ||| ((a.a3.val.val * 2^(32 - b_nat)) % 2^32)) ∧
+    (a.shr b_nat).a3.val = Felt.ofNat (a.a3.val.val / 2^b_nat) := by
+  let l0 := (a.a0.val.val / 2^b_nat) ||| ((a.a1.val.val * 2^(32 - b_nat)) % 2^32)
+  let l1 := (a.a1.val.val / 2^b_nat) ||| ((a.a2.val.val * 2^(32 - b_nat)) % 2^32)
+  let l2 := (a.a2.val.val / 2^b_nat) ||| ((a.a3.val.val * 2^(32 - b_nat)) % 2^32)
+  let l3 := a.a3.val.val / 2^b_nat
+  have hl0_lt : l0 < 2^32 := by
+    dsimp [l0]
+    exact u32_shr_or_lt a.a0.val.val a.a1.val.val b_nat a.a0.val_lt hb_pos hb
+  have hl1_lt : l1 < 2^32 := by
+    dsimp [l1]
+    exact u32_shr_or_lt a.a1.val.val a.a2.val.val b_nat a.a1.val_lt hb_pos hb
+  have hl2_lt : l2 < 2^32 := by
+    dsimp [l2]
+    exact u32_shr_or_lt a.a2.val.val a.a3.val.val b_nat a.a2.val_lt hb_pos hb
+  have hl3_lt : l3 < 2^32 := by
+    dsimp [l3]
+    exact lt_of_le_of_lt (Nat.div_le_self _ _) a.a3.val_lt
+  have hdiv : a.toNat / 2^b_nat = l3 * 2^96 + l2 * 2^64 + l1 * 2^32 + l0 := by
+    simpa [U128.toNat, l0, l1, l2, l3] using
+      u128_four_limb_shr_decomp a.a0.val.val a.a1.val.val a.a2.val.val a.a3.val.val b_nat
+        a.a0.val_lt a.a1.val_lt a.a2.val_lt hb_pos hb
+  obtain ⟨h0, h1, h2, h3⟩ := U128.ofNat_of_limbs l3 l2 l1 l0 hl3_lt hl2_lt hl1_lt hl0_lt
+  simp only [U128.shr]
+  rw [hdiv]
+  refine ⟨?_, ?_, ?_, ?_⟩
+  · simpa [l0] using h0
+  · simpa [l1] using h1
+  · simpa [l2] using h2
+  · simpa [l3] using h3
+
+-- ============================================================================
+-- High-level correctness theorem
+-- ============================================================================
+
+set_option maxHeartbeats 16000000 in
+/-- `u128::shr` correctly right-shifts a u128 value by `shift` bits.
+    Input stack:  [shift, a.a0, a.a1, a.a2, a.a3] ++ rest
+    Output stack: [(a.shr shift).a0, (a.shr shift).a1, (a.shr shift).a2, (a.shr shift).a3] ++ rest -/
+theorem u128_shr_correct (a : U128) (shift : U32) (rest : List Felt) (s : MidenState)
+    (hs : s.stack = shift.val :: a.a0.val :: a.a1.val :: a.a2.val :: a.a3.val :: rest)
+    (hshift_lt128 : shift.toNat < 128) :
+    execWithEnv u128ProcEnv 10 s Miden.Core.U128.shr =
+    some (s.withStack (
+      (a.shr shift.toNat).a0.val :: (a.shr shift.toNat).a1.val ::
+      (a.shr shift.toNat).a2.val :: (a.shr shift.toNat).a3.val :: rest)) := by
+  have hraw := u128_shr_raw shift.val a.a0.val a.a1.val a.a2.val a.a3.val rest s hs
+    shift.isU32 hshift_lt128 a.a0.isU32 a.a1.isU32 a.a2.isU32 a.a3.isU32
+  by_cases hzero : shift.toNat = 0
+  · have hshift0 : shift.val = (0 : Felt) := by
+      apply ZMod.val_injective
+      simpa [U32.toNat, Felt.val_zero'] using hzero
+    simpa [hshift0, hzero, U128.shr_zero] using hraw
+  · have hpos : 0 < shift.toNat := Nat.pos_of_ne_zero hzero
+    have hshift_ne0 : shift.val ≠ (0 : Felt) := by
+      intro h
+      apply hzero
+      simpa [U32.toNat, Felt.val_zero'] using congrArg ZMod.val h
+    have hshift0b : (shift.val == (0 : Felt)) = false := by
+      apply Bool.eq_false_iff.mpr
+      intro h
+      exact hshift_ne0 (beq_iff_eq.mp h)
+    have hb_mod : shift.toNat % 32 = shift.toNat &&& 31 := by
+      symm
+      simpa using Nat.and_two_pow_sub_one_eq_mod shift.toNat 5
+    by_cases hk0 : shift.toNat / 32 = 0
+    · have hkfelt : Felt.ofNat (shift.toNat / 32) = (0 : Felt) := by
+        rw [hk0]
+        rfl
+      have hb_eq : shift.toNat &&& 31 = shift.toNat := by
+        exact Nat.and_two_pow_sub_one_of_lt_two_pow (show shift.toNat < 2 ^ 5 by omega)
+      obtain ⟨h0, h1, h2, h3⟩ := shr_bridge_k0 a shift.toNat hpos (by omega)
+      rw [h0, h1, h2, h3]
+      simpa [U32.toNat, hshift0b, hkfelt, hb_eq, and31_val shift.val] using hraw
+    · by_cases hk1 : shift.toNat / 32 = 1
+      · have hkfelt : Felt.ofNat (shift.toNat / 32) = (1 : Felt) := by
+          rw [hk1]
+          rfl
+        have hshift_eq : shift.toNat = 32 + (shift.toNat &&& 31) := by
+          have h := Nat.div_add_mod shift.toNat 32
+          rw [hk1, hb_mod] at h
+          omega
+        by_cases hb0 : shift.toNat &&& 31 = 0
+        · have hshift32 : shift.toNat = 32 := by
+            simpa [hb0] using hshift_eq
+          obtain ⟨h0, h1, h2, h3⟩ := shr_bridge_k1_zero a
+          rw [hshift32, h0, h1, h2, h3]
+          simpa [U32.toNat, hshift0b, hkfelt, hb0, and31_val shift.val] using hraw
+        · have hb_pos : 0 < shift.toNat &&& 31 := by omega
+          have hbbeq0 : (Felt.ofNat (shift.toNat &&& 31) == (0 : Felt)) = false := by
+            apply Bool.eq_false_iff.mpr
+            intro h
+            have hval := congrArg ZMod.val (beq_iff_eq.mp h)
+            rw [felt_ofNat_val_lt _ (by unfold GOLDILOCKS_PRIME; omega), Felt.val_zero'] at hval
+            exact hb0 hval
+          obtain ⟨h0, h1, h2, h3⟩ := shr_bridge_k1_pos a (shift.toNat &&& 31) hb_pos
+            (nat_land_31_lt_32 shift.toNat)
+          rw [hshift_eq, h0, h1, h2, h3]
+          simpa [U32.toNat, hshift0b, hkfelt, hbbeq0, and31_val shift.val] using hraw
+      · by_cases hk2 : shift.toNat / 32 = 2
+        · have hkfelt : Felt.ofNat (shift.toNat / 32) = (2 : Felt) := by
+            rw [hk2]
+            rfl
+          have hshift_eq : shift.toNat = 64 + (shift.toNat &&& 31) := by
+            have h := Nat.div_add_mod shift.toNat 32
+            rw [hk2, hb_mod] at h
+            omega
+          by_cases hb0 : shift.toNat &&& 31 = 0
+          · have hshift64 : shift.toNat = 64 := by
+              simpa [hb0] using hshift_eq
+            obtain ⟨h0, h1, h2, h3⟩ := shr_bridge_k2_zero a
+            rw [hshift64, h0, h1, h2, h3]
+            simpa [U32.toNat, hshift0b, hkfelt, hb0, and31_val shift.val] using hraw
+          · have hb_pos : 0 < shift.toNat &&& 31 := by omega
+            have hbbeq0 : (Felt.ofNat (shift.toNat &&& 31) == (0 : Felt)) = false := by
+              apply Bool.eq_false_iff.mpr
+              intro h
+              have hval := congrArg ZMod.val (beq_iff_eq.mp h)
+              rw [felt_ofNat_val_lt _ (by unfold GOLDILOCKS_PRIME; omega), Felt.val_zero'] at hval
+              exact hb0 hval
+            obtain ⟨h0, h1, h2, h3⟩ := shr_bridge_k2_pos a (shift.toNat &&& 31) hb_pos
+              (nat_land_31_lt_32 shift.toNat)
+            rw [hshift_eq, h0, h1, h2, h3]
+            simpa [U32.toNat, hshift0b, hkfelt, hbbeq0, and31_val shift.val] using hraw
+        · have hk3 : shift.toNat / 32 = 3 := by
+            have : shift.toNat / 32 < 4 := by omega
+            omega
+          have hkfelt : Felt.ofNat (shift.toNat / 32) = (3 : Felt) := by
+            rw [hk3]
+            rfl
+          have hshift_eq : shift.toNat = 96 + (shift.toNat &&& 31) := by
+            have h := Nat.div_add_mod shift.toNat 32
+            rw [hk3, hb_mod] at h
+            omega
+          obtain ⟨h0, h1, h2, h3⟩ := shr_bridge_k3 a (shift.toNat &&& 31)
+          rw [hshift_eq, h0, h1, h2, h3]
+          simpa [U32.toNat, hshift0b, hkfelt, and31_val shift.val] using hraw
 
 end MidenLean.Proofs

@@ -258,7 +258,7 @@ namespace U128
 theorem beq_comm (a b : U128) : (a == b) = (b == a) := by
   simp only [beq_iff, Bool.beq_comm (a := a.a0.val), Bool.beq_comm (a := a.a1.val),
     Bool.beq_comm (a := a.a2.val), Bool.beq_comm (a := a.a3.val),
-    Bool.and_comm, Bool.and_assoc, Bool.and_left_comm]
+    Bool.and_comm, Bool.and_left_comm]
 
 theorem bne_iff (a b : U128) :
     (a != b) = ((a.a0.val != b.a0.val) || (a.a1.val != b.a1.val) ||
@@ -349,6 +349,77 @@ def rotl (a : U128) (n : Nat) : U128 :=
   let n' := n % 128
   ofNat (a.toNat * 2^n' + a.toNat / 2^(128 - n'))
 
+@[simp] theorem toNat_shl (a : U128) (n : Nat) :
+    (a.shl n).toNat = (a.toNat * 2^n) % 2^128 := by
+  simp [shl]
+
+@[simp] theorem toNat_shr (a : U128) (n : Nat) :
+    (a.shr n).toNat = a.toNat / 2^n := by
+  have h : a.toNat / 2^n < 2^128 :=
+    lt_of_le_of_lt (Nat.div_le_self _ _) a.toNat_lt
+  unfold shr; simp only [ofNat_toNat]; exact Nat.mod_eq_of_lt h
+
+@[simp] theorem ofNat_toNat_id (a : U128) : U128.ofNat a.toNat = a :=
+  eq_of_toNat_eq (by rw [ofNat_toNat]; exact Nat.mod_eq_of_lt a.toNat_lt)
+
+@[simp] theorem shr_zero (a : U128) : a.shr 0 = a := by
+  simp [shr, Nat.div_one]
+
+/-- For a value `v < 2^32`, `ofNat v` has `a0 = Felt.ofNat v` and the rest zero. -/
+theorem ofNat_of_lt_2_32 (v : Nat) (hv : v < 2^32) :
+    (U128.ofNat v).a0.val = Felt.ofNat v ∧
+    (U128.ofNat v).a1.val = (0 : Felt) ∧
+    (U128.ofNat v).a2.val = (0 : Felt) ∧
+    (U128.ofNat v).a3.val = (0 : Felt) := by
+  simp only [ofNat_a0, ofNat_a1, ofNat_a2, ofNat_a3]
+  refine ⟨congrArg _ (Nat.mod_eq_of_lt hv), ?_, ?_, ?_⟩
+  all_goals (
+    rw [show v / _ % 2^32 = 0 from by omega]
+    show Felt.ofNat 0 = 0; exact Nat.cast_zero)
+
+/-- For a value `v = hi * 2^32 + lo` with `hi < 2^32` and `lo < 2^32`,
+    `ofNat v` has `a0 = Felt.ofNat lo`, `a1 = Felt.ofNat hi`, and the rest zero. -/
+theorem ofNat_of_lt_2_64 (hi lo : Nat) (hhi : hi < 2^32) (hlo : lo < 2^32) :
+    (U128.ofNat (hi * 2^32 + lo)).a0.val = Felt.ofNat lo ∧
+    (U128.ofNat (hi * 2^32 + lo)).a1.val = Felt.ofNat hi ∧
+    (U128.ofNat (hi * 2^32 + lo)).a2.val = (0 : Felt) ∧
+    (U128.ofNat (hi * 2^32 + lo)).a3.val = (0 : Felt) := by
+  simp only [ofNat_a0, ofNat_a1, ofNat_a2, ofNat_a3]
+  refine ⟨congrArg _ (by omega), congrArg _ (by omega), ?_, ?_⟩
+  all_goals (
+    rw [show (hi * 2^32 + lo) / _ % 2^32 = 0 from by omega]
+    show Felt.ofNat 0 = 0; exact Nat.cast_zero)
+
+/-- For a value `v = a2 * 2^64 + a1 * 2^32 + a0` with 32-bit limbs,
+    `ofNat v` recovers those limbs and zero-extends the top limb. -/
+theorem ofNat_of_lt_2_96 (a2 a1 a0 : Nat)
+    (ha2 : a2 < 2^32) (ha1 : a1 < 2^32) (ha0 : a0 < 2^32) :
+    (U128.ofNat (a2 * 2^64 + a1 * 2^32 + a0)).a0.val = Felt.ofNat a0 ∧
+    (U128.ofNat (a2 * 2^64 + a1 * 2^32 + a0)).a1.val = Felt.ofNat a1 ∧
+    (U128.ofNat (a2 * 2^64 + a1 * 2^32 + a0)).a2.val = Felt.ofNat a2 ∧
+    (U128.ofNat (a2 * 2^64 + a1 * 2^32 + a0)).a3.val = (0 : Felt) := by
+  simp only [ofNat_a0, ofNat_a1, ofNat_a2, ofNat_a3]
+  refine ⟨congrArg _ (by omega), congrArg _ (by omega), congrArg _ (by omega), ?_⟩
+  rw [show (a2 * 2^64 + a1 * 2^32 + a0) / 2^96 % 2^32 = 0 from by omega]
+  exact Nat.cast_zero
+
+/-- For a packed four-limb 128-bit value, `ofNat` recovers the original limbs. -/
+theorem ofNat_of_limbs (a3 a2 a1 a0 : Nat)
+    (ha3 : a3 < 2^32) (ha2 : a2 < 2^32) (ha1 : a1 < 2^32) (ha0 : a0 < 2^32) :
+    (U128.ofNat (a3 * 2^96 + a2 * 2^64 + a1 * 2^32 + a0)).a0.val = Felt.ofNat a0 ∧
+    (U128.ofNat (a3 * 2^96 + a2 * 2^64 + a1 * 2^32 + a0)).a1.val = Felt.ofNat a1 ∧
+    (U128.ofNat (a3 * 2^96 + a2 * 2^64 + a1 * 2^32 + a0)).a2.val = Felt.ofNat a2 ∧
+    (U128.ofNat (a3 * 2^96 + a2 * 2^64 + a1 * 2^32 + a0)).a3.val = Felt.ofNat a3 := by
+  simp only [ofNat_a0, ofNat_a1, ofNat_a2, ofNat_a3]
+  exact ⟨congrArg _ (by omega), congrArg _ (by omega), congrArg _ (by omega), congrArg _ (by omega)⟩
+
+theorem shl_eq_mul_ofNat_pow2 (a : U128) (n : Nat) :
+    a.shl n = a * U128.ofNat (2^n) := by
+  apply eq_of_toNat_eq
+  simp only [toNat_shl, toNat_mul, ofNat_toNat]
+  conv_rhs => rw [Nat.mul_mod, Nat.mod_mod]
+  rw [← Nat.mul_mod]
+
 end U128
 
 /-- `Felt.ofNat` distributes over addition. -/
@@ -362,9 +433,7 @@ theorem felt_ofNat_add (n m : Nat) :
 
 /-- The schoolbook carry-chain addition of four u32 limbs produces the correct
     decomposition of the total sum into 32-bit words. -/
-theorem u128_add_carry_chain (a0 a1 a2 a3 b0 b1 b2 b3 : Nat)
-    (ha0 : a0 < 2^32) (ha1 : a1 < 2^32) (ha2 : a2 < 2^32) (ha3 : a3 < 2^32)
-    (hb0 : b0 < 2^32) (hb1 : b1 < 2^32) (hb2 : b2 < 2^32) (hb3 : b3 < 2^32) :
+theorem u128_add_carry_chain (a0 a1 a2 a3 b0 b1 b2 b3 : Nat) :
     let total := a3 * 2^96 + a2 * 2^64 + a1 * 2^32 + a0 +
                  (b3 * 2^96 + b2 * 2^64 + b1 * 2^32 + b0)
     let sum0 := b0 + a0
@@ -378,9 +447,7 @@ theorem u128_add_carry_chain (a0 a1 a2 a3 b0 b1 b2 b3 : Nat)
   refine ⟨by omega, by omega, by omega, by omega⟩
 
 /-- The overflow bit of the carry-chain addition equals the carry out of the full sum. -/
-theorem u128_add_carry_overflow (a0 a1 a2 a3 b0 b1 b2 b3 : Nat)
-    (ha0 : a0 < 2^32) (ha1 : a1 < 2^32) (ha2 : a2 < 2^32) (ha3 : a3 < 2^32)
-    (hb0 : b0 < 2^32) (hb1 : b1 < 2^32) (hb2 : b2 < 2^32) (hb3 : b3 < 2^32) :
+theorem u128_add_carry_overflow (a0 a1 a2 a3 b0 b1 b2 b3 : Nat) :
     let total := a3 * 2^96 + a2 * 2^64 + a1 * 2^32 + a0 +
                  (b3 * 2^96 + b2 * 2^64 + b1 * 2^32 + b0)
     let sum0 := b0 + a0
@@ -404,12 +471,8 @@ theorem u128_add_carry_bridge (a b : U128) :
     sum3 / 2^32 = (a.toNat + b.toNat) / 2^128 := by
   have cc := u128_add_carry_chain a.a0.val.val a.a1.val.val a.a2.val.val a.a3.val.val
     b.a0.val.val b.a1.val.val b.a2.val.val b.a3.val.val
-    a.a0.val_lt a.a1.val_lt a.a2.val_lt a.a3.val_lt
-    b.a0.val_lt b.a1.val_lt b.a2.val_lt b.a3.val_lt
   have co := u128_add_carry_overflow a.a0.val.val a.a1.val.val a.a2.val.val a.a3.val.val
     b.a0.val.val b.a1.val.val b.a2.val.val b.a3.val.val
-    a.a0.val_lt a.a1.val_lt a.a2.val_lt a.a3.val_lt
-    b.a0.val_lt b.a1.val_lt b.a2.val_lt b.a3.val_lt
   simp only [HAdd.hAdd, Add.add, U128.ofNat, U128.toNat] at cc co ⊢
   exact ⟨congrArg _ cc.1, congrArg _ cc.2.1, congrArg _ cc.2.2.1, congrArg _ cc.2.2.2, co⟩
 
@@ -423,11 +486,10 @@ private theorem felt_ite_val (p : Prop) [Decidable p] :
   split <;> simp [Felt.val_one']
 
 private theorem u128_borrow1_eq (a0 a1 b0 b1 : Felt)
-    (ha0 : a0.isU32 = true) (ha1 : a1.isU32 = true)
-    (hb0 : b0.isU32 = true) (hb1 : b1.isU32 = true) :
+    (ha0 : a0.isU32 = true) (hb0 : b0.isU32 = true) :
     u128Borrow1 a0 a1 b0 b1 =
     if decide (a1.val * 2^32 + a0.val < b1.val * 2^32 + b0.val) then (1 : Felt) else 0 := by
-  simp only [Felt.isU32, decide_eq_true_eq] at ha0 ha1 hb0 hb1
+  simp only [Felt.isU32, decide_eq_true_eq] at ha0 hb0
   unfold u128Borrow1 u128Sub0 u128Sub1 u32OverflowingSub u32Max
   congr 1; apply propext
   simp only [Bool.or_eq_true, decide_eq_true_eq]
@@ -441,15 +503,14 @@ private theorem u128_borrow1_eq (a0 a1 b0 b1 : Felt)
     · left; split_ifs <;> omega
 
 private theorem u128_borrow2_eq (a0 a1 a2 b0 b1 b2 : Felt)
-    (ha0 : a0.isU32 = true) (ha1 : a1.isU32 = true) (ha2 : a2.isU32 = true)
-    (hb0 : b0.isU32 = true) (hb1 : b1.isU32 = true) (hb2 : b2.isU32 = true) :
+    (ha0 : a0.isU32 = true) (ha1 : a1.isU32 = true)
+    (hb0 : b0.isU32 = true) (hb1 : b1.isU32 = true) :
     u128Borrow2 a0 a1 a2 b0 b1 b2 =
     if decide (a2.val * 2^64 + a1.val * 2^32 + a0.val <
               b2.val * 2^64 + b1.val * 2^32 + b0.val) then (1 : Felt) else 0 := by
-  simp only [Felt.isU32, decide_eq_true_eq] at ha0 ha1 ha2 hb0 hb1 hb2
+  simp only [Felt.isU32, decide_eq_true_eq] at ha0 ha1 hb0 hb1
   unfold u128Borrow2 u128Sub2 u32OverflowingSub u32Max
-  rw [u128_borrow1_eq a0 a1 b0 b1 (by simpa [Felt.isU32]) (by simpa [Felt.isU32])
-    (by simpa [Felt.isU32]) (by simpa [Felt.isU32])]
+  rw [u128_borrow1_eq a0 a1 b0 b1 (by simpa [Felt.isU32]) (by simpa [Felt.isU32])]
   rw [felt_ite_val]
   congr 1; apply propext
   simp only [Bool.or_eq_true, decide_eq_true_eq]
@@ -468,7 +529,7 @@ theorem u128LtBool_iff_lt (a b : U128) :
     decide (a.toNat < b.toNat) := by
   unfold u128LtBool u128Sub3 u32OverflowingSub u32Max
   rw [u128_borrow2_eq a.a0.val a.a1.val a.a2.val b.a0.val b.a1.val b.a2.val
-    a.a0.isU32 a.a1.isU32 a.a2.isU32 b.a0.isU32 b.a1.isU32 b.a2.isU32]
+    a.a0.isU32 a.a1.isU32 b.a0.isU32 b.a1.isU32]
   rw [felt_ite_val]
   simp only [U128.toNat]
   have ha0' := a.a0.val_lt; have ha1' := a.a1.val_lt
@@ -520,5 +581,251 @@ theorem u128_sub_borrow_bridge (a b : U128) :
   · split <;> split <;> split <;> simp_all <;> omega
   · split <;> split <;> split <;> split <;> split <;> simp_all <;> omega
   · split <;> split <;> split <;> split <;> split <;> split <;> split <;> simp_all <;> omega
+
+-- ============================================================================
+-- Reusable shift-right limb decomposition lemmas
+-- ============================================================================
+-- These capture the core arithmetic identities used in the u128 shr proofs,
+-- where a right-shift by n bits across a pair of adjacent 32-bit limbs
+-- produces (lo / 2^n) ||| ((hi * 2^(32-n)) % 2^32).
+
+/-- Dividing a two-limb value `hi * 2^32 + lo` by `2^n` gives `hi * 2^(32-n) + lo / 2^n`. -/
+theorem u32_pair_div (hi lo n : Nat) (hn_pos : 0 < n) (hn : n < 32) :
+    (hi * 2^32 + lo) / 2^n = hi * 2^(32 - n) + lo / 2^n := by
+  conv_lhs =>
+    rw [show (2 : Nat)^32 = 2^n * 2^(32 - n) from by rw [← Nat.pow_add]; congr 1; omega,
+        ← mul_assoc, mul_comm hi (2^n), mul_assoc]
+  rw [Nat.mul_add_div (by positivity : 2^n > 0)]
+
+/-- `(hi * 2^(32-n)) % 2^32 = (hi % 2^n) * 2^(32-n)`: only the low `n` bits of `hi` survive. -/
+theorem u32_mul_pow_mod (hi n : Nat) (hn_pos : 0 < n) (hn : n < 32) :
+    (hi * 2^(32 - n)) % 2^32 = (hi % 2^n) * 2^(32 - n) := by
+  rw [show (2 : Nat)^32 = 2^n * 2^(32 - n) from by rw [← Nat.pow_add]; congr 1; omega,
+      Nat.mul_mod_mul_right]
+
+/-- The non-overlapping parts of a shifted limb pair fit in 32 bits. -/
+theorem u32_shr_sum_lt (hi lo n : Nat) (hlo : lo < 2^32)
+    (hn_pos : 0 < n) (hn : n < 32) :
+    (hi % 2^n) * 2^(32-n) + lo / 2^n < 2^32 := by
+  have h_pow : 2^n * 2^(32 - n) = 2^32 := by rw [← Nat.pow_add]; congr 1; omega
+  have h_div : lo / 2^n < 2^(32-n) := by
+    rw [Nat.div_lt_iff_lt_mul (by positivity)]
+    have : 2^(32-n) * 2^n = 2^32 := by rw [mul_comm]; exact h_pow
+    omega
+  calc (hi % 2^n) * 2^(32-n) + lo / 2^n
+      ≤ (2^n - 1) * 2^(32-n) + lo / 2^n :=
+        Nat.add_le_add_right (Nat.mul_le_mul_right _
+          (Nat.le_sub_one_of_lt (Nat.mod_lt _ (by positivity)))) _
+    _ < (2^n - 1) * 2^(32-n) + 2^(32-n) := Nat.add_lt_add_left h_div _
+    _ = 2^n * 2^(32-n) := by
+        rw [Nat.sub_one_mul]
+        exact Nat.sub_add_cancel (Nat.le_mul_of_pos_left _ (by positivity))
+    _ = 2^32 := h_pow
+
+/-- The bitwise OR of shifted limb parts equals the correct 32-bit window:
+    `(lo / 2^n) ||| ((hi * 2^(32-n)) % 2^32) = ((hi * 2^32 + lo) / 2^n) % 2^32`.
+    This is the core identity behind the shr limb-merging pattern in MASM. -/
+theorem u32_shr_or_eq (lo hi n : Nat)
+    (hlo : lo < 2^32) (hn_pos : 0 < n) (hn : n < 32) :
+    (lo / 2^n) ||| ((hi * 2^(32 - n)) % 2^32) = ((hi * 2^32 + lo) / 2^n) % 2^32 := by
+  rw [u32_mul_pow_mod hi n hn_pos hn]
+  have h_div_bound : lo / 2^n < 2^(32-n) := by
+    rw [Nat.div_lt_iff_lt_mul (by positivity)]
+    have : 2^(32-n) * 2^n = 2^32 := by rw [← Nat.pow_add]; congr 1; omega
+    omega
+  rw [Nat.or_comm, mul_comm (hi % 2^n) (2^(32-n)),
+      ← Nat.two_pow_add_eq_or_of_lt h_div_bound,
+      mul_comm (2^(32-n)) (hi % 2^n)]
+  rw [u32_pair_div hi lo n hn_pos hn]
+  symm
+  rw [Nat.add_mod, u32_mul_pow_mod hi n hn_pos hn,
+      Nat.mod_eq_of_lt (show lo / 2^n < 2^32 from
+        lt_trans h_div_bound (Nat.pow_lt_pow_right (by omega) (by omega))),
+      Nat.mod_eq_of_lt (u32_shr_sum_lt hi lo n hlo hn_pos hn)]
+
+/-- The merged low limb produced by a cross-limb right shift fits in 32 bits. -/
+theorem u32_shr_or_lt (lo hi n : Nat)
+    (hlo : lo < 2^32) (hn_pos : 0 < n) (hn : n < 32) :
+    (lo / 2^n) ||| ((hi * 2^(32 - n)) % 2^32) < 2^32 := by
+  rw [u32_shr_or_eq lo hi n hlo hn_pos hn]
+  exact Nat.mod_lt _ (by positivity)
+
+/-- Decompose a shifted two-limb word into its high quotient limb and merged low limb. -/
+theorem u32_pair_shr_decomp (lo hi n : Nat)
+    (hlo : lo < 2^32) (hn_pos : 0 < n) (hn : n < 32) :
+    (hi * 2^32 + lo) / 2^n =
+      (hi / 2^n) * 2^32 + ((lo / 2^n) ||| ((hi * 2^(32 - n)) % 2^32)) := by
+  have hor :
+      ((lo / 2^n) ||| ((hi * 2^(32 - n)) % 2^32)) =
+      lo / 2^n + (hi % 2^n) * 2^(32 - n) := by
+    have hdiv : lo / 2^n < 2^(32 - n) := by
+      rw [Nat.div_lt_iff_lt_mul (by positivity)]
+      have : 2^(32 - n) * 2^n = 2^32 := by
+        rw [← Nat.pow_add]
+        congr 1
+        omega
+      omega
+    rw [u32_mul_pow_mod hi n hn_pos hn]
+    rw [Nat.or_comm, mul_comm (hi % 2^n) (2^(32 - n)),
+      ← Nat.two_pow_add_eq_or_of_lt hdiv,
+      mul_comm (2^(32 - n)) (hi % 2^n)]
+    omega
+  rw [hor, u32_pair_div hi lo n hn_pos hn]
+  have hdecomp :
+      hi * 2^(32 - n) =
+      (hi / 2^n) * 2^32 + (hi % 2^n) * 2^(32 - n) := by
+    calc
+      hi * 2^(32 - n)
+          = ((hi / 2^n) * 2^n + hi % 2^n) * 2^(32 - n) := by
+              conv_lhs => rw [(Nat.div_add_mod hi (2^n)).symm, Nat.mul_comm (2^n) (hi / 2^n)]
+      _ = (hi / 2^n) * (2^n * 2^(32 - n)) + (hi % 2^n) * 2^(32 - n) := by ring
+      _ = (hi / 2^n) * 2^32 + (hi % 2^n) * 2^(32 - n) := by
+        rw [show (2 : Nat)^n * 2^(32 - n) = 2^32 by
+          rw [← Nat.pow_add]
+          congr 1
+          omega]
+  simp [hdecomp, Nat.add_assoc, Nat.add_comm]
+
+/-- Any factor `x * 2^m` with `m ≥ 32` vanishes modulo `2^32`. -/
+theorem mul_pow_mod_2_32_zero (x m : Nat) (hm : 32 ≤ m) :
+    (x * 2^m) % 2^32 = 0 := by
+  apply Nat.dvd_iff_mod_eq_zero.mp
+  exact Dvd.dvd.mul_left (Nat.pow_dvd_pow 2 hm) _
+
+/-- Decompose the right shift of a three-limb word into three 32-bit limbs. -/
+theorem u128_three_limb_shr_decomp (a1 a2 a3 n : Nat)
+    (ha1 : a1 < 2^32) (ha2 : a2 < 2^32) (hn_pos : 0 < n) (hn : n < 32) :
+    (a3 * 2^64 + a2 * 2^32 + a1) / 2^n =
+      (a3 / 2^n) * 2^64 +
+      (((a2 / 2^n) ||| ((a3 * 2^(32 - n)) % 2^32)) * 2^32) +
+      ((a1 / 2^n) ||| ((a2 * 2^(32 - n)) % 2^32)) := by
+  set mid := (a2 / 2^n) ||| ((a3 * 2^(32 - n)) % 2^32) with hmid
+  set lo := (a1 / 2^n) ||| ((a2 * 2^(32 - n)) % 2^32) with hlo
+  have hrepr : a3 * 2^64 + a2 * 2^32 + a1 = (a3 * 2^32 + a2) * 2^32 + a1 := by
+    rw [show (2 : Nat)^64 = 2^32 * 2^32 by rw [← Nat.pow_add]]
+    ring
+  have hinner : (a3 * 2^32 + a2) / 2^n = (a3 / 2^n) * 2^32 + mid := by
+    simpa [hmid] using u32_pair_shr_decomp a2 a3 n ha2 hn_pos hn
+  have houter_low :
+      ((a3 * 2^32 + a2) * 2^(32 - n)) % 2^32 = (a2 * 2^(32 - n)) % 2^32 := by
+    rw [Nat.add_mul, Nat.add_mod]
+    have hzero : (a3 * 2^32 * 2^(32 - n)) % 2^32 = 0 := by
+      rw [Nat.mul_assoc, show (2 : Nat)^32 * 2^(32 - n) = 2^(64 - n) by
+        rw [← Nat.pow_add]
+        congr 1
+        omega]
+      exact mul_pow_mod_2_32_zero a3 (64 - n) (by omega)
+    rw [hzero, Nat.zero_add, Nat.mod_mod]
+  calc
+    (a3 * 2^64 + a2 * 2^32 + a1) / 2^n
+      = ((a3 * 2^32 + a2) * 2^32 + a1) / 2^n := by rw [hrepr]
+    _ = ((a3 * 2^32 + a2) / 2^n) * 2^32 +
+          ((a1 / 2^n) ||| (((a3 * 2^32 + a2) * 2^(32 - n)) % 2^32)) := by
+        exact u32_pair_shr_decomp a1 (a3 * 2^32 + a2) n ha1 hn_pos hn
+    _ = (((a3 / 2^n) * 2^32 + mid) * 2^32) + lo := by
+        rw [hinner, houter_low, hlo]
+    _ = (a3 / 2^n) * 2^64 + mid * 2^32 + lo := by
+        rw [show (2 : Nat)^64 = 2^32 * 2^32 by rw [← Nat.pow_add]]
+        ring
+    _ = (a3 / 2^n) * 2^64 +
+          (((a2 / 2^n) ||| ((a3 * 2^(32 - n)) % 2^32)) * 2^32) +
+          ((a1 / 2^n) ||| ((a2 * 2^(32 - n)) % 2^32)) := by
+        simp [hmid, hlo]
+
+/-- Decompose the right shift of a four-limb word into four 32-bit limbs. -/
+theorem u128_four_limb_shr_decomp (a0 a1 a2 a3 n : Nat)
+    (ha0 : a0 < 2^32) (ha1 : a1 < 2^32) (ha2 : a2 < 2^32)
+    (hn_pos : 0 < n) (hn : n < 32) :
+    (a3 * 2^96 + a2 * 2^64 + a1 * 2^32 + a0) / 2^n =
+      (a3 / 2^n) * 2^96 +
+      (((a2 / 2^n) ||| ((a3 * 2^(32 - n)) % 2^32)) * 2^64) +
+      (((a1 / 2^n) ||| ((a2 * 2^(32 - n)) % 2^32)) * 2^32) +
+      ((a0 / 2^n) ||| ((a1 * 2^(32 - n)) % 2^32)) := by
+  set upper := a3 * 2^64 + a2 * 2^32 + a1 with hupper_def
+  set l2 := (a2 / 2^n) ||| ((a3 * 2^(32 - n)) % 2^32) with hl2
+  set l1 := (a1 / 2^n) ||| ((a2 * 2^(32 - n)) % 2^32) with hl1
+  set l0 := (a0 / 2^n) ||| ((a1 * 2^(32 - n)) % 2^32) with hl0
+  have hrepr : a3 * 2^96 + a2 * 2^64 + a1 * 2^32 + a0 = upper * 2^32 + a0 := by
+    rw [show (2 : Nat)^96 = 2^64 * 2^32 by rw [← Nat.pow_add]]
+    rw [show (2 : Nat)^64 = 2^32 * 2^32 by rw [← Nat.pow_add]]
+    simp [hupper_def]
+    ring
+  have hupper :
+      upper / 2^n = (a3 / 2^n) * 2^64 + l2 * 2^32 + l1 := by
+    simpa [hupper_def, hl2, hl1] using
+      u128_three_limb_shr_decomp a1 a2 a3 n ha1 ha2 hn_pos hn
+  have houter_low : (upper * 2^(32 - n)) % 2^32 = (a1 * 2^(32 - n)) % 2^32 := by
+    rw [hupper_def, Nat.add_mul, Nat.add_mod]
+    have hzero_hi : ((a3 * 2^64 + a2 * 2^32) * 2^(32 - n)) % 2^32 = 0 := by
+      rw [Nat.add_mul, Nat.add_mod]
+      have hzero3 : (a3 * 2^64 * 2^(32 - n)) % 2^32 = 0 := by
+        rw [Nat.mul_assoc, show (2 : Nat)^64 * 2^(32 - n) = 2^(96 - n) by
+          rw [← Nat.pow_add]
+          congr 1
+          omega]
+        exact mul_pow_mod_2_32_zero a3 (96 - n) (by omega)
+      have hzero2 : (a2 * 2^32 * 2^(32 - n)) % 2^32 = 0 := by
+        rw [Nat.mul_assoc, show (2 : Nat)^32 * 2^(32 - n) = 2^(64 - n) by
+          rw [← Nat.pow_add]
+          congr 1
+          omega]
+        exact mul_pow_mod_2_32_zero a2 (64 - n) (by omega)
+      rw [hzero3, hzero2, Nat.zero_add]
+      simp
+    rw [hzero_hi, Nat.zero_add, Nat.mod_mod]
+  calc
+    (a3 * 2^96 + a2 * 2^64 + a1 * 2^32 + a0) / 2^n
+      = (upper * 2^32 + a0) / 2^n := by rw [hrepr]
+    _ = (upper / 2^n) * 2^32 + ((a0 / 2^n) ||| ((upper * 2^(32 - n)) % 2^32)) := by
+        exact u32_pair_shr_decomp a0 upper n ha0 hn_pos hn
+    _ = (upper / 2^n) * 2^32 + l0 := by rw [houter_low, hl0]
+    _ = ((a3 / 2^n) * 2^64 + l2 * 2^32 + l1) * 2^32 + l0 := by rw [hupper]
+    _ = (a3 / 2^n) * 2^96 + l2 * 2^64 + l1 * 2^32 + l0 := by
+        rw [show (2 : Nat)^96 = 2^64 * 2^32 by rw [← Nat.pow_add]]
+        rw [show (2 : Nat)^64 = 2^32 * 2^32 by rw [← Nat.pow_add]]
+        ring
+    _ = (a3 / 2^n) * 2^96 +
+          (((a2 / 2^n) ||| ((a3 * 2^(32 - n)) % 2^32)) * 2^64) +
+          (((a1 / 2^n) ||| ((a2 * 2^(32 - n)) % 2^32)) * 2^32) +
+          ((a0 / 2^n) ||| ((a1 * 2^(32 - n)) % 2^32)) := by
+        simp [hl2, hl1, hl0]
+
+/-- Adding a high-order multiple that vanishes modulo `2^32` after dividing by `2^b`:
+    if `2^b | M` and `2^32 | (M / 2^b)`, then `(M + x) / 2^b % 2^32 = x / 2^b % 2^32`. -/
+theorem add_high_div_mod (x M b : Nat) (hdvd_b : 2^b ∣ M) (hdvd_32 : 2^32 ∣ (M / 2^b)) :
+    (M + x) / 2^b % 2^32 = x / 2^b % 2^32 := by
+  have hsplit : (M + x) / 2^b = M / 2^b + x / 2^b := by
+    conv_lhs => rw [Nat.add_comm]
+    rw [Nat.add_div_of_dvd_left hdvd_b, Nat.add_comm]
+  rw [hsplit, Nat.add_mod, Nat.dvd_iff_mod_eq_zero.mp hdvd_32, Nat.zero_add, Nat.mod_mod]
+
+-- ============================================================================
+-- U128 toNat division lemmas (used in shr_correct bridging)
+-- ============================================================================
+-- These express `a.toNat / 2^(k*32)` in terms of the upper limbs.
+
+namespace U128
+
+theorem toNat_div_2_96 (a : U128) : a.toNat / 2^96 = a.a3.val.val := by
+  unfold toNat
+  have h0 := a.a0.val_lt; have h1 := a.a1.val_lt
+  have h2 := a.a2.val_lt; have h3 := a.a3.val_lt
+  omega
+
+theorem toNat_div_2_64 (a : U128) :
+    a.toNat / 2^64 = a.a3.val.val * 2^32 + a.a2.val.val := by
+  unfold toNat
+  have h0 := a.a0.val_lt; have h1 := a.a1.val_lt
+  have h2 := a.a2.val_lt; have h3 := a.a3.val_lt
+  omega
+
+theorem toNat_div_2_32 (a : U128) :
+    a.toNat / 2^32 = a.a3.val.val * 2^64 + a.a2.val.val * 2^32 + a.a1.val.val := by
+  unfold toNat
+  have h0 := a.a0.val_lt; have h1 := a.a1.val_lt
+  have h2 := a.a2.val_lt; have h3 := a.a3.val_lt
+  omega
+
+end U128
 
 end MidenLean.Proofs

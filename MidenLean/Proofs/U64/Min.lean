@@ -90,7 +90,7 @@ theorem u64_min_correct (a b : U64) (rest : List Felt) (s : MidenState)
     execWithEnv u64ProcEnv 20 s Miden.Core.U64.min =
     some (s.withStack ((min a b).lo.val :: (min a b).hi.val :: rest)) := by
   have h := u64_min_ite a b rest s hs
-  simp only [U64.min_def, U64.le_iff_toNat_le, U64.lt_iff_toNat_lt]
+  simp only [U64.min_def, U64.le_iff_toNat_le]
   by_cases hab : a.toNat < b.toNat
   · simp [hab, Nat.le_of_lt hab] at h ⊢; exact h
   · simp [hab] at h ⊢

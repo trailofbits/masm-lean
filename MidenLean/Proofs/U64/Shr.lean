@@ -414,8 +414,7 @@ private theorem felt_pow2_inv (n : Nat) (hn : n < 32) :
   rw [h_eq]; exact mul_inv_cancel_right₀ h_ne _
 
 /-- When shift >= 32, (hi * 2^32 + lo) / 2^shift = hi / 2^(shift-32). -/
-private theorem shr_toNat_ge32 (hi lo n : Nat) (hhi : hi < 2^32) (hlo : lo < 2^32)
-    (h32 : 32 ≤ n) :
+private theorem shr_toNat_ge32 (hi lo n : Nat) (hlo : lo < 2^32) (h32 : 32 ≤ n) :
     (hi * 2^32 + lo) / 2^n = hi / 2^(n - 32) := by
   rw [show 2^n = 2^32 * 2^(n - 32) from by rw [← Nat.pow_add]; congr 1; omega,
       show hi * 2^32 + lo = lo + hi * 2^32 from by omega,
@@ -424,8 +423,7 @@ private theorem shr_toNat_ge32 (hi lo n : Nat) (hhi : hi < 2^32) (hlo : lo < 2^3
       Nat.div_eq_of_lt hlo, Nat.zero_add]
 
 /-- Core quotient identity: (hi * 2^32 + lo) / 2^n for n < 32. -/
-private theorem shr_toNat_div_lt32 (hi lo n : Nat) (hhi : hi < 2^32) (hlo : lo < 2^32)
-    (hn : n < 32) :
+private theorem shr_toNat_div_lt32 (hi lo n : Nat) (hn : n < 32) :
     (hi * 2^32 + lo) / 2^n = hi / 2^n * 2^32 + (hi % 2^n) * 2^(32 - n) + lo / 2^n := by
   have hp : 2^32 = 2^n * 2^(32 - n) := by rw [← Nat.pow_add]; congr 1; omega
   have h1 := (Nat.div_add_mod hi (2^n)).symm  -- hi = 2^n * (hi/2^n) + hi%2^n
@@ -441,8 +439,7 @@ private theorem shr_toNat_div_lt32 (hi lo n : Nat) (hhi : hi < 2^32) (hlo : lo <
       Nat.div_eq_of_lt (Nat.mod_lt lo (by positivity)), Nat.zero_add]
 
 /-- The lo-part sum from shr_toNat_div is < 2^32. -/
-private theorem shr_lo_sum_lt (hi lo n : Nat) (hhi : hi < 2^32) (hlo : lo < 2^32)
-    (hn : n < 32) :
+private theorem shr_lo_sum_lt (hi lo n : Nat) (hlo : lo < 2^32) (hn : n < 32) :
     (hi % 2^n) * 2^(32 - n) + lo / 2^n < 2^32 := by
   have hp : 2^n * 2^(32 - n) = 2^32 := by rw [← Nat.pow_add]; congr 1; omega
   have h1 : (hi % 2^n) * 2^(32 - n) ≤ (2^n - 1) * 2^(32 - n) :=
@@ -517,8 +514,8 @@ theorem u64_shr_correct (a : U64) (shift : Felt) (rest : List Felt) (s : MidenSt
     rw [show ((Felt.ofNat (2 ^ shift.val)).hi32 + (Felt.ofNat (2 ^ shift.val)).lo32).val =
         2 ^ shift.val from by rw [pow2_denom_val shift hshift, h_hi32_val, h_lo32_val]; omega]
     -- Use nat identities
-    have h_div := shr_toNat_div_lt32 a.hi.val.val a.lo.val.val shift.val hhi_lt hlo_lt h32
-    have h_lo_sum_lt := shr_lo_sum_lt a.hi.val.val a.lo.val.val shift.val hhi_lt hlo_lt h32
+    have h_div := shr_toNat_div_lt32 a.hi.val.val a.lo.val.val shift.val h32
+    have h_lo_sum_lt := shr_lo_sum_lt a.hi.val.val a.lo.val.val shift.val hlo_lt h32
     have h_hi_eq : (a.hi.val.val * 2 ^ 32 + a.lo.val.val) / 2 ^ shift.val / 2 ^ 32 = a.hi.val.val / 2^shift.val := by
       rw [h_div, show a.hi.val.val / 2^shift.val * 2^32 +
         a.hi.val.val % 2^shift.val * 2^(32 - shift.val) + a.lo.val.val / 2^shift.val =
@@ -575,7 +572,7 @@ theorem u64_shr_correct (a : U64) (shift : Felt) (rest : List Felt) (s : MidenSt
       rw [pow2_denom_val shift hshift, h_hi32_val, h_lo32_val]; omega
     rw [h_denom_val]
     -- Use the >= 32 nat identity
-    have h_nat := shr_toNat_ge32 a.hi.val.val a.lo.val.val shift.val hhi_lt hlo_lt h32
+    have h_nat := shr_toNat_ge32 a.hi.val.val a.lo.val.val shift.val hlo_lt h32
     rw [h_nat]
     -- result < 2^32
     have h_result_lt : a.hi.val.val / 2^(shift.val - 32) < 2^32 :=

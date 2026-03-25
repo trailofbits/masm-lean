@@ -38,6 +38,11 @@ def ofNat_lt (n : Nat) (h : n < 2^32) : U32 where
   val := Felt.ofNat n
   isU32 := felt_ofNat_isU32_of_lt n h
 
+/-- `Felt.ofNat` round-trips through the underlying natural value of a `U32`. -/
+@[simp] theorem ofNat_val (x : U32) : Felt.ofNat x.val.val = x.val := by
+  apply ZMod.val_injective
+  rw [felt_ofNat_val_lt _ x.val_lt_prime]
+
 -- ============================================================================
 -- Constant U32 values that appear frequently in proofs
 -- ============================================================================

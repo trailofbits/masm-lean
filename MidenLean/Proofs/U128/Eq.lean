@@ -55,6 +55,6 @@ theorem u128_eq_correct (a b : U128) (rest : List Felt) (s : MidenState)
   rw [u128_eq_raw b.a0.val b.a1.val b.a2.val b.a3.val
     a.a0.val a.a1.val a.a2.val a.a3.val rest s hs]
   simp only [U128.beq_iff, Bool.beq_comm (a := b.a0.val), Bool.and_comm,
-    Bool.and_assoc, Bool.and_left_comm]
+    Bool.and_left_comm]
 
 end MidenLean.Proofs
