@@ -55,7 +55,7 @@ The current checked manual proofs cover 69 procedures: 31 in `u64`, 27 in `u128`
 | `u64::widening_mul` | `u64_widening_mul_correct` | `u64::widening_mul` computes the full 128-bit product `a * b`. | `MidenLean/Proofs/U64/WideningMul.lean` |
 | `u64::wrapping_add` | `u64_wrapping_add_correct` | `u64::wrapping_add` computes `(a + b) mod 2^64`. | `MidenLean/Proofs/U64/WrappingAdd.lean` |
 | `u64::wrapping_mul` | `u64_wrapping_mul_correct` | `u64::wrapping_mul` computes the low 64 bits of the product `a * b`. | `MidenLean/Proofs/U64/WrappingMul.lean` |
-| `u64::wrapping_sub` | `u64_wrapping_sub_correct` | `u64::wrapping_sub` correctly computes `a - b` as a u64 value. | `MidenLean/Proofs/U64/Sub.lean` |
+| `u64::wrapping_sub` | `u64_wrapping_sub_correct` | `u64::wrapping_sub` correctly computes `a - b` as a u64 value. | `MidenLean/Proofs/U64/WrappingSub.lean` |
 | `u64::xor` | `u64_xor_correct` | `u64::xor` correctly computes bitwise XOR of two u64 values. | `MidenLean/Proofs/U64/Xor.lean` |
 
 ### `u128` (27 / 36)
