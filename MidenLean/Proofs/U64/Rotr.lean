@@ -396,7 +396,7 @@ private theorem rotr_felt_bridge (lo hi pow : Felt)
     rw [h_cross_hi32, h_prod_lo32_eq, ← felt_ofNat_add]; congr 1; omega
 
 set_option maxHeartbeats 16000000 in
-/-- `u64::rotr` correctly right-rotates a u64 value by `shift` bits.
+/-- `u64::rotr` right-rotates a u64 value by `shift` bits, only when `shift mod 32 ≠ 0`.
     Input stack:  [shift, a.lo, a.hi] ++ rest
     Output stack: [(a.rotr shift).lo, (a.rotr shift).hi] ++ rest
 
