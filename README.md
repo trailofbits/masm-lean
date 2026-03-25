@@ -20,7 +20,7 @@ Manual proof files are organized per procedure:
 - **`MidenLean/Proofs/U128/Common.lean`** contains shared proof support for the `u128` proof tree.
 - **`MidenLean/Proofs/Word/`** contains the `word` correctness theorems, one file per procedure.
 
-The current checked manual proofs cover 69 procedures: 31 in `u64`, 27 in `u128`, 11 in `word`.
+The current checked manual proofs cover 70 procedures: 31 in `u64`, 28 in `u128`, 11 in `word`.
 
 ### `u64` (31 / 31)
 
@@ -58,7 +58,7 @@ The current checked manual proofs cover 69 procedures: 31 in `u64`, 27 in `u128`
 | `u64::wrapping_sub` | `u64_wrapping_sub_correct` | `u64::wrapping_sub` correctly computes `a - b` as a u64 value. | `MidenLean/Proofs/U64/WrappingSub.lean` |
 | `u64::xor` | `u64_xor_correct` | `u64::xor` correctly computes bitwise XOR of two u64 values. | `MidenLean/Proofs/U64/Xor.lean` |
 
-### `u128` (27 / 36)
+### `u128` (28 / 36)
 
 | Procedure | Theorem | Summary | Manual proof file |
 | --- | --- | --- | --- |
@@ -81,6 +81,7 @@ The current checked manual proofs cover 69 procedures: 31 in `u64`, 27 in `u128`
 | `u128::overflowing_add` | `u128_overflowing_add_correct` | `u128::overflowing_add` correctly computes `a + b` with overflow detection. | `MidenLean/Proofs/U128/OverflowingAdd.lean` |
 | `u128::overflowing_mul` | `u128_overflowing_mul_correct` | `u128::overflowing_mul` correctly computes the low 128 bits of the product `a * b` and an overflow flag. | `MidenLean/Proofs/U128/OverflowingMul.lean` |
 | `u128::overflowing_sub` | `u128_overflowing_sub_correct` | `u128::overflowing_sub` correctly computes `a - b` with underflow detection. | `MidenLean/Proofs/U128/OverflowingSub.lean` |
+| `u128::rotl` | `u128_rotl_correct` | `u128::rotl` correctly left-rotates a u128 value by `shift` bits. | `MidenLean/Proofs/U128/Rotl.lean` |
 | `u128::shl` | `u128_shl_correct` | `u128::shl` correctly left-shifts a u128 value by `shift` bits (mod 2^128). | `MidenLean/Proofs/U128/Shl.lean` |
 | `u128::shr` | `u128_shr_correct` | `u128::shr` correctly right-shifts a u128 value by `shift` bits. | `MidenLean/Proofs/U128/Shr.lean` |
 | `u128::widening_add` | `u128_widening_add_correct` | `u128::widening_add` correctly computes `a + b` with carry-out moved to the end. | `MidenLean/Proofs/U128/WideningAdd.lean` |

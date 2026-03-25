@@ -948,6 +948,110 @@ private theorem shr_bridge_k0 (a : U128) (b_nat : Nat) (hb_pos : 0 < b_nat) (hb 
 -- ============================================================================
 
 set_option maxHeartbeats 16000000 in
+theorem u128_shr_correct_run (fuel : Nat) (a : U128) (shift : U32) (rest : List Felt) (s : MidenState)
+    (hs : s.stack = shift.val :: a.a0.val :: a.a1.val :: a.a2.val :: a.a3.val :: rest)
+    (hshift_lt128 : shift.toNat < 128) :
+    execWithEnv u128ProcEnv (fuel + 7) s Miden.Core.U128.shr =
+    some (s.withStack (
+      (a.shr shift.toNat).a0.val :: (a.shr shift.toNat).a1.val ::
+      (a.shr shift.toNat).a2.val :: (a.shr shift.toNat).a3.val :: rest)) := by
+  obtain ⟨stk, mem, locs, adv⟩ := s
+  simp only [MidenState.withStack] at hs ⊢
+  subst hs
+  have hraw := u128_shr_run fuel shift.val a.a0.val a.a1.val a.a2.val a.a3.val rest
+    mem locs adv
+    shift.isU32 hshift_lt128 a.a0.isU32 a.a1.isU32 a.a2.isU32 a.a3.isU32
+  by_cases hzero : shift.toNat = 0
+  · have hshift0 : shift.val = (0 : Felt) := by
+      apply ZMod.val_injective
+      simpa [U32.toNat, Felt.val_zero'] using hzero
+    simpa [hshift0, hzero, U128.shr_zero] using hraw
+  · have hpos : 0 < shift.toNat := Nat.pos_of_ne_zero hzero
+    have hshift_ne0 : shift.val ≠ (0 : Felt) := by
+      intro h
+      apply hzero
+      simpa [U32.toNat, Felt.val_zero'] using congrArg ZMod.val h
+    have hshift0b : (shift.val == (0 : Felt)) = false := by
+      apply Bool.eq_false_iff.mpr
+      intro h
+      exact hshift_ne0 (beq_iff_eq.mp h)
+    have hb_mod : shift.toNat % 32 = shift.toNat &&& 31 := by
+      symm
+      simpa using Nat.and_two_pow_sub_one_eq_mod shift.toNat 5
+    by_cases hk0 : shift.toNat / 32 = 0
+    · have hkfelt : Felt.ofNat (shift.toNat / 32) = (0 : Felt) := by
+        rw [hk0]
+        rfl
+      have hb_eq : shift.toNat &&& 31 = shift.toNat := by
+        exact Nat.and_two_pow_sub_one_of_lt_two_pow (show shift.toNat < 2 ^ 5 by omega)
+      obtain ⟨h0, h1, h2, h3⟩ := shr_bridge_k0 a shift.toNat hpos (by omega)
+      rw [h0, h1, h2, h3]
+      simpa [U32.toNat, hshift0b, hkfelt, hb_eq, and31_val shift.val] using hraw
+    · by_cases hk1 : shift.toNat / 32 = 1
+      · have hkfelt : Felt.ofNat (shift.toNat / 32) = (1 : Felt) := by
+          rw [hk1]
+          rfl
+        have hshift_eq : shift.toNat = 32 + (shift.toNat &&& 31) := by
+          have h := Nat.div_add_mod shift.toNat 32
+          rw [hk1, hb_mod] at h
+          omega
+        by_cases hb0 : shift.toNat &&& 31 = 0
+        · have hshift32 : shift.toNat = 32 := by
+            simpa [hb0] using hshift_eq
+          obtain ⟨h0, h1, h2, h3⟩ := shr_bridge_k1_zero a
+          rw [hshift32, h0, h1, h2, h3]
+          simpa [U32.toNat, hshift0b, hkfelt, hb0, and31_val shift.val] using hraw
+        · have hb_pos : 0 < shift.toNat &&& 31 := by omega
+          have hbbeq0 : (Felt.ofNat (shift.toNat &&& 31) == (0 : Felt)) = false := by
+            apply Bool.eq_false_iff.mpr
+            intro h
+            have hval := congrArg ZMod.val (beq_iff_eq.mp h)
+            rw [felt_ofNat_val_lt _ (by unfold GOLDILOCKS_PRIME; omega), Felt.val_zero'] at hval
+            exact hb0 hval
+          obtain ⟨h0, h1, h2, h3⟩ := shr_bridge_k1_pos a (shift.toNat &&& 31) hb_pos
+            (nat_land_31_lt_32 shift.toNat)
+          rw [hshift_eq, h0, h1, h2, h3]
+          simpa [U32.toNat, hshift0b, hkfelt, hbbeq0, and31_val shift.val] using hraw
+      · by_cases hk2 : shift.toNat / 32 = 2
+        · have hkfelt : Felt.ofNat (shift.toNat / 32) = (2 : Felt) := by
+            rw [hk2]
+            rfl
+          have hshift_eq : shift.toNat = 64 + (shift.toNat &&& 31) := by
+            have h := Nat.div_add_mod shift.toNat 32
+            rw [hk2, hb_mod] at h
+            omega
+          by_cases hb0 : shift.toNat &&& 31 = 0
+          · have hshift64 : shift.toNat = 64 := by
+              simpa [hb0] using hshift_eq
+            obtain ⟨h0, h1, h2, h3⟩ := shr_bridge_k2_zero a
+            rw [hshift64, h0, h1, h2, h3]
+            simpa [U32.toNat, hshift0b, hkfelt, hb0, and31_val shift.val] using hraw
+          · have hb_pos : 0 < shift.toNat &&& 31 := by omega
+            have hbbeq0 : (Felt.ofNat (shift.toNat &&& 31) == (0 : Felt)) = false := by
+              apply Bool.eq_false_iff.mpr
+              intro h
+              have hval := congrArg ZMod.val (beq_iff_eq.mp h)
+              rw [felt_ofNat_val_lt _ (by unfold GOLDILOCKS_PRIME; omega), Felt.val_zero'] at hval
+              exact hb0 hval
+            obtain ⟨h0, h1, h2, h3⟩ := shr_bridge_k2_pos a (shift.toNat &&& 31) hb_pos
+              (nat_land_31_lt_32 shift.toNat)
+            rw [hshift_eq, h0, h1, h2, h3]
+            simpa [U32.toNat, hshift0b, hkfelt, hbbeq0, and31_val shift.val] using hraw
+        · have hk3 : shift.toNat / 32 = 3 := by
+            have : shift.toNat / 32 < 4 := by omega
+            omega
+          have hkfelt : Felt.ofNat (shift.toNat / 32) = (3 : Felt) := by
+            rw [hk3]
+            rfl
+          have hshift_eq : shift.toNat = 96 + (shift.toNat &&& 31) := by
+            have h := Nat.div_add_mod shift.toNat 32
+            rw [hk3, hb_mod] at h
+            omega
+          obtain ⟨h0, h1, h2, h3⟩ := shr_bridge_k3 a (shift.toNat &&& 31)
+          rw [hshift_eq, h0, h1, h2, h3]
+          simpa [U32.toNat, hshift0b, hkfelt, and31_val shift.val] using hraw
+
+set_option maxHeartbeats 16000000 in
 /-- `u128::shr` correctly right-shifts a u128 value by `shift` bits.
     Input stack:  [shift, a.a0, a.a1, a.a2, a.a3] ++ rest
     Output stack: [(a.shr shift).a0, (a.shr shift).a1, (a.shr shift).a2, (a.shr shift).a3] ++ rest -/

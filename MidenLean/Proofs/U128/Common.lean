@@ -134,6 +134,22 @@ def ofNat (n : Nat) : U128 where
 @[simp] theorem ofNat_a3 (n : Nat) :
     (U128.ofNat n).a3.val = Felt.ofNat ((n / 2^96) % 2^32) := rfl
 
+@[simp] theorem ofNat_a0_toNat (n : Nat) :
+    (U128.ofNat n).a0.toNat = n % 2^32 :=
+  felt_ofNat_val_lt _ (u32_mod_lt_prime n)
+
+@[simp] theorem ofNat_a1_toNat (n : Nat) :
+    (U128.ofNat n).a1.toNat = (n / 2^32) % 2^32 :=
+  felt_ofNat_val_lt _ (u32_mod_lt_prime (n / 2^32))
+
+@[simp] theorem ofNat_a2_toNat (n : Nat) :
+    (U128.ofNat n).a2.toNat = (n / 2^64) % 2^32 :=
+  felt_ofNat_val_lt _ (u32_mod_lt_prime (n / 2^64))
+
+@[simp] theorem ofNat_a3_toNat (n : Nat) :
+    (U128.ofNat n).a3.toNat = (n / 2^96) % 2^32 :=
+  felt_ofNat_val_lt _ (u32_mod_lt_prime (n / 2^96))
+
 -- Extensionality: two U128s with the same limbs are equal.
 @[ext] theorem ext {a b : U128} (h0 : a.a0 = b.a0) (h1 : a.a1 = b.a1)
     (h2 : a.a2 = b.a2) (h3 : a.a3 = b.a3) : a = b := by
@@ -241,6 +257,26 @@ namespace U128
 @[simp] theorem or_a1 (a b : U128) : (a ||| b).a1.val = Felt.ofNat (a.a1.val.val ||| b.a1.val.val) := rfl
 @[simp] theorem or_a2 (a b : U128) : (a ||| b).a2.val = Felt.ofNat (a.a2.val.val ||| b.a2.val.val) := rfl
 @[simp] theorem or_a3 (a b : U128) : (a ||| b).a3.val = Felt.ofNat (a.a3.val.val ||| b.a3.val.val) := rfl
+@[simp] theorem or_a0_toNat (a b : U128) : (a ||| b).a0.toNat = a.a0.toNat ||| b.a0.toNat :=
+  felt_ofNat_val_lt _ (by
+    have h := Nat.or_lt_two_pow a.a0.val_lt b.a0.val_lt
+    unfold GOLDILOCKS_PRIME
+    omega)
+@[simp] theorem or_a1_toNat (a b : U128) : (a ||| b).a1.toNat = a.a1.toNat ||| b.a1.toNat :=
+  felt_ofNat_val_lt _ (by
+    have h := Nat.or_lt_two_pow a.a1.val_lt b.a1.val_lt
+    unfold GOLDILOCKS_PRIME
+    omega)
+@[simp] theorem or_a2_toNat (a b : U128) : (a ||| b).a2.toNat = a.a2.toNat ||| b.a2.toNat :=
+  felt_ofNat_val_lt _ (by
+    have h := Nat.or_lt_two_pow a.a2.val_lt b.a2.val_lt
+    unfold GOLDILOCKS_PRIME
+    omega)
+@[simp] theorem or_a3_toNat (a b : U128) : (a ||| b).a3.toNat = a.a3.toNat ||| b.a3.toNat :=
+  felt_ofNat_val_lt _ (by
+    have h := Nat.or_lt_two_pow a.a3.val_lt b.a3.val_lt
+    unfold GOLDILOCKS_PRIME
+    omega)
 @[simp] theorem xor_a0 (a b : U128) : (a ^^^ b).a0.val = Felt.ofNat (a.a0.val.val ^^^ b.a0.val.val) := rfl
 @[simp] theorem xor_a1 (a b : U128) : (a ^^^ b).a1.val = Felt.ofNat (a.a1.val.val ^^^ b.a1.val.val) := rfl
 @[simp] theorem xor_a2 (a b : U128) : (a ^^^ b).a2.val = Felt.ofNat (a.a2.val.val ^^^ b.a2.val.val) := rfl
@@ -359,11 +395,38 @@ def rotl (a : U128) (n : Nat) : U128 :=
     lt_of_le_of_lt (Nat.div_le_self _ _) a.toNat_lt
   unfold shr; simp only [ofNat_toNat]; exact Nat.mod_eq_of_lt h
 
+@[simp] theorem toNat_rotl (a : U128) (n : Nat) :
+    (a.rotl n).toNat =
+      (a.toNat * 2^(n % 128) + a.toNat / 2^(128 - (n % 128))) % 2^128 := by
+  simp [rotl]
+
 @[simp] theorem ofNat_toNat_id (a : U128) : U128.ofNat a.toNat = a :=
   eq_of_toNat_eq (by rw [ofNat_toNat]; exact Nat.mod_eq_of_lt a.toNat_lt)
 
 @[simp] theorem shr_zero (a : U128) : a.shr 0 = a := by
   simp [shr, Nat.div_one]
+
+@[simp] theorem rotl_zero (a : U128) : a.rotl 0 = a := by
+  apply eq_of_toNat_eq
+  rw [toNat_rotl]
+  change (a.toNat * 1 + a.toNat / 2 ^ 128) % 2 ^ 128 = a.toNat
+  rw [Nat.mul_one, Nat.div_eq_of_lt a.toNat_lt, Nat.add_zero, Nat.mod_eq_of_lt a.toNat_lt]
+
+@[simp] theorem ofNat_or (x y : Nat) : U128.ofNat (x ||| y) = U128.ofNat x ||| U128.ofNat y := by
+  refine U128.ext (U32.eq_of_toNat_eq ?_) (U32.eq_of_toNat_eq ?_) (U32.eq_of_toNat_eq ?_) (U32.eq_of_toNat_eq ?_)
+  · simpa using (Nat.or_mod_two_pow (a := x) (b := y) (n := 32))
+  · simp
+    rw [show (x ||| y) / 4294967296 = x / 4294967296 ||| y / 4294967296 by
+      simpa using (Nat.or_div_two_pow (a := x) (b := y) (n := 32))]
+    simpa using (Nat.or_mod_two_pow (a := x / 2^32) (b := y / 2^32) (n := 32))
+  · simp
+    rw [show (x ||| y) / 18446744073709551616 = x / 18446744073709551616 ||| y / 18446744073709551616 by
+      simpa using (Nat.or_div_two_pow (a := x) (b := y) (n := 64))]
+    simpa using (Nat.or_mod_two_pow (a := x / 2^64) (b := y / 2^64) (n := 32))
+  · simp
+    rw [show (x ||| y) / 79228162514264337593543950336 = x / 79228162514264337593543950336 ||| y / 79228162514264337593543950336 by
+      simpa using (Nat.or_div_two_pow (a := x) (b := y) (n := 96))]
+    simpa using (Nat.or_mod_two_pow (a := x / 2^96) (b := y / 2^96) (n := 32))
 
 /-- For a value `v < 2^32`, `ofNat v` has `a0 = Felt.ofNat v` and the rest zero. -/
 theorem ofNat_of_lt_2_32 (v : Nat) (hv : v < 2^32) :
@@ -419,6 +482,84 @@ theorem shl_eq_mul_ofNat_pow2 (a : U128) (n : Nat) :
   simp only [toNat_shl, toNat_mul, ofNat_toNat]
   conv_rhs => rw [Nat.mul_mod, Nat.mod_mod]
   rw [← Nat.mul_mod]
+
+/-- Shifting left by `n < 128` keeps exactly the low `128 - n` bits, then appends `n` zero bits. -/
+theorem mul_pow_mod_2_128 (x n : Nat) (hn : n < 128) :
+    (x * 2^n) % 2^128 = (x % 2^(128 - n)) * 2^n := by
+  let q := x / 2^(128 - n)
+  let r := x % 2^(128 - n)
+  have hx : x = q * 2^(128 - n) + r := by
+    simpa [q, r, Nat.mul_comm] using (Nat.div_add_mod x (2^(128 - n))).symm
+  have hr_lt : r < 2^(128 - n) := by
+    dsimp [r]
+    exact Nat.mod_lt _ (by positivity)
+  have hpow : 2^(128 - n) * 2^n = 2^128 := by
+    rw [Nat.mul_comm, ← Nat.pow_add]
+    congr 1
+    omega
+  have hr_mul_lt : r * 2^n < 2^128 := by
+    calc
+      r * 2^n < 2^(128 - n) * 2^n := by
+        exact Nat.mul_lt_mul_of_pos_right hr_lt (by positivity)
+      _ = 2^128 := hpow
+  calc
+    (x * 2^n) % 2^128 = ((q * 2^(128 - n) + r) * 2^n) % 2^128 := by rw [hx]
+    _ = (q * 2^128 + r * 2^n) % 2^128 := by rw [Nat.add_mul, Nat.mul_assoc, hpow]
+    _ = (r * 2^n + 2^128 * q) % 2^128 := by rw [Nat.add_comm, Nat.mul_comm q (2^128)]
+    _ = (r * 2^n) % 2^128 := by rw [Nat.add_mul_mod_self_left]
+    _ = r * 2^n := Nat.mod_eq_of_lt hr_mul_lt
+    _ = (x % 2^(128 - n)) * 2^n := by rfl
+
+/-- For `n < 128`, rotate-left is exactly the wrapped high fragment OR the shifted body. -/
+theorem rotl_eq_or_shl_shr (a : U128) (n : Nat) (hn : n < 128) :
+    a.rotl n = a.shr (128 - n) ||| a.shl n := by
+  set q := a.toNat / 2^(128 - n)
+  set r := a.toNat % 2^(128 - n)
+  have hr_lt : r < 2^(128 - n) := by
+    dsimp [r]
+    exact Nat.mod_lt _ (by positivity)
+  have hq_lt : q < 2^n := by
+    dsimp [q]
+    rw [Nat.div_lt_iff_lt_mul (by positivity)]
+    calc
+      a.toNat < 2^128 := a.toNat_lt
+      _ = 2^n * 2^(128 - n) := by
+            rw [← Nat.pow_add]
+            congr 1
+            omega
+  have hr_mul_lt : r * 2^n < 2^128 := by
+    calc
+      r * 2^n < 2^(128 - n) * 2^n := by
+        exact Nat.mul_lt_mul_of_pos_right hr_lt (by positivity)
+      _ = 2^128 := by
+        rw [Nat.mul_comm, ← Nat.pow_add]
+        congr 1
+        omega
+  have hq_lt128 : q < 2^128 := by
+    exact lt_trans hq_lt (by simpa using (Nat.pow_lt_pow_right (by decide : 1 < 2) hn))
+  have hor' : r * 2^n + q = r * 2^n ||| q := by
+    simpa [Nat.mul_comm] using (Nat.two_pow_add_eq_or_of_lt (i := n) (b := q) hq_lt r)
+  have hor : q + r * 2^n = q ||| (r * 2^n) := by
+    rw [Nat.add_comm, hor', Nat.or_comm]
+  have hshl_nat : (a.toNat * 2^n) % 2^128 = r * 2^n := by
+    simpa [r] using mul_pow_mod_2_128 a.toNat n hn
+  have hshl : U128.ofNat (r * 2^n) = a.shl n := by
+    apply eq_of_toNat_eq
+    rw [ofNat_toNat, Nat.mod_eq_of_lt hr_mul_lt, toNat_shl, hshl_nat]
+  have hrotl : a.rotl n = U128.ofNat (q + r * 2^n) := by
+    apply eq_of_toNat_eq
+    have hq_mod : (a.toNat / 2 ^ (128 - n)) % 2 ^ 128 = q := by
+      simpa [q] using (Nat.mod_eq_of_lt hq_lt128)
+    rw [toNat_rotl, Nat.mod_eq_of_lt hn, ofNat_toNat, Nat.add_mod, hq_mod, hshl_nat, Nat.add_comm]
+  calc
+    a.rotl n = U128.ofNat (q + r * 2^n) := hrotl
+    _ = U128.ofNat (q ||| (r * 2^n)) := by rw [hor]
+    _ = U128.ofNat q ||| U128.ofNat (r * 2^n) := by rw [ofNat_or]
+    _ = a.shr (128 - n) ||| a.shl n := by
+          rw [hshl]
+          apply congrArg (fun x => x ||| a.shl n)
+          apply eq_of_toNat_eq
+          rw [ofNat_toNat, Nat.mod_eq_of_lt hq_lt128, toNat_shr]
 
 end U128
 

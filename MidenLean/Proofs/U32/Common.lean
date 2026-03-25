@@ -43,6 +43,9 @@ def ofNat_lt (n : Nat) (h : n < 2^32) : U32 where
   apply ZMod.val_injective
   rw [felt_ofNat_val_lt _ x.val_lt_prime]
 
+@[simp] theorem ofNat_toNat (n : Nat) : (U32.ofNat n).toNat = n % 2^32 :=
+  felt_ofNat_val_lt _ (u32_mod_lt_prime n)
+
 -- ============================================================================
 -- Constant U32 values that appear frequently in proofs
 -- ============================================================================
@@ -93,6 +96,15 @@ theorem u32Shr_result_isU32 (a shift : Felt)
 -- Extensionality: two U32s with the same val are equal.
 @[ext] theorem ext {a b : U32} (h : a.val = b.val) : a = b := by
   cases a; cases b; simp_all
+
+theorem toNat_injective : Function.Injective U32.toNat := by
+  intro a b h
+  apply ext
+  apply ZMod.val_injective
+  simpa [U32.toNat] using h
+
+theorem eq_of_toNat_eq {a b : U32} (h : a.toNat = b.toNat) : a = b :=
+  toNat_injective h
 
 end U32
 

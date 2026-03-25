@@ -401,4 +401,101 @@ theorem u128_rotl_raw (fuel : Nat)
       hshift_u32 hs0 hs1 hs2 hs3 hr0 hr1 hr2 hr3
       hshl hshr
 
+set_option maxHeartbeats 16000000 in
+/-- `u128::rotl` correctly left-rotates a u128 value by `shift` bits.
+    Input stack:  [shift, a.a0, a.a1, a.a2, a.a3] ++ rest
+    Output stack: [(a.rotl shift).a0, (a.rotl shift).a1, (a.rotl shift).a2, (a.rotl shift).a3] ++ rest -/
+theorem u128_rotl_correct (a : U128) (shift : U32) (rest : List Felt) (s : MidenState)
+    (hs : s.stack = shift.val :: a.a0.val :: a.a1.val :: a.a2.val :: a.a3.val :: rest)
+    (hshift_lt128 : shift.toNat < 128) :
+    execWithEnv u128ProcEnv 72 s Miden.Core.U128.rotl =
+    some (s.withStack (
+      (a.rotl shift.toNat).a0.val :: (a.rotl shift.toNat).a1.val ::
+      (a.rotl shift.toNat).a2.val :: (a.rotl shift.toNat).a3.val :: rest)) := by
+  obtain ⟨stk, mem, locs, adv⟩ := s
+  simp only [MidenState.withStack] at hs ⊢
+  subst hs
+  by_cases hzero : shift.toNat = 0
+  · have hshift0 : shift.val = (0 : Felt) := by
+      apply ZMod.val_injective
+      simpa [U32.toNat, Felt.val_zero'] using hzero
+    have hshift0b : (shift.val == (0 : Felt)) = true := by
+      exact beq_iff_eq.mpr hshift0
+    rw [rotl_decomp, execWithEnv_append']
+    rw [rotl_prefix_correct u128ProcEnv 71 shift.val a.a0.val a.a1.val a.a2.val a.a3.val rest mem locs adv]
+    simp only [bind, Bind.bind, Option.bind, hshift0b, ↓reduceIte]
+    rw [execWithEnv_ifElse_one' u128ProcEnv 70]
+    conv_lhs => unfold execWithEnv
+    simp only [List.foldlM]
+    dsimp only [bind, Bind.bind, Option.bind, pure, Pure.pure]
+    rw [stepDrop]
+    simp [hzero, U128.rotl_zero]
+  · have hpos : 0 < shift.toNat := Nat.pos_of_ne_zero hzero
+    have hshift_ne0 : shift.val ≠ (0 : Felt) := by
+      intro h
+      apply hzero
+      simpa [U32.toNat, Felt.val_zero'] using congrArg ZMod.val h
+    have hshift0b : (shift.val == (0 : Felt)) = false := by
+      exact Bool.eq_false_iff.mpr (fun h => hshift_ne0 (beq_iff_eq.mp h))
+    let shiftComp : U32 := ⟨Felt.ofNat (u32OverflowingSub 128 shift.toNat).2,
+      complement_isU32 shift.val hshift_lt128 hpos⟩
+    have hshiftComp_toNat : shiftComp.toNat = 128 - shift.toNat := by
+      dsimp [shiftComp, U32.toNat]
+      exact complement_val shift.val hshift_lt128 hpos
+    have hshiftComp_lt128 : shiftComp.toNat < 128 := by
+      dsimp [shiftComp, U32.toNat]
+      exact complement_lt128 shift.val hshift_lt128 hpos
+    have hshl :
+        execWithEnv u128ProcEnv 70
+          ⟨shift.val :: a.a0.val :: a.a1.val :: a.a2.val :: a.a3.val ::
+            shift.val :: a.a0.val :: a.a1.val :: a.a2.val :: a.a3.val :: rest,
+            mem, locs, adv⟩
+          Miden.Core.U128.shl =
+        some ⟨(a.shl shift.toNat).a0.val :: (a.shl shift.toNat).a1.val ::
+              (a.shl shift.toNat).a2.val :: (a.shl shift.toNat).a3.val ::
+              shift.val :: a.a0.val :: a.a1.val :: a.a2.val :: a.a3.val :: rest,
+              mem, locs, adv⟩ := by
+      simpa [MidenState.withStack] using
+        (u128_shl_correct a shift
+          (shift.val :: a.a0.val :: a.a1.val :: a.a2.val :: a.a3.val :: rest)
+          ⟨shift.val :: a.a0.val :: a.a1.val :: a.a2.val :: a.a3.val ::
+            shift.val :: a.a0.val :: a.a1.val :: a.a2.val :: a.a3.val :: rest,
+            mem, locs, adv⟩
+          rfl hshift_lt128)
+    have hshr :
+        execWithEnv u128ProcEnv 70
+          ⟨shiftComp.val :: a.a0.val :: a.a1.val :: a.a2.val :: a.a3.val ::
+            (a.shl shift.toNat).a0.val :: (a.shl shift.toNat).a1.val ::
+            (a.shl shift.toNat).a2.val :: (a.shl shift.toNat).a3.val :: rest,
+            mem, locs, adv⟩
+          Miden.Core.U128.shr =
+        some ⟨(a.shr (128 - shift.toNat)).a0.val :: (a.shr (128 - shift.toNat)).a1.val ::
+              (a.shr (128 - shift.toNat)).a2.val :: (a.shr (128 - shift.toNat)).a3.val ::
+              (a.shl shift.toNat).a0.val :: (a.shl shift.toNat).a1.val ::
+              (a.shl shift.toNat).a2.val :: (a.shl shift.toNat).a3.val :: rest,
+              mem, locs, adv⟩ := by
+      simpa [MidenState.withStack, hshiftComp_toNat] using
+        (u128_shr_correct_run 63 a shiftComp
+          ((a.shl shift.toNat).a0.val :: (a.shl shift.toNat).a1.val ::
+            (a.shl shift.toNat).a2.val :: (a.shl shift.toNat).a3.val :: rest)
+          ⟨shiftComp.val :: a.a0.val :: a.a1.val :: a.a2.val :: a.a3.val ::
+            (a.shl shift.toNat).a0.val :: (a.shl shift.toNat).a1.val ::
+            (a.shl shift.toNat).a2.val :: (a.shl shift.toNat).a3.val :: rest,
+            mem, locs, adv⟩
+          rfl hshiftComp_lt128)
+    have hraw := u128_rotl_raw 63 shift.val a.a0.val a.a1.val a.a2.val a.a3.val rest
+      ⟨shift.val :: a.a0.val :: a.a1.val :: a.a2.val :: a.a3.val :: rest, mem, locs, adv⟩
+      rfl shift.isU32
+      (a.shl shift.toNat).a0.val (a.shl shift.toNat).a1.val
+      (a.shl shift.toNat).a2.val (a.shl shift.toNat).a3.val
+      (a.shr (128 - shift.toNat)).a0.val (a.shr (128 - shift.toNat)).a1.val
+      (a.shr (128 - shift.toNat)).a2.val (a.shr (128 - shift.toNat)).a3.val
+      (a.shl shift.toNat).a0.isU32 (a.shl shift.toNat).a1.isU32
+      (a.shl shift.toNat).a2.isU32 (a.shl shift.toNat).a3.isU32
+      (a.shr (128 - shift.toNat)).a0.isU32 (a.shr (128 - shift.toNat)).a1.isU32
+      (a.shr (128 - shift.toNat)).a2.isU32 (a.shr (128 - shift.toNat)).a3.isU32
+      hshl hshr
+    simpa [hshift0b, U128.rotl_eq_or_shl_shr a shift.toNat hshift_lt128]
+      using hraw
+
 end MidenLean.Proofs
