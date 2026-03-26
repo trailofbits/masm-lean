@@ -21,7 +21,7 @@ Manual proof files are organized per procedure:
 - **`MidenLean/Proofs/U128/Common.lean`** contains shared proof support for the `u128` proof tree.
 - **`MidenLean/Proofs/Word/`** contains the `word` correctness theorems, one file per procedure.
 
-The current checked manual proofs cover 74 procedures: 31 in `u64`, 32 in `u128`, 11 in `word`.
+The current checked manual proofs cover 75 procedures: 31 in `u64`, 33 in `u128`, 11 in `word`.
 
 ### `u64` (31 / 31)
 
@@ -59,7 +59,7 @@ The current checked manual proofs cover 74 procedures: 31 in `u64`, 32 in `u128`
 | `u64::wrapping_sub`    | `u64_wrapping_sub_correct`    | `u64::wrapping_sub` correctly computes `a - b` as a u64 value.                                                                                                           | `MidenLean/Proofs/U64/WrappingSub.lean`    |
 | `u64::xor`             | `u64_xor_correct`             | `u64::xor` correctly computes bitwise XOR of two u64 values.                                                                                                             | `MidenLean/Proofs/U64/Xor.lean`            |
 
-### `u128` (32 / 36)
+### `u128` (33 / 36)
 
 | Procedure               | Theorem                        | Summary                                                                                                  | Manual proof file                           |
 | ----------------------- | ------------------------------ | -------------------------------------------------------------------------------------------------------- | ------------------------------------------- |
@@ -68,6 +68,7 @@ The current checked manual proofs cover 74 procedures: 31 in `u64`, 32 in `u128`
 | `u128::clz`             | `u128_clz_correct`             | `u128::clz` pushes the count of leading zeros of a 128-bit value.                                        | `MidenLean/Proofs/U128/Clz.lean`            |
 | `u128::cto`             | `u128_cto_correct`             | `u128::cto` pushes the count of trailing ones of a 128-bit value.                                        | `MidenLean/Proofs/U128/Cto.lean`            |
 | `u128::ctz`             | `u128_ctz_correct`             | `u128::ctz` pushes the count of trailing zeros of a 128-bit value.                                       | `MidenLean/Proofs/U128/Ctz.lean`            |
+| `u128::divmod`          | `u128_divmod_correct`          | `u128::divmod` verifies an advice-supplied quotient and remainder for u128 division. When `q * b + r = a` and `r < b`, execution succeeds and returns the remainder limbs followed by the quotient limbs. | `MidenLean/Proofs/U128/Divmod.lean`         |
 | `u128::eq`              | `u128_eq_correct`              | `u128::eq` correctly tests equality of two 128-bit values.                                               | `MidenLean/Proofs/U128/Eq.lean`             |
 | `u128::eqz`             | `u128_eqz_correct`             | `u128::eqz` correctly tests whether a 128-bit value is zero.                                             | `MidenLean/Proofs/U128/Eqz.lean`            |
 | `u128::gt`              | `u128_gt_correct`              | `u128::gt` pushes 1 iff `b < a` (i.e. `a > b`).                                                          | `MidenLean/Proofs/U128/Gt.lean`             |

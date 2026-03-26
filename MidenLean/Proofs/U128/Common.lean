@@ -568,6 +568,23 @@ theorem felt_ofNat_add (n m : Nat) :
     Felt.ofNat (n + m) = Felt.ofNat n + Felt.ofNat m := by
   simp [Felt.ofNat, Nat.cast_add]
 
+/-- Reducing an addend modulo `m` before taking the outer modulo does not change the result. -/
+theorem add_mod_right_mod (x y m : Nat) : (x + y % m) % m = (x + y) % m := by
+  rw [Nat.add_mod, Nat.mod_mod_of_dvd _ (dvd_refl m), ← Nat.add_mod]
+
+/-- Nested modulo reduction under two additions can be flattened before the outer modulo. -/
+theorem add_add_mod_right_mod (a b c m : Nat) :
+    (a + ((b + c % m) % m)) % m = (a + (b + c)) % m := by
+  calc
+    (a + ((b + c % m) % m)) % m = (a + (b + c % m)) % m := by
+      rw [add_mod_right_mod]
+    _ = ((a + b) + c % m) % m := by
+      rw [Nat.add_assoc]
+    _ = ((a + b) + c) % m := by
+      rw [add_mod_right_mod]
+    _ = (a + (b + c)) % m := by
+      rw [Nat.add_assoc]
+
 -- ============================================================================
 -- Carry chain bridging lemmas for addition
 -- ============================================================================
@@ -616,6 +633,238 @@ theorem u128_add_carry_bridge (a b : U128) :
     b.a0.val.val b.a1.val.val b.a2.val.val b.a3.val.val
   simp only [HAdd.hAdd, Add.add, U128.ofNat, U128.toNat] at cc co ⊢
   exact ⟨congrArg _ cc.1, congrArg _ cc.2.1, congrArg _ cc.2.2.1, congrArg _ cc.2.2.2, co⟩
+
+-- ============================================================================
+-- Carry-chain bridging lemmas for q * b + r (used by u128 divmod)
+-- ============================================================================
+
+/-- Column 0 of the `q * b + r` carry chain. -/
+def u128DivmodCol0 (q0 b0 r0 : Nat) : Nat :=
+  q0 * b0 + r0
+
+/-- Column 1 of the `q * b + r` carry chain. -/
+def u128DivmodCol1 (q0 q1 b0 b1 r0 r1 : Nat) : Nat :=
+  q0 * b1 + q1 * b0 + r1 + u128DivmodCol0 q0 b0 r0 / 2 ^ 32
+
+/-- Column 2 of the `q * b + r` carry chain. -/
+def u128DivmodCol2 (q0 q1 q2 b0 b1 b2 r0 r1 r2 : Nat) : Nat :=
+  q0 * b2 + q1 * b1 + q2 * b0 + r2 + u128DivmodCol1 q0 q1 b0 b1 r0 r1 / 2 ^ 32
+
+/-- The carry input accumulated before the final multiply-add in column 2. -/
+def u128DivmodCol2CarryIn (q0 q1 q2 b0 b1 r0 r1 : Nat) : Nat :=
+  q2 * b0 + q1 * b1 + u128DivmodCol1 q0 q1 b0 b1 r0 r1 / 2 ^ 32
+
+/-- Column 3 of the `q * b + r` carry chain. -/
+def u128DivmodCol3 (q0 q1 q2 q3 b0 b1 b2 b3 r0 r1 r2 r3 : Nat) : Nat :=
+  q0 * b3 + q1 * b2 + q2 * b1 + q3 * b0 + r3 +
+    u128DivmodCol2 q0 q1 q2 b0 b1 b2 r0 r1 r2 / 2 ^ 32
+
+/-- Raw little-endian u128 value from four limbs. -/
+def u128RawValue (a0 a1 a2 a3 : Nat) : Nat :=
+  a3 * 2 ^ 96 + a2 * 2 ^ 64 + a1 * 2 ^ 32 + a0
+
+private theorem u128DivmodCol2CarryIn_mul_pow_le
+    (q0 q1 q2 q3 b0 b1 b2 b3 r0 r1 r2 r3 : Nat) :
+    let base := 2 ^ 32
+    u128DivmodCol2CarryIn q0 q1 q2 b0 b1 r0 r1 * base ^ 2 ≤
+      u128RawValue q0 q1 q2 q3 * u128RawValue b0 b1 b2 b3 +
+        u128RawValue r0 r1 r2 r3 := by
+  let base := 2 ^ 32
+  have hcarry0 : ((q0 * b0 + r0) / base) * base ≤ q0 * b0 + r0 := by
+    exact Nat.div_mul_le_self _ _
+  have hcarry1 :
+      (u128DivmodCol1 q0 q1 b0 b1 r0 r1 / base) * base ^ 2 ≤
+        (q0 * b1 + q1 * b0 + r1) * base + (q0 * b0 + r0) := by
+    have hdiv : (u128DivmodCol1 q0 q1 b0 b1 r0 r1 / base) * base ≤
+        u128DivmodCol1 q0 q1 b0 b1 r0 r1 := by
+      exact Nat.div_mul_le_self _ _
+    have hdiv' := Nat.mul_le_mul_right base hdiv
+    have hbase :
+        (u128DivmodCol1 q0 q1 b0 b1 r0 r1 / base) * base ^ 2 ≤
+          u128DivmodCol1 q0 q1 b0 b1 r0 r1 * base := by
+      simpa [pow_two, Nat.mul_assoc, Nat.mul_left_comm, Nat.mul_comm] using hdiv'
+    have hrepr :
+        u128DivmodCol1 q0 q1 b0 b1 r0 r1 * base =
+          (q0 * b1 + q1 * b0 + r1) * base + ((q0 * b0 + r0) / base) * base := by
+      unfold u128DivmodCol1 u128DivmodCol0
+      ring
+    rw [hrepr] at hbase
+    exact le_trans hbase (by omega)
+  have hpre :
+      u128DivmodCol2CarryIn q0 q1 q2 b0 b1 r0 r1 * base ^ 2 ≤
+        (q0 * b0 + r0) + (q0 * b1 + q1 * b0 + r1) * base + (q2 * b0 + q1 * b1) * base ^ 2 := by
+    have hmain := Nat.add_le_add_left hcarry1 ((q2 * b0 + q1 * b1) * base ^ 2)
+    have hsum :
+        u128DivmodCol2CarryIn q0 q1 q2 b0 b1 r0 r1 * base ^ 2 =
+          (q2 * b0 + q1 * b1) * base ^ 2 +
+            (u128DivmodCol1 q0 q1 b0 b1 r0 r1 / base) * base ^ 2 := by
+      unfold u128DivmodCol2CarryIn
+      ring
+    rw [hsum]
+    simpa [Nat.add_assoc, Nat.add_left_comm, Nat.add_comm] using hmain
+  have hexpand :
+      u128RawValue q0 q1 q2 q3 * u128RawValue b0 b1 b2 b3 + u128RawValue r0 r1 r2 r3 =
+        ((q0 * b0 + r0) + (q0 * b1 + q1 * b0 + r1) * base + (q2 * b0 + q1 * b1) * base ^ 2) +
+          ((q0 * b2 + r2) * base ^ 2 +
+            (q0 * b3 + q1 * b2 + q2 * b1 + q3 * b0 + r3) * base ^ 3 +
+            (q1 * b3 + q2 * b2 + q3 * b1) * base ^ 4 +
+            (q2 * b3 + q3 * b2) * base ^ 5 +
+            (q3 * b3) * base ^ 6) := by
+    unfold u128RawValue
+    ring
+  have hextra :
+      0 ≤ (q0 * b2 + r2) * base ^ 2 +
+          (q0 * b3 + q1 * b2 + q2 * b1 + q3 * b0 + r3) * base ^ 3 +
+          (q1 * b3 + q2 * b2 + q3 * b1) * base ^ 4 +
+          (q2 * b3 + q3 * b2) * base ^ 5 +
+          (q3 * b3) * base ^ 6 := by
+    have h0 : 0 ≤ (q0 * b2 + r2) * base ^ 2 := Nat.zero_le _
+    have h1 : 0 ≤ (q0 * b3 + q1 * b2 + q2 * b1 + q3 * b0 + r3) * base ^ 3 := Nat.zero_le _
+    have h2 : 0 ≤ (q1 * b3 + q2 * b2 + q3 * b1) * base ^ 4 := Nat.zero_le _
+    have h3 : 0 ≤ (q2 * b3 + q3 * b2) * base ^ 5 := Nat.zero_le _
+    have h4 : 0 ≤ (q3 * b3) * base ^ 6 := Nat.zero_le _
+    omega
+  have hbound :
+      (q0 * b0 + r0) + (q0 * b1 + q1 * b0 + r1) * base + (q2 * b0 + q1 * b1) * base ^ 2 ≤
+        u128RawValue q0 q1 q2 q3 * u128RawValue b0 b1 b2 b3 + u128RawValue r0 r1 r2 r3 := by
+    nlinarith [hexpand, hextra]
+  exact le_trans hpre hbound
+
+/-- The carry input accumulated before the final multiply-add in column 2 fits below `2^64`
+    whenever `q * b + r` fits in 128 bits. -/
+theorem u128DivmodCol2CarryIn_lt_2_64
+    (q0 q1 q2 q3 b0 b1 b2 b3 r0 r1 r2 r3 : Nat)
+    (htotal :
+      u128RawValue q0 q1 q2 q3 * u128RawValue b0 b1 b2 b3 +
+        u128RawValue r0 r1 r2 r3 < 2 ^ 128) :
+    u128DivmodCol2CarryIn q0 q1 q2 b0 b1 r0 r1 < 2 ^ 64 := by
+  let base := 2 ^ 32
+  have hmul := u128DivmodCol2CarryIn_mul_pow_le q0 q1 q2 q3 b0 b1 b2 b3 r0 r1 r2 r3
+  by_contra hnot
+  have hge : base ^ 2 ≤ u128DivmodCol2CarryIn q0 q1 q2 b0 b1 r0 r1 := by
+    simpa [base, pow_two] using Nat.not_lt.mp hnot
+  have hpow : 2 ^ 128 ≤ u128DivmodCol2CarryIn q0 q1 q2 b0 b1 r0 r1 * base ^ 2 := by
+    have hmul' := Nat.mul_le_mul_right (base ^ 2) hge
+    simpa [base, pow_two, Nat.mul_assoc, Nat.mul_left_comm, Nat.mul_comm] using hmul'
+  exact (not_lt_of_ge (le_trans hpow hmul)) htotal
+
+/-- Dividing the column-2 carry input by `2^32` yields a u32 carry word. -/
+theorem u128DivmodCol2CarryIn_div_lt_2_32
+    (q0 q1 q2 q3 b0 b1 b2 b3 r0 r1 r2 r3 : Nat)
+    (htotal :
+      u128RawValue q0 q1 q2 q3 * u128RawValue b0 b1 b2 b3 +
+        u128RawValue r0 r1 r2 r3 < 2 ^ 128) :
+    u128DivmodCol2CarryIn q0 q1 q2 b0 b1 r0 r1 / 2 ^ 32 < 2 ^ 32 := by
+  have hlt := u128DivmodCol2CarryIn_lt_2_64 q0 q1 q2 q3 b0 b1 b2 b3 r0 r1 r2 r3 htotal
+  have hlt' : u128DivmodCol2CarryIn q0 q1 q2 b0 b1 r0 r1 < (2 ^ 32) * (2 ^ 32) := by
+    simpa [pow_two] using hlt
+  exact Nat.div_lt_of_lt_mul hlt'
+
+/-- If `q * b` fits below `2^128`, every product term that contributes only above the
+    low 128 bits must vanish. -/
+theorem u128HighTermsZeroOfMulLt
+    (q0 q1 q2 q3 b0 b1 b2 b3 : Nat)
+    (hq0 : q0 < 2 ^ 32) (hq1 : q1 < 2 ^ 32) (hq2 : q2 < 2 ^ 32) (hq3 : q3 < 2 ^ 32)
+    (hb0 : b0 < 2 ^ 32) (hb1 : b1 < 2 ^ 32) (hb2 : b2 < 2 ^ 32) (hb3 : b3 < 2 ^ 32)
+    (hmul :
+      (q3 * 2 ^ 96 + q2 * 2 ^ 64 + q1 * 2 ^ 32 + q0) *
+        (b3 * 2 ^ 96 + b2 * 2 ^ 64 + b1 * 2 ^ 32 + b0) < 2 ^ 128) :
+    q1 * b3 = 0 ∧
+    q2 * b2 = 0 ∧
+    q3 * b1 = 0 ∧
+    q2 * b3 = 0 ∧
+    q3 * b2 = 0 ∧
+    q3 * b3 = 0 := by
+  refine ⟨?_, ?_, ?_, ?_, ?_, ?_⟩
+  · by_contra hneq
+    have hpos : 0 < q1 * b3 := by omega
+    have hbound :
+        2 ^ 128 ≤
+          (q3 * 2 ^ 96 + q2 * 2 ^ 64 + q1 * 2 ^ 32 + q0) *
+            (b3 * 2 ^ 96 + b2 * 2 ^ 64 + b1 * 2 ^ 32 + b0) := by
+      have hq : q1 * 2 ^ 32 ≤ q3 * 2 ^ 96 + q2 * 2 ^ 64 + q1 * 2 ^ 32 + q0 := by omega
+      have hb : b3 * 2 ^ 96 ≤ b3 * 2 ^ 96 + b2 * 2 ^ 64 + b1 * 2 ^ 32 + b0 := by omega
+      have hmain : 2 ^ 128 ≤ (q1 * 2 ^ 32) * (b3 * 2 ^ 96) := by
+        calc
+          2 ^ 128 = 1 * 1 * 2 ^ 128 := by ring
+          _ ≤ q1 * b3 * 2 ^ 128 := by
+            have : 1 ≤ q1 * b3 := by omega
+            nlinarith
+          _ = (q1 * 2 ^ 32) * (b3 * 2 ^ 96) := by ring
+      exact le_trans hmain (Nat.mul_le_mul hq hb)
+    omega
+  · by_contra hneq
+    have hpos : 0 < q2 * b2 := by omega
+    have hq : q2 * 2 ^ 64 ≤ q3 * 2 ^ 96 + q2 * 2 ^ 64 + q1 * 2 ^ 32 + q0 := by omega
+    have hb : b2 * 2 ^ 64 ≤ b3 * 2 ^ 96 + b2 * 2 ^ 64 + b1 * 2 ^ 32 + b0 := by omega
+    have hmain : 2 ^ 128 ≤ (q2 * 2 ^ 64) * (b2 * 2 ^ 64) := by
+      calc
+        2 ^ 128 = 1 * 1 * 2 ^ 128 := by ring
+        _ ≤ q2 * b2 * 2 ^ 128 := by
+          have : 1 ≤ q2 * b2 := by omega
+          nlinarith
+        _ = (q2 * 2 ^ 64) * (b2 * 2 ^ 64) := by ring
+    exact (not_lt_of_ge (le_trans hmain (Nat.mul_le_mul hq hb))) hmul |> False.elim
+  · by_contra hneq
+    have hpos : 0 < q3 * b1 := by omega
+    have hq : q3 * 2 ^ 96 ≤ q3 * 2 ^ 96 + q2 * 2 ^ 64 + q1 * 2 ^ 32 + q0 := by omega
+    have hb : b1 * 2 ^ 32 ≤ b3 * 2 ^ 96 + b2 * 2 ^ 64 + b1 * 2 ^ 32 + b0 := by omega
+    have hmain : 2 ^ 128 ≤ (q3 * 2 ^ 96) * (b1 * 2 ^ 32) := by
+      calc
+        2 ^ 128 = 1 * 1 * 2 ^ 128 := by ring
+        _ ≤ q3 * b1 * 2 ^ 128 := by
+          have : 1 ≤ q3 * b1 := by omega
+          nlinarith
+        _ = (q3 * 2 ^ 96) * (b1 * 2 ^ 32) := by ring
+    exact (not_lt_of_ge (le_trans hmain (Nat.mul_le_mul hq hb))) hmul |> False.elim
+  · by_contra hneq
+    have hpos : 0 < q2 * b3 := by omega
+    have hq : q2 * 2 ^ 64 ≤ q3 * 2 ^ 96 + q2 * 2 ^ 64 + q1 * 2 ^ 32 + q0 := by omega
+    have hb : b3 * 2 ^ 96 ≤ b3 * 2 ^ 96 + b2 * 2 ^ 64 + b1 * 2 ^ 32 + b0 := by omega
+    have hmain : 2 ^ 160 ≤ (q2 * 2 ^ 64) * (b3 * 2 ^ 96) := by
+      calc
+        2 ^ 160 = 1 * 1 * 2 ^ 160 := by ring
+        _ ≤ q2 * b3 * 2 ^ 160 := by
+          have : 1 ≤ q2 * b3 := by omega
+          nlinarith
+        _ = (q2 * 2 ^ 64) * (b3 * 2 ^ 96) := by ring
+    have : 2 ^ 128 ≤
+        (q3 * 2 ^ 96 + q2 * 2 ^ 64 + q1 * 2 ^ 32 + q0) *
+          (b3 * 2 ^ 96 + b2 * 2 ^ 64 + b1 * 2 ^ 32 + b0) := by
+      exact le_trans (by omega) (le_trans hmain (Nat.mul_le_mul hq hb))
+    omega
+  · by_contra hneq
+    have hpos : 0 < q3 * b2 := by omega
+    have hq : q3 * 2 ^ 96 ≤ q3 * 2 ^ 96 + q2 * 2 ^ 64 + q1 * 2 ^ 32 + q0 := by omega
+    have hb : b2 * 2 ^ 64 ≤ b3 * 2 ^ 96 + b2 * 2 ^ 64 + b1 * 2 ^ 32 + b0 := by omega
+    have hmain : 2 ^ 160 ≤ (q3 * 2 ^ 96) * (b2 * 2 ^ 64) := by
+      calc
+        2 ^ 160 = 1 * 1 * 2 ^ 160 := by ring
+        _ ≤ q3 * b2 * 2 ^ 160 := by
+          have : 1 ≤ q3 * b2 := by omega
+          nlinarith
+        _ = (q3 * 2 ^ 96) * (b2 * 2 ^ 64) := by ring
+    have : 2 ^ 128 ≤
+        (q3 * 2 ^ 96 + q2 * 2 ^ 64 + q1 * 2 ^ 32 + q0) *
+          (b3 * 2 ^ 96 + b2 * 2 ^ 64 + b1 * 2 ^ 32 + b0) := by
+      exact le_trans (by omega) (le_trans hmain (Nat.mul_le_mul hq hb))
+    omega
+  · by_contra hneq
+    have hpos : 0 < q3 * b3 := by omega
+    have hq : q3 * 2 ^ 96 ≤ q3 * 2 ^ 96 + q2 * 2 ^ 64 + q1 * 2 ^ 32 + q0 := by omega
+    have hb : b3 * 2 ^ 96 ≤ b3 * 2 ^ 96 + b2 * 2 ^ 64 + b1 * 2 ^ 32 + b0 := by omega
+    have hmain : 2 ^ 192 ≤ (q3 * 2 ^ 96) * (b3 * 2 ^ 96) := by
+      calc
+        2 ^ 192 = 1 * 1 * 2 ^ 192 := by ring
+        _ ≤ q3 * b3 * 2 ^ 192 := by
+          have : 1 ≤ q3 * b3 := by omega
+          nlinarith
+        _ = (q3 * 2 ^ 96) * (b3 * 2 ^ 96) := by ring
+    have : 2 ^ 128 ≤
+        (q3 * 2 ^ 96 + q2 * 2 ^ 64 + q1 * 2 ^ 32 + q0) *
+          (b3 * 2 ^ 96 + b2 * 2 ^ 64 + b1 * 2 ^ 32 + b0) := by
+      exact le_trans (by omega) (le_trans hmain (Nat.mul_le_mul hq hb))
+    omega
 
 -- ============================================================================
 -- Comparison bridging lemmas

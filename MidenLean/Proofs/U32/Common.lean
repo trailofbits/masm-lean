@@ -156,6 +156,55 @@ theorem u32_madd_sum_lt_prime (a b c : Felt)
     (a.val * b.val + c.val) / 2 ^ 32 :=
   felt_ofNat_val_lt _ (u32_val_lt_prime _ (u32_madd_div_lt_2_32 a b c ha hb hc))
 
+/-- The high 32 bits of `a*b` (for u32 a, b) fit in 32 bits. -/
+@[miden_bound] theorem u32_prod_div_lt_2_32 (a b : Felt)
+    (ha : a.isU32 = true) (hb : b.isU32 = true) :
+    a.val * b.val / 2 ^ 32 < 2 ^ 32 := by
+  simp only [Felt.isU32, decide_eq_true_eq] at ha hb
+  have hprod : a.val * b.val ≤ (2 ^ 32 - 1) * (2 ^ 32 - 1) := by
+    exact Nat.mul_le_mul (Nat.le_pred_of_lt ha) (Nat.le_pred_of_lt hb)
+  calc
+    a.val * b.val / 2 ^ 32 ≤ ((2 ^ 32 - 1) * (2 ^ 32 - 1)) / 2 ^ 32 := by
+      exact Nat.div_le_div_right hprod
+    _ < 2 ^ 32 := by native_decide
+
+/-- Adding a u32 value to the low half of a u32 product carries by at most one word. -/
+@[miden_bound] theorem u32_prod_mod_add_div_le_one (a b c : Felt)
+    (_ha : a.isU32 = true) (_hb : b.isU32 = true) (hc : c.isU32 = true) :
+    ((a.val * b.val) % 2 ^ 32 + c.val) / 2 ^ 32 ≤ 1 := by
+  simp only [Felt.isU32, decide_eq_true_eq] at hc
+  have hmod : (a.val * b.val) % 2 ^ 32 ≤ 2 ^ 32 - 1 := by
+    exact Nat.le_pred_of_lt (Nat.mod_lt _ (by positivity))
+  calc
+    ((a.val * b.val) % 2 ^ 32 + c.val) / 2 ^ 32
+        ≤ ((2 ^ 32 - 1) + (2 ^ 32 - 1)) / 2 ^ 32 := by
+          apply Nat.div_le_div_right
+          omega
+    _ ≤ 1 := by native_decide
+
+/-- Adding two u32 values carries by at most one word. -/
+@[miden_bound] theorem u32_add_div_le_one (a b : Felt)
+    (ha : a.isU32 = true) (hb : b.isU32 = true) :
+    (a.val + b.val) / 2 ^ 32 ≤ 1 := by
+  simp only [Felt.isU32, decide_eq_true_eq] at ha hb
+  calc
+    (a.val + b.val) / 2 ^ 32 ≤ ((2 ^ 32 - 1) + (2 ^ 32 - 1)) / 2 ^ 32 := by
+      apply Nat.div_le_div_right
+      omega
+    _ ≤ 1 := by native_decide
+
+/-- `Felt.ofNat` of the carry from adding a u32 value to the low half of a u32 product
+    round-trips through `.val`. -/
+@[miden_bound] theorem u32_prod_mod_add_div_val (a b c : Felt)
+    (ha : a.isU32 = true) (hb : b.isU32 = true) (hc : c.isU32 = true) :
+    (Felt.ofNat (((a.val * b.val) % 2 ^ 32 + c.val) / 2 ^ 32)).val =
+      ((a.val * b.val) % 2 ^ 32 + c.val) / 2 ^ 32 := by
+  apply felt_ofNat_val_lt
+  apply u32_val_lt_prime
+  have : ((a.val * b.val) % 2 ^ 32 + c.val) / 2 ^ 32 ≤ 1 :=
+    u32_prod_mod_add_div_le_one a b c ha hb hc
+  omega
+
 -- ============================================================================
 -- Reusable U32 addition carry lemmas
 -- ============================================================================
@@ -189,5 +238,55 @@ theorem u32_add3_sum_lt_prime (a b c : Felt)
     (a.val + b.val + c.val) / 2 ^ 32 := by
   apply felt_ofNat_val_lt; apply u32_val_lt_prime
   simp only [Felt.isU32, decide_eq_true_eq] at ha hb hc; omega
+
+-- ============================================================================
+-- Recomposition lemmas for widening u32 operations
+-- ============================================================================
+
+/-- Recompose a widening u32 addition into the original sum. -/
+theorem u32WideAdd_spec (a b : Nat) :
+    (u32WideAdd a b).1 + (u32WideAdd a b).2 * 2 ^ 32 = a + b := by
+  unfold u32WideAdd u32Max
+  change (a + b) % 2 ^ 32 + ((a + b) / 2 ^ 32) * 2 ^ 32 = a + b
+  rw [Nat.mul_comm]
+  exact Nat.mod_add_div (a + b) (2 ^ 32)
+
+/-- Recompose a widening u32 addition of three values into the original sum. -/
+theorem u32WideAdd3_spec (a b c : Nat) :
+    (u32WideAdd3 a b c).1 + (u32WideAdd3 a b c).2 * 2 ^ 32 = a + b + c := by
+  unfold u32WideAdd3 u32Max
+  change (a + b + c) % 2 ^ 32 + ((a + b + c) / 2 ^ 32) * 2 ^ 32 = a + b + c
+  rw [Nat.mul_comm]
+  exact Nat.mod_add_div (a + b + c) (2 ^ 32)
+
+/-- Recompose a widening u32 multiplication into the original product. -/
+theorem u32WideMul_spec (a b : Nat) :
+    (u32WideMul a b).1 + (u32WideMul a b).2 * 2 ^ 32 = a * b := by
+  unfold u32WideMul u32Max
+  let prod := b * a
+  have h := Nat.mod_add_div prod (2 ^ 32)
+  simpa [prod, Nat.mul_comm] using h
+
+/-- Recompose a widening u32 multiply-add into the original result. -/
+theorem u32WideMadd_spec (a b c : Nat) :
+    (u32WideMadd a b c).1 + (u32WideMadd a b c).2 * 2 ^ 32 = a * b + c := by
+  unfold u32WideMadd u32Max
+  let result := b * a + c
+  have h := Nat.mod_add_div result (2 ^ 32)
+  simpa [result, Nat.mul_comm, Nat.add_comm, Nat.add_left_comm, Nat.add_assoc] using h
+
+/-- A widening multiplication has zero low-and-high-word sum iff the product is zero. -/
+theorem u32WideMul_sum_eq_zero_iff (a b : Nat) :
+    (u32WideMul a b).1 + (u32WideMul a b).2 = 0 ↔ a * b = 0 := by
+  unfold u32WideMul u32Max
+  change (a * b) % 2 ^ 32 + (a * b) / 2 ^ 32 = 0 ↔ a * b = 0
+  constructor
+  · intro h
+    have hlo : a * b % 2 ^ 32 = 0 := by omega
+    have hhi : a * b / 2 ^ 32 = 0 := by omega
+    have hrecomp := Nat.mod_add_div (a * b) (2 ^ 32)
+    omega
+  · intro h
+    simp [h]
 
 end MidenLean.Proofs
