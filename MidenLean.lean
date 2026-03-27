@@ -64,6 +64,7 @@ import MidenLean.Proofs.U128.OverflowingAdd
 import MidenLean.Proofs.U128.OverflowingMul
 import MidenLean.Proofs.U128.OverflowingSub
 import MidenLean.Proofs.U128.Rotl
+import MidenLean.Proofs.U128.Rotr
 import MidenLean.Proofs.U128.Shl
 import MidenLean.Proofs.U128.Shr
 import MidenLean.Proofs.U128.ShrK0

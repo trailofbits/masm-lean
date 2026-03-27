@@ -561,6 +561,81 @@ theorem rotl_eq_or_shl_shr (a : U128) (n : Nat) (hn : n < 128) :
           apply eq_of_toNat_eq
           rw [ofNat_toNat, Nat.mod_eq_of_lt hq_lt128, toNat_shr]
 
+/-- Right-rotate a u128 value by `n` bits. -/
+def rotr (a : U128) (n : Nat) : U128 :=
+  let n' := n % 128
+  ofNat (a.toNat / 2^n' + a.toNat * 2^(128 - n'))
+
+@[simp] theorem toNat_rotr (a : U128) (n : Nat) :
+    (a.rotr n).toNat =
+      (a.toNat / 2^(n % 128) + a.toNat * 2^(128 - (n % 128))) % 2^128 := by
+  simp [rotr]
+
+@[simp] theorem rotr_zero (a : U128) : a.rotr 0 = a := by
+  apply eq_of_toNat_eq
+  rw [toNat_rotr]
+  change (a.toNat / 1 + a.toNat * 2 ^ 128) % 2 ^ 128 = a.toNat
+  rw [Nat.div_one, show a.toNat + a.toNat * 2 ^ 128 =
+      a.toNat + 2 ^ 128 * a.toNat from by ring,
+      Nat.add_mul_mod_self_left, Nat.mod_eq_of_lt a.toNat_lt]
+
+/-- For `n < 128`, rotate-right is exactly the shifted-left body OR the shifted-right fragment. -/
+theorem rotr_eq_or_shr_shl (a : U128) (n : Nat) (hn : n < 128) :
+    a.rotr n = a.shl (128 - n) ||| a.shr n := by
+  set q := a.toNat / 2^n
+  set r := a.toNat % 2^n
+  have hr_lt : r < 2^n := by
+    dsimp [r]
+    exact Nat.mod_lt _ (by positivity)
+  have hq_lt : q < 2^(128 - n) := by
+    dsimp [q]
+    rw [Nat.div_lt_iff_lt_mul (by positivity)]
+    calc
+      a.toNat < 2^128 := a.toNat_lt
+      _ = 2^(128 - n) * 2^n := by
+            rw [← Nat.pow_add]
+            congr 1
+            omega
+  have hr_mul_lt : r * 2^(128 - n) < 2^128 := by
+    calc
+      r * 2^(128 - n) < 2^n * 2^(128 - n) := by
+        exact Nat.mul_lt_mul_of_pos_right hr_lt (by positivity)
+      _ = 2^128 := by
+        rw [Nat.mul_comm, ← Nat.pow_add]
+        congr 1
+        omega
+  have hq_lt128 : q < 2^128 :=
+    lt_of_le_of_lt (Nat.div_le_self _ _) a.toNat_lt
+  have hor' : r * 2^(128 - n) + q = r * 2^(128 - n) ||| q := by
+    simpa [Nat.mul_comm] using
+      (Nat.two_pow_add_eq_or_of_lt (i := 128 - n) (b := q) hq_lt r)
+  have hor : q + r * 2^(128 - n) = q ||| (r * 2^(128 - n)) := by
+    rw [Nat.add_comm, hor', Nat.or_comm]
+  have hshl_nat : (a.toNat * 2^(128 - n)) % 2^128 = r * 2^(128 - n) := by
+    by_cases hn0 : n = 0
+    · subst hn0; simp [r, Nat.mod_one]
+    · have h128n : 128 - n < 128 := by omega
+      have := mul_pow_mod_2_128 a.toNat (128 - n) h128n
+      rwa [show 128 - (128 - n) = n from by omega] at this
+  have hshl : U128.ofNat (r * 2^(128 - n)) = a.shl (128 - n) := by
+    apply eq_of_toNat_eq
+    rw [ofNat_toNat, Nat.mod_eq_of_lt hr_mul_lt, toNat_shl, hshl_nat]
+  have hrotr : a.rotr n = U128.ofNat (q + r * 2^(128 - n)) := by
+    apply eq_of_toNat_eq
+    have hq_mod : (a.toNat / 2 ^ n) % 2 ^ 128 = q := by
+      simpa [q] using (Nat.mod_eq_of_lt hq_lt128)
+    rw [toNat_rotr, Nat.mod_eq_of_lt hn, ofNat_toNat, Nat.add_mod, hq_mod, hshl_nat]
+  calc
+    a.rotr n = U128.ofNat (q + r * 2^(128 - n)) := hrotr
+    _ = U128.ofNat (q ||| (r * 2^(128 - n))) := by rw [hor]
+    _ = U128.ofNat ((r * 2^(128 - n)) ||| q) := by rw [Nat.or_comm]
+    _ = U128.ofNat (r * 2^(128 - n)) ||| U128.ofNat q := by rw [ofNat_or]
+    _ = a.shl (128 - n) ||| a.shr n := by
+          rw [hshl]
+          apply congrArg (fun x => a.shl (128 - n) ||| x)
+          apply eq_of_toNat_eq
+          rw [ofNat_toNat, Nat.mod_eq_of_lt hq_lt128, toNat_shr]
+
 end U128
 
 /-- `Felt.ofNat` distributes over addition. -/
