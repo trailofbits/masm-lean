@@ -32,14 +32,16 @@ GENERATED_ROOT = REPO_ROOT / "MidenLean" / "Generated"
 MODULE_DIRS = {
     "u64": PROOFS_ROOT / "U64",
     "u128": PROOFS_ROOT / "U128",
+    "u256": PROOFS_ROOT / "U256",
     "word": PROOFS_ROOT / "Word",
 }
 GENERATED_MODULE_FILES = {
     "u64": GENERATED_ROOT / "U64.lean",
     "u128": GENERATED_ROOT / "U128.lean",
+    "u256": GENERATED_ROOT / "U256.lean",
     "word": GENERATED_ROOT / "Word.lean",
 }
-MODULE_ORDER = ("u64", "u128", "word")
+MODULE_ORDER = ("u64", "u128", "u256", "word")
 SUPPORT_FILES = {"Common.lean"}
 
 THEOREM_RE = re.compile(r"(?m)^theorem\s+([A-Za-z0-9_]+_correct)\b")
@@ -78,7 +80,7 @@ def parse_args() -> argparse.Namespace:
         nargs="*",
         choices=tuple(MODULE_DIRS.keys()),
         default=list(MODULE_DIRS.keys()),
-        help="Subset of proof modules to inspect (default: u64 u128 word).",
+        help="Subset of proof modules to inspect (default: u64 u128 u256 word).",
     )
     return parser.parse_args()
 

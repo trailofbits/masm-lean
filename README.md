@@ -19,9 +19,11 @@ Manual proof files are organized per procedure:
 - **`MidenLean/Proofs/U64/Common.lean`** contains shared proof support for the `u64` proof tree.
 - **`MidenLean/Proofs/U128/`** contains the `u128` correctness theorems, one file per procedure.
 - **`MidenLean/Proofs/U128/Common.lean`** contains shared proof support for the `u128` proof tree.
+- **`MidenLean/Proofs/U256/`** contains the `u256` correctness theorems, one file per procedure.
+- **`MidenLean/Proofs/U256/Common.lean`** contains shared proof support for the `u256` proof tree.
 - **`MidenLean/Proofs/Word/`** contains the `word` correctness theorems, one file per procedure.
 
-The current checked manual proofs cover 78 procedures: 31 in `u64`, 36 in `u128`, 11 in `word`.
+The current checked manual proofs cover 80 procedures: 31 in `u64`, 36 in `u128`, 2 in `u256`, 11 in `word`.
 
 ### `u64` (31 / 31)
 
@@ -100,6 +102,13 @@ The current checked manual proofs cover 78 procedures: 31 in `u64`, 36 in `u128`
 | `u128::wrapping_sub` | `u128_wrapping_sub_correct` | `u128::wrapping_sub` computes `(a - b) mod 2^128` for two 128-bit values. | `MidenLean/Proofs/U128/WrappingSub.lean` |
 | `u128::xor` | `u128_xor_correct` | `u128::xor` computes bitwise XOR of two 128-bit values. | `MidenLean/Proofs/U128/Xor.lean` |
 
+### `u256` (2 / 17)
+
+| Procedure | Theorem | Summary | Manual proof file |
+| --- | --- | --- | --- |
+| `u256::eqz` | `u256_eqz_correct` | `u256::eqz` tests whether a u256 value equals zero. | `MidenLean/Proofs/U256/Eqz.lean` |
+| `u256::u256_le_to_be` | `u256_u256_le_to_be_correct` | `u256::u256_le_to_be` reverses the order of eight stack elements. | `MidenLean/Proofs/U256/U256LeToBe.lean` |
+
 ### `word` (11 / 11)
 
 | Procedure | Theorem | Summary | Manual proof file |
@@ -126,6 +135,7 @@ Requires [Lean 4](https://leanprover.github.io/lean4/doc/setup.html) (v4.28.0) a
 timeout 180s lake build MidenLean.Proofs.U64.WideningMul
 timeout 180s lake build MidenLean.Proofs.U64.Divmod
 timeout 180s lake build MidenLean.Proofs.U128.Eqz
+timeout 180s lake build MidenLean.Proofs.U256.Eqz
 timeout 180s lake build MidenLean.Proofs.Word.Reverse
 
 # Check a single Lean file directly.
@@ -135,8 +145,10 @@ timeout 180s lake env lean MidenLean/Proofs/U64/Shr.lean
 mods=(
   MidenLean.Proofs.U64.Common
   MidenLean.Proofs.U128.Common
+  MidenLean.Proofs.U256.Common
   $(find MidenLean/Proofs/U64 -maxdepth 1 -name '*.lean' ! -name 'Common.lean' | sort | sed 's#/#.#g; s#.lean$##')
   $(find MidenLean/Proofs/U128 -maxdepth 1 -name '*.lean' ! -name 'Common.lean' | sort | sed 's#/#.#g; s#.lean$##')
+  $(find MidenLean/Proofs/U256 -maxdepth 1 -name '*.lean' ! -name 'Common.lean' | sort | sed 's#/#.#g; s#.lean$##')
   $(find MidenLean/Proofs/Word -maxdepth 1 -name '*.lean' | sort | sed 's#/#.#g; s#.lean$##')
 )
 for mod in $mods; do
