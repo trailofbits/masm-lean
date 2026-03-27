@@ -10,15 +10,15 @@ open MidenLean.StepLemmas
 open MidenLean.Tactics
 set_option linter.unreachableTactic false
 set_option linter.unusedTactic false
--- Classification: SEMI | Style: FLAT_EXPLICIT | Instructions: 12 | Inputs: 32 | Calls: true | Branches: false | Loops: false | Advice: false
+-- Classification: SEMI | Style: FLAT_EXPLICIT | Instructions: 12 | Inputs: 16 | Calls: true | Branches: false | Loops: false | Advice: false
 set_option maxHeartbeats 4000000 in
 -- TODO: replace the theorem doc comment below with a high-level correctness description for README table generation.
 /-- u256.eq: (auto-generated skeleton)
-    Input stack:  [x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12, x13, x14, x15, x16, x17, x18, x19, x20, x21, x22, x23, x24, x25, x26, x27, x28, x29, x30, x31] ++ rest
+    Input stack:  [x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12, x13, x14, x15] ++ rest
     Output stack: [sorry] ++ rest -/
 theorem u256_eq_correct
-    (x0 x1 x2 x3 x4 x5 x6 x7 x8 x9 x10 x11 x12 x13 x14 x15 x16 x17 x18 x19 x20 x21 x22 x23 x24 x25 x26 x27 x28 x29 x30 x31 : Felt) (rest : List Felt) (s : MidenState)
-    (hs : s.stack = x0 :: x1 :: x2 :: x3 :: x4 :: x5 :: x6 :: x7 :: x8 :: x9 :: x10 :: x11 :: x12 :: x13 :: x14 :: x15 :: x16 :: x17 :: x18 :: x19 :: x20 :: x21 :: x22 :: x23 :: x24 :: x25 :: x26 :: x27 :: x28 :: x29 :: x30 :: x31 :: rest)
+    (x0 x1 x2 x3 x4 x5 x6 x7 x8 x9 x10 x11 x12 x13 x14 x15 : Felt) (rest : List Felt) (s : MidenState)
+    (hs : s.stack = x0 :: x1 :: x2 :: x3 :: x4 :: x5 :: x6 :: x7 :: x8 :: x9 :: x10 :: x11 :: x12 :: x13 :: x14 :: x15 :: rest)
     :
     execWithEnv u256ProcEnv 61 s Miden.Core.U256.eq =
     some (s.withStack (sorry :: rest))  -- TODO: specify output
