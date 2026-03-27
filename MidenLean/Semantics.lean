@@ -887,6 +887,51 @@ def execLocStore (idx : Nat) (s : MidenState) : Option MidenState :=
   | v :: rest => some ((s.writeLocal idx v).withStack rest)
   | _ => none
 
+def execLocStorewBe (idx : Nat) (s : MidenState) : Option MidenState :=
+  match s.stack with
+  | e0 :: e1 :: e2 :: e3 :: rest =>
+    let s' := s.writeLocal idx e3
+      |>.writeLocal (idx+1) e2
+      |>.writeLocal (idx+2) e1
+      |>.writeLocal (idx+3) e0
+    some (s'.withStack (e0 :: e1 :: e2 :: e3 :: rest))
+  | _ => none
+
+def execLocLoadwBe (idx : Nat) (s : MidenState) : Option MidenState :=
+  match s.stack with
+  | _ :: _ :: _ :: _ :: rest =>
+    let e3 := s.locals idx
+    let e2 := s.locals (idx+1)
+    let e1 := s.locals (idx+2)
+    let e0 := s.locals (idx+3)
+    some (s.withStack (e0 :: e1 :: e2 :: e3 :: rest))
+  | _ => none
+
+def execLocStorewLe (idx : Nat) (s : MidenState) : Option MidenState :=
+  match s.stack with
+  | e0 :: e1 :: e2 :: e3 :: rest =>
+    let s' := s.writeLocal idx e0
+      |>.writeLocal (idx+1) e1
+      |>.writeLocal (idx+2) e2
+      |>.writeLocal (idx+3) e3
+    some (s'.withStack (e0 :: e1 :: e2 :: e3 :: rest))
+  | _ => none
+
+def execLocLoadwLe (idx : Nat) (s : MidenState) : Option MidenState :=
+  match s.stack with
+  | _ :: _ :: _ :: _ :: rest =>
+    let e0 := s.locals idx
+    let e1 := s.locals (idx+1)
+    let e2 := s.locals (idx+2)
+    let e3 := s.locals (idx+3)
+    some (s.withStack (e0 :: e1 :: e2 :: e3 :: rest))
+  | _ => none
+
+-- locaddr pushes the local-space index as a field element.
+-- In our model locals are a separate Nat → Felt map, so this address is symbolic.
+def execLocaddr (idx : Nat) (s : MidenState) : Option MidenState :=
+  some (s.withStack (Felt.ofNat idx :: s.stack))
+
 -- Advice stack
 
 def execAdvPush (n : Nat) (s : MidenState) : Option MidenState :=
@@ -1031,6 +1076,11 @@ def execInstruction (s : MidenState) (i : Instruction) : Option MidenState :=
   | .memLoadwLeImm addr => execMemLoadwLeImm addr s
   | .locLoad idx => execLocLoad idx s
   | .locStore idx => execLocStore idx s
+  | .locLoadwBe idx => execLocLoadwBe idx s
+  | .locStorewBe idx => execLocStorewBe idx s
+  | .locLoadwLe idx => execLocLoadwLe idx s
+  | .locStorewLe idx => execLocStorewLe idx s
+  | .locaddr idx => execLocaddr idx s
   | .advPush n => execAdvPush n s
   | .advLoadW => execAdvLoadW s
   | .emit => execEmit s

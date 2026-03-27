@@ -153,6 +153,11 @@ inductive Instruction where
   -- Procedure locals
   | locLoad (idx : Nat)
   | locStore (idx : Nat)
+  | locLoadwBe (idx : Nat)
+  | locStorewBe (idx : Nat)
+  | locLoadwLe (idx : Nat)
+  | locStorewLe (idx : Nat)
+  | locaddr (idx : Nat)
 
   -- Advice stack
   | advPush (n : Nat)
