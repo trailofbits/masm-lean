@@ -23,7 +23,7 @@ Manual proof files are organized per procedure:
 - **`MidenLean/Proofs/U256/Common.lean`** contains shared proof support for the `u256` proof tree.
 - **`MidenLean/Proofs/Word/`** contains the `word` correctness theorems, one file per procedure.
 
-The current checked manual proofs cover 80 procedures: 31 in `u64`, 36 in `u128`, 2 in `u256`, 11 in `word`.
+The current checked manual proofs cover 83 procedures: 31 in `u64`, 36 in `u128`, 5 in `u256`, 11 in `word`.
 
 ### `u64` (31 / 31)
 
@@ -102,12 +102,15 @@ The current checked manual proofs cover 80 procedures: 31 in `u64`, 36 in `u128`
 | `u128::wrapping_sub` | `u128_wrapping_sub_correct` | `u128::wrapping_sub` computes `(a - b) mod 2^128` for two 128-bit values. | `MidenLean/Proofs/U128/WrappingSub.lean` |
 | `u128::xor` | `u128_xor_correct` | `u128::xor` computes bitwise XOR of two 128-bit values. | `MidenLean/Proofs/U128/Xor.lean` |
 
-### `u256` (2 / 17)
+### `u256` (5 / 17)
 
 | Procedure | Theorem | Summary | Manual proof file |
 | --- | --- | --- | --- |
+| `u256::and` | `u256_and_correct` | `u256::and` computes bitwise AND of two 256-bit values. | `MidenLean/Proofs/U256/And.lean` |
 | `u256::eqz` | `u256_eqz_correct` | `u256::eqz` tests whether a u256 value equals zero. | `MidenLean/Proofs/U256/Eqz.lean` |
+| `u256::or` | `u256_or_correct` | `u256::or` computes bitwise OR of two 256-bit values. | `MidenLean/Proofs/U256/Or.lean` |
 | `u256::u256_le_to_be` | `u256_u256_le_to_be_correct` | `u256::u256_le_to_be` reverses the order of eight stack elements. | `MidenLean/Proofs/U256/U256LeToBe.lean` |
+| `u256::xor` | `u256_xor_correct` | `u256::xor` computes bitwise XOR of two 256-bit values. | `MidenLean/Proofs/U256/Xor.lean` |
 
 ### `word` (11 / 11)
 
