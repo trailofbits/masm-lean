@@ -41,6 +41,12 @@ private def checkStack (result : Option MidenState) (expected : List Felt) : Boo
 private def checkNone (result : Option MidenState) : Bool :=
   result.isNone
 
+/-- Check that specific local slots have the expected values. -/
+private def checkLocals (result : Option MidenState) (pairs : List (Nat × Felt)) : Bool :=
+  match result with
+  | some s => pairs.all fun (idx, v) => s.locals idx == v
+  | none => false
+
 -- Felt constants for readability
 private def p : Nat := GOLDILOCKS_PRIME  -- 2^64 - 2^32 + 1
 private def u32max : Nat := 2^32
@@ -933,10 +939,185 @@ private def u32max : Nat := 2^32
   unless checkStack r [] do panic! "whileTrue: basic failed"
 
 -- ============================================================================
+-- Tier 1: Field Comparison – eqw (AC-3)
+-- ============================================================================
+
+-- eqw: two equal words → pushes 1, both words preserved
+#eval do
+  let s := mkState [1, 2, 3, 4, 1, 2, 3, 4]
+  let r := runInst s .eqw
+  unless checkStack r [1, 1, 2, 3, 4, 1, 2, 3, 4] do panic! "eqw: equal words failed"
+
+-- eqw: two unequal words → pushes 0, both words preserved
+#eval do
+  let s := mkState [1, 2, 3, 4, 5, 6, 7, 8]
+  let r := runInst s .eqw
+  unless checkStack r [0, 1, 2, 3, 4, 5, 6, 7, 8] do panic! "eqw: unequal words failed"
+
+-- eqw: words differing in only one element → pushes 0
+#eval do
+  let s := mkState [1, 2, 3, 4, 1, 2, 99, 4]
+  let r := runInst s .eqw
+  unless checkStack r [0, 1, 2, 3, 4, 1, 2, 99, 4] do panic! "eqw: one-element diff failed"
+
+-- eqw: insufficient stack depth (fewer than 8 elements) → returns none
+#eval do
+  let s := mkState [1, 2, 3, 4, 5, 6, 7]
+  let r := runInst s .eqw
+  unless checkNone r do panic! "eqw: insufficient stack should fail"
+
+-- ============================================================================
+-- Tier 3: Local Memory – locStorewBe / locStorewLe (AC-12)
+-- ============================================================================
+
+-- locStorewBe: stores top word in big-endian order and preserves stack
+-- Per spec: "top of stack is placed at local[i+3]"
+-- So stack [e0, e1, e2, e3, ...] → local[i]=e3, local[i+1]=e2, local[i+2]=e1, local[i+3]=e0
+#eval do
+  let s := mkState [10, 20, 30, 40, 99]
+  let r := runInst s (.locStorewBe 0)
+  -- stack preserved
+  unless checkStack r [10, 20, 30, 40, 99] do panic! "locStorewBe: stack not preserved"
+  -- check locals: BE order means top-of-stack (10) → local[3], next (20) → local[2], etc.
+  unless checkLocals r [(0, 40), (1, 30), (2, 20), (3, 10)] do
+    panic! "locStorewBe: local slot assignments wrong"
+
+-- locStorewLe: stores top word in little-endian order and preserves stack
+-- Per spec: "top of stack is placed at local[i]"
+-- So stack [e0, e1, e2, e3, ...] → local[i]=e0, local[i+1]=e1, local[i+2]=e2, local[i+3]=e3
+#eval do
+  let s := mkState [10, 20, 30, 40, 99]
+  let r := runInst s (.locStorewLe 0)
+  -- stack preserved
+  unless checkStack r [10, 20, 30, 40, 99] do panic! "locStorewLe: stack not preserved"
+  -- check locals: LE order means top-of-stack (10) → local[0], next (20) → local[1], etc.
+  unless checkLocals r [(0, 10), (1, 20), (2, 30), (3, 40)] do
+    panic! "locStorewLe: local slot assignments wrong"
+
+-- locStorewBe: insufficient stack (fewer than 4 elements) → returns none
+#eval do
+  let s := mkState [1, 2, 3]
+  let r := runInst s (.locStorewBe 0)
+  unless checkNone r do panic! "locStorewBe: insufficient stack should fail"
+
+-- locStorewLe: insufficient stack (fewer than 4 elements) → returns none
+#eval do
+  let s := mkState [1, 2, 3]
+  let r := runInst s (.locStorewLe 0)
+  unless checkNone r do panic! "locStorewLe: insufficient stack should fail"
+
+-- ============================================================================
+-- Tier 3: Local Memory – locLoadwBe / locLoadwLe (AC-12)
+-- ============================================================================
+
+-- locLoadwBe: overwrites top 4 stack elements with locals in big-endian order
+-- Per spec: "local[i+3] is placed at the top of the stack"
+-- So locals [i]=v0, [i+1]=v1, [i+2]=v2, [i+3]=v3 → stack [v3, v2, v1, v0, ...]
+#eval do
+  -- First store values to locals via locStorewLe (LE: top→local[0], etc.)
+  let s := mkState [100, 200, 300, 400]
+  let r1 := runInst s (.locStorewLe 0)
+  match r1 with
+  | some s1 =>
+    -- Now overwrite stack top with placeholders and load back in BE order
+    let s2 := { s1 with stack := [0, 0, 0, 0, 99] }
+    let r2 := runInst s2 (.locLoadwBe 0)
+    -- BE load: local[3]=400 on top, local[2]=300, local[1]=200, local[0]=100
+    unless checkStack r2 [400, 300, 200, 100, 99] do panic! "locLoadwBe: element ordering wrong"
+  | none => panic! "locStorewLe should not fail"
+
+-- locLoadwLe: overwrites top 4 stack elements with locals in little-endian order
+-- Per spec: "local[i] is placed at the top of the stack"
+-- So locals [i]=v0, [i+1]=v1, [i+2]=v2, [i+3]=v3 → stack [v0, v1, v2, v3, ...]
+#eval do
+  -- First store values to locals via locStorewLe (LE: top→local[0], etc.)
+  let s := mkState [100, 200, 300, 400]
+  let r1 := runInst s (.locStorewLe 0)
+  match r1 with
+  | some s1 =>
+    let s2 := { s1 with stack := [0, 0, 0, 0, 99] }
+    let r2 := runInst s2 (.locLoadwLe 0)
+    -- LE load: local[0]=100 on top, local[1]=200, local[2]=300, local[3]=400
+    unless checkStack r2 [100, 200, 300, 400, 99] do panic! "locLoadwLe: element ordering wrong"
+  | none => panic! "locStorewLe should not fail"
+
+-- locLoadwBe: insufficient stack (fewer than 4 elements) → returns none
+#eval do
+  let s := mkState [1, 2, 3]
+  let r := runInst s (.locLoadwBe 0)
+  unless checkNone r do panic! "locLoadwBe: insufficient stack should fail"
+
+-- locLoadwLe: insufficient stack (fewer than 4 elements) → returns none
+#eval do
+  let s := mkState [1, 2, 3]
+  let r := runInst s (.locLoadwLe 0)
+  unless checkNone r do panic! "locLoadwLe: insufficient stack should fail"
+
+-- ============================================================================
+-- Tier 3: Local Memory – Round-trip Tests (AC-12)
+-- ============================================================================
+
+-- Round-trip: locStorewBe then locLoadwBe → top 4 elements unchanged
+#eval do
+  let s := mkState [10, 20, 30, 40, 99]
+  let r1 := runInst s (.locStorewBe 0)
+  match r1 with
+  | some s1 =>
+    -- Stack after store is preserved: [10, 20, 30, 40, 99]
+    -- Now load back in same endianness
+    let r2 := runInst s1 (.locLoadwBe 0)
+    unless checkStack r2 [10, 20, 30, 40, 99] do panic! "round-trip BE-BE: stack mismatch"
+  | none => panic! "locStorewBe should not fail"
+
+-- Round-trip: locStorewLe then locLoadwLe → top 4 elements unchanged
+#eval do
+  let s := mkState [10, 20, 30, 40, 99]
+  let r1 := runInst s (.locStorewLe 0)
+  match r1 with
+  | some s1 =>
+    let r2 := runInst s1 (.locLoadwLe 0)
+    unless checkStack r2 [10, 20, 30, 40, 99] do panic! "round-trip LE-LE: stack mismatch"
+  | none => panic! "locStorewLe should not fail"
+
+-- Endianness mismatch: locStorewBe then locLoadwLe → top 4 elements reversed
+-- BE store: stack [a,b,c,d] → local[0]=d, local[1]=c, local[2]=b, local[3]=a
+-- LE load:  local[0]=d → top, local[1]=c, local[2]=b, local[3]=a → stack [d,c,b,a]
+#eval do
+  let s := mkState [10, 20, 30, 40, 99]
+  let r1 := runInst s (.locStorewBe 0)
+  match r1 with
+  | some s1 =>
+    let r2 := runInst s1 (.locLoadwLe 0)
+    unless checkStack r2 [40, 30, 20, 10, 99] do panic! "round-trip BE-LE: should reverse word"
+  | none => panic! "locStorewBe should not fail"
+
+-- Endianness mismatch: locStorewLe then locLoadwBe → top 4 elements reversed
+-- LE store: stack [a,b,c,d] → local[0]=a, local[1]=b, local[2]=c, local[3]=d
+-- BE load:  local[3]=d → top, local[2]=c, local[1]=b, local[0]=a → stack [d,c,b,a]
+#eval do
+  let s := mkState [10, 20, 30, 40, 99]
+  let r1 := runInst s (.locStorewLe 0)
+  match r1 with
+  | some s1 =>
+    let r2 := runInst s1 (.locLoadwBe 0)
+    unless checkStack r2 [40, 30, 20, 10, 99] do panic! "round-trip LE-BE: should reverse word"
+  | none => panic! "locStorewLe should not fail"
+
+-- Round-trip at nonzero index: locStorewBe.4 then locLoadwBe.4
+#eval do
+  let s := mkState [5, 6, 7, 8, 99]
+  let r1 := runInst s (.locStorewBe 4)
+  match r1 with
+  | some s1 =>
+    let r2 := runInst s1 (.locLoadwBe 4)
+    unless checkStack r2 [5, 6, 7, 8, 99] do panic! "round-trip BE-BE idx=4: stack mismatch"
+  | none => panic! "locStorewBe should not fail"
+
+-- ============================================================================
 -- Summary
 -- ============================================================================
 
 -- If we reach here, all tests passed.
--- Total test count: ~100 tests covering all instruction categories.
+-- Total test count: ~120 tests covering all instruction categories.
 
 end MidenLean.Tests

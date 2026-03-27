@@ -236,6 +236,9 @@ pub fn translate_instruction(inst: &Instruction) -> Result<String> {
         Pow2 => ".pow2".into(),
         Incr => ".incr".into(),
 
+        // Word comparison
+        Eqw => ".eqw".into(),
+
         // Field comparison
         Eq => ".eq".into(),
         EqImm(imm) => format!(".eqImm {}", felt_imm(imm)?),
@@ -375,7 +378,6 @@ pub fn translate_instruction(inst: &Instruction) -> Result<String> {
         LocLoadWLe(idx) => format!(".locLoadwLe {}", u16_imm(idx)?),
         LocStoreWBe(idx) => format!(".locStorewBe {}", u16_imm(idx)?),
         LocStoreWLe(idx) => format!(".locStorewLe {}", u16_imm(idx)?),
-        Locaddr(idx) => format!(".locaddr {}", u16_imm(idx)?),
 
         // Advice stack
         AdvPush(imm) => match imm {
@@ -450,13 +452,6 @@ mod tests {
     }
 
     #[test]
-    fn translates_locaddr() {
-        let imm = ImmU16::Value(Span::unknown(32u16));
-        let lean = translate_instruction(&Instruction::Locaddr(imm)).unwrap();
-        assert_eq!(lean, ".locaddr 32");
-    }
-
-    #[test]
     fn translates_loc_loadw_be_zero_index() {
         let imm = ImmU16::Value(Span::unknown(0u16));
         let lean = translate_instruction(&Instruction::LocLoadWBe(imm)).unwrap();
@@ -489,15 +484,6 @@ mod tests {
         let result = translate_instruction(&Instruction::LocLoadWBe(imm));
         assert!(result.is_err());
         assert!(result.unwrap_err().to_string().contains("unresolved constant"));
-    }
-
-    #[test]
-    fn locaddr_constant_errors() {
-        let imm = ImmU16::Constant(
-            miden_assembly_syntax::ast::Ident::new("OFFSET").unwrap(),
-        );
-        let result = translate_instruction(&Instruction::Locaddr(imm));
-        assert!(result.is_err());
     }
 
     #[test]

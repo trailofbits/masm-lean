@@ -123,6 +123,11 @@ pub fn instruction_info(inst: &Instruction) -> InstructionInfo {
             info.comment_name = "assertEqw".into();
             info.is_known = true;
         }
+        Eqw => {
+            info.stack_effect = Some(StackEffect::with_depth(0, 1, 8));
+            info.comment_name = "eqw".into();
+            info.is_known = true;
+        }
 
         // === Stack: drop ===
         Drop => {

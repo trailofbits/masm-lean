@@ -16,6 +16,7 @@ inductive Instruction where
   | assertEq
   | assertEqWithError (msg : String)
   | assertEqw
+  | eqw
 
   -- Stack: drop
   | drop
@@ -153,6 +154,10 @@ inductive Instruction where
   -- Procedure locals
   | locLoad (idx : Nat)
   | locStore (idx : Nat)
+  | locLoadwBe (idx : Nat)
+  | locLoadwLe (idx : Nat)
+  | locStorewBe (idx : Nat)
+  | locStorewLe (idx : Nat)
 
   -- Advice stack
   | advPush (n : Nat)

@@ -129,6 +129,16 @@ def execAssertEqw (s : MidenState) : Option MidenState :=
     then some (s.withStack rest) else none
   | _ => none
 
+/-- Compare the top two words on the stack; push 1 if equal, 0 if not.
+    Both words remain on the stack below the result. -/
+def execEqw (s : MidenState) : Option MidenState :=
+  match s.stack with
+  | b0 :: b1 :: b2 :: b3 :: a0 :: a1 :: a2 :: a3 :: rest =>
+    let result : Felt := if a0 == b0 && a1 == b1 && a2 == b2 && a3 == b3
+                         then 1 else 0
+    some (s.withStack (result :: b0 :: b1 :: b2 :: b3 :: a0 :: a1 :: a2 :: a3 :: rest))
+  | _ => none
+
 -- Stack: drop, pad, push
 
 def execDrop (s : MidenState) : Option MidenState :=
@@ -887,6 +897,54 @@ def execLocStore (idx : Nat) (s : MidenState) : Option MidenState :=
   | v :: rest => some ((s.writeLocal idx v).withStack rest)
   | _ => none
 
+/-- Store the top word to locals at index `idx` in big-endian order.
+    The word remains on the stack. -/
+def execLocStorewBe (idx : Nat) (s : MidenState) : Option MidenState :=
+  match s.stack with
+  | e0 :: e1 :: e2 :: e3 :: rest =>
+    let s' := s.writeLocal idx e3
+      |>.writeLocal (idx+1) e2
+      |>.writeLocal (idx+2) e1
+      |>.writeLocal (idx+3) e0
+    some (s'.withStack (e0 :: e1 :: e2 :: e3 :: rest))
+  | _ => none
+
+/-- Store the top word to locals at index `idx` in little-endian order.
+    The word remains on the stack. -/
+def execLocStorewLe (idx : Nat) (s : MidenState) : Option MidenState :=
+  match s.stack with
+  | e0 :: e1 :: e2 :: e3 :: rest =>
+    let s' := s.writeLocal idx e0
+      |>.writeLocal (idx+1) e1
+      |>.writeLocal (idx+2) e2
+      |>.writeLocal (idx+3) e3
+    some (s'.withStack (e0 :: e1 :: e2 :: e3 :: rest))
+  | _ => none
+
+/-- Load a word from locals at index `idx` in big-endian order,
+    overwriting the top word on the stack. -/
+def execLocLoadwBe (idx : Nat) (s : MidenState) : Option MidenState :=
+  match s.stack with
+  | _ :: _ :: _ :: _ :: rest =>
+    let e3 := s.locals idx
+    let e2 := s.locals (idx+1)
+    let e1 := s.locals (idx+2)
+    let e0 := s.locals (idx+3)
+    some (s.withStack (e0 :: e1 :: e2 :: e3 :: rest))
+  | _ => none
+
+/-- Load a word from locals at index `idx` in little-endian order,
+    overwriting the top word on the stack. -/
+def execLocLoadwLe (idx : Nat) (s : MidenState) : Option MidenState :=
+  match s.stack with
+  | _ :: _ :: _ :: _ :: rest =>
+    let e0 := s.locals idx
+    let e1 := s.locals (idx+1)
+    let e2 := s.locals (idx+2)
+    let e3 := s.locals (idx+3)
+    some (s.withStack (e0 :: e1 :: e2 :: e3 :: rest))
+  | _ => none
+
 -- Advice stack
 
 def execAdvPush (n : Nat) (s : MidenState) : Option MidenState :=
@@ -928,6 +986,7 @@ def execInstruction (s : MidenState) (i : Instruction) : Option MidenState :=
   | .assertEq => execAssertEq s
   | .assertEqWithError _ => execAssertEq s
   | .assertEqw => execAssertEqw s
+  | .eqw => execEqw s
   | .drop => execDrop s
   | .dropw => execDropw s
   | .padw => execPadw s
@@ -1031,6 +1090,10 @@ def execInstruction (s : MidenState) (i : Instruction) : Option MidenState :=
   | .memLoadwLeImm addr => execMemLoadwLeImm addr s
   | .locLoad idx => execLocLoad idx s
   | .locStore idx => execLocStore idx s
+  | .locLoadwBe idx => execLocLoadwBe idx s
+  | .locLoadwLe idx => execLocLoadwLe idx s
+  | .locStorewBe idx => execLocStorewBe idx s
+  | .locStorewLe idx => execLocStorewLe idx s
   | .advPush n => execAdvPush n s
   | .advLoadW => execAdvLoadW s
   | .emit => execEmit s
