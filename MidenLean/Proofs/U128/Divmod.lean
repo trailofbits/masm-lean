@@ -41,6 +41,13 @@ private theorem stepAssertzWithErrorLocal (msg : String) (mem locs : Nat → Fel
   unfold execInstruction execAssertz
   simp [ha, MidenState.withStack]
 
+private theorem stepAssertzWithError_noneLocal (msg : String) (mem locs : Nat → Felt) (adv : List Felt)
+    (a : Felt) (rest : List Felt)
+    (ha : a.val ≠ 0) :
+    execInstruction ⟨a :: rest, mem, locs, adv⟩ (.assertzWithError msg) = none := by
+  unfold execInstruction execAssertz
+  simp [show ¬ (a.val == 0) = true from by simp [ha]]
+
 private theorem stepSwapw2Local (mem locs : Nat → Felt) (adv : List Felt)
     (a0 a1 a2 a3 b0 b1 b2 b3 c0 c1 c2 c3 : Felt) (rest : List Felt) :
     execInstruction ⟨a0 :: a1 :: a2 :: a3 :: b0 :: b1 :: b2 :: b3 :: c0 :: c1 :: c2 :: c3 :: rest,
@@ -53,6 +60,9 @@ private theorem stepSwapw2Local (mem locs : Nat → Felt) (adv : List Felt)
 private theorem felt_ite_val_local (p : Prop) [Decidable p] :
     (if p then (1 : Felt) else (0 : Felt)).val = if p then 1 else 0 := by
   split <;> simp [Felt.val_one']
+
+private theorem two_pow_32 : (2 ^ 32 : Nat) = 4294967296 := by
+  native_decide
 
 private theorem felt_ofNat_eq_zero_iff {n : Nat} (hn : n < GOLDILOCKS_PRIME) :
     Felt.ofNat n = 0 ↔ n = 0 := by
@@ -442,6 +452,34 @@ private theorem divmodCol0_run
             , advice := adv_rest } : MidenState))
       (divmodCol0Carry_eq q0 b0 r0 hq0 hb0 hr0).symm)
 
+private theorem divmodCol0_none
+    (q0 q1 q2 q3 r0 r1 r2 r3 b0 b1 b2 b3 a0 a1 a2 a3 : Felt)
+    (rest adv_rest : List Felt) (mem locs : Nat → Felt)
+    (hq0 : q0.isU32 = true) (_hq1 : q1.isU32 = true) (_hq2 : q2.isU32 = true) (_hq3 : q3.isU32 = true)
+    (hr0 : r0.isU32 = true)
+    (hb0 : b0.isU32 = true)
+    (ha0_ne : a0 ≠ Felt.ofNat (u128DivmodCol0 q0.val b0.val r0.val % 2 ^ 32)) :
+    exec 163
+      ⟨q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 ::
+        b0 :: b1 :: b2 :: b3 :: a0 :: a1 :: a2 :: a3 :: rest,
+        mem, locs, adv_rest⟩
+      divmodCol0 =
+    none := by
+  unfold divmodCol0 exec execWithEnv
+  simp only [List.foldlM]
+  miden_dup
+  miden_dup
+  rw [stepU32WidenMul (ha := hb0) (hb := hq0)]
+  miden_bind
+  miden_dup
+  rw [stepU32WidenAdd (ha := u32_mod_isU32 _) (hb := hr0)]
+  miden_bind
+  rw [felt_ofNat_val_lt _ (u32_mod_lt_prime _)]
+  miden_movup
+  have ha0_ne' : a0 ≠ Felt.ofNat (((b0.val * q0.val) % 2 ^ 32 + r0.val) % 2 ^ 32) := by
+    simpa [u128DivmodCol0, Nat.mul_comm, Nat.add_mod, Nat.mod_mod] using ha0_ne
+  rw [stepAssertEqWithError_none (msg := "u128 divmod: col 0") (h := ha0_ne'.symm)]
+
 private def divmodCol1 : List Op := [
   .inst (.dup 9),
   .inst (.dup 3),
@@ -598,6 +636,106 @@ private theorem divmodCol1_run
       congrArg (fun n => Felt.ofNat (n % 2 ^ 32)) hcarry_nat.symm
   · simpa [Felt.hi32, hcarry_val, base] using
       congrArg (fun n => Felt.ofNat (n / 2 ^ 32)) hcarry_nat.symm
+
+private theorem divmodCol1_none
+    (c0 q0 q1 q2 q3 r0 r1 r2 r3 b0 b1 b2 b3 a1 a2 a3 : Felt)
+    (rest adv_rest : List Felt) (mem locs : Nat → Felt)
+    (hq0 : q0.isU32 = true) (hq1 : q1.isU32 = true)
+    (hr1 : r1.isU32 = true)
+    (hb0 : b0.isU32 = true) (hb1 : b1.isU32 = true)
+    (hc0_u32 : c0.isU32 = true)
+    (hc0_val : c0.val = u128DivmodCol0 q0.val b0.val r0.val / 2 ^ 32)
+    (ha1_ne : a1 ≠ Felt.ofNat (u128DivmodCol1 q0.val q1.val b0.val b1.val r0.val r1.val % 2 ^ 32)) :
+    exec 163
+      ⟨c0 :: q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 ::
+        b0 :: b1 :: b2 :: b3 :: a1 :: a2 :: a3 :: rest,
+        mem, locs, adv_rest⟩
+      divmodCol1 =
+    none := by
+  let base := 2 ^ 32
+  let carry0 := u128DivmodCol0 q0.val b0.val r0.val / base
+  let madd0Lo := (b0.val * q1.val + carry0) % base
+  let madd0Hi := (b0.val * q1.val + carry0) / base
+  let madd1Lo := (b1.val * q0.val + madd0Lo) % base
+  let madd1Hi := (b1.val * q0.val + madd0Lo) / base
+  let addLo := (madd1Lo + r1.val) % base
+  let addHi := (madd1Lo + r1.val) / base
+  let carry := madd0Hi + madd1Hi + addHi
+  have hmadd0Lo_val : (Felt.ofNat madd0Lo).val = madd0Lo := by
+    apply felt_ofNat_val_lt
+    dsimp [madd0Lo, base]
+    exact u32_mod_lt_prime _
+  have hmadd1Lo_val : (Felt.ofNat madd1Lo).val = madd1Lo := by
+    apply felt_ofNat_val_lt
+    dsimp [madd1Lo, base]
+    exact u32_mod_lt_prime _
+  have hrepr : u128DivmodCol1 q0.val q1.val b0.val b1.val r0.val r1.val = addLo + carry * base := by
+    have h0 : madd0Lo + madd0Hi * base = q1.val * b0.val + carry0 := by
+      simpa [madd0Lo, madd0Hi, base, Nat.mul_comm] using
+        (Nat.mod_add_div (b0.val * q1.val + carry0) base)
+    have h1 : madd1Lo + madd1Hi * base = q0.val * b1.val + madd0Lo := by
+      simpa [madd1Lo, madd1Hi, base, Nat.mul_comm] using
+        (Nat.mod_add_div (b1.val * q0.val + madd0Lo) base)
+    have h2 : addLo + addHi * base = madd1Lo + r1.val := by
+      simpa [addLo, addHi, base, Nat.mul_comm] using
+        (Nat.mod_add_div (madd1Lo + r1.val) base)
+    calc
+      u128DivmodCol1 q0.val q1.val b0.val b1.val r0.val r1.val
+          = q0.val * b1.val + r1.val + (q1.val * b0.val + carry0) := by
+              unfold u128DivmodCol1
+              simp [carry0, base, Nat.add_assoc, Nat.add_left_comm, Nat.add_comm]
+      _ = q0.val * b1.val + r1.val + (madd0Lo + madd0Hi * base) := by rw [← h0]
+      _ = q0.val * b1.val + madd0Lo + r1.val + madd0Hi * base := by ac_rfl
+      _ = (madd1Lo + madd1Hi * base) + r1.val + madd0Hi * base := by rw [h1]
+      _ = madd1Lo + r1.val + madd1Hi * base + madd0Hi * base := by ac_rfl
+      _ = addLo + addHi * base + madd1Hi * base + madd0Hi * base := by rw [h2]
+      _ = addLo + (madd0Hi + madd1Hi + addHi) * base := by
+            simp [base, Nat.add_mul, Nat.add_assoc, Nat.add_left_comm, Nat.add_comm]
+  have haddLo_lt : addLo < base := by
+    dsimp [addLo, base]
+    exact Nat.mod_lt _ (by positivity)
+  have hlo_nat : u128DivmodCol1 q0.val q1.val b0.val b1.val r0.val r1.val % base = addLo := by
+    calc
+      u128DivmodCol1 q0.val q1.val b0.val b1.val r0.val r1.val % base = (addLo + carry * base) % base := by
+        rw [hrepr]
+      _ = addLo % base := by rw [Nat.add_mul_mod_self_right]
+      _ = addLo := Nat.mod_eq_of_lt haddLo_lt
+  have ha1_ne' : a1 ≠ Felt.ofNat addLo := by
+    intro hEq
+    apply ha1_ne
+    calc
+      a1 = Felt.ofNat addLo := hEq
+      _ = Felt.ofNat (u128DivmodCol1 q0.val q1.val b0.val b1.val r0.val r1.val % 2 ^ 32) := by
+            exact congrArg Felt.ofNat hlo_nat.symm
+  unfold divmodCol1 exec execWithEnv
+  simp only [List.foldlM]
+  miden_dup
+  miden_dup
+  rw [stepU32WidenMadd (a := b0) (b := q1) (c := c0) (ha := hb0) (hb := hq1) (hc := hc0_u32)]
+  miden_bind
+  rw [hc0_val]
+  miden_dup
+  miden_dup
+  rw [stepU32WidenMadd
+    (a := b1) (b := q0) (c := Felt.ofNat madd0Lo)
+    (ha := hb1) (hb := hq0) (hc := u32_mod_isU32 _)]
+  miden_bind
+  rw [hmadd0Lo_val]
+  miden_swap
+  miden_movup
+  rw [stepAdd]
+  miden_bind
+  rw [← felt_ofNat_add]
+  miden_swap
+  miden_dup
+  rw [stepU32WidenAdd
+    (a := Felt.ofNat madd1Lo) (b := r1)
+    (ha := u32_mod_isU32 _) (hb := hr1)]
+  miden_bind
+  rw [hmadd1Lo_val]
+  miden_movup
+  rw [show Felt.ofNat ((madd1Lo + r1.val) % 2 ^ 32) = Felt.ofNat addLo by rfl]
+  rw [stepAssertEqWithError_none (msg := "u128 divmod: col 1") (h := ha1_ne'.symm)]
 
 private def divmodCol2a : List Op := [
   .inst (.dup 10),
@@ -959,6 +1097,125 @@ private theorem divmodCol2c_run
       congrArg (fun n => Felt.ofNat (n % 2 ^ 32)) hcarry_nat.symm
   · simpa [Felt.hi32, hcarry_val, base] using
       congrArg (fun n => Felt.ofNat (n / 2 ^ 32)) hcarry_nat.symm
+
+private theorem divmodCol2c_none
+    (c1Lo c1Hi q0 q1 q2 q3 r0 r1 r2 r3 b0 b1 b2 b3 a2 a3 : Felt)
+    (rest adv_rest : List Felt) (mem locs : Nat → Felt)
+    (_hq0 : q0.isU32 = true) (_hq1 : q1.isU32 = true) (_hq2 : q2.isU32 = true)
+    (hr2 : r2.isU32 = true)
+    (_hb0 : b0.isU32 = true) (_hb1 : b1.isU32 = true) (_hb2 : b2.isU32 = true)
+    (_hc1Lo_u32 : c1Lo.isU32 = true) (_hc1Hi_u32 : c1Hi.isU32 = true)
+    (hc1Lo_val :
+      c1Lo.val = u128DivmodCol1 q0.val q1.val b0.val b1.val r0.val r1.val / 2 ^ 32 % 2 ^ 32)
+    (hc1Hi_val :
+      c1Hi.val = u128DivmodCol1 q0.val q1.val b0.val b1.val r0.val r1.val / 2 ^ 32 / 2 ^ 32)
+    (ha2_ne :
+      a2 ≠ Felt.ofNat (u128DivmodCol2 q0.val q1.val q2.val b0.val b1.val b2.val r0.val r1.val r2.val % 2 ^ 32)) :
+    exec 163
+      ⟨Felt.ofNat
+          (((b2.val * q0.val +
+                ((b1.val * q1.val + ((b0.val * q2.val + c1Lo.val) % 2 ^ 32)) % 2 ^ 32)) %
+              2 ^ 32)) ::
+        Felt.ofNat
+          (c1Hi.val +
+            ((b0.val * q2.val + c1Lo.val) / 2 ^ 32) +
+            ((b1.val * q1.val + ((b0.val * q2.val + c1Lo.val) % 2 ^ 32)) / 2 ^ 32) +
+            ((b2.val * q0.val +
+                  ((b1.val * q1.val + ((b0.val * q2.val + c1Lo.val) % 2 ^ 32)) % 2 ^ 32)) /
+                2 ^ 32)) ::
+        q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 ::
+        b0 :: b1 :: b2 :: b3 :: a2 :: a3 :: rest,
+        mem, locs, adv_rest⟩
+      divmodCol2c =
+    none := by
+  let base := 2 ^ 32
+  let carry1 := u128DivmodCol1 q0.val q1.val b0.val b1.val r0.val r1.val / base
+  let lo0 := (b0.val * q2.val + c1Lo.val) % base
+  let hi0 := (b0.val * q2.val + c1Lo.val) / base
+  let lo1 := (b1.val * q1.val + lo0) % base
+  let hi1 := (b1.val * q1.val + lo0) / base
+  let sumHi := c1Hi.val + hi0 + hi1
+  let madd2Lo := (b2.val * q0.val + lo1) % base
+  let madd2Hi := (b2.val * q0.val + lo1) / base
+  let addLo := (madd2Lo + r2.val) % base
+  let addHi := (madd2Lo + r2.val) / base
+  let carry := sumHi + madd2Hi + addHi
+  have hcarry1_repr : c1Lo.val + c1Hi.val * base = carry1 := by
+    rw [hc1Lo_val, hc1Hi_val]
+    dsimp [carry1]
+    simpa [base, Nat.mul_comm] using
+      (Nat.mod_add_div (u128DivmodCol1 q0.val q1.val b0.val b1.val r0.val r1.val / 2 ^ 32) base)
+  have hlo0_repr : lo0 + hi0 * base = q2.val * b0.val + c1Lo.val := by
+    simpa [lo0, hi0, base, Nat.mul_comm] using
+      (Nat.mod_add_div (b0.val * q2.val + c1Lo.val) base)
+  have hlo1_repr : lo1 + hi1 * base = q1.val * b1.val + lo0 := by
+    simpa [lo1, hi1, base, Nat.mul_comm] using
+      (Nat.mod_add_div (b1.val * q1.val + lo0) base)
+  have hpre_repr :
+      q2.val * b0.val + q1.val * b1.val + carry1 = lo1 + sumHi * base := by
+    calc
+      q2.val * b0.val + q1.val * b1.val + carry1
+          = q1.val * b1.val + (q2.val * b0.val + c1Lo.val) + c1Hi.val * base := by
+              rw [← hcarry1_repr]
+              ring
+      _ = q1.val * b1.val + (lo0 + hi0 * base) + c1Hi.val * base := by rw [hlo0_repr]
+      _ = (lo1 + hi1 * base) + (hi0 + c1Hi.val) * base := by
+            rw [hlo1_repr]
+            ring
+      _ = lo1 + sumHi * base := by
+            dsimp [sumHi]
+            ring
+  have hmadd2_repr : madd2Lo + madd2Hi * base = q0.val * b2.val + lo1 := by
+    simpa [madd2Lo, madd2Hi, base, Nat.mul_comm] using
+      (Nat.mod_add_div (b2.val * q0.val + lo1) base)
+  have hadd_repr : addLo + addHi * base = madd2Lo + r2.val := by
+    simpa [addLo, addHi, base, Nat.mul_comm] using
+      (Nat.mod_add_div (madd2Lo + r2.val) base)
+  have hrepr :
+      u128DivmodCol2 q0.val q1.val q2.val b0.val b1.val b2.val r0.val r1.val r2.val =
+        addLo + carry * base := by
+    calc
+      u128DivmodCol2 q0.val q1.val q2.val b0.val b1.val b2.val r0.val r1.val r2.val
+          = q0.val * b2.val + r2.val + (q2.val * b0.val + q1.val * b1.val + carry1) := by
+              unfold u128DivmodCol2
+              dsimp [carry1, base]
+              ring
+      _ = q0.val * b2.val + r2.val + (lo1 + sumHi * base) := by rw [hpre_repr]
+      _ = q0.val * b2.val + lo1 + r2.val + sumHi * base := by ring
+      _ = (madd2Lo + madd2Hi * base) + r2.val + sumHi * base := by rw [hmadd2_repr]
+      _ = madd2Lo + r2.val + (sumHi + madd2Hi) * base := by ring
+      _ = addLo + addHi * base + (sumHi + madd2Hi) * base := by rw [hadd_repr]
+      _ = addLo + (sumHi + madd2Hi + addHi) * base := by ring
+  have haddLo_lt : addLo < base := by
+    dsimp [addLo, base]
+    exact Nat.mod_lt _ (by positivity)
+  have hlo_nat :
+      u128DivmodCol2 q0.val q1.val q2.val b0.val b1.val b2.val r0.val r1.val r2.val % base = addLo := by
+    calc
+      u128DivmodCol2 q0.val q1.val q2.val b0.val b1.val b2.val r0.val r1.val r2.val % base
+          = (addLo + carry * base) % base := by rw [hrepr]
+      _ = addLo % base := by rw [Nat.add_mul_mod_self_right]
+      _ = addLo := Nat.mod_eq_of_lt haddLo_lt
+  have ha2_ne' : a2 ≠ Felt.ofNat addLo := by
+    intro hEq
+    apply ha2_ne
+    calc
+      a2 = Felt.ofNat addLo := hEq
+      _ = Felt.ofNat
+            (u128DivmodCol2 q0.val q1.val q2.val b0.val b1.val b2.val r0.val r1.val r2.val %
+              2 ^ 32) := by
+              exact congrArg Felt.ofNat hlo_nat.symm
+  unfold divmodCol2c exec execWithEnv
+  simp only [List.foldlM]
+  miden_dup
+  rw [stepU32WidenAdd (a := Felt.ofNat madd2Lo) (b := r2) (ha := u32_mod_isU32 _) (hb := hr2)]
+  miden_bind
+  rw [felt_ofNat_val_lt _ (u32_mod_lt_prime _)]
+  miden_movup
+  rw [show Felt.ofNat
+      (((b2.val * q0.val + lo1) % 2 ^ 32 + r2.val) % 2 ^ 32) =
+      Felt.ofNat addLo by rfl]
+  rw [stepAssertEqWithError_none (msg := "u128 divmod: col 2") (h := ha2_ne'.symm)]
 
 set_option maxHeartbeats 12000000 in
 private theorem divmodCol2_run
@@ -1366,6 +1623,395 @@ private theorem divmodCol3c_run
     (q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 :: b0 :: b1 :: b2 :: b3 :: rest) rfl]
   simp
 
+private theorem divmodCol3c_none_a3
+    (c2Lo c2Hi q0 q1 q2 q3 r0 r1 r2 r3 b0 b1 b2 b3 a3 : Felt)
+    (rest adv_rest : List Felt) (mem locs : Nat → Felt)
+    (hq0 : q0.isU32 = true) (_hq1 : q1.isU32 = true) (_hq2 : q2.isU32 = true) (_hq3 : q3.isU32 = true)
+    (hr3 : r3.isU32 = true)
+    (_hb0 : b0.isU32 = true) (_hb1 : b1.isU32 = true) (_hb2 : b2.isU32 = true) (hb3 : b3.isU32 = true)
+    (_hc2Lo_u32 : c2Lo.isU32 = true)
+    (hc2Lo_val :
+      c2Lo.val = u128DivmodCol2 q0.val q1.val q2.val b0.val b1.val b2.val r0.val r1.val r2.val / 2 ^ 32 % 2 ^ 32)
+    (hc2Hi_val :
+      c2Hi.val = u128DivmodCol2 q0.val q1.val q2.val b0.val b1.val b2.val r0.val r1.val r2.val / 2 ^ 32 / 2 ^ 32)
+    (ha3_ne :
+      a3 ≠
+        Felt.ofNat
+          (u128DivmodCol3 q0.val q1.val q2.val q3.val b0.val b1.val b2.val b3.val
+              r0.val r1.val r2.val r3.val %
+            2 ^ 32)) :
+    let base := 2 ^ 32
+    let _carry2 := u128DivmodCol2 q0.val q1.val q2.val b0.val b1.val b2.val r0.val r1.val r2.val / base
+    let lo0 := (b0.val * q3.val + c2Lo.val) % base
+    let hi0 := (b0.val * q3.val + c2Lo.val) / base
+    let lo1 := (b1.val * q2.val + lo0) % base
+    let hi1 := (b1.val * q2.val + lo0) / base
+    let sumHi := c2Hi.val + hi0 + hi1
+    let madd2Lo := (b2.val * q1.val + lo1) % base
+    let madd2Hi := (b2.val * q1.val + lo1) / base
+    let sumHi' := sumHi + madd2Hi
+    exec 163
+      ⟨Felt.ofNat madd2Lo :: Felt.ofNat sumHi' ::
+        q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 ::
+        b0 :: b1 :: b2 :: b3 :: a3 :: rest,
+        mem, locs, adv_rest⟩
+      divmodCol3c =
+    none := by
+  let base := 2 ^ 32
+  let carry2 := u128DivmodCol2 q0.val q1.val q2.val b0.val b1.val b2.val r0.val r1.val r2.val / base
+  let lo0 := (b0.val * q3.val + c2Lo.val) % base
+  let hi0 := (b0.val * q3.val + c2Lo.val) / base
+  let lo1 := (b1.val * q2.val + lo0) % base
+  let hi1 := (b1.val * q2.val + lo0) / base
+  let sumHi := c2Hi.val + hi0 + hi1
+  let madd2Lo := (b2.val * q1.val + lo1) % base
+  let madd2Hi := (b2.val * q1.val + lo1) / base
+  let sumHi' := sumHi + madd2Hi
+  let madd3Lo := (b3.val * q0.val + madd2Lo) % base
+  let madd3Hi := (b3.val * q0.val + madd2Lo) / base
+  let addLo := (madd3Lo + r3.val) % base
+  let addHi := (madd3Lo + r3.val) / base
+  let carry := sumHi' + madd3Hi + addHi
+  have hcarry2_repr : c2Lo.val + c2Hi.val * base = carry2 := by
+    rw [hc2Lo_val, hc2Hi_val]
+    dsimp [carry2]
+    simpa [base, Nat.mul_comm] using
+      (Nat.mod_add_div (u128DivmodCol2 q0.val q1.val q2.val b0.val b1.val b2.val r0.val r1.val r2.val / 2 ^ 32) base)
+  have hlo0_repr : lo0 + hi0 * base = q3.val * b0.val + c2Lo.val := by
+    simpa [lo0, hi0, base, Nat.mul_comm] using
+      (Nat.mod_add_div (b0.val * q3.val + c2Lo.val) base)
+  have hlo1_repr : lo1 + hi1 * base = q2.val * b1.val + lo0 := by
+    simpa [lo1, hi1, base, Nat.mul_comm] using
+      (Nat.mod_add_div (b1.val * q2.val + lo0) base)
+  have hmadd2_repr : madd2Lo + madd2Hi * base = q1.val * b2.val + lo1 := by
+    simpa [madd2Lo, madd2Hi, base, Nat.mul_comm] using
+      (Nat.mod_add_div (b2.val * q1.val + lo1) base)
+  have hpre_repr :
+      q3.val * b0.val + q2.val * b1.val + q1.val * b2.val + carry2 = madd2Lo + sumHi' * base := by
+    calc
+      q3.val * b0.val + q2.val * b1.val + q1.val * b2.val + carry2
+          = q2.val * b1.val + q1.val * b2.val + (q3.val * b0.val + c2Lo.val) + c2Hi.val * base := by
+              rw [← hcarry2_repr]
+              ring
+      _ = q2.val * b1.val + q1.val * b2.val + (lo0 + hi0 * base) + c2Hi.val * base := by
+            rw [hlo0_repr]
+      _ = q1.val * b2.val + (lo1 + hi1 * base) + (hi0 + c2Hi.val) * base := by
+            rw [hlo1_repr]
+            ring
+      _ = (madd2Lo + madd2Hi * base) + (hi1 + hi0 + c2Hi.val) * base := by
+            rw [hmadd2_repr]
+            ring
+      _ = madd2Lo + sumHi' * base := by
+            dsimp [sumHi', sumHi]
+            ring
+  have hmadd3_repr : madd3Lo + madd3Hi * base = q0.val * b3.val + madd2Lo := by
+    simpa [madd3Lo, madd3Hi, base, Nat.mul_comm] using
+      (Nat.mod_add_div (b3.val * q0.val + madd2Lo) base)
+  have hadd_repr : addLo + addHi * base = madd3Lo + r3.val := by
+    simpa [addLo, addHi, base, Nat.mul_comm] using
+      (Nat.mod_add_div (madd3Lo + r3.val) base)
+  have hrepr :
+      u128DivmodCol3 q0.val q1.val q2.val q3.val b0.val b1.val b2.val b3.val r0.val r1.val r2.val r3.val =
+        addLo + carry * base := by
+    calc
+      u128DivmodCol3 q0.val q1.val q2.val q3.val b0.val b1.val b2.val b3.val r0.val r1.val r2.val r3.val
+          = q0.val * b3.val + r3.val + (q3.val * b0.val + q2.val * b1.val + q1.val * b2.val + carry2) := by
+              unfold u128DivmodCol3
+              dsimp [carry2, base]
+              ring
+      _ = q0.val * b3.val + r3.val + (madd2Lo + sumHi' * base) := by rw [hpre_repr]
+      _ = q0.val * b3.val + madd2Lo + r3.val + sumHi' * base := by ring
+      _ = (madd3Lo + madd3Hi * base) + r3.val + sumHi' * base := by rw [hmadd3_repr]
+      _ = madd3Lo + r3.val + (sumHi' + madd3Hi) * base := by ring
+      _ = addLo + addHi * base + (sumHi' + madd3Hi) * base := by rw [hadd_repr]
+      _ = addLo + (sumHi' + madd3Hi + addHi) * base := by ring
+      _ = addLo + carry * base := by
+            dsimp [carry]
+  have haddLo_lt : addLo < base := by
+    dsimp [addLo, base]
+    exact Nat.mod_lt _ (by positivity)
+  have hlo_nat :
+      u128DivmodCol3 q0.val q1.val q2.val q3.val b0.val b1.val b2.val b3.val
+          r0.val r1.val r2.val r3.val %
+        base =
+      addLo := by
+    calc
+      u128DivmodCol3 q0.val q1.val q2.val q3.val b0.val b1.val b2.val b3.val
+            r0.val r1.val r2.val r3.val %
+          base
+          = (addLo + carry * base) % base := by rw [hrepr]
+      _ = addLo % base := by rw [Nat.add_mul_mod_self_right]
+      _ = addLo := Nat.mod_eq_of_lt haddLo_lt
+  have ha3_ne' : a3 ≠ Felt.ofNat addLo := by
+    intro hEq
+    apply ha3_ne
+    calc
+      a3 = Felt.ofNat addLo := hEq
+      _ = Felt.ofNat
+            (u128DivmodCol3 q0.val q1.val q2.val q3.val b0.val b1.val b2.val b3.val
+                r0.val r1.val r2.val r3.val %
+              2 ^ 32) := by
+              exact congrArg Felt.ofNat hlo_nat.symm
+  unfold divmodCol3c exec execWithEnv
+  simp only [List.foldlM]
+  miden_dup
+  miden_dup
+  rw [stepU32WidenMadd
+    (a := b3) (b := q0) (c := Felt.ofNat madd2Lo)
+    (ha := hb3) (hb := hq0) (hc := u32_mod_isU32 _)]
+  miden_bind
+  rw [felt_ofNat_val_lt _ (u32_mod_lt_prime _)]
+  miden_swap
+  miden_movup
+  rw [stepAdd]
+  miden_bind
+  rw [show Felt.ofNat ((b3.val * q0.val + madd2Lo) / 2 ^ 32) = Felt.ofNat madd3Hi by rfl]
+  rw [← felt_ofNat_add]
+  rw [show madd3Hi + sumHi' = sumHi' + madd3Hi by omega]
+  rw [show Felt.ofNat ((b3.val * q0.val + madd2Lo) % 2 ^ 32) = Felt.ofNat madd3Lo by rfl]
+  miden_swap
+  miden_dup
+  rw [stepU32WidenAdd
+    (a := Felt.ofNat madd3Lo) (b := r3)
+    (ha := u32_mod_isU32 _) (hb := hr3)]
+  miden_bind
+  rw [felt_ofNat_val_lt _ (u32_mod_lt_prime _)]
+  miden_movup
+  rw [show Felt.ofNat (((b3.val * q0.val + madd2Lo) % 2 ^ 32 + r3.val) % 2 ^ 32) = Felt.ofNat addLo by
+    rfl]
+  rw [stepAssertEqWithError_none (msg := "u128 divmod: col 3") (h := ha3_ne'.symm)]
+
+private theorem divmodCol3c_none_carry
+    (c2Lo c2Hi q0 q1 q2 q3 r0 r1 r2 r3 b0 b1 b2 b3 a3 : Felt)
+    (rest adv_rest : List Felt) (mem locs : Nat → Felt)
+    (hq0 : q0.isU32 = true) (_hq1 : q1.isU32 = true) (_hq2 : q2.isU32 = true) (_hq3 : q3.isU32 = true)
+    (hr2 : r2.isU32 = true)
+    (hr3 : r3.isU32 = true)
+    (_hb0 : b0.isU32 = true) (_hb1 : b1.isU32 = true) (_hb2 : b2.isU32 = true) (hb3 : b3.isU32 = true)
+    (_hc2Lo_u32 : c2Lo.isU32 = true) (hc2Hi_u32 : c2Hi.isU32 = true)
+    (hc2Lo_val :
+      c2Lo.val = u128DivmodCol2 q0.val q1.val q2.val b0.val b1.val b2.val r0.val r1.val r2.val / 2 ^ 32 % 2 ^ 32)
+    (hc2Hi_val :
+      c2Hi.val = u128DivmodCol2 q0.val q1.val q2.val b0.val b1.val b2.val r0.val r1.val r2.val / 2 ^ 32 / 2 ^ 32)
+    (ha3_eq :
+      a3 =
+        Felt.ofNat
+          (u128DivmodCol3 q0.val q1.val q2.val q3.val b0.val b1.val b2.val b3.val
+              r0.val r1.val r2.val r3.val %
+            2 ^ 32))
+    (hcarry_ne :
+      u128DivmodCol3 q0.val q1.val q2.val q3.val b0.val b1.val b2.val b3.val
+          r0.val r1.val r2.val r3.val /
+        2 ^ 32 ≠
+      0) :
+    let base := 2 ^ 32
+    let _carry2 := u128DivmodCol2 q0.val q1.val q2.val b0.val b1.val b2.val r0.val r1.val r2.val / base
+    let lo0 := (b0.val * q3.val + c2Lo.val) % base
+    let hi0 := (b0.val * q3.val + c2Lo.val) / base
+    let lo1 := (b1.val * q2.val + lo0) % base
+    let hi1 := (b1.val * q2.val + lo0) / base
+    let sumHi := c2Hi.val + hi0 + hi1
+    let madd2Lo := (b2.val * q1.val + lo1) % base
+    let madd2Hi := (b2.val * q1.val + lo1) / base
+    let sumHi' := sumHi + madd2Hi
+    exec 163
+      ⟨Felt.ofNat madd2Lo :: Felt.ofNat sumHi' ::
+        q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 ::
+        b0 :: b1 :: b2 :: b3 :: a3 :: rest,
+        mem, locs, adv_rest⟩
+      divmodCol3c =
+    none := by
+  let base := 2 ^ 32
+  let carry2 := u128DivmodCol2 q0.val q1.val q2.val b0.val b1.val b2.val r0.val r1.val r2.val / base
+  let lo0 := (b0.val * q3.val + c2Lo.val) % base
+  let hi0 := (b0.val * q3.val + c2Lo.val) / base
+  let lo1 := (b1.val * q2.val + lo0) % base
+  let hi1 := (b1.val * q2.val + lo0) / base
+  let sumHi := c2Hi.val + hi0 + hi1
+  let madd2Lo := (b2.val * q1.val + lo1) % base
+  let madd2Hi := (b2.val * q1.val + lo1) / base
+  let sumHi' := sumHi + madd2Hi
+  let madd3Lo := (b3.val * q0.val + madd2Lo) % base
+  let madd3Hi := (b3.val * q0.val + madd2Lo) / base
+  let addLo := (madd3Lo + r3.val) % base
+  let addHi := (madd3Lo + r3.val) / base
+  let carry := sumHi' + madd3Hi + addHi
+  have hcarry2_repr : c2Lo.val + c2Hi.val * base = carry2 := by
+    rw [hc2Lo_val, hc2Hi_val]
+    dsimp [carry2]
+    simpa [base, Nat.mul_comm] using
+      (Nat.mod_add_div (u128DivmodCol2 q0.val q1.val q2.val b0.val b1.val b2.val r0.val r1.val r2.val / 2 ^ 32) base)
+  have hlo0_repr : lo0 + hi0 * base = q3.val * b0.val + c2Lo.val := by
+    simpa [lo0, hi0, base, Nat.mul_comm] using
+      (Nat.mod_add_div (b0.val * q3.val + c2Lo.val) base)
+  have hlo1_repr : lo1 + hi1 * base = q2.val * b1.val + lo0 := by
+    simpa [lo1, hi1, base, Nat.mul_comm] using
+      (Nat.mod_add_div (b1.val * q2.val + lo0) base)
+  have hmadd2_repr : madd2Lo + madd2Hi * base = q1.val * b2.val + lo1 := by
+    simpa [madd2Lo, madd2Hi, base, Nat.mul_comm] using
+      (Nat.mod_add_div (b2.val * q1.val + lo1) base)
+  have hpre_repr :
+      q3.val * b0.val + q2.val * b1.val + q1.val * b2.val + carry2 = madd2Lo + sumHi' * base := by
+    calc
+      q3.val * b0.val + q2.val * b1.val + q1.val * b2.val + carry2
+          = q2.val * b1.val + q1.val * b2.val + (q3.val * b0.val + c2Lo.val) + c2Hi.val * base := by
+              rw [← hcarry2_repr]
+              ring
+      _ = q2.val * b1.val + q1.val * b2.val + (lo0 + hi0 * base) + c2Hi.val * base := by
+            rw [hlo0_repr]
+      _ = q1.val * b2.val + (lo1 + hi1 * base) + (hi0 + c2Hi.val) * base := by
+            rw [hlo1_repr]
+            ring
+      _ = (madd2Lo + madd2Hi * base) + (hi1 + hi0 + c2Hi.val) * base := by
+            rw [hmadd2_repr]
+            ring
+      _ = madd2Lo + sumHi' * base := by
+            dsimp [sumHi', sumHi]
+            ring
+  have hmadd3_repr : madd3Lo + madd3Hi * base = q0.val * b3.val + madd2Lo := by
+    simpa [madd3Lo, madd3Hi, base, Nat.mul_comm] using
+      (Nat.mod_add_div (b3.val * q0.val + madd2Lo) base)
+  have hadd_repr : addLo + addHi * base = madd3Lo + r3.val := by
+    simpa [addLo, addHi, base, Nat.mul_comm] using
+      (Nat.mod_add_div (madd3Lo + r3.val) base)
+  have hrepr :
+      u128DivmodCol3 q0.val q1.val q2.val q3.val b0.val b1.val b2.val b3.val r0.val r1.val r2.val r3.val =
+        addLo + carry * base := by
+    calc
+      u128DivmodCol3 q0.val q1.val q2.val q3.val b0.val b1.val b2.val b3.val r0.val r1.val r2.val r3.val
+          = q0.val * b3.val + r3.val + (q3.val * b0.val + q2.val * b1.val + q1.val * b2.val + carry2) := by
+              unfold u128DivmodCol3
+              dsimp [carry2, base]
+              ring
+      _ = q0.val * b3.val + r3.val + (madd2Lo + sumHi' * base) := by rw [hpre_repr]
+      _ = q0.val * b3.val + madd2Lo + r3.val + sumHi' * base := by ring
+      _ = (madd3Lo + madd3Hi * base) + r3.val + sumHi' * base := by rw [hmadd3_repr]
+      _ = madd3Lo + r3.val + (sumHi' + madd3Hi) * base := by ring
+      _ = addLo + addHi * base + (sumHi' + madd3Hi) * base := by rw [hadd_repr]
+      _ = addLo + (sumHi' + madd3Hi + addHi) * base := by ring
+      _ = addLo + carry * base := by
+            dsimp [carry]
+  have haddLo_lt : addLo < base := by
+    dsimp [addLo, base]
+    exact Nat.mod_lt _ (by positivity)
+  have hlo_nat :
+      u128DivmodCol3 q0.val q1.val q2.val q3.val b0.val b1.val b2.val b3.val
+          r0.val r1.val r2.val r3.val %
+        base =
+      addLo := by
+    calc
+      u128DivmodCol3 q0.val q1.val q2.val q3.val b0.val b1.val b2.val b3.val
+            r0.val r1.val r2.val r3.val %
+          base
+          = (addLo + carry * base) % base := by rw [hrepr]
+      _ = addLo % base := by rw [Nat.add_mul_mod_self_right]
+      _ = addLo := Nat.mod_eq_of_lt haddLo_lt
+  have hcarry_nat :
+      u128DivmodCol3 q0.val q1.val q2.val q3.val b0.val b1.val b2.val b3.val
+          r0.val r1.val r2.val r3.val /
+        base =
+      carry := by
+    rw [hrepr, Nat.add_mul_div_right _ _ (show 0 < base by positivity), Nat.div_eq_of_lt haddLo_lt]
+    simp [carry]
+  have hq0_lt : q0.val < 2 ^ 32 := by
+    simpa [Felt.isU32, decide_eq_true_eq] using hq0
+  have hq1_lt : q1.val < 2 ^ 32 := by
+    simpa [Felt.isU32, decide_eq_true_eq] using _hq1
+  have hq2_lt : q2.val < 2 ^ 32 := by
+    simpa [Felt.isU32, decide_eq_true_eq] using _hq2
+  have hq3_lt : q3.val < 2 ^ 32 := by
+    simpa [Felt.isU32, decide_eq_true_eq] using _hq3
+  have hb0_lt : b0.val < 2 ^ 32 := by
+    simpa [Felt.isU32, decide_eq_true_eq] using _hb0
+  have hb1_lt : b1.val < 2 ^ 32 := by
+    simpa [Felt.isU32, decide_eq_true_eq] using _hb1
+  have hb2_lt : b2.val < 2 ^ 32 := by
+    simpa [Felt.isU32, decide_eq_true_eq] using _hb2
+  have hb3_lt : b3.val < 2 ^ 32 := by
+    simpa [Felt.isU32, decide_eq_true_eq] using hb3
+  have hr2_lt : r2.val < 2 ^ 32 := by
+    simpa [Felt.isU32, decide_eq_true_eq] using hr2
+  have hr3_lt : r3.val < 2 ^ 32 := by
+    simpa [Felt.isU32, decide_eq_true_eq] using hr3
+  have hc2Hi_lt : c2Hi.val < 2 ^ 32 := by
+    simpa [Felt.isU32, decide_eq_true_eq] using hc2Hi_u32
+  have hhi0_lt : hi0 < 2 ^ 32 := by
+    dsimp [hi0, base]
+    simpa [Nat.mul_comm] using
+      (u32_madd_div_lt_2_32 b0 q3 c2Lo _hb0 _hq3 _hc2Lo_u32)
+  have hhi1_lt : hi1 < 2 ^ 32 := by
+    dsimp [hi1, base]
+    have h := u32_madd_div_lt_2_32 b1 q2 (Felt.ofNat lo0) _hb1 _hq2 (u32_mod_isU32 _)
+    rw [felt_ofNat_val_lt _ (u32_mod_lt_prime _)] at h
+    simpa [lo0, lo1, Nat.mul_comm] using h
+  have hmadd2Hi_lt : madd2Hi < 2 ^ 32 := by
+    dsimp [madd2Hi, base]
+    have h := u32_madd_div_lt_2_32 b2 q1 (Felt.ofNat lo1) _hb2 _hq1 (u32_mod_isU32 _)
+    rw [felt_ofNat_val_lt _ (u32_mod_lt_prime _)] at h
+    simpa [lo1, madd2Lo, Nat.mul_comm] using h
+  have hmadd3Hi_lt : madd3Hi < 2 ^ 32 := by
+    dsimp [madd3Hi, base]
+    have h := u32_madd_div_lt_2_32 b3 q0 (Felt.ofNat madd2Lo) hb3 hq0 (u32_mod_isU32 _)
+    rw [felt_ofNat_val_lt _ (u32_mod_lt_prime _)] at h
+    simpa [madd2Lo, madd3Lo, Nat.mul_comm] using h
+  have haddHi_le_one : addHi ≤ 1 := by
+    dsimp [addHi, base]
+    have h := u32_add_div_le_one (Felt.ofNat madd3Lo) r3 (u32_mod_isU32 _) hr3
+    rw [felt_ofNat_val_lt _ (u32_mod_lt_prime _)] at h
+    simpa [madd3Lo] using h
+  have hcarry_lt_prime : carry < GOLDILOCKS_PRIME := by
+    unfold carry sumHi' sumHi GOLDILOCKS_PRIME
+    omega
+  have hcarry_ne' : carry ≠ 0 := by
+    intro hEq
+    apply hcarry_ne
+    rw [hcarry_nat]
+    exact hEq
+  have hfelt_nonzero : (Felt.ofNat carry).val ≠ 0 := by
+    rw [felt_ofNat_val_lt _ hcarry_lt_prime]
+    exact hcarry_ne'
+  unfold divmodCol3c exec execWithEnv
+  simp only [List.foldlM]
+  miden_dup
+  miden_dup
+  rw [stepU32WidenMadd
+    (a := b3) (b := q0) (c := Felt.ofNat madd2Lo)
+    (ha := hb3) (hb := hq0) (hc := u32_mod_isU32 _)]
+  miden_bind
+  rw [felt_ofNat_val_lt _ (u32_mod_lt_prime _)]
+  miden_swap
+  miden_movup
+  rw [stepAdd]
+  miden_bind
+  rw [show Felt.ofNat ((b3.val * q0.val + madd2Lo) / 2 ^ 32) = Felt.ofNat madd3Hi by rfl]
+  rw [← felt_ofNat_add]
+  rw [show madd3Hi + sumHi' = sumHi' + madd3Hi by omega]
+  rw [show Felt.ofNat ((b3.val * q0.val + madd2Lo) % 2 ^ 32) = Felt.ofNat madd3Lo by rfl]
+  miden_swap
+  miden_dup
+  rw [stepU32WidenAdd
+    (a := Felt.ofNat madd3Lo) (b := r3)
+    (ha := u32_mod_isU32 _) (hb := hr3)]
+  miden_bind
+  rw [felt_ofNat_val_lt _ (u32_mod_lt_prime _)]
+  miden_movup
+  rw [ha3_eq]
+  rw [show Felt.ofNat
+      (u128DivmodCol3 q0.val q1.val q2.val q3.val b0.val b1.val b2.val b3.val
+          r0.val r1.val r2.val r3.val %
+        base) =
+      Felt.ofNat addLo by
+    exact congrArg Felt.ofNat hlo_nat]
+  rw [stepAssertEqWithError]
+  miden_bind
+  rw [stepAdd]
+  miden_bind
+  rw [← felt_ofNat_add]
+  rw [show sumHi' + madd3Hi + addHi = carry by dsimp [carry]]
+  rw [stepAssertzWithError_noneLocal "u128 divmod: carry overflow" mem locs adv_rest
+    (Felt.ofNat carry) (q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 :: b0 :: b1 :: b2 :: b3 :: rest)
+    hfelt_nonzero]
+
 private theorem divmodCol3_run
     (c2Lo c2Hi q0 q1 q2 q3 r0 r1 r2 r3 b0 b1 b2 b3 a3 : Felt)
     (rest adv_rest : List Felt) (mem locs : Nat → Felt)
@@ -1406,6 +2052,31 @@ private theorem divmodCol3_run
   miden_bind
   rw [divmodCol3c_run c2Lo c2Hi q0 q1 q2 q3 r0 r1 r2 r3 b0 b1 b2 b3 a3 rest adv_rest mem locs
       hq0 hq1 hq2 hq3 hr3 hb0 hb1 hb2 hb3 hc2Lo_u32 hc2Lo_val hc2Hi_val ha3_eq hcarry_zero]
+
+private def divmodOverflowP41Bool (q3 b1 : Felt) : Bool :=
+  Felt.ofNat ((b1.val * q3.val) % 2 ^ 32) + Felt.ofNat ((b1.val * q3.val) / 2 ^ 32) != (0 : Felt)
+
+private def divmodOverflowP42Bool (q2 b2 : Felt) : Bool :=
+  Felt.ofNat ((b2.val * q2.val) % 2 ^ 32) + Felt.ofNat ((b2.val * q2.val) / 2 ^ 32) != (0 : Felt)
+
+private def divmodOverflowP43Bool (q1 b3 : Felt) : Bool :=
+  Felt.ofNat ((b3.val * q1.val) % 2 ^ 32) + Felt.ofNat ((b3.val * q1.val) / 2 ^ 32) != (0 : Felt)
+
+private def divmodOverflowP52Bool (q3 b2 : Felt) : Bool :=
+  Felt.ofNat ((b2.val * q3.val) % 2 ^ 32) + Felt.ofNat ((b2.val * q3.val) / 2 ^ 32) != (0 : Felt)
+
+private def divmodOverflowP53Bool (q2 b3 : Felt) : Bool :=
+  Felt.ofNat ((b3.val * q2.val) % 2 ^ 32) + Felt.ofNat ((b3.val * q2.val) / 2 ^ 32) != (0 : Felt)
+
+private def divmodOverflowP63Bool (q3 b3 : Felt) : Bool :=
+  Felt.ofNat ((b3.val * q3.val) % 2 ^ 32) + Felt.ofNat ((b3.val * q3.val) / 2 ^ 32) != (0 : Felt)
+
+private def divmodOverflowBool (q1 q2 q3 b1 b2 b3 : Felt) : Bool :=
+  (((((divmodOverflowP41Bool q3 b1 || divmodOverflowP42Bool q2 b2) ||
+          divmodOverflowP43Bool q1 b3) ||
+        divmodOverflowP52Bool q3 b2) ||
+      divmodOverflowP53Bool q2 b3) ||
+    divmodOverflowP63Bool q3 b3)
 
 private def divmodOverflow : List Op := [
   .inst (.push 0),
@@ -1499,6 +2170,284 @@ private def divmodOverflow3 : List Op := [
 private theorem divmodOverflow_eq :
     divmodOverflow = divmodOverflow1 ++ (divmodOverflow2 ++ divmodOverflow3) := by
   simp [divmodOverflow, divmodOverflow1, divmodOverflow2, divmodOverflow3]
+
+private theorem divmodOverflow1_bool_run
+    (q0 q1 q2 q3 r0 r1 r2 r3 b0 b1 b2 b3 : Felt)
+    (rest adv_rest : List Felt) (mem locs : Nat → Felt)
+    (hq2 : q2.isU32 = true) (hq3 : q3.isU32 = true)
+    (hb1 : b1.isU32 = true) (hb2 : b2.isU32 = true) :
+    exec 163
+      ⟨q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 :: b0 :: b1 :: b2 :: b3 :: rest,
+        mem, locs, adv_rest⟩
+      divmodOverflow1 =
+    some ⟨(if divmodOverflowP41Bool q3 b1 || divmodOverflowP42Bool q2 b2 then (1 : Felt) else 0) ::
+            q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 :: b0 :: b1 :: b2 :: b3 :: rest,
+          mem, locs, adv_rest⟩ := by
+  unfold divmodOverflow1 exec execWithEnv
+  simp only [List.foldlM]
+  rw [stepPush]
+  miden_bind
+  miden_dup
+  miden_dup
+  rw [stepU32WidenMul (a := b1) (b := q3) (ha := hb1) (hb := hq3)]
+  miden_bind
+  rw [stepAdd]
+  miden_bind
+  rw [stepNeqImm]
+  miden_bind
+  have hor :
+      execInstruction
+        ⟨(if
+              (Felt.ofNat ((b1.val * q3.val) / 2 ^ 32) + Felt.ofNat ((b1.val * q3.val) % 2 ^ 32) !=
+                (0 : Felt))
+            then (1 : Felt) else 0) ::
+          (0 : Felt) ::
+          q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 :: b0 :: b1 :: b2 :: b3 :: rest,
+          mem, locs, adv_rest⟩
+        Instruction.or =
+      some ⟨(if false ||
+              (Felt.ofNat ((b1.val * q3.val) / 2 ^ 32) + Felt.ofNat ((b1.val * q3.val) % 2 ^ 32) !=
+                (0 : Felt))
+            then (1 : Felt) else 0) ::
+            q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 :: b0 :: b1 :: b2 :: b3 :: rest,
+          mem, locs, adv_rest⟩ := by
+    change execInstruction
+      ⟨(if
+            (Felt.ofNat ((b1.val * q3.val) / 2 ^ 32) + Felt.ofNat ((b1.val * q3.val) % 2 ^ 32) !=
+              (0 : Felt))
+          then (1 : Felt) else 0) ::
+        (if false then (1 : Felt) else 0) ::
+        q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 :: b0 :: b1 :: b2 :: b3 :: rest,
+        mem, locs, adv_rest⟩
+      Instruction.or =
+      some ⟨(if false ||
+              (Felt.ofNat ((b1.val * q3.val) / 2 ^ 32) + Felt.ofNat ((b1.val * q3.val) % 2 ^ 32) !=
+                (0 : Felt))
+            then (1 : Felt) else 0) ::
+            q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 :: b0 :: b1 :: b2 :: b3 :: rest,
+          mem, locs, adv_rest⟩
+    rw [stepOrIte]
+  rw [hor]
+  miden_bind
+  miden_dup
+  miden_dup
+  rw [stepU32WidenMul (a := b2) (b := q2) (ha := hb2) (hb := hq2)]
+  miden_bind
+  rw [stepAdd]
+  miden_bind
+  rw [stepNeqImm]
+  miden_bind
+  rw [stepOrIte]
+  miden_bind
+  simp [pure, Pure.pure, divmodOverflowP41Bool, divmodOverflowP42Bool, add_comm]
+
+private theorem divmodOverflow2_bool_run
+    (q0 q1 q2 q3 r0 r1 r2 r3 b0 b1 b2 b3 : Felt)
+    (rest adv_rest : List Felt) (mem locs : Nat → Felt)
+    (hq1 : q1.isU32 = true) (_hq2 : q2.isU32 = true) (hq3 : q3.isU32 = true)
+    (_hb1 : b1.isU32 = true) (hb2 : b2.isU32 = true) (hb3 : b3.isU32 = true) :
+    exec 163
+      ⟨(if divmodOverflowP41Bool q3 b1 || divmodOverflowP42Bool q2 b2 then (1 : Felt) else 0) ::
+        q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 :: b0 :: b1 :: b2 :: b3 :: rest,
+        mem, locs, adv_rest⟩
+      divmodOverflow2 =
+    some ⟨(if (((divmodOverflowP41Bool q3 b1 || divmodOverflowP42Bool q2 b2) ||
+              divmodOverflowP43Bool q1 b3) ||
+            divmodOverflowP52Bool q3 b2) then
+            (1 : Felt)
+          else 0) ::
+            q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 :: b0 :: b1 :: b2 :: b3 :: rest,
+          mem, locs, adv_rest⟩ := by
+  unfold divmodOverflow2 exec execWithEnv
+  simp only [List.foldlM]
+  miden_dup
+  miden_dup
+  rw [stepU32WidenMul (a := b3) (b := q1) (ha := hb3) (hb := hq1)]
+  miden_bind
+  rw [stepAdd]
+  miden_bind
+  rw [stepNeqImm]
+  miden_bind
+  rw [stepOrIte]
+  miden_bind
+  miden_dup
+  miden_dup
+  rw [stepU32WidenMul (a := b2) (b := q3) (ha := hb2) (hb := hq3)]
+  miden_bind
+  rw [stepAdd]
+  miden_bind
+  rw [stepNeqImm]
+  miden_bind
+  rw [stepOrIte]
+  miden_bind
+  simp [pure, Pure.pure, divmodOverflowP41Bool, divmodOverflowP42Bool, divmodOverflowP43Bool,
+    divmodOverflowP52Bool, add_comm, Bool.or_assoc]
+
+private def divmodOverflow3Check : List Op := [
+  .inst (.dup 12),
+  .inst (.dup 4),
+  .inst (.u32WidenMul),
+  .inst (.add),
+  .inst (.neqImm 0),
+  .inst (.or),
+  .inst (.dup 12),
+  .inst (.dup 5),
+  .inst (.u32WidenMul),
+  .inst (.add),
+  .inst (.neqImm 0),
+  .inst (.or)
+]
+
+private theorem divmodOverflow3_decomp :
+    divmodOverflow3 =
+      divmodOverflow3Check ++ [.inst (.assertzWithError "u128 divmod: q*b overflow")] := by
+  simp [divmodOverflow3, divmodOverflow3Check]
+
+private theorem divmodOverflow3Check_run
+    (q0 q1 q2 q3 r0 r1 r2 r3 b0 b1 b2 b3 : Felt)
+    (rest adv_rest : List Felt) (mem locs : Nat → Felt)
+    (hq2 : q2.isU32 = true) (hq3 : q3.isU32 = true)
+    (hb3 : b3.isU32 = true) :
+    exec 163
+      ⟨(if (((divmodOverflowP41Bool q3 b1 || divmodOverflowP42Bool q2 b2) ||
+              divmodOverflowP43Bool q1 b3) ||
+            divmodOverflowP52Bool q3 b2) then
+            (1 : Felt)
+          else 0) ::
+        q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 :: b0 :: b1 :: b2 :: b3 :: rest,
+        mem, locs, adv_rest⟩
+      divmodOverflow3Check =
+    some ⟨(if divmodOverflowBool q1 q2 q3 b1 b2 b3 then (1 : Felt) else 0) ::
+            q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 :: b0 :: b1 :: b2 :: b3 :: rest,
+          mem, locs, adv_rest⟩ := by
+  unfold divmodOverflow3Check exec execWithEnv
+  simp only [List.foldlM]
+  miden_dup
+  miden_dup
+  rw [stepU32WidenMul (a := b3) (b := q2) (ha := hb3) (hb := hq2)]
+  miden_bind
+  rw [stepAdd]
+  miden_bind
+  rw [stepNeqImm]
+  miden_bind
+  rw [stepOrIte]
+  miden_bind
+  miden_dup
+  miden_dup
+  rw [stepU32WidenMul (a := b3) (b := q3) (ha := hb3) (hb := hq3)]
+  miden_bind
+  rw [stepAdd]
+  miden_bind
+  rw [stepNeqImm]
+  miden_bind
+  rw [stepOrIte]
+  miden_bind
+  simp [pure, Pure.pure, divmodOverflowBool, divmodOverflowP41Bool, divmodOverflowP42Bool,
+    divmodOverflowP43Bool, divmodOverflowP52Bool, divmodOverflowP53Bool, divmodOverflowP63Bool,
+    add_comm, Bool.or_assoc]
+
+private theorem divmodOverflow3_eval
+    (q0 q1 q2 q3 r0 r1 r2 r3 b0 b1 b2 b3 : Felt)
+    (rest adv_rest : List Felt) (mem locs : Nat → Felt)
+    (hq2 : q2.isU32 = true) (hq3 : q3.isU32 = true)
+    (hb3 : b3.isU32 = true) :
+    exec 163
+      ⟨(if (((divmodOverflowP41Bool q3 b1 || divmodOverflowP42Bool q2 b2) ||
+              divmodOverflowP43Bool q1 b3) ||
+            divmodOverflowP52Bool q3 b2) then
+            (1 : Felt)
+          else 0) ::
+        q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 :: b0 :: b1 :: b2 :: b3 :: rest,
+        mem, locs, adv_rest⟩
+      divmodOverflow3 =
+    if divmodOverflowBool q1 q2 q3 b1 b2 b3 then
+      none
+    else
+      some ⟨q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 :: b0 :: b1 :: b2 :: b3 :: rest,
+        mem, locs, adv_rest⟩ := by
+  rw [divmodOverflow3_decomp, exec_append]
+  rw [divmodOverflow3Check_run q0 q1 q2 q3 r0 r1 r2 r3 b0 b1 b2 b3 rest adv_rest mem locs
+      hq2 hq3 hb3]
+  miden_bind
+  by_cases hover : divmodOverflowBool q1 q2 q3 b1 b2 b3
+  · rw [show ((if divmodOverflowBool q1 q2 q3 b1 b2 b3 then (1 : Felt) else 0) : Felt) = 1 by simp [hover]]
+    unfold exec execWithEnv
+    simp only [List.foldlM]
+    rw [stepAssertzWithError_noneLocal "u128 divmod: q*b overflow" mem locs adv_rest (1 : Felt)
+      (q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 :: b0 :: b1 :: b2 :: b3 :: rest) (by simp)]
+    simp [hover]
+  · rw [show ((if divmodOverflowBool q1 q2 q3 b1 b2 b3 then (1 : Felt) else 0) : Felt) = 0 by simp [hover]]
+    unfold exec execWithEnv
+    simp only [List.foldlM]
+    rw [stepAssertzWithErrorLocal "u128 divmod: q*b overflow" mem locs adv_rest (0 : Felt)
+      (q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 :: b0 :: b1 :: b2 :: b3 :: rest) rfl]
+    simp [hover, pure, Pure.pure]
+
+private theorem divmodOverflow_eval
+    (q0 q1 q2 q3 r0 r1 r2 r3 b0 b1 b2 b3 : Felt)
+    (rest adv_rest : List Felt) (mem locs : Nat → Felt)
+    (hq1 : q1.isU32 = true) (hq2 : q2.isU32 = true) (hq3 : q3.isU32 = true)
+    (hb1 : b1.isU32 = true) (hb2 : b2.isU32 = true) (hb3 : b3.isU32 = true) :
+    exec 163
+      ⟨q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 :: b0 :: b1 :: b2 :: b3 :: rest,
+        mem, locs, adv_rest⟩
+      divmodOverflow =
+    if divmodOverflowBool q1 q2 q3 b1 b2 b3 then
+      none
+    else
+      some ⟨q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 :: b0 :: b1 :: b2 :: b3 :: rest,
+        mem, locs, adv_rest⟩ := by
+  rw [divmodOverflow_eq, exec_append]
+  rw [divmodOverflow1_bool_run q0 q1 q2 q3 r0 r1 r2 r3 b0 b1 b2 b3 rest adv_rest mem locs
+      hq2 hq3 hb1 hb2]
+  miden_bind
+  rw [exec_append]
+  rw [divmodOverflow2_bool_run q0 q1 q2 q3 r0 r1 r2 r3 b0 b1 b2 b3 rest adv_rest mem locs
+      hq1 hq2 hq3 hb1 hb2 hb3]
+  miden_bind
+  rw [divmodOverflow3_eval q0 q1 q2 q3 r0 r1 r2 r3 b0 b1 b2 b3 rest adv_rest mem locs
+      hq2 hq3 hb3]
+
+private theorem divmodOverflowProdBool_false
+    (x y : Felt) (hx : x.isU32 = true) (hy : y.isU32 = true)
+    (h :
+      (Felt.ofNat ((y.val * x.val) % 2 ^ 32) + Felt.ofNat ((y.val * x.val) / 2 ^ 32) != (0 : Felt)) =
+        false) :
+    y.val * x.val = 0 := by
+  have hEq : Felt.ofNat ((y.val * x.val) % 2 ^ 32) + Felt.ofNat ((y.val * x.val) / 2 ^ 32) = 0 := by
+    simpa using h
+  have hlo_val :
+      (Felt.ofNat ((y.val * x.val) % 2 ^ 32)).val = (y.val * x.val) % 2 ^ 32 := by
+    exact felt_ofNat_val_lt _ (u32_mod_lt_prime _)
+  have hhi_val :
+      (Felt.ofNat ((y.val * x.val) / 2 ^ 32)).val = (y.val * x.val) / 2 ^ 32 := by
+    exact felt_ofNat_val_lt _ (u32_prod_div_lt_prime y x hy hx)
+  have hhi_lt : (y.val * x.val) / 2 ^ 32 < 2 ^ 32 := by
+    simpa [Nat.mul_comm] using u32_prod_div_lt_2_32 y x hy hx
+  have hsum_lt :
+      (y.val * x.val) % 2 ^ 32 + (y.val * x.val) / 2 ^ 32 < GOLDILOCKS_PRIME := by
+    unfold GOLDILOCKS_PRIME
+    omega
+  have hsum_val :
+      (Felt.ofNat ((y.val * x.val) % 2 ^ 32) + Felt.ofNat ((y.val * x.val) / 2 ^ 32)).val =
+        (y.val * x.val) % 2 ^ 32 + (y.val * x.val) / 2 ^ 32 := by
+    rw [felt_add_val_no_wrap _ _ (by
+      rw [hlo_val, hhi_val]
+      exact hsum_lt), hlo_val, hhi_val]
+  have hval' :
+      (Felt.ofNat ((y.val * x.val) % 2 ^ 32) + Felt.ofNat ((y.val * x.val) / 2 ^ 32)).val = 0 := by
+    exact congrArg (fun z : Felt => z.val) hEq
+  have hval :
+      (y.val * x.val) % 2 ^ 32 + (y.val * x.val) / 2 ^ 32 = 0 := by
+    rw [hsum_val] at hval'
+    exact hval'
+  have hlo_zero : (y.val * x.val) % 2 ^ 32 = 0 := by omega
+  have hhi_zero : (y.val * x.val) / 2 ^ 32 = 0 := by omega
+  calc
+    y.val * x.val = (y.val * x.val) % 2 ^ 32 + 2 ^ 32 * ((y.val * x.val) / 2 ^ 32) := by
+      symm
+      exact Nat.mod_add_div _ _
+    _ = 0 := by rw [hlo_zero, hhi_zero]; simp
 
 private theorem divmodOverflow1_run
     (q0 q1 q2 q3 r0 r1 r2 r3 b0 b1 b2 b3 : Felt)
@@ -2094,6 +3043,170 @@ private theorem divmodCompare4_run
   rw [stepDropw]
   simp [pure, Pure.pure]
 
+private theorem divmodCompare4_none
+    (q0 q1 q2 q3 r0 r1 r2 r3 b0 b1 b2 b3 : Felt)
+    (rest adv_rest : List Felt) (mem locs : Nat → Felt)
+    (hr0 : r0.isU32 = true) (hr1 : r1.isU32 = true) (hr2 : r2.isU32 = true) (hr3 : r3.isU32 = true)
+    (hb0 : b0.isU32 = true) (hb1 : b1.isU32 = true) (hb2 : b2.isU32 = true) (hb3 : b3.isU32 = true)
+    (h_lt_result : u128LtBool r0 r1 r2 r3 b0 b1 b2 b3 ≠ true) :
+    exec 163
+      ⟨u128Borrow2 r0 r1 r2 b0 b1 b2 ::
+        q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 :: b0 :: b1 :: b2 :: b3 :: rest,
+        mem, locs, adv_rest⟩
+      divmodCompare4 =
+    none := by
+  unfold divmodCompare4 exec execWithEnv
+  simp only [List.foldlM]
+  miden_dup
+  miden_dup
+  rw [stepU32OverflowSub (a := r3) (b := b3) (ha := hr3) (hb := hb3)]
+  miden_bind
+  miden_swap
+  rw [stepEqImm]
+  miden_bind
+  miden_movup
+  rw [show u128Borrow2 r0 r1 r2 b0 b1 b2 =
+    if decide ((u128Sub2 r2 b2).2 < (u128Borrow1 r0 r1 b0 b1).val) || decide (r2.val < b2.val)
+      then (1 : Felt) else 0 by
+    rfl]
+  rw [stepAndIte]
+  miden_bind
+  rw [u32OverflowingSub_borrow_ite r3.val b3.val]
+  rw [stepOrIte]
+  miden_bind
+  have h_lt_felt :
+      (if
+          decide (r3.val < b3.val) ||
+            ((Felt.ofNat (u32OverflowingSub r3.val b3.val).2 = 0) &&
+              (decide ((u128Sub2 r2 b2).2 < (u128Borrow1 r0 r1 b0 b1).val) ||
+                decide (r2.val < b2.val))) = true
+        then
+          (1 : Felt)
+        else
+          0) =
+      (if u128LtBool r0 r1 r2 r3 b0 b1 b2 b3 then (1 : Felt) else 0) := by
+    have hlow128 :
+        (r3.val < b3.val ∨
+          r3.val = b3.val ∧
+            ((u128Sub2 r2 b2).2 < (u128Borrow1 r0 r1 b0 b1).val ∨ r2.val < b2.val)) ↔
+          r3.val * 2 ^ 96 + r2.val * 2 ^ 64 + r1.val * 2 ^ 32 + r0.val <
+            b3.val * 2 ^ 96 + b2.val * 2 ^ 64 + b1.val * 2 ^ 32 + b0.val := by
+      constructor
+      · intro h
+        rcases h with h | ⟨hEq, hLow⟩
+        · exact (divmodLow128_lt_iff r0 r1 r2 r3 b0 b1 b2 b3
+            (by simpa [Felt.isU32, decide_eq_true_eq] using hr0)
+            (by simpa [Felt.isU32, decide_eq_true_eq] using hr1)
+            (by simpa [Felt.isU32, decide_eq_true_eq] using hr2)
+            (by simpa [Felt.isU32, decide_eq_true_eq] using hr3)
+            (by simpa [Felt.isU32, decide_eq_true_eq] using hb0)
+            (by simpa [Felt.isU32, decide_eq_true_eq] using hb1)
+            (by simpa [Felt.isU32, decide_eq_true_eq] using hb2)
+            (by simpa [Felt.isU32, decide_eq_true_eq] using hb3)).mp (Or.inl h)
+        · exact (divmodLow128_lt_iff r0 r1 r2 r3 b0 b1 b2 b3
+            (by simpa [Felt.isU32, decide_eq_true_eq] using hr0)
+            (by simpa [Felt.isU32, decide_eq_true_eq] using hr1)
+            (by simpa [Felt.isU32, decide_eq_true_eq] using hr2)
+            (by simpa [Felt.isU32, decide_eq_true_eq] using hr3)
+            (by simpa [Felt.isU32, decide_eq_true_eq] using hb0)
+            (by simpa [Felt.isU32, decide_eq_true_eq] using hb1)
+            (by simpa [Felt.isU32, decide_eq_true_eq] using hb2)
+            (by simpa [Felt.isU32, decide_eq_true_eq] using hb3)).mp
+            (Or.inr ⟨hEq, (divmodBorrow2_prop_eq r0 r1 r2 b0 b1 b2 hr0 hr1 hr2 hb0 hb1 hb2).mp hLow⟩)
+      · intro h
+        rcases (divmodLow128_lt_iff r0 r1 r2 r3 b0 b1 b2 b3
+            (by simpa [Felt.isU32, decide_eq_true_eq] using hr0)
+            (by simpa [Felt.isU32, decide_eq_true_eq] using hr1)
+            (by simpa [Felt.isU32, decide_eq_true_eq] using hr2)
+            (by simpa [Felt.isU32, decide_eq_true_eq] using hr3)
+            (by simpa [Felt.isU32, decide_eq_true_eq] using hb0)
+            (by simpa [Felt.isU32, decide_eq_true_eq] using hb1)
+            (by simpa [Felt.isU32, decide_eq_true_eq] using hb2)
+            (by simpa [Felt.isU32, decide_eq_true_eq] using hb3)).mpr h with h | ⟨hEq, hLow⟩
+        · exact Or.inl h
+        · exact Or.inr ⟨hEq, (divmodBorrow2_prop_eq r0 r1 r2 b0 b1 b2 hr0 hr1 hr2 hb0 hb1 hb2).mpr hLow⟩
+    have hleft :
+        (if
+            r3.val < b3.val ∨
+              r3.val = b3.val ∧
+                ((u128Sub2 r2 b2).2 < (u128Borrow1 r0 r1 b0 b1).val ∨ r2.val < b2.val)
+          then
+            (1 : Felt)
+          else
+            0) =
+        (if
+            decide
+              (r3.val * 2 ^ 96 + r2.val * 2 ^ 64 + r1.val * 2 ^ 32 + r0.val <
+                b3.val * 2 ^ 96 + b2.val * 2 ^ 64 + b1.val * 2 ^ 32 + b0.val)
+          then
+            (1 : Felt)
+          else
+            0) := by
+      by_cases h :
+          r3.val < b3.val ∨
+            r3.val = b3.val ∧
+              ((u128Sub2 r2 b2).2 < (u128Borrow1 r0 r1 b0 b1).val ∨ r2.val < b2.val)
+      · have h' :
+          r3.val * 2 ^ 96 + r2.val * 2 ^ 64 + r1.val * 2 ^ 32 + r0.val <
+            b3.val * 2 ^ 96 + b2.val * 2 ^ 64 + b1.val * 2 ^ 32 + b0.val := hlow128.mp h
+        simpa [h] using h'
+      · have h' :
+          ¬ (r3.val * 2 ^ 96 + r2.val * 2 ^ 64 + r1.val * 2 ^ 32 + r0.val <
+              b3.val * 2 ^ 96 + b2.val * 2 ^ 64 + b1.val * 2 ^ 32 + b0.val) := by
+          intro hc
+          exact h (hlow128.mpr hc)
+        simpa [h] using Nat.le_of_not_gt h'
+    calc
+      (if
+          decide (r3.val < b3.val) ||
+            ((Felt.ofNat (u32OverflowingSub r3.val b3.val).2 = 0) &&
+              (decide ((u128Sub2 r2 b2).2 < (u128Borrow1 r0 r1 b0 b1).val) ||
+                decide (r2.val < b2.val))) = true
+        then
+          (1 : Felt)
+        else
+          0)
+          =
+        (if
+          r3.val < b3.val ∨
+            r3.val = b3.val ∧
+              ((u128Sub2 r2 b2).2 < (u128Borrow1 r0 r1 b0 b1).val ∨ r2.val < b2.val)
+        then
+          (1 : Felt)
+        else
+          0) := by
+            simp [u32OverflowingSub_snd_eq_zero_iff r3 b3 hr3 hb3]
+      _ =
+        (if
+            decide
+              (r3.val * 2 ^ 96 + r2.val * 2 ^ 64 + r1.val * 2 ^ 32 + r0.val <
+                b3.val * 2 ^ 96 + b2.val * 2 ^ 64 + b1.val * 2 ^ 32 + b0.val)
+          then
+            (1 : Felt)
+          else
+            0) := hleft
+      _ = (if u128LtBool r0 r1 r2 r3 b0 b1 b2 b3 then (1 : Felt) else 0) := by
+            simp [divmodLtBool_eqRaw r0 r1 r2 r3 b0 b1 b2 b3 hr0 hr1 hr2 hr3 hb0 hb1 hb2 hb3]
+  have h_lt_felt' :
+      (if
+          (decide (r3.val < b3.val) ||
+              Felt.ofNat (u32OverflowingSub r3.val b3.val).2 == 0 &&
+                (decide ((u128Sub2 r2 b2).2 < (u128Borrow1 r0 r1 b0 b1).val) ||
+                  decide (r2.val < b2.val))) =
+            true then
+        (1 : Felt)
+      else
+        0) =
+      (if u128LtBool r0 r1 r2 r3 b0 b1 b2 b3 then (1 : Felt) else 0) := by
+    simpa using h_lt_felt
+  rw [h_lt_felt']
+  have h_lt_false : u128LtBool r0 r1 r2 r3 b0 b1 b2 b3 = false := by
+    by_cases h : u128LtBool r0 r1 r2 r3 b0 b1 b2 b3 = true
+    · exact (h_lt_result h).elim
+    · cases hlt : u128LtBool r0 r1 r2 r3 b0 b1 b2 b3 <;> simp_all
+  rw [stepAssertWithError_none (msg := "u128 divmod: remainder >= divisor")
+      (h := by simp [h_lt_false])]
+
 private theorem divmodTail_run
     (q0 q1 q2 q3 r0 r1 r2 r3 b0 b1 b2 b3 : Felt)
     (rest adv_rest : List Felt) (mem locs : Nat → Felt)
@@ -2643,6 +3756,393 @@ private theorem divmod_digit_recovery
       hpacked hcarry_zero
   exact ⟨ha0_eq, ha1_eq, ha2_eq, ha3_eq, hcarry_zero⟩
 
+private theorem divmodCol1CarryCarry_lt
+    (q0 q1 b0 b1 r0 r1 : Felt)
+    (hq0 : q0.isU32 = true) (hq1 : q1.isU32 = true)
+    (hb0 : b0.isU32 = true) (hb1 : b1.isU32 = true)
+    (hr0 : r0.isU32 = true) (hr1 : r1.isU32 = true) :
+    u128DivmodCol1 q0.val q1.val b0.val b1.val r0.val r1.val / 2 ^ 32 / 2 ^ 32 < 2 ^ 32 := by
+  let base := 2 ^ 32
+  change u128DivmodCol1 q0.val q1.val b0.val b1.val r0.val r1.val / base / base < base
+  let carry0 := u128DivmodCol0 q0.val b0.val r0.val / base
+  let madd0Lo := (b0.val * q1.val + carry0) % base
+  let madd0Hi := (b0.val * q1.val + carry0) / base
+  let madd1Lo := (b1.val * q0.val + madd0Lo) % base
+  let madd1Hi := (b1.val * q0.val + madd0Lo) / base
+  let addLo := (madd1Lo + r1.val) % base
+  let addHi := (madd1Lo + r1.val) / base
+  let carry := madd0Hi + madd1Hi + addHi
+  have hcarry0_lt : carry0 < base := by
+    dsimp [carry0]
+    simpa [base] using divmodCol0Carry_lt q0 b0 r0 hq0 hb0 hr0
+  have hc0_u32 : (Felt.ofNat carry0).isU32 = true := by
+    exact felt_ofNat_isU32_of_lt _ hcarry0_lt
+  have hc0_val : (Felt.ofNat carry0).val = carry0 := by
+    exact felt_ofNat_val_lt _ (u32_val_lt_prime _ hcarry0_lt)
+  have hmadd0Lo_val : (Felt.ofNat madd0Lo).val = madd0Lo := by
+    exact felt_ofNat_val_lt _ (u32_mod_lt_prime _)
+  have hmadd1Lo_val : (Felt.ofNat madd1Lo).val = madd1Lo := by
+    exact felt_ofNat_val_lt _ (u32_mod_lt_prime _)
+  have hmadd0Hi_lt : madd0Hi < base := by
+    dsimp [madd0Hi]
+    have h := u32_madd_div_lt_2_32 b0 q1 (Felt.ofNat carry0) hb0 hq1 hc0_u32
+    rw [hc0_val] at h
+    simpa [base, carry0, Nat.mul_comm] using h
+  have hmadd1Hi_lt : madd1Hi < base := by
+    dsimp [madd1Hi]
+    have h := u32_madd_div_lt_2_32 b1 q0 (Felt.ofNat madd0Lo) hb1 hq0 (u32_mod_isU32 _)
+    rw [hmadd0Lo_val] at h
+    simpa [base, madd0Lo, Nat.mul_comm] using h
+  have haddHi_le_one : addHi ≤ 1 := by
+    dsimp [addHi]
+    have h := u32_add_div_le_one (Felt.ofNat madd1Lo) r1 (u32_mod_isU32 _) hr1
+    rw [hmadd1Lo_val] at h
+    simpa [base, madd1Lo] using h
+  have hrepr : u128DivmodCol1 q0.val q1.val b0.val b1.val r0.val r1.val = addLo + carry * base := by
+    have h0 : madd0Lo + madd0Hi * base = q1.val * b0.val + carry0 := by
+      simpa [madd0Lo, madd0Hi, base, Nat.mul_comm] using
+        (Nat.mod_add_div (b0.val * q1.val + carry0) base)
+    have h1 : madd1Lo + madd1Hi * base = q0.val * b1.val + madd0Lo := by
+      simpa [madd1Lo, madd1Hi, base, Nat.mul_comm] using
+        (Nat.mod_add_div (b1.val * q0.val + madd0Lo) base)
+    have h2 : addLo + addHi * base = madd1Lo + r1.val := by
+      simpa [addLo, addHi, base, Nat.mul_comm] using
+        (Nat.mod_add_div (madd1Lo + r1.val) base)
+    calc
+      u128DivmodCol1 q0.val q1.val b0.val b1.val r0.val r1.val
+          = q0.val * b1.val + r1.val + (q1.val * b0.val + carry0) := by
+              unfold u128DivmodCol1
+              simp [carry0, base, Nat.add_assoc, Nat.add_left_comm, Nat.add_comm]
+      _ = q0.val * b1.val + r1.val + (madd0Lo + madd0Hi * base) := by rw [← h0]
+      _ = q0.val * b1.val + madd0Lo + r1.val + madd0Hi * base := by ac_rfl
+      _ = (madd1Lo + madd1Hi * base) + r1.val + madd0Hi * base := by rw [h1]
+      _ = madd1Lo + r1.val + madd1Hi * base + madd0Hi * base := by ac_rfl
+      _ = addLo + addHi * base + madd1Hi * base + madd0Hi * base := by rw [h2]
+      _ = addLo + (madd0Hi + madd1Hi + addHi) * base := by
+            simp [base, Nat.add_mul, Nat.add_assoc, Nat.add_left_comm, Nat.add_comm]
+  have haddLo_lt : addLo < base := by
+    dsimp [addLo, base]
+    exact Nat.mod_lt _ (by positivity)
+  have hcarry_nat : u128DivmodCol1 q0.val q1.val b0.val b1.val r0.val r1.val / base = carry := by
+    rw [hrepr, Nat.add_mul_div_right _ _ (show 0 < base by positivity), Nat.div_eq_of_lt haddLo_lt]
+    simp [carry]
+  have hcarry_lt : carry < 2 * base + 1 := by
+    dsimp [carry]
+    omega
+  rw [hcarry_nat]
+  calc
+    carry / base ≤ (2 * base + 1) / base := by
+      exact Nat.div_le_div_right (Nat.le_of_lt hcarry_lt)
+    _ < base := by
+          dsimp [base]
+          native_decide
+
+private theorem divmodCol2CarryCarry_lt
+    (q0 q1 q2 b0 b1 b2 r0 r1 r2 : Felt)
+    (hq0 : q0.isU32 = true) (hq1 : q1.isU32 = true) (hq2 : q2.isU32 = true)
+    (hb0 : b0.isU32 = true) (hb1 : b1.isU32 = true) (hb2 : b2.isU32 = true)
+    (hr0 : r0.isU32 = true) (hr1 : r1.isU32 = true) (hr2 : r2.isU32 = true) :
+    u128DivmodCol2 q0.val q1.val q2.val b0.val b1.val b2.val r0.val r1.val r2.val / 2 ^ 32 / 2 ^ 32 < 2 ^ 32 := by
+  let base := 2 ^ 32
+  change
+    u128DivmodCol2 q0.val q1.val q2.val b0.val b1.val b2.val r0.val r1.val r2.val / base / base <
+      base
+  let carry1 := u128DivmodCol1 q0.val q1.val b0.val b1.val r0.val r1.val / base
+  let c1Lo := carry1 % base
+  let c1Hi := carry1 / base
+  let lo0 := (b0.val * q2.val + c1Lo) % base
+  let hi0 := (b0.val * q2.val + c1Lo) / base
+  let lo1 := (b1.val * q1.val + lo0) % base
+  let hi1 := (b1.val * q1.val + lo0) / base
+  let sumHi := c1Hi + hi0 + hi1
+  let madd2Lo := (b2.val * q0.val + lo1) % base
+  let madd2Hi := (b2.val * q0.val + lo1) / base
+  let addLo := (madd2Lo + r2.val) % base
+  let addHi := (madd2Lo + r2.val) / base
+  let carry := sumHi + madd2Hi + addHi
+  have hc1Hi_lt : c1Hi < base := by
+    dsimp [c1Hi, carry1]
+    simpa [base] using divmodCol1CarryCarry_lt q0 q1 b0 b1 r0 r1 hq0 hq1 hb0 hb1 hr0 hr1
+  have hc1Lo_val : (Felt.ofNat c1Lo).val = c1Lo := by
+    exact felt_ofNat_val_lt _ (u32_mod_lt_prime _)
+  have hlo0_val : (Felt.ofNat lo0).val = lo0 := by
+    exact felt_ofNat_val_lt _ (u32_mod_lt_prime _)
+  have hlo1_val : (Felt.ofNat lo1).val = lo1 := by
+    exact felt_ofNat_val_lt _ (u32_mod_lt_prime _)
+  have hhi0_lt : hi0 < base := by
+    dsimp [hi0]
+    have h := u32_madd_div_lt_2_32 b0 q2 (Felt.ofNat c1Lo) hb0 hq2 (u32_mod_isU32 _)
+    rw [hc1Lo_val] at h
+    simpa [base, Nat.mul_comm] using h
+  have hhi1_lt : hi1 < base := by
+    dsimp [hi1]
+    have h := u32_madd_div_lt_2_32 b1 q1 (Felt.ofNat lo0) hb1 hq1 (u32_mod_isU32 _)
+    rw [hlo0_val] at h
+    simpa [base, lo0, Nat.mul_comm] using h
+  have hmadd2Hi_lt : madd2Hi < base := by
+    dsimp [madd2Hi]
+    have h := u32_madd_div_lt_2_32 b2 q0 (Felt.ofNat lo1) hb2 hq0 (u32_mod_isU32 _)
+    rw [hlo1_val] at h
+    simpa [base, lo1, Nat.mul_comm] using h
+  have haddHi_le_one : addHi ≤ 1 := by
+    dsimp [addHi]
+    have h := u32_add_div_le_one (Felt.ofNat madd2Lo) r2 (u32_mod_isU32 _) hr2
+    rw [felt_ofNat_val_lt _ (u32_mod_lt_prime _)] at h
+    simpa [base, madd2Lo] using h
+  have hcarry1_repr : c1Lo + c1Hi * base = carry1 := by
+    dsimp [c1Lo, c1Hi, carry1]
+    simpa [base, Nat.mul_comm] using
+      (Nat.mod_add_div (u128DivmodCol1 q0.val q1.val b0.val b1.val r0.val r1.val / base) base)
+  have hlo0_repr : lo0 + hi0 * base = q2.val * b0.val + c1Lo := by
+    simpa [lo0, hi0, base, Nat.mul_comm] using
+      (Nat.mod_add_div (b0.val * q2.val + c1Lo) base)
+  have hlo1_repr : lo1 + hi1 * base = q1.val * b1.val + lo0 := by
+    simpa [lo1, hi1, base, Nat.mul_comm] using
+      (Nat.mod_add_div (b1.val * q1.val + lo0) base)
+  have hpre_repr :
+      q2.val * b0.val + q1.val * b1.val + carry1 = lo1 + sumHi * base := by
+    calc
+      q2.val * b0.val + q1.val * b1.val + carry1
+          = q1.val * b1.val + (q2.val * b0.val + c1Lo) + c1Hi * base := by
+              rw [← hcarry1_repr]
+              ring
+      _ = q1.val * b1.val + (lo0 + hi0 * base) + c1Hi * base := by rw [hlo0_repr]
+      _ = (lo1 + hi1 * base) + (hi0 + c1Hi) * base := by
+            rw [hlo1_repr]
+            ring
+      _ = lo1 + sumHi * base := by
+            dsimp [sumHi]
+            ring
+  have hmadd2_repr : madd2Lo + madd2Hi * base = q0.val * b2.val + lo1 := by
+    simpa [madd2Lo, madd2Hi, base, Nat.mul_comm] using
+      (Nat.mod_add_div (b2.val * q0.val + lo1) base)
+  have hadd_repr : addLo + addHi * base = madd2Lo + r2.val := by
+    simpa [addLo, addHi, base, Nat.mul_comm] using
+      (Nat.mod_add_div (madd2Lo + r2.val) base)
+  have hrepr :
+      u128DivmodCol2 q0.val q1.val q2.val b0.val b1.val b2.val r0.val r1.val r2.val =
+        addLo + carry * base := by
+    calc
+      u128DivmodCol2 q0.val q1.val q2.val b0.val b1.val b2.val r0.val r1.val r2.val
+          = q0.val * b2.val + r2.val + (q2.val * b0.val + q1.val * b1.val + carry1) := by
+              unfold u128DivmodCol2
+              dsimp [carry1, base]
+              ring
+      _ = q0.val * b2.val + r2.val + (lo1 + sumHi * base) := by rw [hpre_repr]
+      _ = q0.val * b2.val + lo1 + r2.val + sumHi * base := by ring
+      _ = (madd2Lo + madd2Hi * base) + r2.val + sumHi * base := by rw [hmadd2_repr]
+      _ = madd2Lo + r2.val + (sumHi + madd2Hi) * base := by ring
+      _ = addLo + addHi * base + (sumHi + madd2Hi) * base := by rw [hadd_repr]
+      _ = addLo + (sumHi + madd2Hi + addHi) * base := by ring
+  have haddLo_lt : addLo < base := by
+    dsimp [addLo, base]
+    exact Nat.mod_lt _ (by positivity)
+  have hcarry_nat :
+      u128DivmodCol2 q0.val q1.val q2.val b0.val b1.val b2.val r0.val r1.val r2.val / base = carry := by
+    rw [hrepr, Nat.add_mul_div_right _ _ (show 0 < base by positivity), Nat.div_eq_of_lt haddLo_lt]
+    simp [carry]
+  have hcarry_lt : carry < 4 * base + 1 := by
+    dsimp [carry, sumHi]
+    omega
+  rw [hcarry_nat]
+  calc
+    carry / base ≤ (4 * base + 1) / base := by
+      exact Nat.div_le_div_right (Nat.le_of_lt hcarry_lt)
+    _ < base := by
+          dsimp [base]
+          native_decide
+
+private theorem divmod_forward_arith
+    (q0 q1 q2 q3 b0 b1 b2 b3 r0 r1 r2 r3 a0 a1 a2 a3 : Nat)
+    (hq1b3_zero : q1 * b3 = 0)
+    (hq2b2_zero : q2 * b2 = 0)
+    (hq3b1_zero : q3 * b1 = 0)
+    (hq2b3_zero : q2 * b3 = 0)
+    (hq3b2_zero : q3 * b2 = 0)
+    (hq3b3_zero : q3 * b3 = 0)
+    (hcarry_zero : divmodCarry q0 q1 q2 q3 b0 b1 b2 b3 r0 r1 r2 r3 = 0)
+    (ha0_eq : a0 = divmodCol0Lo q0 b0 r0)
+    (ha1_eq : a1 = divmodCol1Lo q0 q1 b0 b1 r0 r1)
+    (ha2_eq : a2 = divmodCol2Lo q0 q1 q2 b0 b1 b2 r0 r1 r2)
+    (ha3_eq : a3 = divmodCol3Lo q0 q1 q2 q3 b0 b1 b2 b3 r0 r1 r2 r3) :
+    u128RawValue q0 q1 q2 q3 * u128RawValue b0 b1 b2 b3 + u128RawValue r0 r1 r2 r3 =
+      u128RawValue a0 a1 a2 a3 := by
+  have hpacked :
+      divmodCol0Lo q0 b0 r0
+        + divmodCol1Lo q0 q1 b0 b1 r0 r1 * u32Base
+        + divmodCol2Lo q0 q1 q2 b0 b1 b2 r0 r1 r2 * u32Base ^ 2
+        + divmodCol3Lo q0 q1 q2 q3 b0 b1 b2 b3 r0 r1 r2 r3 * u32Base ^ 3
+        + divmodCarry q0 q1 q2 q3 b0 b1 b2 b3 r0 r1 r2 r3 * u32Base ^ 4 =
+      u128RawValue q0 q1 q2 q3 * u128RawValue b0 b1 b2 b3 + u128RawValue r0 r1 r2 r3 := by
+    have h0 :
+        u128DivmodCol0 q0 b0 r0
+          + divmodX1 q0 q1 b0 b1 r1 * u32Base
+          + divmodX2 q0 q1 q2 b0 b1 b2 r2 * u32Base ^ 2
+          + divmodX3 q0 q1 q2 q3 b0 b1 b2 b3 r3 * u32Base ^ 3
+          + divmodX4 q1 q2 q3 b1 b2 b3 * u32Base ^ 4
+          + divmodX5 q2 q3 b2 b3 * u32Base ^ 5
+          + divmodX6 q3 b3 * u32Base ^ 6 =
+        u128RawValue q0 q1 q2 q3 * u128RawValue b0 b1 b2 b3 + u128RawValue r0 r1 r2 r3 := by
+      simpa [u32Base, divmodX1, divmodX2, divmodX3, divmodX4, divmodX5, divmodX6] using
+        (divmodStage0_repr q0 q1 q2 q3 b0 b1 b2 b3 r0 r1 r2 r3).symm
+    have h1 := divmod_stage1Nat q0 q1 b0 b1 r0 r1
+    have h2 := divmod_stage2Nat q0 q1 q2 b0 b1 b2 r0 r1 r2
+    have h3 := divmod_stage3Nat q0 q1 q2 q3 b0 b1 b2 b3 r0 r1 r2 r3
+    have h4 := divmod_stage4Nat q0 q1 q2 q3 b0 b1 b2 b3 r0 r1 r2 r3
+    have hx4_zero : divmodX4 q1 q2 q3 b1 b2 b3 = 0 := by
+      simp [divmodX4, hq1b3_zero, hq2b2_zero, hq3b1_zero]
+    have hx5_zero : divmodX5 q2 q3 b2 b3 = 0 := by
+      simp [divmodX5, hq2b3_zero, hq3b2_zero]
+    have hx6_zero : divmodX6 q3 b3 = 0 := by
+      simp [divmodX6, hq3b3_zero]
+    have h4' :
+        u128DivmodCol3 q0 q1 q2 q3 b0 b1 b2 b3 r0 r1 r2 r3 * u32Base ^ 3
+          + divmodX4 q1 q2 q3 b1 b2 b3 * u32Base ^ 4
+          + divmodX5 q2 q3 b2 b3 * u32Base ^ 5
+          + divmodX6 q3 b3 * u32Base ^ 6 =
+        divmodCol3Lo q0 q1 q2 q3 b0 b1 b2 b3 r0 r1 r2 r3 * u32Base ^ 3
+          + divmodCarry q0 q1 q2 q3 b0 b1 b2 b3 r0 r1 r2 r3 * u32Base ^ 4 := by
+      simpa [hx4_zero, hx5_zero, hx6_zero] using h4
+    have h234 :
+        u128DivmodCol2 q0 q1 q2 b0 b1 b2 r0 r1 r2 * u32Base ^ 2
+          + divmodX3 q0 q1 q2 q3 b0 b1 b2 b3 r3 * u32Base ^ 3
+          + divmodX4 q1 q2 q3 b1 b2 b3 * u32Base ^ 4
+          + divmodX5 q2 q3 b2 b3 * u32Base ^ 5
+          + divmodX6 q3 b3 * u32Base ^ 6 =
+        divmodCol2Lo q0 q1 q2 b0 b1 b2 r0 r1 r2 * u32Base ^ 2
+          + divmodCol3Lo q0 q1 q2 q3 b0 b1 b2 b3 r0 r1 r2 r3 * u32Base ^ 3
+          + divmodCarry q0 q1 q2 q3 b0 b1 b2 b3 r0 r1 r2 r3 * u32Base ^ 4 := by
+      calc
+        u128DivmodCol2 q0 q1 q2 b0 b1 b2 r0 r1 r2 * u32Base ^ 2
+            + divmodX3 q0 q1 q2 q3 b0 b1 b2 b3 r3 * u32Base ^ 3
+            + divmodX4 q1 q2 q3 b1 b2 b3 * u32Base ^ 4
+            + divmodX5 q2 q3 b2 b3 * u32Base ^ 5
+            + divmodX6 q3 b3 * u32Base ^ 6
+            =
+          divmodCol2Lo q0 q1 q2 b0 b1 b2 r0 r1 r2 * u32Base ^ 2
+            + (u128DivmodCol3 q0 q1 q2 q3 b0 b1 b2 b3 r0 r1 r2 r3 * u32Base ^ 3
+                + divmodX4 q1 q2 q3 b1 b2 b3 * u32Base ^ 4
+                + divmodX5 q2 q3 b2 b3 * u32Base ^ 5
+                + divmodX6 q3 b3 * u32Base ^ 6) := by
+                rw [h3]
+                ring
+        _ =
+          divmodCol2Lo q0 q1 q2 b0 b1 b2 r0 r1 r2 * u32Base ^ 2
+            + (divmodCol3Lo q0 q1 q2 q3 b0 b1 b2 b3 r0 r1 r2 r3 * u32Base ^ 3
+                + divmodCarry q0 q1 q2 q3 b0 b1 b2 b3 r0 r1 r2 r3 * u32Base ^ 4) := by
+                rw [h4']
+        _ =
+          divmodCol2Lo q0 q1 q2 b0 b1 b2 r0 r1 r2 * u32Base ^ 2
+            + divmodCol3Lo q0 q1 q2 q3 b0 b1 b2 b3 r0 r1 r2 r3 * u32Base ^ 3
+            + divmodCarry q0 q1 q2 q3 b0 b1 b2 b3 r0 r1 r2 r3 * u32Base ^ 4 := by
+                ring
+    have h1234 :
+        u128DivmodCol1 q0 q1 b0 b1 r0 r1 * u32Base
+          + divmodX2 q0 q1 q2 b0 b1 b2 r2 * u32Base ^ 2
+          + divmodX3 q0 q1 q2 q3 b0 b1 b2 b3 r3 * u32Base ^ 3
+          + divmodX4 q1 q2 q3 b1 b2 b3 * u32Base ^ 4
+          + divmodX5 q2 q3 b2 b3 * u32Base ^ 5
+          + divmodX6 q3 b3 * u32Base ^ 6 =
+        divmodCol1Lo q0 q1 b0 b1 r0 r1 * u32Base
+          + divmodCol2Lo q0 q1 q2 b0 b1 b2 r0 r1 r2 * u32Base ^ 2
+          + divmodCol3Lo q0 q1 q2 q3 b0 b1 b2 b3 r0 r1 r2 r3 * u32Base ^ 3
+          + divmodCarry q0 q1 q2 q3 b0 b1 b2 b3 r0 r1 r2 r3 * u32Base ^ 4 := by
+      calc
+        u128DivmodCol1 q0 q1 b0 b1 r0 r1 * u32Base
+            + divmodX2 q0 q1 q2 b0 b1 b2 r2 * u32Base ^ 2
+            + divmodX3 q0 q1 q2 q3 b0 b1 b2 b3 r3 * u32Base ^ 3
+            + divmodX4 q1 q2 q3 b1 b2 b3 * u32Base ^ 4
+            + divmodX5 q2 q3 b2 b3 * u32Base ^ 5
+            + divmodX6 q3 b3 * u32Base ^ 6
+            =
+          divmodCol1Lo q0 q1 b0 b1 r0 r1 * u32Base
+            + (u128DivmodCol2 q0 q1 q2 b0 b1 b2 r0 r1 r2 * u32Base ^ 2
+                + divmodX3 q0 q1 q2 q3 b0 b1 b2 b3 r3 * u32Base ^ 3
+                + divmodX4 q1 q2 q3 b1 b2 b3 * u32Base ^ 4
+                + divmodX5 q2 q3 b2 b3 * u32Base ^ 5
+                + divmodX6 q3 b3 * u32Base ^ 6) := by
+                rw [h2]
+                ring
+        _ =
+          divmodCol1Lo q0 q1 b0 b1 r0 r1 * u32Base
+            + (divmodCol2Lo q0 q1 q2 b0 b1 b2 r0 r1 r2 * u32Base ^ 2
+                + divmodCol3Lo q0 q1 q2 q3 b0 b1 b2 b3 r0 r1 r2 r3 * u32Base ^ 3
+                + divmodCarry q0 q1 q2 q3 b0 b1 b2 b3 r0 r1 r2 r3 * u32Base ^ 4) := by
+                rw [h234]
+        _ =
+          divmodCol1Lo q0 q1 b0 b1 r0 r1 * u32Base
+            + divmodCol2Lo q0 q1 q2 b0 b1 b2 r0 r1 r2 * u32Base ^ 2
+            + divmodCol3Lo q0 q1 q2 q3 b0 b1 b2 b3 r0 r1 r2 r3 * u32Base ^ 3
+            + divmodCarry q0 q1 q2 q3 b0 b1 b2 b3 r0 r1 r2 r3 * u32Base ^ 4 := by
+                ring
+    have hall :
+        u128DivmodCol0 q0 b0 r0
+          + divmodX1 q0 q1 b0 b1 r1 * u32Base
+          + divmodX2 q0 q1 q2 b0 b1 b2 r2 * u32Base ^ 2
+          + divmodX3 q0 q1 q2 q3 b0 b1 b2 b3 r3 * u32Base ^ 3
+          + divmodX4 q1 q2 q3 b1 b2 b3 * u32Base ^ 4
+          + divmodX5 q2 q3 b2 b3 * u32Base ^ 5
+          + divmodX6 q3 b3 * u32Base ^ 6 =
+        divmodCol0Lo q0 b0 r0
+          + divmodCol1Lo q0 q1 b0 b1 r0 r1 * u32Base
+          + divmodCol2Lo q0 q1 q2 b0 b1 b2 r0 r1 r2 * u32Base ^ 2
+          + divmodCol3Lo q0 q1 q2 q3 b0 b1 b2 b3 r0 r1 r2 r3 * u32Base ^ 3
+          + divmodCarry q0 q1 q2 q3 b0 b1 b2 b3 r0 r1 r2 r3 * u32Base ^ 4 := by
+      calc
+        u128DivmodCol0 q0 b0 r0
+            + divmodX1 q0 q1 b0 b1 r1 * u32Base
+            + divmodX2 q0 q1 q2 b0 b1 b2 r2 * u32Base ^ 2
+            + divmodX3 q0 q1 q2 q3 b0 b1 b2 b3 r3 * u32Base ^ 3
+            + divmodX4 q1 q2 q3 b1 b2 b3 * u32Base ^ 4
+            + divmodX5 q2 q3 b2 b3 * u32Base ^ 5
+            + divmodX6 q3 b3 * u32Base ^ 6
+            =
+          divmodCol0Lo q0 b0 r0
+            + (u128DivmodCol1 q0 q1 b0 b1 r0 r1 * u32Base
+                + divmodX2 q0 q1 q2 b0 b1 b2 r2 * u32Base ^ 2
+                + divmodX3 q0 q1 q2 q3 b0 b1 b2 b3 r3 * u32Base ^ 3
+                + divmodX4 q1 q2 q3 b1 b2 b3 * u32Base ^ 4
+                + divmodX5 q2 q3 b2 b3 * u32Base ^ 5
+                + divmodX6 q3 b3 * u32Base ^ 6) := by
+                rw [h1]
+                ring
+        _ =
+          divmodCol0Lo q0 b0 r0
+            + (divmodCol1Lo q0 q1 b0 b1 r0 r1 * u32Base
+                + divmodCol2Lo q0 q1 q2 b0 b1 b2 r0 r1 r2 * u32Base ^ 2
+                + divmodCol3Lo q0 q1 q2 q3 b0 b1 b2 b3 r0 r1 r2 r3 * u32Base ^ 3
+                + divmodCarry q0 q1 q2 q3 b0 b1 b2 b3 r0 r1 r2 r3 * u32Base ^ 4) := by
+                rw [h1234]
+        _ =
+          divmodCol0Lo q0 b0 r0
+            + divmodCol1Lo q0 q1 b0 b1 r0 r1 * u32Base
+            + divmodCol2Lo q0 q1 q2 b0 b1 b2 r0 r1 r2 * u32Base ^ 2
+            + divmodCol3Lo q0 q1 q2 q3 b0 b1 b2 b3 r0 r1 r2 r3 * u32Base ^ 3
+            + divmodCarry q0 q1 q2 q3 b0 b1 b2 b3 r0 r1 r2 r3 * u32Base ^ 4 := by
+                ring
+    rw [← hall]
+    exact h0
+  calc
+    u128RawValue q0 q1 q2 q3 * u128RawValue b0 b1 b2 b3 + u128RawValue r0 r1 r2 r3
+        =
+      divmodCol0Lo q0 b0 r0
+        + divmodCol1Lo q0 q1 b0 b1 r0 r1 * u32Base
+        + divmodCol2Lo q0 q1 q2 b0 b1 b2 r0 r1 r2 * u32Base ^ 2
+        + divmodCol3Lo q0 q1 q2 q3 b0 b1 b2 b3 r0 r1 r2 r3 * u32Base ^ 3
+        + divmodCarry q0 q1 q2 q3 b0 b1 b2 b3 r0 r1 r2 r3 * u32Base ^ 4 := by
+          exact hpacked.symm
+    _ =
+      divmodCol0Lo q0 b0 r0
+        + divmodCol1Lo q0 q1 b0 b1 r0 r1 * u32Base
+        + divmodCol2Lo q0 q1 q2 b0 b1 b2 r0 r1 r2 * u32Base ^ 2
+        + divmodCol3Lo q0 q1 q2 q3 b0 b1 b2 b3 r0 r1 r2 r3 * u32Base ^ 3 := by
+          simp [hcarry_zero]
+    _ = u128RawValue a0 a1 a2 a3 := by
+          rw [ha0_eq, ha1_eq, ha2_eq, ha3_eq]
+          unfold u128RawValue
+          dsimp [u32Base]
+          ring
+
 set_option maxHeartbeats 16000000 in
 set_option maxRecDepth 65536 in
 theorem u128_divmod_raw
@@ -2805,9 +4305,858 @@ theorem u128_divmod_raw
       hq1 hq2 hq3 hr0 hr1 hr2 hr3 hb0 hb1 hb2 hb3
       hq3b1_zero hq2b2_zero hq1b3_zero hq3b2_zero hq2b3_zero hq3b3_zero h_lt_result]
 
-/-- `u128::divmod` verifies an advice-supplied quotient and remainder for u128 division.
-    When `q * b + r = a` and `r < b`, execution succeeds and returns the remainder limbs
-    followed by the quotient limbs.
+set_option maxHeartbeats 16000000 in
+set_option maxRecDepth 65536 in
+theorem u128_divmod_conditions_of_exec
+    (a b q r : U128) (rest adv_rest : List Felt) (s : MidenState)
+    (hs : s.stack = b.a0.val :: b.a1.val :: b.a2.val :: b.a3.val ::
+                    a.a0.val :: a.a1.val :: a.a2.val :: a.a3.val :: rest)
+    (hadv : s.advice = r.a0.val :: r.a1.val :: r.a2.val :: r.a3.val ::
+                      q.a0.val :: q.a1.val :: q.a2.val :: q.a3.val :: adv_rest)
+    {s' : MidenState}
+    (hexec : exec 163 s Miden.Core.U128.divmod = some s') :
+    q.toNat * b.toNat + r.toNat = a.toNat ∧ r.toNat < b.toNat := by
+  obtain ⟨stk, mem, locs, adv⟩ := s
+  simp only [] at hs hadv
+  subst hs
+  subst hadv
+  rw [divmod_decomp, exec_append] at hexec
+  rw [divmodSetup_run
+      q.a0.val q.a1.val q.a2.val q.a3.val
+      r.a0.val r.a1.val r.a2.val r.a3.val
+      b.a0.val b.a1.val b.a2.val b.a3.val
+      a.a0.val a.a1.val a.a2.val a.a3.val
+      rest adv_rest mem locs
+      q.a0.isU32 q.a1.isU32 q.a2.isU32 q.a3.isU32
+      r.a0.isU32 r.a1.isU32 r.a2.isU32 r.a3.isU32] at hexec
+  simp at hexec
+  rw [exec_append] at hexec
+  have ha0_eq :
+      a.a0.val = Felt.ofNat (u128DivmodCol0 q.a0.val.val b.a0.val.val r.a0.val.val % 2 ^ 32) := by
+    by_contra h_not
+    rw [divmodCol0_none
+        q.a0.val q.a1.val q.a2.val q.a3.val
+        r.a0.val r.a1.val r.a2.val r.a3.val
+        b.a0.val b.a1.val b.a2.val b.a3.val
+        a.a0.val a.a1.val a.a2.val a.a3.val
+        rest adv_rest mem locs
+        q.a0.isU32 q.a1.isU32 q.a2.isU32 q.a3.isU32
+        r.a0.isU32 b.a0.isU32 h_not] at hexec
+    simp at hexec
+  rw [divmodCol0_run
+      q.a0.val q.a1.val q.a2.val q.a3.val
+      r.a0.val r.a1.val r.a2.val r.a3.val
+      b.a0.val b.a1.val b.a2.val b.a3.val
+      a.a0.val a.a1.val a.a2.val a.a3.val
+      rest adv_rest mem locs
+      q.a0.isU32 q.a1.isU32 q.a2.isU32 q.a3.isU32
+      r.a0.isU32 ha0_eq b.a0.isU32] at hexec
+  simp at hexec
+  simp only [← two_pow_32] at hexec
+  rw [exec_append] at hexec
+  have hc0_lt :
+      u128DivmodCol0 q.a0.val.val b.a0.val.val r.a0.val.val / 2 ^ 32 < 2 ^ 32 := by
+    simpa using divmodCol0Carry_lt q.a0.val b.a0.val r.a0.val q.a0.isU32 b.a0.isU32 r.a0.isU32
+  have hc0_u32 :
+      (Felt.ofNat (u128DivmodCol0 q.a0.val.val b.a0.val.val r.a0.val.val / 2 ^ 32)).isU32 = true := by
+    exact felt_ofNat_isU32_of_lt _ hc0_lt
+  have hc0_val :
+      (Felt.ofNat (u128DivmodCol0 q.a0.val.val b.a0.val.val r.a0.val.val / 2 ^ 32)).val =
+        u128DivmodCol0 q.a0.val.val b.a0.val.val r.a0.val.val / 2 ^ 32 := by
+    exact felt_ofNat_val_lt _ (u32_val_lt_prime _ hc0_lt)
+  have ha1_eq :
+      a.a1.val =
+        Felt.ofNat
+          (u128DivmodCol1 q.a0.val.val q.a1.val.val b.a0.val.val b.a1.val.val r.a0.val.val r.a1.val.val %
+            2 ^ 32) := by
+    by_contra h_not
+    rw [divmodCol1_none
+        (Felt.ofNat (u128DivmodCol0 q.a0.val.val b.a0.val.val r.a0.val.val / 2 ^ 32))
+        q.a0.val q.a1.val q.a2.val q.a3.val
+        r.a0.val r.a1.val r.a2.val r.a3.val
+        b.a0.val b.a1.val b.a2.val b.a3.val
+        a.a1.val a.a2.val a.a3.val
+        rest adv_rest mem locs
+        q.a0.isU32 q.a1.isU32 r.a1.isU32
+        b.a0.isU32 b.a1.isU32
+        hc0_u32 hc0_val h_not] at hexec
+    simp at hexec
+  rw [divmodCol1_run
+      (Felt.ofNat (u128DivmodCol0 q.a0.val.val b.a0.val.val r.a0.val.val / 2 ^ 32))
+      q.a0.val q.a1.val q.a2.val q.a3.val
+      r.a0.val r.a1.val r.a2.val r.a3.val
+      b.a0.val b.a1.val b.a2.val b.a3.val
+      a.a1.val a.a2.val a.a3.val
+      rest adv_rest mem locs
+      q.a0.isU32 q.a1.isU32 r.a1.isU32
+      b.a0.isU32 b.a1.isU32
+      hc0_u32 hc0_val ha1_eq] at hexec
+  simp at hexec
+  simp only [← two_pow_32] at hexec
+  rw [divmodCol2_eq, exec_append] at hexec
+  rw [exec_append] at hexec
+  have hc1Hi_lt :
+      u128DivmodCol1 q.a0.val.val q.a1.val.val b.a0.val.val b.a1.val.val r.a0.val.val r.a1.val.val / 2 ^ 32 / 2 ^ 32 <
+        2 ^ 32 := by
+    exact divmodCol1CarryCarry_lt
+      q.a0.val q.a1.val b.a0.val b.a1.val r.a0.val r.a1.val
+      q.a0.isU32 q.a1.isU32 b.a0.isU32 b.a1.isU32 r.a0.isU32 r.a1.isU32
+  rw [divmodCol2a_run
+      (Felt.ofNat
+        (u128DivmodCol1 q.a0.val.val q.a1.val.val b.a0.val.val b.a1.val.val r.a0.val.val r.a1.val.val /
+          2 ^ 32 %
+          2 ^ 32))
+      (Felt.ofNat
+        (u128DivmodCol1 q.a0.val.val q.a1.val.val b.a0.val.val b.a1.val.val r.a0.val.val r.a1.val.val /
+          2 ^ 32 /
+          2 ^ 32))
+      q.a0.val q.a1.val q.a2.val q.a3.val
+      r.a0.val r.a1.val r.a2.val r.a3.val
+      b.a0.val b.a1.val b.a2.val b.a3.val
+      a.a2.val a.a3.val
+      rest adv_rest mem locs
+      q.a1.isU32 q.a2.isU32 b.a0.isU32 b.a1.isU32
+      (u32_mod_isU32 _)
+      (felt_ofNat_val_lt _ (u32_mod_lt_prime _))] at hexec
+  simp at hexec
+  simp only [← two_pow_32] at hexec
+  let c1Lo : Felt :=
+    Felt.ofNat
+      (u128DivmodCol1 q.a0.val.val q.a1.val.val b.a0.val.val b.a1.val.val r.a0.val.val r.a1.val.val /
+        2 ^ 32 %
+        2 ^ 32)
+  let c1Hi : Felt :=
+    Felt.ofNat
+      (u128DivmodCol1 q.a0.val.val q.a1.val.val b.a0.val.val b.a1.val.val r.a0.val.val r.a1.val.val /
+        2 ^ 32 /
+        2 ^ 32)
+  let col2Lo0 : Nat := (b.a0.val.val * q.a2.val.val + c1Lo.val) % 2 ^ 32
+  let col2Hi0 : Nat := (b.a0.val.val * q.a2.val.val + c1Lo.val) / 2 ^ 32
+  let col2Lo1 : Nat := (b.a1.val.val * q.a1.val.val + col2Lo0) % 2 ^ 32
+  let col2Hi1 : Nat := (b.a1.val.val * q.a1.val.val + col2Lo0) / 2 ^ 32
+  let col2SumHi : Nat := c1Hi.val + col2Hi0 + col2Hi1
+  let col2Madd2Lo : Nat := (b.a2.val.val * q.a0.val.val + col2Lo1) % 2 ^ 32
+  let col2Madd2Hi : Nat := (b.a2.val.val * q.a0.val.val + col2Lo1) / 2 ^ 32
+  rw [exec_append] at hexec
+  have hCol2b :
+      exec 163
+        ⟨Felt.ofNat
+            ((b.a1.val.val * q.a1.val.val +
+                (b.a0.val.val * q.a2.val.val +
+                    (Felt.ofNat
+                      (u128DivmodCol1 q.a0.val.val q.a1.val.val b.a0.val.val b.a1.val.val
+                        r.a0.val.val r.a1.val.val /
+                        2 ^ 32 %
+                        2 ^ 32)).val) %
+                  2 ^ 32) %
+              2 ^ 32) ::
+          Felt.ofNat
+            ((Felt.ofNat
+                (u128DivmodCol1 q.a0.val.val q.a1.val.val b.a0.val.val b.a1.val.val
+                  r.a0.val.val r.a1.val.val /
+                  2 ^ 32 /
+                  2 ^ 32)).val +
+              (b.a0.val.val * q.a2.val.val +
+                  (Felt.ofNat
+                    (u128DivmodCol1 q.a0.val.val q.a1.val.val b.a0.val.val b.a1.val.val
+                      r.a0.val.val r.a1.val.val /
+                      2 ^ 32 %
+                      2 ^ 32)).val) /
+                2 ^ 32 +
+              (b.a1.val.val * q.a1.val.val +
+                  (b.a0.val.val * q.a2.val.val +
+                      (Felt.ofNat
+                        (u128DivmodCol1 q.a0.val.val q.a1.val.val b.a0.val.val b.a1.val.val
+                          r.a0.val.val r.a1.val.val /
+                          2 ^ 32 %
+                          2 ^ 32)).val) %
+                2 ^ 32) /
+              2 ^ 32) ::
+          q.a0.val :: q.a1.val :: q.a2.val :: q.a3.val ::
+          r.a0.val :: r.a1.val :: r.a2.val :: r.a3.val ::
+          b.a0.val :: b.a1.val :: b.a2.val :: b.a3.val ::
+          a.a2.val :: a.a3.val :: rest,
+          mem, locs, adv_rest⟩
+        divmodCol2b =
+      some ⟨Felt.ofNat col2Madd2Lo :: Felt.ofNat (col2SumHi + col2Madd2Hi) ::
+              q.a0.val :: q.a1.val :: q.a2.val :: q.a3.val ::
+              r.a0.val :: r.a1.val :: r.a2.val :: r.a3.val ::
+              b.a0.val :: b.a1.val :: b.a2.val :: b.a3.val ::
+              a.a2.val :: a.a3.val :: rest,
+            mem, locs, adv_rest⟩ := by
+    dsimp [c1Lo, c1Hi, col2Lo0, col2Hi0, col2Lo1, col2Hi1, col2SumHi, col2Madd2Lo,
+      col2Madd2Hi]
+    simpa using
+      (divmodCol2b_run
+        (Felt.ofNat
+          (u128DivmodCol1 q.a0.val.val q.a1.val.val b.a0.val.val b.a1.val.val r.a0.val.val r.a1.val.val /
+            2 ^ 32 %
+            2 ^ 32))
+        (Felt.ofNat
+          (u128DivmodCol1 q.a0.val.val q.a1.val.val b.a0.val.val b.a1.val.val r.a0.val.val r.a1.val.val /
+            2 ^ 32 /
+            2 ^ 32))
+        q.a0.val q.a1.val q.a2.val q.a3.val
+        r.a0.val r.a1.val r.a2.val r.a3.val
+        b.a0.val b.a1.val b.a2.val b.a3.val
+        a.a2.val a.a3.val
+        rest adv_rest mem locs
+        q.a0.isU32 b.a2.isU32)
+  have hexecCol2c :
+      ((exec 163
+          ⟨Felt.ofNat col2Madd2Lo :: Felt.ofNat (col2SumHi + col2Madd2Hi) ::
+              q.a0.val :: q.a1.val :: q.a2.val :: q.a3.val ::
+              r.a0.val :: r.a1.val :: r.a2.val :: r.a3.val ::
+              b.a0.val :: b.a1.val :: b.a2.val :: b.a3.val ::
+              a.a2.val :: a.a3.val :: rest,
+            mem, locs, adv_rest⟩
+          divmodCol2c).bind
+        fun a => exec 163 a (divmodCol3 ++ divmodTail)) =
+      some s' := by
+    have hCol2bc :
+        (exec 163
+            ⟨Felt.ofNat
+                ((b.a1.val.val * q.a1.val.val +
+                    (b.a0.val.val * q.a2.val.val +
+                        (Felt.ofNat
+                          (u128DivmodCol1 q.a0.val.val q.a1.val.val b.a0.val.val b.a1.val.val
+                            r.a0.val.val r.a1.val.val /
+                            2 ^ 32 %
+                            2 ^ 32)).val) %
+                      2 ^ 32) %
+                  2 ^ 32) ::
+              Felt.ofNat
+                ((Felt.ofNat
+                    (u128DivmodCol1 q.a0.val.val q.a1.val.val b.a0.val.val b.a1.val.val
+                      r.a0.val.val r.a1.val.val /
+                      2 ^ 32 /
+                      2 ^ 32)).val +
+                  (b.a0.val.val * q.a2.val.val +
+                      (Felt.ofNat
+                        (u128DivmodCol1 q.a0.val.val q.a1.val.val b.a0.val.val b.a1.val.val
+                          r.a0.val.val r.a1.val.val /
+                          2 ^ 32 %
+                          2 ^ 32)).val) /
+                    2 ^ 32 +
+                  (b.a1.val.val * q.a1.val.val +
+                      (b.a0.val.val * q.a2.val.val +
+                          (Felt.ofNat
+                            (u128DivmodCol1 q.a0.val.val q.a1.val.val b.a0.val.val b.a1.val.val
+                              r.a0.val.val r.a1.val.val /
+                              2 ^ 32 %
+                              2 ^ 32)).val) %
+                    2 ^ 32) /
+                  2 ^ 32) ::
+              q.a0.val :: q.a1.val :: q.a2.val :: q.a3.val ::
+              r.a0.val :: r.a1.val :: r.a2.val :: r.a3.val ::
+              b.a0.val :: b.a1.val :: b.a2.val :: b.a3.val ::
+              a.a2.val :: a.a3.val :: rest,
+            mem, locs, adv_rest⟩
+            divmodCol2b).bind
+          (fun st => exec 163 st divmodCol2c) =
+        exec 163
+          ⟨Felt.ofNat col2Madd2Lo :: Felt.ofNat (col2SumHi + col2Madd2Hi) ::
+              q.a0.val :: q.a1.val :: q.a2.val :: q.a3.val ::
+              r.a0.val :: r.a1.val :: r.a2.val :: r.a3.val ::
+              b.a0.val :: b.a1.val :: b.a2.val :: b.a3.val ::
+              a.a2.val :: a.a3.val :: rest,
+            mem, locs, adv_rest⟩
+          divmodCol2c := by
+      rw [hCol2b]
+      simp [Option.bind]
+    have hexec_bind :
+        ((exec 163
+            ⟨Felt.ofNat
+                ((b.a1.val.val * q.a1.val.val +
+                    (b.a0.val.val * q.a2.val.val +
+                        (Felt.ofNat
+                          (u128DivmodCol1 q.a0.val.val q.a1.val.val b.a0.val.val b.a1.val.val
+                            r.a0.val.val r.a1.val.val /
+                            2 ^ 32 %
+                            2 ^ 32)).val) %
+                      2 ^ 32) %
+                  2 ^ 32) ::
+              Felt.ofNat
+                ((Felt.ofNat
+                    (u128DivmodCol1 q.a0.val.val q.a1.val.val b.a0.val.val b.a1.val.val
+                      r.a0.val.val r.a1.val.val /
+                      2 ^ 32 /
+                      2 ^ 32)).val +
+                  (b.a0.val.val * q.a2.val.val +
+                      (Felt.ofNat
+                        (u128DivmodCol1 q.a0.val.val q.a1.val.val b.a0.val.val b.a1.val.val
+                          r.a0.val.val r.a1.val.val /
+                          2 ^ 32 %
+                          2 ^ 32)).val) /
+                    2 ^ 32 +
+                  (b.a1.val.val * q.a1.val.val +
+                      (b.a0.val.val * q.a2.val.val +
+                          (Felt.ofNat
+                            (u128DivmodCol1 q.a0.val.val q.a1.val.val b.a0.val.val b.a1.val.val
+                              r.a0.val.val r.a1.val.val /
+                              2 ^ 32 %
+                              2 ^ 32)).val) %
+                    2 ^ 32) /
+                  2 ^ 32) ::
+              q.a0.val :: q.a1.val :: q.a2.val :: q.a3.val ::
+              r.a0.val :: r.a1.val :: r.a2.val :: r.a3.val ::
+              b.a0.val :: b.a1.val :: b.a2.val :: b.a3.val ::
+              a.a2.val :: a.a3.val :: rest,
+            mem, locs, adv_rest⟩
+            divmodCol2b).bind
+          (fun st => exec 163 st divmodCol2c)).bind
+        (fun a => exec 163 a (divmodCol3 ++ divmodTail)) =
+      some s' := by
+      simpa [bind, Bind.bind, Option.bind] using hexec
+    rw [hCol2bc] at hexec_bind
+    exact hexec_bind
+  have hexec := hexecCol2c
+  clear hexecCol2c
+  have ha2_eq :
+      a.a2.val =
+        Felt.ofNat
+          (u128DivmodCol2 q.a0.val.val q.a1.val.val q.a2.val.val b.a0.val.val b.a1.val.val b.a2.val.val
+              r.a0.val.val r.a1.val.val r.a2.val.val %
+            2 ^ 32) := by
+    by_contra h_not
+    rw [show exec 163
+        ⟨Felt.ofNat col2Madd2Lo :: Felt.ofNat (col2SumHi + col2Madd2Hi) ::
+            q.a0.val :: q.a1.val :: q.a2.val :: q.a3.val ::
+            r.a0.val :: r.a1.val :: r.a2.val :: r.a3.val ::
+            b.a0.val :: b.a1.val :: b.a2.val :: b.a3.val ::
+            a.a2.val :: a.a3.val :: rest,
+          mem, locs, adv_rest⟩
+        divmodCol2c =
+      none by
+        dsimp [c1Lo, c1Hi, col2Lo0, col2Hi0, col2Lo1, col2Hi1, col2SumHi, col2Madd2Lo,
+          col2Madd2Hi]
+        simpa using
+          (divmodCol2c_none
+            (Felt.ofNat
+              (u128DivmodCol1 q.a0.val.val q.a1.val.val b.a0.val.val b.a1.val.val r.a0.val.val r.a1.val.val /
+                2 ^ 32 %
+                2 ^ 32))
+            (Felt.ofNat
+              (u128DivmodCol1 q.a0.val.val q.a1.val.val b.a0.val.val b.a1.val.val r.a0.val.val r.a1.val.val /
+                2 ^ 32 /
+                2 ^ 32))
+            q.a0.val q.a1.val q.a2.val q.a3.val
+            r.a0.val r.a1.val r.a2.val r.a3.val
+            b.a0.val b.a1.val b.a2.val b.a3.val
+            a.a2.val a.a3.val
+            rest adv_rest mem locs
+            q.a0.isU32 q.a1.isU32 q.a2.isU32 r.a2.isU32
+            b.a0.isU32 b.a1.isU32 b.a2.isU32
+            (u32_mod_isU32 _) (felt_ofNat_isU32_of_lt _ hc1Hi_lt)
+            (felt_ofNat_val_lt _ (u32_mod_lt_prime _))
+            (felt_ofNat_val_lt _ (u32_val_lt_prime _ hc1Hi_lt))
+            h_not)] at hexec
+    simp at hexec
+  rw [show exec 163
+      ⟨Felt.ofNat col2Madd2Lo :: Felt.ofNat (col2SumHi + col2Madd2Hi) ::
+          q.a0.val :: q.a1.val :: q.a2.val :: q.a3.val ::
+          r.a0.val :: r.a1.val :: r.a2.val :: r.a3.val ::
+          b.a0.val :: b.a1.val :: b.a2.val :: b.a3.val ::
+          a.a2.val :: a.a3.val :: rest,
+        mem, locs, adv_rest⟩
+      divmodCol2c =
+    some ⟨Felt.ofNat
+              (u128DivmodCol2 q.a0.val.val q.a1.val.val q.a2.val.val b.a0.val.val b.a1.val.val b.a2.val.val
+                  r.a0.val.val r.a1.val.val r.a2.val.val /
+                2 ^ 32 %
+                2 ^ 32) ::
+            Felt.ofNat
+              (u128DivmodCol2 q.a0.val.val q.a1.val.val q.a2.val.val b.a0.val.val b.a1.val.val b.a2.val.val
+                  r.a0.val.val r.a1.val.val r.a2.val.val /
+                2 ^ 32 /
+                2 ^ 32) ::
+            q.a0.val :: q.a1.val :: q.a2.val :: q.a3.val ::
+            r.a0.val :: r.a1.val :: r.a2.val :: r.a3.val ::
+            b.a0.val :: b.a1.val :: b.a2.val :: b.a3.val ::
+            a.a3.val :: rest,
+          mem, locs, adv_rest⟩ by
+      dsimp [c1Lo, c1Hi, col2Lo0, col2Hi0, col2Lo1, col2Hi1, col2SumHi, col2Madd2Lo,
+        col2Madd2Hi]
+      simpa using
+        (divmodCol2c_run
+          (Felt.ofNat
+            (u128DivmodCol1 q.a0.val.val q.a1.val.val b.a0.val.val b.a1.val.val r.a0.val.val r.a1.val.val /
+              2 ^ 32 %
+              2 ^ 32))
+          (Felt.ofNat
+            (u128DivmodCol1 q.a0.val.val q.a1.val.val b.a0.val.val b.a1.val.val r.a0.val.val r.a1.val.val /
+              2 ^ 32 /
+              2 ^ 32))
+          q.a0.val q.a1.val q.a2.val q.a3.val
+          r.a0.val r.a1.val r.a2.val r.a3.val
+          b.a0.val b.a1.val b.a2.val b.a3.val
+          a.a2.val a.a3.val
+          rest adv_rest mem locs
+          q.a0.isU32 q.a1.isU32 q.a2.isU32 r.a2.isU32
+          b.a0.isU32 b.a1.isU32 b.a2.isU32
+          (u32_mod_isU32 _) (felt_ofNat_isU32_of_lt _ hc1Hi_lt)
+          (felt_ofNat_val_lt _ (u32_mod_lt_prime _))
+          (felt_ofNat_val_lt _ (u32_val_lt_prime _ hc1Hi_lt))
+          ha2_eq)] at hexec
+  simp at hexec
+  simp only [← two_pow_32] at hexec
+  rw [divmodCol3_eq, exec_append] at hexec
+  rw [exec_append] at hexec
+  have hc2Hi_lt :
+      u128DivmodCol2 q.a0.val.val q.a1.val.val q.a2.val.val b.a0.val.val b.a1.val.val b.a2.val.val
+          r.a0.val.val r.a1.val.val r.a2.val.val / 2 ^ 32 / 2 ^ 32 <
+        2 ^ 32 := by
+    exact divmodCol2CarryCarry_lt
+      q.a0.val q.a1.val q.a2.val
+      b.a0.val b.a1.val b.a2.val
+      r.a0.val r.a1.val r.a2.val
+      q.a0.isU32 q.a1.isU32 q.a2.isU32
+      b.a0.isU32 b.a1.isU32 b.a2.isU32
+      r.a0.isU32 r.a1.isU32 r.a2.isU32
+  rw [divmodCol3a_run
+      (Felt.ofNat
+        (u128DivmodCol2 q.a0.val.val q.a1.val.val q.a2.val.val b.a0.val.val b.a1.val.val b.a2.val.val
+          r.a0.val.val r.a1.val.val r.a2.val.val / 2 ^ 32 % 2 ^ 32))
+      (Felt.ofNat
+        (u128DivmodCol2 q.a0.val.val q.a1.val.val q.a2.val.val b.a0.val.val b.a1.val.val b.a2.val.val
+          r.a0.val.val r.a1.val.val r.a2.val.val / 2 ^ 32 / 2 ^ 32))
+      q.a0.val q.a1.val q.a2.val q.a3.val
+      r.a0.val r.a1.val r.a2.val r.a3.val
+      b.a0.val b.a1.val b.a2.val b.a3.val
+      a.a3.val
+      rest adv_rest mem locs
+      q.a2.isU32 q.a3.isU32 b.a0.isU32 b.a1.isU32
+      (u32_mod_isU32 _)] at hexec
+  simp at hexec
+  simp only [← two_pow_32] at hexec
+  let c2Lo : Felt :=
+    Felt.ofNat
+      (u128DivmodCol2 q.a0.val.val q.a1.val.val q.a2.val.val b.a0.val.val b.a1.val.val b.a2.val.val
+        r.a0.val.val r.a1.val.val r.a2.val.val / 2 ^ 32 % 2 ^ 32)
+  let c2Hi : Felt :=
+    Felt.ofNat
+      (u128DivmodCol2 q.a0.val.val q.a1.val.val q.a2.val.val b.a0.val.val b.a1.val.val b.a2.val.val
+        r.a0.val.val r.a1.val.val r.a2.val.val / 2 ^ 32 / 2 ^ 32)
+  let col3Lo0 : Nat := (b.a0.val.val * q.a3.val.val + c2Lo.val) % 2 ^ 32
+  let col3Hi0 : Nat := (b.a0.val.val * q.a3.val.val + c2Lo.val) / 2 ^ 32
+  let col3Lo1 : Nat := (b.a1.val.val * q.a2.val.val + col3Lo0) % 2 ^ 32
+  let col3Hi1 : Nat := (b.a1.val.val * q.a2.val.val + col3Lo0) / 2 ^ 32
+  let col3SumHi : Nat := c2Hi.val + col3Hi0 + col3Hi1
+  let col3Madd2Lo : Nat := (b.a2.val.val * q.a1.val.val + col3Lo1) % 2 ^ 32
+  let col3Madd2Hi : Nat := (b.a2.val.val * q.a1.val.val + col3Lo1) / 2 ^ 32
+  rw [exec_append] at hexec
+  have hCol3b :
+      exec 163
+        ⟨Felt.ofNat
+            ((b.a1.val.val * q.a2.val.val +
+                (b.a0.val.val * q.a3.val.val +
+                    (Felt.ofNat
+                      (u128DivmodCol2 q.a0.val.val q.a1.val.val q.a2.val.val b.a0.val.val b.a1.val.val
+                        b.a2.val.val r.a0.val.val r.a1.val.val r.a2.val.val /
+                        2 ^ 32 %
+                        2 ^ 32)).val) %
+                  2 ^ 32) %
+              2 ^ 32) ::
+          Felt.ofNat
+            ((Felt.ofNat
+                (u128DivmodCol2 q.a0.val.val q.a1.val.val q.a2.val.val b.a0.val.val b.a1.val.val
+                  b.a2.val.val r.a0.val.val r.a1.val.val r.a2.val.val /
+                  2 ^ 32 /
+                  2 ^ 32)).val +
+              (b.a0.val.val * q.a3.val.val +
+                  (Felt.ofNat
+                    (u128DivmodCol2 q.a0.val.val q.a1.val.val q.a2.val.val b.a0.val.val b.a1.val.val
+                      b.a2.val.val r.a0.val.val r.a1.val.val r.a2.val.val /
+                      2 ^ 32 %
+                      2 ^ 32)).val) /
+                2 ^ 32 +
+              (b.a1.val.val * q.a2.val.val +
+                  (b.a0.val.val * q.a3.val.val +
+                      (Felt.ofNat
+                        (u128DivmodCol2 q.a0.val.val q.a1.val.val q.a2.val.val b.a0.val.val b.a1.val.val
+                          b.a2.val.val r.a0.val.val r.a1.val.val r.a2.val.val /
+                          2 ^ 32 %
+                          2 ^ 32)).val) %
+                2 ^ 32) /
+              2 ^ 32) ::
+          q.a0.val :: q.a1.val :: q.a2.val :: q.a3.val ::
+          r.a0.val :: r.a1.val :: r.a2.val :: r.a3.val ::
+          b.a0.val :: b.a1.val :: b.a2.val :: b.a3.val ::
+          a.a3.val :: rest,
+        mem, locs, adv_rest⟩
+        divmodCol3b =
+      some ⟨Felt.ofNat col3Madd2Lo :: Felt.ofNat (col3SumHi + col3Madd2Hi) ::
+              q.a0.val :: q.a1.val :: q.a2.val :: q.a3.val ::
+              r.a0.val :: r.a1.val :: r.a2.val :: r.a3.val ::
+              b.a0.val :: b.a1.val :: b.a2.val :: b.a3.val ::
+              a.a3.val :: rest,
+            mem, locs, adv_rest⟩ := by
+    dsimp [c2Lo, c2Hi, col3Lo0, col3Hi0, col3Lo1, col3Hi1, col3SumHi, col3Madd2Lo,
+      col3Madd2Hi]
+    simpa using
+      (divmodCol3b_run
+        (Felt.ofNat
+          (u128DivmodCol2 q.a0.val.val q.a1.val.val q.a2.val.val b.a0.val.val b.a1.val.val b.a2.val.val
+            r.a0.val.val r.a1.val.val r.a2.val.val /
+            2 ^ 32 %
+            2 ^ 32))
+        (Felt.ofNat
+          (u128DivmodCol2 q.a0.val.val q.a1.val.val q.a2.val.val b.a0.val.val b.a1.val.val b.a2.val.val
+            r.a0.val.val r.a1.val.val r.a2.val.val /
+            2 ^ 32 /
+            2 ^ 32))
+        q.a0.val q.a1.val q.a2.val q.a3.val
+        r.a0.val r.a1.val r.a2.val r.a3.val
+        b.a0.val b.a1.val b.a2.val b.a3.val
+        a.a3.val
+        rest adv_rest mem locs
+        q.a1.isU32 b.a2.isU32)
+  have hexecCol3c :
+      ((exec 163
+          ⟨Felt.ofNat col3Madd2Lo :: Felt.ofNat (col3SumHi + col3Madd2Hi) ::
+              q.a0.val :: q.a1.val :: q.a2.val :: q.a3.val ::
+              r.a0.val :: r.a1.val :: r.a2.val :: r.a3.val ::
+              b.a0.val :: b.a1.val :: b.a2.val :: b.a3.val ::
+              a.a3.val :: rest,
+            mem, locs, adv_rest⟩
+          divmodCol3c).bind
+        fun a => exec 163 a divmodTail) =
+      some s' := by
+    have hCol3bc :
+        (exec 163
+            ⟨Felt.ofNat
+                ((b.a1.val.val * q.a2.val.val +
+                    (b.a0.val.val * q.a3.val.val +
+                        (Felt.ofNat
+                          (u128DivmodCol2 q.a0.val.val q.a1.val.val q.a2.val.val b.a0.val.val b.a1.val.val
+                            b.a2.val.val r.a0.val.val r.a1.val.val r.a2.val.val /
+                            2 ^ 32 %
+                            2 ^ 32)).val) %
+                      2 ^ 32) %
+                  2 ^ 32) ::
+              Felt.ofNat
+                ((Felt.ofNat
+                    (u128DivmodCol2 q.a0.val.val q.a1.val.val q.a2.val.val b.a0.val.val b.a1.val.val
+                      b.a2.val.val r.a0.val.val r.a1.val.val r.a2.val.val /
+                      2 ^ 32 /
+                      2 ^ 32)).val +
+                  (b.a0.val.val * q.a3.val.val +
+                      (Felt.ofNat
+                        (u128DivmodCol2 q.a0.val.val q.a1.val.val q.a2.val.val b.a0.val.val b.a1.val.val
+                          b.a2.val.val r.a0.val.val r.a1.val.val r.a2.val.val /
+                          2 ^ 32 %
+                          2 ^ 32)).val) /
+                    2 ^ 32 +
+                  (b.a1.val.val * q.a2.val.val +
+                      (b.a0.val.val * q.a3.val.val +
+                          (Felt.ofNat
+                            (u128DivmodCol2 q.a0.val.val q.a1.val.val q.a2.val.val b.a0.val.val b.a1.val.val
+                              b.a2.val.val r.a0.val.val r.a1.val.val r.a2.val.val /
+                              2 ^ 32 %
+                              2 ^ 32)).val) %
+                    2 ^ 32) /
+                  2 ^ 32) ::
+              q.a0.val :: q.a1.val :: q.a2.val :: q.a3.val ::
+              r.a0.val :: r.a1.val :: r.a2.val :: r.a3.val ::
+              b.a0.val :: b.a1.val :: b.a2.val :: b.a3.val ::
+              a.a3.val :: rest,
+            mem, locs, adv_rest⟩
+            divmodCol3b).bind
+          (fun st => exec 163 st divmodCol3c) =
+        exec 163
+          ⟨Felt.ofNat col3Madd2Lo :: Felt.ofNat (col3SumHi + col3Madd2Hi) ::
+              q.a0.val :: q.a1.val :: q.a2.val :: q.a3.val ::
+              r.a0.val :: r.a1.val :: r.a2.val :: r.a3.val ::
+              b.a0.val :: b.a1.val :: b.a2.val :: b.a3.val ::
+              a.a3.val :: rest,
+            mem, locs, adv_rest⟩
+          divmodCol3c := by
+      rw [hCol3b]
+      simp [Option.bind]
+    have hexec_bind :
+        ((exec 163
+            ⟨Felt.ofNat
+                ((b.a1.val.val * q.a2.val.val +
+                    (b.a0.val.val * q.a3.val.val +
+                        (Felt.ofNat
+                          (u128DivmodCol2 q.a0.val.val q.a1.val.val q.a2.val.val b.a0.val.val b.a1.val.val
+                            b.a2.val.val r.a0.val.val r.a1.val.val r.a2.val.val /
+                            2 ^ 32 %
+                            2 ^ 32)).val) %
+                      2 ^ 32) %
+                  2 ^ 32) ::
+              Felt.ofNat
+                ((Felt.ofNat
+                    (u128DivmodCol2 q.a0.val.val q.a1.val.val q.a2.val.val b.a0.val.val b.a1.val.val
+                      b.a2.val.val r.a0.val.val r.a1.val.val r.a2.val.val /
+                      2 ^ 32 /
+                      2 ^ 32)).val +
+                  (b.a0.val.val * q.a3.val.val +
+                      (Felt.ofNat
+                        (u128DivmodCol2 q.a0.val.val q.a1.val.val q.a2.val.val b.a0.val.val b.a1.val.val
+                          b.a2.val.val r.a0.val.val r.a1.val.val r.a2.val.val /
+                          2 ^ 32 %
+                          2 ^ 32)).val) /
+                    2 ^ 32 +
+                  (b.a1.val.val * q.a2.val.val +
+                      (b.a0.val.val * q.a3.val.val +
+                          (Felt.ofNat
+                            (u128DivmodCol2 q.a0.val.val q.a1.val.val q.a2.val.val b.a0.val.val b.a1.val.val
+                              b.a2.val.val r.a0.val.val r.a1.val.val r.a2.val.val /
+                              2 ^ 32 %
+                              2 ^ 32)).val) %
+                    2 ^ 32) /
+                  2 ^ 32) ::
+              q.a0.val :: q.a1.val :: q.a2.val :: q.a3.val ::
+              r.a0.val :: r.a1.val :: r.a2.val :: r.a3.val ::
+              b.a0.val :: b.a1.val :: b.a2.val :: b.a3.val ::
+              a.a3.val :: rest,
+            mem, locs, adv_rest⟩
+            divmodCol3b).bind
+          (fun st => exec 163 st divmodCol3c)).bind
+        (fun a => exec 163 a divmodTail) =
+      some s' := by
+      simpa [bind, Bind.bind, Option.bind] using hexec
+    rw [hCol3bc] at hexec_bind
+    exact hexec_bind
+  have hexec := hexecCol3c
+  clear hexecCol3c
+  have ha3_eq :
+      a.a3.val =
+        Felt.ofNat
+          (u128DivmodCol3 q.a0.val.val q.a1.val.val q.a2.val.val q.a3.val.val
+              b.a0.val.val b.a1.val.val b.a2.val.val b.a3.val.val
+              r.a0.val.val r.a1.val.val r.a2.val.val r.a3.val.val %
+            2 ^ 32) := by
+    by_contra h_not
+    rw [divmodCol3c_none_a3
+        (Felt.ofNat
+          (u128DivmodCol2 q.a0.val.val q.a1.val.val q.a2.val.val b.a0.val.val b.a1.val.val b.a2.val.val
+            r.a0.val.val r.a1.val.val r.a2.val.val / 2 ^ 32 % 2 ^ 32))
+        (Felt.ofNat
+          (u128DivmodCol2 q.a0.val.val q.a1.val.val q.a2.val.val b.a0.val.val b.a1.val.val b.a2.val.val
+            r.a0.val.val r.a1.val.val r.a2.val.val / 2 ^ 32 / 2 ^ 32))
+        q.a0.val q.a1.val q.a2.val q.a3.val
+        r.a0.val r.a1.val r.a2.val r.a3.val
+        b.a0.val b.a1.val b.a2.val b.a3.val
+        a.a3.val
+        rest adv_rest mem locs
+        q.a0.isU32 q.a1.isU32 q.a2.isU32 q.a3.isU32
+        r.a3.isU32
+        b.a0.isU32 b.a1.isU32 b.a2.isU32 b.a3.isU32
+        (u32_mod_isU32 _)
+        (felt_ofNat_val_lt _ (u32_mod_lt_prime _))
+        (felt_ofNat_val_lt _ (u32_val_lt_prime _ hc2Hi_lt))
+        h_not] at hexec
+    simp at hexec
+  have hcarry_zero_nat :
+      u128DivmodCol3 q.a0.val.val q.a1.val.val q.a2.val.val q.a3.val.val
+          b.a0.val.val b.a1.val.val b.a2.val.val b.a3.val.val
+          r.a0.val.val r.a1.val.val r.a2.val.val r.a3.val.val / 2 ^ 32 =
+        0 := by
+    by_contra h_not
+    rw [divmodCol3c_none_carry
+        (Felt.ofNat
+          (u128DivmodCol2 q.a0.val.val q.a1.val.val q.a2.val.val b.a0.val.val b.a1.val.val b.a2.val.val
+            r.a0.val.val r.a1.val.val r.a2.val.val / 2 ^ 32 % 2 ^ 32))
+        (Felt.ofNat
+          (u128DivmodCol2 q.a0.val.val q.a1.val.val q.a2.val.val b.a0.val.val b.a1.val.val b.a2.val.val
+            r.a0.val.val r.a1.val.val r.a2.val.val / 2 ^ 32 / 2 ^ 32))
+        q.a0.val q.a1.val q.a2.val q.a3.val
+        r.a0.val r.a1.val r.a2.val r.a3.val
+        b.a0.val b.a1.val b.a2.val b.a3.val
+        a.a3.val
+        rest adv_rest mem locs
+        q.a0.isU32 q.a1.isU32 q.a2.isU32 q.a3.isU32
+        r.a2.isU32 r.a3.isU32
+        b.a0.isU32 b.a1.isU32 b.a2.isU32 b.a3.isU32
+        (u32_mod_isU32 _) (felt_ofNat_isU32_of_lt _ hc2Hi_lt)
+        (felt_ofNat_val_lt _ (u32_mod_lt_prime _))
+        (felt_ofNat_val_lt _ (u32_val_lt_prime _ hc2Hi_lt))
+        ha3_eq h_not] at hexec
+    simp at hexec
+  rw [divmodCol3c_run
+      (Felt.ofNat
+        (u128DivmodCol2 q.a0.val.val q.a1.val.val q.a2.val.val b.a0.val.val b.a1.val.val b.a2.val.val
+          r.a0.val.val r.a1.val.val r.a2.val.val / 2 ^ 32 % 2 ^ 32))
+      (Felt.ofNat
+        (u128DivmodCol2 q.a0.val.val q.a1.val.val q.a2.val.val b.a0.val.val b.a1.val.val b.a2.val.val
+          r.a0.val.val r.a1.val.val r.a2.val.val / 2 ^ 32 / 2 ^ 32))
+      q.a0.val q.a1.val q.a2.val q.a3.val
+      r.a0.val r.a1.val r.a2.val r.a3.val
+      b.a0.val b.a1.val b.a2.val b.a3.val
+      a.a3.val
+      rest adv_rest mem locs
+      q.a0.isU32 q.a1.isU32 q.a2.isU32 q.a3.isU32
+      r.a3.isU32
+      b.a0.isU32 b.a1.isU32 b.a2.isU32 b.a3.isU32
+      (u32_mod_isU32 _)
+      (felt_ofNat_val_lt _ (u32_mod_lt_prime _))
+      (felt_ofNat_val_lt _ (u32_val_lt_prime _ hc2Hi_lt))
+      ha3_eq hcarry_zero_nat] at hexec
+  simp at hexec
+  rw [divmodTail_eq, exec_append] at hexec
+  have hover_false :
+      divmodOverflowBool q.a1.val q.a2.val q.a3.val b.a1.val b.a2.val b.a3.val = false := by
+    by_cases hover : divmodOverflowBool q.a1.val q.a2.val q.a3.val b.a1.val b.a2.val b.a3.val = false
+    · exact hover
+    · have hover_true : divmodOverflowBool q.a1.val q.a2.val q.a3.val b.a1.val b.a2.val b.a3.val = true := by
+        cases hbool : divmodOverflowBool q.a1.val q.a2.val q.a3.val b.a1.val b.a2.val b.a3.val <;> simp_all
+      rw [divmodOverflow_eval
+          q.a0.val q.a1.val q.a2.val q.a3.val
+          r.a0.val r.a1.val r.a2.val r.a3.val
+          b.a0.val b.a1.val b.a2.val b.a3.val
+          rest adv_rest mem locs
+          q.a1.isU32 q.a2.isU32 q.a3.isU32
+          b.a1.isU32 b.a2.isU32 b.a3.isU32] at hexec
+      simp [hover_true] at hexec
+  rw [divmodOverflow_eval
+      q.a0.val q.a1.val q.a2.val q.a3.val
+      r.a0.val r.a1.val r.a2.val r.a3.val
+      b.a0.val b.a1.val b.a2.val b.a3.val
+      rest adv_rest mem locs
+      q.a1.isU32 q.a2.isU32 q.a3.isU32
+      b.a1.isU32 b.a2.isU32 b.a3.isU32] at hexec
+  simp [hover_false, bind, Bind.bind, Option.bind] at hexec
+  have hover_parts := by
+    simpa [divmodOverflowBool, Bool.or_eq_false_iff] using hover_false
+  rcases hover_parts with ⟨hover_parts, h63_false⟩
+  rcases hover_parts with ⟨hover_parts, h53_false⟩
+  rcases hover_parts with ⟨hover_parts, h52_false⟩
+  rcases hover_parts with ⟨hover_parts, h43_false⟩
+  rcases hover_parts with ⟨h41_false, h42_false⟩
+  have hq3b1_zero : q.a3.val.val * b.a1.val.val = 0 := by
+    simpa [Nat.mul_comm] using
+      (divmodOverflowProdBool_false q.a3.val b.a1.val q.a3.isU32 b.a1.isU32 h41_false)
+  have hq2b2_zero : q.a2.val.val * b.a2.val.val = 0 := by
+    simpa [Nat.mul_comm] using
+      (divmodOverflowProdBool_false q.a2.val b.a2.val q.a2.isU32 b.a2.isU32 h42_false)
+  have hq1b3_zero : q.a1.val.val * b.a3.val.val = 0 := by
+    simpa [Nat.mul_comm] using
+      (divmodOverflowProdBool_false q.a1.val b.a3.val q.a1.isU32 b.a3.isU32 h43_false)
+  have hq3b2_zero : q.a3.val.val * b.a2.val.val = 0 := by
+    simpa [Nat.mul_comm] using
+      (divmodOverflowProdBool_false q.a3.val b.a2.val q.a3.isU32 b.a2.isU32 h52_false)
+  have hq2b3_zero : q.a2.val.val * b.a3.val.val = 0 := by
+    simpa [Nat.mul_comm] using
+      (divmodOverflowProdBool_false q.a2.val b.a3.val q.a2.isU32 b.a3.isU32 h53_false)
+  have hq3b3_zero : q.a3.val.val * b.a3.val.val = 0 := by
+    simpa [Nat.mul_comm] using
+      (divmodOverflowProdBool_false q.a3.val b.a3.val q.a3.isU32 b.a3.isU32 h63_false)
+  rw [exec_append] at hexec
+  rw [divmodCompare1_run
+      q.a0.val q.a1.val q.a2.val q.a3.val
+      r.a0.val r.a1.val r.a2.val r.a3.val
+      b.a0.val b.a1.val b.a2.val b.a3.val
+      rest adv_rest mem locs
+      r.a0.isU32 b.a0.isU32] at hexec
+  simp at hexec
+  rw [exec_append] at hexec
+  rw [divmodCompare2_run
+      q.a0.val q.a1.val q.a2.val q.a3.val
+      r.a0.val r.a1.val r.a2.val r.a3.val
+      b.a0.val b.a1.val b.a2.val b.a3.val
+      rest adv_rest mem locs
+      r.a0.isU32 r.a1.isU32 b.a0.isU32 b.a1.isU32] at hexec
+  simp at hexec
+  rw [exec_append] at hexec
+  rw [divmodCompare3_run
+      q.a0.val q.a1.val q.a2.val q.a3.val
+      r.a0.val r.a1.val r.a2.val r.a3.val
+      b.a0.val b.a1.val b.a2.val b.a3.val
+      rest adv_rest mem locs
+      r.a0.isU32 r.a1.isU32 r.a2.isU32
+      b.a0.isU32 b.a1.isU32 b.a2.isU32] at hexec
+  simp at hexec
+  have h_lt_result : u128LtBool r.a0.val r.a1.val r.a2.val r.a3.val b.a0.val b.a1.val b.a2.val b.a3.val = true := by
+    by_contra h_not
+    rw [divmodCompare4_none
+        q.a0.val q.a1.val q.a2.val q.a3.val
+        r.a0.val r.a1.val r.a2.val r.a3.val
+        b.a0.val b.a1.val b.a2.val b.a3.val
+        rest adv_rest mem locs
+        r.a0.isU32 r.a1.isU32 r.a2.isU32 r.a3.isU32
+        b.a0.isU32 b.a1.isU32 b.a2.isU32 b.a3.isU32
+        h_not] at hexec
+    simp at hexec
+  have ha0_nat : a.a0.val.val = u128DivmodCol0 q.a0.val.val b.a0.val.val r.a0.val.val % 2 ^ 32 := by
+    have h := congrArg (fun z : Felt => z.val) ha0_eq
+    change
+      ZMod.val a.a0.val =
+        ZMod.val (Felt.ofNat (u128DivmodCol0 q.a0.val.val b.a0.val.val r.a0.val.val % 2 ^ 32)) at h
+    rw [felt_ofNat_val_lt _ (u32_mod_lt_prime _)] at h
+    exact h
+  have ha1_nat :
+      a.a1.val.val =
+        u128DivmodCol1 q.a0.val.val q.a1.val.val b.a0.val.val b.a1.val.val r.a0.val.val r.a1.val.val % 2 ^ 32 := by
+    have h := congrArg (fun z : Felt => z.val) ha1_eq
+    change
+      ZMod.val a.a1.val =
+        ZMod.val
+          (Felt.ofNat
+            (u128DivmodCol1 q.a0.val.val q.a1.val.val b.a0.val.val b.a1.val.val r.a0.val.val r.a1.val.val %
+              2 ^ 32)) at h
+    rw [felt_ofNat_val_lt _ (u32_mod_lt_prime _)] at h
+    exact h
+  have ha2_nat :
+      a.a2.val.val =
+        u128DivmodCol2 q.a0.val.val q.a1.val.val q.a2.val.val b.a0.val.val b.a1.val.val b.a2.val.val
+            r.a0.val.val r.a1.val.val r.a2.val.val % 2 ^ 32 := by
+    have h := congrArg (fun z : Felt => z.val) ha2_eq
+    change
+      ZMod.val a.a2.val =
+        ZMod.val
+          (Felt.ofNat
+            (u128DivmodCol2 q.a0.val.val q.a1.val.val q.a2.val.val b.a0.val.val b.a1.val.val b.a2.val.val
+                r.a0.val.val r.a1.val.val r.a2.val.val %
+              2 ^ 32)) at h
+    rw [felt_ofNat_val_lt _ (u32_mod_lt_prime _)] at h
+    exact h
+  have ha3_nat :
+      a.a3.val.val =
+        u128DivmodCol3 q.a0.val.val q.a1.val.val q.a2.val.val q.a3.val.val
+            b.a0.val.val b.a1.val.val b.a2.val.val b.a3.val.val
+            r.a0.val.val r.a1.val.val r.a2.val.val r.a3.val.val % 2 ^ 32 := by
+    have h := congrArg (fun z : Felt => z.val) ha3_eq
+    change
+      ZMod.val a.a3.val =
+        ZMod.val
+          (Felt.ofNat
+            (u128DivmodCol3 q.a0.val.val q.a1.val.val q.a2.val.val q.a3.val.val
+                b.a0.val.val b.a1.val.val b.a2.val.val b.a3.val.val
+                r.a0.val.val r.a1.val.val r.a2.val.val r.a3.val.val %
+              2 ^ 32)) at h
+    rw [felt_ofNat_val_lt _ (u32_mod_lt_prime _)] at h
+    exact h
+  have hdiv_nat_raw :
+      u128RawValue q.a0.val.val q.a1.val.val q.a2.val.val q.a3.val.val *
+          u128RawValue b.a0.val.val b.a1.val.val b.a2.val.val b.a3.val.val
+        + u128RawValue r.a0.val.val r.a1.val.val r.a2.val.val r.a3.val.val =
+      u128RawValue a.a0.val.val a.a1.val.val a.a2.val.val a.a3.val.val := by
+    exact divmod_forward_arith
+      q.a0.val.val q.a1.val.val q.a2.val.val q.a3.val.val
+      b.a0.val.val b.a1.val.val b.a2.val.val b.a3.val.val
+      r.a0.val.val r.a1.val.val r.a2.val.val r.a3.val.val
+      a.a0.val.val a.a1.val.val a.a2.val.val a.a3.val.val
+      hq1b3_zero hq2b2_zero hq3b1_zero hq2b3_zero hq3b2_zero hq3b3_zero
+      (by simpa [divmodCarry] using hcarry_zero_nat)
+      ha0_nat ha1_nat ha2_nat ha3_nat
+  have hlt_nat_raw :
+      u128RawValue r.a0.val.val r.a1.val.val r.a2.val.val r.a3.val.val <
+        u128RawValue b.a0.val.val b.a1.val.val b.a2.val.val b.a3.val.val := by
+    rw [divmodLtBool_eqRaw
+        r.a0.val r.a1.val r.a2.val r.a3.val
+        b.a0.val b.a1.val b.a2.val b.a3.val
+        r.a0.isU32 r.a1.isU32 r.a2.isU32 r.a3.isU32
+        b.a0.isU32 b.a1.isU32 b.a2.isU32 b.a3.isU32] at h_lt_result
+    exact of_decide_eq_true h_lt_result
+  constructor
+  · simpa [U128.toNat, u128RawValue] using hdiv_nat_raw
+  · simpa [U128.toNat, u128RawValue] using hlt_nat_raw
+
+/-- `u128::divmod` verifies the Euclidean division of two u128 values.
+    Execution succeeds iff the advice-supplied quotient q and remainder r
+    satisfy q * b + r = a and r < b.
     Input stack:  [b.a0, b.a1, b.a2, b.a3, a.a0, a.a1, a.a2, a.a3] ++ rest
     Advice stack: [r.a0, r.a1, r.a2, r.a3, q.a0, q.a1, q.a2, q.a3] ++ adv_rest
     Output stack: [r.a0, r.a1, r.a2, r.a3, q.a0, q.a1, q.a2, q.a3] ++ rest -/
@@ -2816,26 +5165,29 @@ theorem u128_divmod_correct
     (hs : s.stack = b.a0.val :: b.a1.val :: b.a2.val :: b.a3.val ::
                     a.a0.val :: a.a1.val :: a.a2.val :: a.a3.val :: rest)
     (hadv : s.advice = r.a0.val :: r.a1.val :: r.a2.val :: r.a3.val ::
-                      q.a0.val :: q.a1.val :: q.a2.val :: q.a3.val :: adv_rest)
-    (hdiv : q.toNat * b.toNat + r.toNat = a.toNat)
-    (hlt : r.toNat < b.toNat) :
+                      q.a0.val :: q.a1.val :: q.a2.val :: q.a3.val :: adv_rest) :
     exec 163 s Miden.Core.U128.divmod =
     some { stack := r.a0.val :: r.a1.val :: r.a2.val :: r.a3.val ::
                      q.a0.val :: q.a1.val :: q.a2.val :: q.a3.val :: rest,
            memory := s.memory,
            locals := s.locals,
-           advice := adv_rest } := by
-  exact u128_divmod_raw
-    a.a0.val a.a1.val a.a2.val a.a3.val
-    b.a0.val b.a1.val b.a2.val b.a3.val
-    q.a0.val q.a1.val q.a2.val q.a3.val
-    r.a0.val r.a1.val r.a2.val r.a3.val
-    rest adv_rest s hs hadv
-    a.a0.isU32 a.a1.isU32 a.a2.isU32 a.a3.isU32
-    b.a0.isU32 b.a1.isU32 b.a2.isU32 b.a3.isU32
-    q.a0.isU32 q.a1.isU32 q.a2.isU32 q.a3.isU32
-    r.a0.isU32 r.a1.isU32 r.a2.isU32 r.a3.isU32
-    (by simpa [U128.toNat, u128RawValue] using hdiv)
-    (by simpa [U128.toNat, u128RawValue] using hlt)
+           advice := adv_rest }
+    ↔ (q.toNat * b.toNat + r.toNat = a.toNat ∧ r.toNat < b.toNat) := by
+  constructor
+  · intro hexec
+    exact u128_divmod_conditions_of_exec a b q r rest adv_rest s hs hadv hexec
+  · intro ⟨hdiv, hlt⟩
+    exact u128_divmod_raw
+      a.a0.val a.a1.val a.a2.val a.a3.val
+      b.a0.val b.a1.val b.a2.val b.a3.val
+      q.a0.val q.a1.val q.a2.val q.a3.val
+      r.a0.val r.a1.val r.a2.val r.a3.val
+      rest adv_rest s hs hadv
+      a.a0.isU32 a.a1.isU32 a.a2.isU32 a.a3.isU32
+      b.a0.isU32 b.a1.isU32 b.a2.isU32 b.a3.isU32
+      q.a0.isU32 q.a1.isU32 q.a2.isU32 q.a3.isU32
+      r.a0.isU32 r.a1.isU32 r.a2.isU32 r.a3.isU32
+      (by simpa [U128.toNat, u128RawValue] using hdiv)
+      (by simpa [U128.toNat, u128RawValue] using hlt)
 
 end MidenLean.Proofs

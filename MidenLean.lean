@@ -13,7 +13,7 @@ import MidenLean.Proofs.Tactics
 import MidenLean.Proofs.U32.Common
 import MidenLean.Proofs.U64.Common
 import MidenLean.Proofs.U64.Eq
-import MidenLean.Proofs.U64.Sub
+import MidenLean.Proofs.U64.WrappingSub
 import MidenLean.Proofs.U64.OverflowingSub
 import MidenLean.Proofs.U64.Lt
 import MidenLean.Proofs.U64.Gt
@@ -46,6 +46,8 @@ import MidenLean.Proofs.U128.Clo
 import MidenLean.Proofs.U128.Clz
 import MidenLean.Proofs.U128.Cto
 import MidenLean.Proofs.U128.Ctz
+import MidenLean.Proofs.U128.Div
+import MidenLean.Proofs.U128.Divmod
 import MidenLean.Proofs.U128.Eq
 import MidenLean.Proofs.U128.Eqz
 import MidenLean.Proofs.U128.Gt
@@ -54,6 +56,7 @@ import MidenLean.Proofs.U128.Lt
 import MidenLean.Proofs.U128.Lte
 import MidenLean.Proofs.U128.Max
 import MidenLean.Proofs.U128.Min
+import MidenLean.Proofs.U128.Mod
 import MidenLean.Proofs.U128.Not
 import MidenLean.Proofs.U128.Neq
 import MidenLean.Proofs.U128.Or
