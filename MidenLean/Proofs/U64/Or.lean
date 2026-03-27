@@ -40,7 +40,7 @@ theorem u64_or_raw
   miden_swap
   dsimp only [pure, Pure.pure]
 
-/-- `u64::or` correctly computes bitwise OR of two u64 values.
+/-- `u64::or` computes bitwise OR of two u64 values.
     Input stack:  [b.lo, b.hi, a.lo, a.hi] ++ rest
     Output stack: [(a ||| b).lo, (a ||| b).hi] ++ rest -/
 theorem u64_or_correct (a b : U64) (rest : List Felt) (s : MidenState)

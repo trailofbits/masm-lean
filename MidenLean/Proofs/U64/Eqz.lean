@@ -33,7 +33,7 @@ theorem u64_eqz_raw
   rw [stepAndIte]
   dsimp only [bind, Bind.bind, Option.bind, pure, Pure.pure]
 
-/-- `u64::eqz` correctly tests whether a u64 value is zero.
+/-- `u64::eqz` tests whether a u64 value is zero.
     Input stack:  [a.lo, a.hi] ++ rest
     Output stack: [if a == 0 then 1 else 0] ++ rest -/
 theorem u64_eqz_correct (a : U64) (rest : List Felt) (s : MidenState)

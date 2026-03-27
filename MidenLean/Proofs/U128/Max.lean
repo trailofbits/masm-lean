@@ -43,7 +43,7 @@ theorem u128_max_run
   simp [pure, Pure.pure]
 
 set_option maxHeartbeats 8000000 in
-/-- `u128::max` correctly computes the maximum of two u128 values (raw limb version).
+/-- `u128::max` computes the maximum of two u128 values (raw limb version).
     Input stack:  [b0, b1, b2, b3, a0, a1, a2, a3] ++ rest
     Output stack: [m0, m1, m2, m3] ++ rest
     where `m0..m3` are the low-to-high limbs of `max(a, b)`. -/

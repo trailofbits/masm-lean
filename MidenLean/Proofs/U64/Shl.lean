@@ -110,7 +110,7 @@ theorem u64_shl_raw
   rw [stepDrop]; miden_bind
   miden_swap
 
-/-- `u64::shl` correctly left-shifts a u64 value by `shift` bits.
+/-- `u64::shl` left-shifts a u64 value by `shift` bits.
     Input stack:  [shift, a.lo, a.hi] ++ rest
     Output stack: [(a.shl shift).lo, (a.shl shift).hi] ++ rest -/
 theorem u64_shl_correct (a : U64) (shift : Felt) (rest : List Felt) (s : MidenState)

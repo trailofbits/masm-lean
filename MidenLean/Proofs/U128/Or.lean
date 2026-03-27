@@ -48,7 +48,7 @@ theorem u128_or_raw
   congr 1
   simp [Nat.lor_comm]
 
-/-- `u128::or` correctly computes bitwise OR of two 128-bit values.
+/-- `u128::or` computes bitwise OR of two 128-bit values.
     Input stack:  [b.a0, b.a1, b.a2, b.a3, a.a0, a.a1, a.a2, a.a3] ++ rest
     Output stack: [(a ||| b).a0, (a ||| b).a1, (a ||| b).a2, (a ||| b).a3] ++ rest -/
 theorem u128_or_correct (a b : U128) (rest : List Felt) (s : MidenState)

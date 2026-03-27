@@ -10,7 +10,7 @@ open MidenLean.StepLemmas
 open MidenLean.Tactics
 
 set_option maxHeartbeats 8000000 in
-/-- `u128::widening_mul` correctly computes the low 128 bits of the product and moves the overflow flag to the end (raw limb version).
+/-- `u128::widening_mul` computes the low 128 bits of the product and moves the overflow flag to the end (raw limb version).
     Input stack:  [b0, b1, b2, b3, a0, a1, a2, a3] ++ rest
     Output stack: [c0, c1, c2, c3, overflow] ++ rest
     where `c0..c3` are the low-to-high limbs of `(a * b) mod 2^128`
@@ -54,7 +54,7 @@ theorem u128_widening_mul_raw
   dsimp only [pure, Pure.pure]
 
 set_option maxHeartbeats 8000000 in
-/-- `u128::widening_mul` correctly computes `(a * b) mod 2^128` and an overflow flag.
+/-- `u128::widening_mul` computes `(a * b) mod 2^128` and an overflow flag.
     Input stack:  [b.a0, b.a1, b.a2, b.a3, a.a0, a.a1, a.a2, a.a3] ++ rest
     Output stack: [(a*b).a0, (a*b).a1, (a*b).a2, (a*b).a3, overflow] ++ rest -/
 theorem u128_widening_mul_correct (a b : U128) (rest : List Felt) (s : MidenState)

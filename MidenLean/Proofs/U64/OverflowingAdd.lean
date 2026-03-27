@@ -42,7 +42,7 @@ theorem u64_overflowing_add_run
   rw [hcarry]
 
 set_option maxHeartbeats 4000000 in
-/-- `u64::overflowing_add` correctly computes addition of two u64 values with carry.
+/-- `u64::overflowing_add` computes addition of two u64 values with carry.
     Input stack:  [b_lo, b_hi, a_lo, a_hi] ++ rest
     Output stack: [overflow, c_lo, c_hi] ++ rest
     where `(c_hi, c_lo)` is the 64-bit sum and `overflow` is the carry bit. -/

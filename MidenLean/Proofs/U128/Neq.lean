@@ -43,7 +43,7 @@ theorem u128_neq_raw
   rw [stepOrIte]
   dsimp only [bind, Bind.bind, Option.bind, pure, Pure.pure]
 
-/-- `u128::neq` correctly tests inequality of two 128-bit values.
+/-- `u128::neq` tests inequality of two 128-bit values.
     Input stack:  [b.a0, b.a1, b.a2, b.a3, a.a0, a.a1, a.a2, a.a3] ++ rest
     Output stack: [(if a != b then 1 else 0)] ++ rest -/
 theorem u128_neq_correct (a b : U128) (rest : List Felt) (s : MidenState)

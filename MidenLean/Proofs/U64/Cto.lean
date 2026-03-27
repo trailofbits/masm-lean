@@ -52,7 +52,7 @@ theorem u64_cto_raw (lo hi : Felt) (rest : List Felt) (s : MidenState)
     rw [stepDrop]; miden_bind
     rw [stepU32Cto (ha := hlo)]
 
-/-- `u64::cto` correctly counts trailing ones of a u64 value.
+/-- `u64::cto` counts trailing ones of a u64 value.
     Input stack:  [a.lo, a.hi] ++ rest
     Output stack: [Felt.ofNat a.countTrailingOnes] ++ rest -/
 theorem u64_cto_correct (a : U64) (rest : List Felt) (s : MidenState)

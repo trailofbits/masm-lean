@@ -10,7 +10,7 @@ open MidenLean.StepLemmas
 open MidenLean.Tactics
 
 set_option maxHeartbeats 8000000 in
-/-- `u128::wrapping_sub` correctly computes wrapping subtraction of two 128-bit values (raw limb version).
+/-- `u128::wrapping_sub` computes wrapping subtraction of two 128-bit values (raw limb version).
     Input stack:  [b0, b1, b2, b3, a0, a1, a2, a3] ++ rest
     Output stack: [d0, d1, d2, d3] ++ rest
     where `d0..d3` are the low-to-high limbs of `(a - b) mod 2^128`. -/
@@ -40,7 +40,7 @@ theorem u128_wrapping_sub_raw
   rw [stepDrop]
   dsimp only [bind, Bind.bind, Option.bind, pure, Pure.pure]
 
-/-- `u128::wrapping_sub` correctly computes `(a - b) mod 2^128` for two 128-bit values.
+/-- `u128::wrapping_sub` computes `(a - b) mod 2^128` for two 128-bit values.
     Input stack:  [b.a0, b.a1, b.a2, b.a3, a.a0, a.a1, a.a2, a.a3] ++ rest
     Output stack: [(a−b).a0, (a−b).a1, (a−b).a2, (a−b).a3] ++ rest -/
 theorem u128_wrapping_sub_correct (a b : U128) (rest : List Felt) (s : MidenState)

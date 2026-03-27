@@ -39,7 +39,7 @@ theorem u128_eqz_raw
   rw [stepAndIte]
   dsimp only [bind, Bind.bind, Option.bind, pure, Pure.pure]
 
-/-- `u128::eqz` correctly tests whether a 128-bit value is zero.
+/-- `u128::eqz` tests whether a 128-bit value is zero.
     Input stack:  [a.a0, a.a1, a.a2, a.a3] ++ rest
     Output stack: [(if a == 0 then 1 else 0)] ++ rest -/
 theorem u128_eqz_correct (a : U128) (rest : List Felt) (s : MidenState)

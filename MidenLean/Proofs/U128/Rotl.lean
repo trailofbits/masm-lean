@@ -338,7 +338,7 @@ private theorem rotl_nonzero_correct (fuel : Nat)
 -- ============================================================================
 
 set_option maxHeartbeats 8000000 in
-/-- `u128::rotl` correctly left-rotates a 128-bit value by `shift` positions (0 ≤ shift < 128).
+/-- `u128::rotl` left-rotates a 128-bit value by `shift` positions (0 ≤ shift < 128).
     When shift = 0, the output is identity. When shift ≠ 0, the output limbs are the
     bitwise OR of the corresponding `u128::shl(shift)` and `u128::shr(128−shift)` output limbs.
     The shl and shr sub-procedure results are provided as parametric hypotheses; their
@@ -402,7 +402,7 @@ theorem u128_rotl_raw (fuel : Nat)
       hshl hshr
 
 set_option maxHeartbeats 16000000 in
-/-- `u128::rotl` correctly left-rotates a u128 value by `shift` bits.
+/-- `u128::rotl` left-rotates a u128 value by `shift` bits.
     Input stack:  [shift, a.a0, a.a1, a.a2, a.a3] ++ rest
     Output stack: [(a.rotl shift).a0, (a.rotl shift).a1, (a.rotl shift).a2, (a.rotl shift).a3] ++ rest -/
 theorem u128_rotl_correct (a : U128) (shift : U32) (rest : List Felt) (s : MidenState)

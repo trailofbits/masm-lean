@@ -118,7 +118,7 @@ theorem u128_overflowing_add_run
   simp only [pure, Pure.pure]
 
 set_option maxHeartbeats 8000000 in
-/-- `u128::overflowing_add` correctly computes addition of two 128-bit values with carry (raw limb version).
+/-- `u128::overflowing_add` computes addition of two 128-bit values with carry (raw limb version).
     Input stack:  [b0, b1, b2, b3, a0, a1, a2, a3] ++ rest
     Output stack: [overflow, c0, c1, c2, c3] ++ rest
     where `c0..c3` are the low-to-high limbs of `a + b` and `overflow` is the final carry. -/
@@ -150,7 +150,7 @@ theorem u128_overflowing_add_raw
     u128_overflowing_add_run (fun _ => none) 19 a0 a1 a2 a3 b0 b1 b2 b3 rest mem locs adv
       ha0 ha1 ha2 ha3 hb0 hb1 hb2 hb3
 
-/-- `u128::overflowing_add` correctly computes `a + b` with overflow detection.
+/-- `u128::overflowing_add` computes `a + b` with overflow detection.
     Input stack:  [b.a0, b.a1, b.a2, b.a3, a.a0, a.a1, a.a2, a.a3] ++ rest
     Output stack: [overflow, (a+b).a0, (a+b).a1, (a+b).a2, (a+b).a3] ++ rest
     where overflow = `(a.toNat + b.toNat) / 2^128` (0 or 1). -/

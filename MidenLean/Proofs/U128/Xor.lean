@@ -46,7 +46,7 @@ theorem u128_xor_raw
   dsimp only [bind, Bind.bind, Option.bind, pure, Pure.pure]
   simp [Nat.xor_comm]
 
-/-- `u128::xor` correctly computes bitwise XOR of two 128-bit values.
+/-- `u128::xor` computes bitwise XOR of two 128-bit values.
     Input stack:  [b.a0, b.a1, b.a2, b.a3, a.a0, a.a1, a.a2, a.a3] ++ rest
     Output stack: [(a ^^^ b).a0, (a ^^^ b).a1, (a ^^^ b).a2, (a ^^^ b).a3] ++ rest -/
 theorem u128_xor_correct (a b : U128) (rest : List Felt) (s : MidenState)

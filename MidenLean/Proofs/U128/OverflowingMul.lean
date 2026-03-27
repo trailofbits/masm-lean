@@ -1144,7 +1144,7 @@ theorem u128_overflowing_mul_run
   rw [u128_overflowing_mul_cleanup_chunk_run env fuel]
 
 set_option maxHeartbeats 12000000 in
-/-- `u128::overflowing_mul` correctly computes the low 128 bits of the product and an overflow flag.
+/-- `u128::overflowing_mul` computes the low 128 bits of the product and an overflow flag.
     Input stack:  [b0, b1, b2, b3, a0, a1, a2, a3] ++ rest
     Output stack: [overflow, c0, c1, c2, c3] ++ rest
     where `c0..c3` are the low-to-high limbs of `(a * b) mod 2^128`
@@ -1517,7 +1517,7 @@ theorem u128MulResult_eq (a b : U128) (rest : List Felt) :
 -- ============================================================================
 
 set_option maxHeartbeats 12000000 in
-/-- `u128::overflowing_mul` correctly computes the low 128 bits of the product `a * b`
+/-- `u128::overflowing_mul` computes the low 128 bits of the product `a * b`
     and an overflow flag.
     Input stack:  [b.a0, b.a1, b.a2, b.a3, a.a0, a.a1, a.a2, a.a3] ++ rest
     Output stack: [overflow, (a*b).a0, (a*b).a1, (a*b).a2, (a*b).a3] ++ rest -/

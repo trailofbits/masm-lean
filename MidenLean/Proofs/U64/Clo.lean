@@ -54,7 +54,7 @@ theorem u64_clo_raw (lo hi : Felt) (rest : List Felt) (s : MidenState)
     rw [stepDrop]; miden_bind
     rw [stepU32Clo (ha := hhi)]
 
-/-- `u64::clo` correctly counts leading ones of a u64 value.
+/-- `u64::clo` counts leading ones of a u64 value.
     Input stack:  [a.lo, a.hi] ++ rest
     Output stack: [Felt.ofNat a.countLeadingOnes] ++ rest -/
 theorem u64_clo_correct (a : U64) (rest : List Felt) (s : MidenState)

@@ -457,7 +457,7 @@ private theorem shr_lo_sum_lt (hi lo n : Nat) (hlo : lo < 2^32) (hn : n < 32) :
   linarith
 
 set_option maxHeartbeats 8000000 in
-/-- `u64::shr` correctly right-shifts a u64 value by `shift` bits.
+/-- `u64::shr` right-shifts a u64 value by `shift` bits.
     Input stack:  [shift, a.lo, a.hi] ++ rest
     Output stack: [(a.shr shift).lo, (a.shr shift).hi] ++ rest -/
 theorem u64_shr_correct (a : U64) (shift : Felt) (rest : List Felt) (s : MidenState)

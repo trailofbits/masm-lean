@@ -10,7 +10,7 @@ open MidenLean.Tactics
 
 -- Based on generated skeleton: SEMI | Instructions: 10 | Calls: true (gt)
 set_option maxHeartbeats 16000000 in
-/-- `u64::min` correctly computes the minimum of two u64 values.
+/-- `u64::min` computes the minimum of two u64 values.
     Input stack:  [b_lo, b_hi, a_lo, a_hi] ++ rest
     Output stack: [min_lo, min_hi] ++ rest
     If b > a (as u64), returns a; otherwise returns b. -/
@@ -82,7 +82,7 @@ theorem u64_min_ite (a b : U64) (rest : List Felt) (s : MidenState)
   rw [u64_min_raw a.lo.val a.hi.val b.lo.val b.hi.val rest s hs a.lo.isU32 a.hi.isU32 b.lo.isU32 b.hi.isU32]
   simp only [u64_borrow_iff_lt a b]; rfl
 
-/-- `u64::min` correctly computes the minimum of two u64 values.
+/-- `u64::min` computes the minimum of two u64 values.
     Input stack:  [b.lo, b.hi, a.lo, a.hi] ++ rest
     Output stack: [(min a b).lo, (min a b).hi] ++ rest -/
 theorem u64_min_correct (a b : U64) (rest : List Felt) (s : MidenState)

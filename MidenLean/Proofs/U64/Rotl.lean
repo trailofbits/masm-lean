@@ -310,7 +310,7 @@ private theorem rotl_nat_case2 (hi lo eff : Nat)
     rw [h_reorder, Nat.add_mul_mod_self_right, Nat.mod_eq_of_lt h_nonoverlap2, h_cross_div]
 
 set_option maxHeartbeats 16000000 in
-/-- `u64::rotl` correctly left-rotates a u64 value by `shift` bits.
+/-- `u64::rotl` left-rotates a u64 value by `shift` bits.
     Input stack:  [shift, a.lo, a.hi] ++ rest
     Output stack: [(a.rotl shift).lo, (a.rotl shift).hi] ++ rest -/
 theorem u64_rotl_correct (a : U64) (shift : Felt) (rest : List Felt) (s : MidenState)

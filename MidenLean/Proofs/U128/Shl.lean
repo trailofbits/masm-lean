@@ -358,7 +358,7 @@ theorem u128_shl_run
 -- ============================================================================
 
 set_option maxHeartbeats 8000000 in
-/-- `u128::shl` correctly computes the left shift of a 128-bit value by a given amount.
+/-- `u128::shl` computes the left shift of a 128-bit value by a given amount.
     Input stack:  [shift, a0, a1, a2, a3] ++ rest  (shift < 128, a0..a3 are u32 limbs)
     Output stack: [r0, r1, r2, r3] ++ rest
     where `r0..r3` are the u32 limbs of `(a << shift) mod 2^128`, computed via
@@ -472,7 +472,7 @@ private theorem felt_pow2_hi32 (n : Nat) (h : n < 64) :
   simp only [Felt.hi32, felt_pow2_val n h]
 
 set_option maxHeartbeats 12000000 in
-/-- `u128::shl` correctly left-shifts a u128 value by `shift` bits (mod 2^128).
+/-- `u128::shl` left-shifts a u128 value by `shift` bits (mod 2^128).
     Input stack:  [shift, a.a0, a.a1, a.a2, a.a3] ++ rest
     Output stack: [(a.shl shift).a0, (a.shl shift).a1, (a.shl shift).a2, (a.shl shift).a3] ++ rest -/
 theorem u128_shl_correct (a : U128) (shift : U32) (rest : List Felt) (s : MidenState)

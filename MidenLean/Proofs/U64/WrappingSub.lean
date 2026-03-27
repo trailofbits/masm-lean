@@ -8,7 +8,7 @@ open MidenLean.StepLemmas
 open MidenLean.Tactics
 
 set_option maxHeartbeats 8000000 in
-/-- `u64::wrapping_sub` correctly computes wrapping subtraction of two u64 values. -/
+/-- `u64::wrapping_sub` computes wrapping subtraction of two u64 values. -/
 theorem u64_wrapping_sub_raw
     (a_lo a_hi b_lo b_hi : Felt) (rest : List Felt) (s : MidenState)
     (hs : s.stack = b_lo :: b_hi :: a_lo :: a_hi :: rest)
@@ -63,7 +63,7 @@ theorem u64_wrapping_sub_raw
   miden_swap
   dsimp only [pure, Pure.pure]
 
-/-- `u64::wrapping_sub` correctly computes `a - b` as a u64 value.
+/-- `u64::wrapping_sub` computes `a - b` as a u64 value.
     Input stack:  [b.lo, b.hi, a.lo, a.hi] ++ rest
     Output stack: [(a - b).lo, (a - b).hi] ++ rest -/
 theorem u64_wrapping_sub_correct (a b : U64) (rest : List Felt) (s : MidenState)

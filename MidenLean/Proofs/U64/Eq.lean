@@ -37,7 +37,7 @@ theorem u64_eq_raw (b_lo b_hi a_lo a_hi : Felt) (rest : List Felt) (s : MidenSta
   rw [stepEq]; miden_bind
   rw [stepAndIte]; dsimp only [bind, Bind.bind, Option.bind, pure, Pure.pure]
 
-/-- `u64::eq` correctly tests equality of two u64 values.
+/-- `u64::eq` tests equality of two u64 values.
     Input stack:  [b.lo, b.hi, a.lo, a.hi] ++ rest
     Output stack: [if a == b then 1 else 0] ++ rest -/
 theorem u64_eq_correct (a b : U64) (rest : List Felt) (s : MidenState)

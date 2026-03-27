@@ -8,7 +8,7 @@ open MidenLean.StepLemmas
 open MidenLean.Tactics
 
 set_option maxHeartbeats 4000000 in
-/-- `word::test_eq` correctly tests equality of two words without consuming inputs.
+/-- `word::test_eq` tests equality of two words without consuming inputs.
     Input stack:  [a0, a1, a2, a3, b0, b1, b2, b3] ++ rest
     Output stack: [result, a0, a1, a2, a3, b0, b1, b2, b3] ++ rest
     where result = 1 iff all corresponding elements are equal, else 0. -/

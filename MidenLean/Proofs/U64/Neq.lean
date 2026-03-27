@@ -37,7 +37,7 @@ theorem u64_neq_raw (b_lo b_hi a_lo a_hi : Felt) (rest : List Felt) (s : MidenSt
   rw [stepNeq]; miden_bind
   rw [stepOrIte]; dsimp only [bind, Bind.bind, Option.bind, pure, Pure.pure]
 
-/-- `u64::neq` correctly tests inequality of two u64 values.
+/-- `u64::neq` tests inequality of two u64 values.
     Input stack:  [b.lo, b.hi, a.lo, a.hi] ++ rest
     Output stack: [if a != b then 1 else 0] ++ rest -/
 theorem u64_neq_correct (a b : U64) (rest : List Felt) (s : MidenState)

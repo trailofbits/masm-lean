@@ -734,7 +734,7 @@ private theorem u128_shr_run (fuel : Nat)
 -- ============================================================================
 
 set_option maxHeartbeats 16000000 in
-/-- `u128::shr` correctly computes the right shift of a 128-bit value by a given
+/-- `u128::shr` computes the right shift of a 128-bit value by a given
     amount. Input stack: [shift, a0, a1, a2, a3] ++ rest (shift < 128, a0..a3
     are u32 limbs low-to-high). Dispatches to shr_k0..k3 based on
     k = shift / 32, with b = shift % 32 as the sub-limb shift. -/
@@ -1052,7 +1052,7 @@ theorem u128_shr_correct_run (fuel : Nat) (a : U128) (shift : U32) (rest : List 
           simpa [U32.toNat, hshift0b, hkfelt, and31_val shift.val] using hraw
 
 set_option maxHeartbeats 16000000 in
-/-- `u128::shr` correctly right-shifts a u128 value by `shift` bits.
+/-- `u128::shr` right-shifts a u128 value by `shift` bits.
     Input stack:  [shift, a.a0, a.a1, a.a2, a.a3] ++ rest
     Output stack: [(a.shr shift).a0, (a.shr shift).a1, (a.shr shift).a2, (a.shr shift).a3] ++ rest -/
 theorem u128_shr_correct (a : U128) (shift : U32) (rest : List Felt) (s : MidenState)

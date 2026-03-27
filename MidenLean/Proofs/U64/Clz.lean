@@ -57,7 +57,7 @@ theorem u64_clz_raw (lo hi : Felt) (rest : List Felt) (s : MidenState)
     rw [stepDrop]; miden_bind
     rw [stepU32Clz (ha := hhi)]
 
-/-- `u64::clz` correctly counts leading zeros of a u64 value.
+/-- `u64::clz` counts leading zeros of a u64 value.
     Input stack:  [a.lo, a.hi] ++ rest
     Output stack: [Felt.ofNat a.countLeadingZeros] ++ rest -/
 theorem u64_clz_correct (a : U64) (rest : List Felt) (s : MidenState)

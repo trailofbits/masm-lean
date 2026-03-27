@@ -441,7 +441,7 @@ theorem u128_overflowing_sub_run
   exact chunk8_correct env fuel a0 a1 a2 a3 b0 b1 b2 b3 rest mem locs adv
 
 set_option maxHeartbeats 8000000 in
-/-- `u128::overflowing_sub` correctly computes subtraction of two 128-bit values with borrow (raw limb version).
+/-- `u128::overflowing_sub` computes subtraction of two 128-bit values with borrow (raw limb version).
     Input stack:  [b0, b1, b2, b3, a0, a1, a2, a3] ++ rest
     Output stack: [borrow, d0, d1, d2, d3] ++ rest
     where `d0..d3` are the low-to-high limbs of `a - b`,
@@ -462,7 +462,7 @@ theorem u128_overflowing_sub_raw
     u128_overflowing_sub_run (fun _ => none) 48 a0 a1 a2 a3 b0 b1 b2 b3 rest mem locs adv
       ha0 ha1 ha2 ha3 hb0 hb1 hb2 hb3
 
-/-- `u128::overflowing_sub` correctly computes `a - b` with underflow detection.
+/-- `u128::overflowing_sub` computes `a - b` with underflow detection.
     Input stack:  [b.a0, b.a1, b.a2, b.a3, a.a0, a.a1, a.a2, a.a3] ++ rest
     Output stack: [borrow, (a−b).a0, (a−b).a1, (a−b).a2, (a−b).a3] ++ rest
     where borrow = 1 iff `a < b`. -/

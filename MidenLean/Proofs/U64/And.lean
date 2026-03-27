@@ -40,7 +40,7 @@ theorem u64_and_raw
   miden_swap
   dsimp only [pure, Pure.pure]
 
-/-- `u64::and` correctly computes bitwise AND of two u64 values.
+/-- `u64::and` computes bitwise AND of two u64 values.
     Input stack:  [b.lo, b.hi, a.lo, a.hi] ++ rest
     Output stack: [(a &&& b).lo, (a &&& b).hi] ++ rest -/
 theorem u64_and_correct (a b : U64) (rest : List Felt) (s : MidenState)

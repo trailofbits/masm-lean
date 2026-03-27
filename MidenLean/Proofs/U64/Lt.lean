@@ -9,7 +9,7 @@ open MidenLean.StepLemmas
 open MidenLean.Tactics
 
 set_option maxHeartbeats 8000000 in
-/-- `u64::lt` correctly compares two u64 values.
+/-- `u64::lt` compares two u64 values.
     Input stack:  [b_lo, b_hi, a_lo, a_hi] ++ rest
     Output stack: [result] ++ rest
     where result = 1 iff a < b (as u64), else 0.

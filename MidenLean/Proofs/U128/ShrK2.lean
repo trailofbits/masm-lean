@@ -250,7 +250,7 @@ theorem u128_shr_k2_raw
     rw [h]; rfl
 
 set_option maxHeartbeats 4000000 in
-/-- `u128::shr_k2` correctly returns the low two limbs of a u128 value shifted right by `64 + shift` bits.
+/-- `u128::shr_k2` returns the low two limbs of a u128 value shifted right by `64 + shift` bits.
     Input stack:  [shift, a.a0, a.a1, a.a2, a.a3] ++ rest
     Output stack: [(a.shr (64 + shift)).a0, (a.shr (64 + shift)).a1] ++ rest -/
 theorem u128_shr_k2_correct

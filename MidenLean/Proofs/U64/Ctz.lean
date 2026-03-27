@@ -52,7 +52,7 @@ theorem u64_ctz_raw (lo hi : Felt) (rest : List Felt) (s : MidenState)
     rw [stepDrop]; miden_bind
     rw [stepU32Ctz (ha := hlo)]
 
-/-- `u64::ctz` correctly counts trailing zeros of a u64 value.
+/-- `u64::ctz` counts trailing zeros of a u64 value.
     Input stack:  [a.lo, a.hi] ++ rest
     Output stack: [Felt.ofNat a.countTrailingZeros] ++ rest -/
 theorem u64_ctz_correct (a : U64) (rest : List Felt) (s : MidenState)

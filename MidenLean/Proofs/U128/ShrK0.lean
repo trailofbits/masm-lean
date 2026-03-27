@@ -353,7 +353,7 @@ theorem u128_shr_k0_raw
   exact h
 
 set_option maxHeartbeats 4000000 in
-/-- `u128::shr_k0` correctly right-shifts a u128 value by a nonzero amount smaller than 32 bits.
+/-- `u128::shr_k0` right-shifts a u128 value by a nonzero amount smaller than 32 bits.
     Input stack:  [shift, a.a0, a.a1, a.a2, a.a3] ++ rest
     Output stack: [(a.shr shift).a0, (a.shr shift).a1, (a.shr shift).a2, (a.shr shift).a3] ++ rest -/
 theorem u128_shr_k0_correct

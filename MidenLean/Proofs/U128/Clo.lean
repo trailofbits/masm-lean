@@ -9,7 +9,7 @@ open MidenLean.StepLemmas
 open MidenLean.Tactics
 
 set_option maxHeartbeats 12000000 in
-/-- `u128::clo` correctly counts leading ones of a u128 value (raw limb version).
+/-- `u128::clo` counts leading ones of a u128 value (raw limb version).
     Input stack:  [a, b, c, d] ++ rest
     Output stack: [result] ++ rest
     where `a..d` are low-to-high u32 limbs and the result is the number of

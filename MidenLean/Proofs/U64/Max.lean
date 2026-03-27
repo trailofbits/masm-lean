@@ -10,7 +10,7 @@ open MidenLean.Tactics
 
 -- Based on generated skeleton: SEMI | Instructions: 10 | Calls: true (lt)
 set_option maxHeartbeats 16000000 in
-/-- `u64::max` correctly computes the maximum of two u64 values.
+/-- `u64::max` computes the maximum of two u64 values.
     Input stack:  [b_lo, b_hi, a_lo, a_hi] ++ rest
     Output stack: [max_lo, max_hi] ++ rest
     lt is called on [a_lo, a_hi, b_lo, b_hi], computing b < a.
@@ -83,7 +83,7 @@ theorem u64_max_ite (a b : U64) (rest : List Felt) (s : MidenState)
   rw [u64_max_raw a.lo.val a.hi.val b.lo.val b.hi.val rest s hs a.lo.isU32 a.hi.isU32 b.lo.isU32 b.hi.isU32]
   simp only [u64_borrow_iff_lt b a]; rfl
 
-/-- `u64::max` correctly computes the maximum of two u64 values.
+/-- `u64::max` computes the maximum of two u64 values.
     Input stack:  [b.lo, b.hi, a.lo, a.hi] ++ rest
     Output stack: [(max a b).lo, (max a b).hi] ++ rest -/
 theorem u64_max_correct (a b : U64) (rest : List Felt) (s : MidenState)

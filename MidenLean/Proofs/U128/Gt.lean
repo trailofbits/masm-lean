@@ -43,7 +43,7 @@ theorem u128_gt_run
   simp [u128GtBool, u128LtBool, u128Borrow1, u128Borrow2, u128Sub0, u128Sub1, u128Sub2, u128Sub3]
 
 set_option maxHeartbeats 8000000 in
-/-- `u128::gt` correctly compares two u128 values (raw limb version).
+/-- `u128::gt` compares two u128 values (raw limb version).
     Input stack:  [b0, b1, b2, b3, a0, a1, a2, a3] ++ rest
     Output stack: [result] ++ rest
     where result = 1 iff `a > b`, else 0. -/

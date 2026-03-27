@@ -40,7 +40,7 @@ theorem u128_shr_k3_raw
   dsimp only [bind, Bind.bind, Option.bind, pure, Pure.pure]
 
 set_option maxHeartbeats 4000000 in
-/-- `u128::shr_k3` correctly returns the low limb of a u128 value shifted right by `96 + shift` bits.
+/-- `u128::shr_k3` returns the low limb of a u128 value shifted right by `96 + shift` bits.
     Input stack:  [shift, a.a0, a.a1, a.a2, a.a3] ++ rest
     Output stack: [(a.shr (96 + shift)).a0] ++ rest -/
 theorem u128_shr_k3_correct

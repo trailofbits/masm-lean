@@ -9,7 +9,7 @@ open MidenLean.StepLemmas
 open MidenLean.Tactics
 
 set_option maxHeartbeats 8000000 in
-/-- `u64::overflowing_sub` correctly computes subtraction of two u64 values with borrow.
+/-- `u64::overflowing_sub` computes subtraction of two u64 values with borrow.
     Input stack:  [b_lo, b_hi, a_lo, a_hi] ++ rest
     Output stack: [borrow, diff_lo, diff_hi] ++ rest
     where (diff_hi, diff_lo) is the u64 difference a - b,
