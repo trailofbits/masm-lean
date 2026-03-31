@@ -88,5 +88,6 @@ import MidenLean.Proofs.Word.Gt
 import MidenLean.Proofs.Word.Lt
 import MidenLean.Proofs.Word.Lte
 import MidenLean.Proofs.Word.Gte
+import MidenLean.Proofs.Mmr.NumLeavesToNumPeaks
 import MidenLean.Tests.Semantics
 import MidenLean.Tests.Procedures
