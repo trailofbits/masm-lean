@@ -42,6 +42,7 @@ inductive Instruction where
 
   -- Stack: reverse
   | reversew
+  | reversedw
 
   -- Stack: conditional
   | cswap

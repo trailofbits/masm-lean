@@ -185,6 +185,13 @@ impl SymbolicStack {
         self.slots[len - 4..].reverse();
     }
 
+    /// Simulate a reversedw (reverse top 8).
+    fn sim_reversedw(&mut self) {
+        self.ensure_depth(8);
+        let len = self.slots.len();
+        self.slots[len - 8..].reverse();
+    }
+
     /// Process a single instruction.
     fn process_instruction(&mut self, inst: &Instruction) {
         use Instruction::*;
@@ -353,6 +360,7 @@ impl SymbolicStack {
             }
 
             Reversew => self.sim_reversew(),
+            Reversedw => self.sim_reversedw(),
 
             // Conditional instructions
             CSwap | CDrop | CSwapW | CDropW => {

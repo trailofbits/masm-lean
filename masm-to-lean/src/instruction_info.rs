@@ -587,6 +587,12 @@ pub fn instruction_info(inst: &Instruction) -> InstructionInfo {
             info.has_step_lemma = true;
             info.is_known = true;
         }
+        Reversedw => {
+            info.stack_effect = Some(StackEffect::with_depth(8, 8, 8));
+            info.comment_name = "reversedw".into();
+            info.has_step_lemma = true;
+            info.is_known = true;
+        }
 
         // === Stack: conditional ===
         CSwap => {
@@ -1323,6 +1329,7 @@ pub fn proof_step_kind(inst: &Instruction) -> ProofStepKind {
         DropW => ProofStepKind::ExplicitRewrite("stepDropw"),
         PadW => ProofStepKind::ExplicitRewrite("stepPadw"),
         Reversew => ProofStepKind::ExplicitRewrite("stepReversew"),
+        Reversedw => ProofStepKind::ExplicitRewrite("stepReversedw"),
         DupW0 => ProofStepKind::ExplicitRewrite("stepDupw0"),
         Push(_) => ProofStepKind::ExplicitRewrite("stepPush"),
         Add => ProofStepKind::ExplicitRewrite("stepAdd"),
