@@ -25,18 +25,24 @@ pub fn translate_module(
     for proc in module.procedures() {
         let name = proc.name().to_string();
         let lean_name = sanitize_lean_name(&name);
+        let num_locals = proc.num_locals();
 
         out.push('\n');
 
         let items = translate_block(proc.body(), 2)?;
 
         if items.is_empty() {
-            out.push_str(&format!("def {} : List Op := []\n", lean_name));
+            out.push_str(&format!(
+                "def {} : Procedure := {{ name := \"{}\", numLocals := {}, body := [] }}\n",
+                lean_name, name, num_locals
+            ));
         } else {
-            out.push_str(&format!("def {} : List Op := [\n", lean_name));
+            out.push_str(&format!(
+                "def {} : Procedure := {{\n  name := \"{}\",\n  numLocals := {},\n  body := [\n",
+                lean_name, name, num_locals
+            ));
             out.push_str(&items.join(",\n"));
-            out.push('\n');
-            out.push_str("]\n");
+            out.push_str("\n] }\n");
         }
     }
 

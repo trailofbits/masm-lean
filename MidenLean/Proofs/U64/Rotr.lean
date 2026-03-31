@@ -13,11 +13,11 @@ private theorem felt31_val : (31 : Felt).val = 31 :=
 private theorem felt32_val : (32 : Felt).val = 32 :=
   felt_ofNat_val_lt 32 (by unfold GOLDILOCKS_PRIME; omega)
 
-private theorem stepU32WrappingSubLocal (mem locs : Nat → Felt) (adv : List Felt)
+private theorem stepU32WrappingSubLocal (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (a b : Felt) (rest : List Felt)
     (ha : a.isU32 = true) (hb : b.isU32 = true) :
-    execInstruction ⟨b :: a :: rest, mem, locs, adv⟩ .u32WrappingSub =
-      some ⟨Felt.ofNat (u32OverflowingSub a.val b.val).2 :: rest, mem, locs, adv⟩ := by
+    execInstruction ⟨b :: a :: rest, mem, frames, adv⟩ .u32WrappingSub =
+      some ⟨Felt.ofNat (u32OverflowingSub a.val b.val).2 :: rest, mem, frames, adv⟩ := by
   unfold execInstruction execU32WrappingSub
   simp [ha, hb, MidenState.withStack]
 
@@ -87,16 +87,16 @@ private def rotr_chunk4 : List Op := [
 ]
 
 private theorem rotr_decomp :
-    Miden.Core.U64.rotr = rotr_chunk1 ++ (rotr_chunk2 ++ (rotr_chunk3 ++ rotr_chunk4)) := by
+    Miden.Core.U64.rotr.body = rotr_chunk1 ++ (rotr_chunk2 ++ (rotr_chunk3 ++ rotr_chunk4)) := by
   simp [Miden.Core.U64.rotr, rotr_chunk1, rotr_chunk2, rotr_chunk3, rotr_chunk4]
 
 set_option maxHeartbeats 12000000 in
 private theorem rotr_chunk1_correct
-    (shift lo hi : Felt) (rest : List Felt) (mem locs : Nat → Felt) (adv : List Felt)
+    (shift lo hi : Felt) (rest : List Felt) (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (hshift_u32 : shift.isU32 = true) :
-    exec 35 ⟨shift :: lo :: hi :: rest, mem, locs, adv⟩ rotr_chunk1 =
+    exec 35 ⟨shift :: lo :: hi :: rest, mem, frames, adv⟩ rotr_chunk1 =
       some ⟨(if decide (31 < shift.val) then (1 : Felt) else 0) ::
-        shift :: hi :: lo :: rest, mem, locs, adv⟩ := by
+        shift :: hi :: lo :: rest, mem, frames, adv⟩ := by
   unfold exec rotr_chunk1 execWithEnv
   simp only [List.foldlM]
   miden_movup
@@ -112,16 +112,16 @@ private theorem rotr_chunk1_correct
 
 set_option maxHeartbeats 12000000 in
 private theorem rotr_chunk2_correct
-    (shift lo hi : Felt) (rest : List Felt) (mem locs : Nat → Felt) (adv : List Felt)
+    (shift lo hi : Felt) (rest : List Felt) (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (hshift_u32 : shift.isU32 = true) :
     let cmp := decide (31 < shift.val)
     let shiftAnd31 := Felt.ofNat (shift.val &&& 31)
     let effShift := Felt.ofNat (u32OverflowingSub 32 shiftAnd31.val).2
     exec 35
-      ⟨(if cmp then (1 : Felt) else 0) :: shift :: hi :: lo :: rest, mem, locs, adv⟩
+      ⟨(if cmp then (1 : Felt) else 0) :: shift :: hi :: lo :: rest, mem, frames, adv⟩
       rotr_chunk2 =
       some ⟨Felt.ofNat (2 ^ effShift.val) ::
-        hi :: lo :: (if cmp then (1 : Felt) else 0) :: rest, mem, locs, adv⟩ := by
+        hi :: lo :: (if cmp then (1 : Felt) else 0) :: rest, mem, frames, adv⟩ := by
   unfold exec rotr_chunk2 execWithEnv
   simp only [List.foldlM]
   have h_shiftAnd31_u32 : (Felt.ofNat (shift.val &&& 31)).isU32 = true := by
@@ -149,7 +149,7 @@ private theorem rotr_chunk2_correct
 
 set_option maxHeartbeats 12000000 in
 private theorem rotr_chunk3_correct
-    (shift lo hi : Felt) (rest : List Felt) (mem locs : Nat → Felt) (adv : List Felt) :
+    (shift lo hi : Felt) (rest : List Felt) (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt) :
     let cmp := decide (31 < shift.val)
     let shiftAnd31 := Felt.ofNat (shift.val &&& 31)
     let effShift := Felt.ofNat (u32OverflowingSub 32 shiftAnd31.val).2
@@ -157,10 +157,10 @@ private theorem rotr_chunk3_correct
     let prod1 := pow * lo
     let cross := prod1.hi32 + hi * pow
     exec 35
-      ⟨pow :: hi :: lo :: (if cmp then (1 : Felt) else 0) :: rest, mem, locs, adv⟩
+      ⟨pow :: hi :: lo :: (if cmp then (1 : Felt) else 0) :: rest, mem, frames, adv⟩
       rotr_chunk3 =
       some ⟨(if cmp then (1 : Felt) else 0) ::
-        cross.lo32 :: (cross.hi32 + prod1.lo32) :: rest, mem, locs, adv⟩ := by
+        cross.lo32 :: (cross.hi32 + prod1.lo32) :: rest, mem, frames, adv⟩ := by
   unfold exec rotr_chunk3 execWithEnv
   simp only [List.foldlM]
   miden_dup
@@ -188,9 +188,9 @@ private theorem rotr_chunk3_correct
 
 set_option maxHeartbeats 12000000 in
 private theorem rotr_chunk4_correct
-    (p : Bool) (a b : Felt) (rest : List Felt) (mem locs : Nat → Felt) (adv : List Felt) :
-    exec 35 ⟨(if p then (1 : Felt) else 0) :: a :: b :: rest, mem, locs, adv⟩ rotr_chunk4 =
-      some ⟨(if !p then a else b) :: (if !p then b else a) :: rest, mem, locs, adv⟩ := by
+    (p : Bool) (a b : Felt) (rest : List Felt) (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt) :
+    exec 35 ⟨(if p then (1 : Felt) else 0) :: a :: b :: rest, mem, frames, adv⟩ rotr_chunk4 =
+      some ⟨(if !p then a else b) :: (if !p then b else a) :: rest, mem, frames, adv⟩ := by
   unfold exec rotr_chunk4 execWithEnv
   simp only [List.foldlM]
   rw [stepNotIte]
@@ -218,17 +218,17 @@ theorem u64_rotr_raw
           cross.lo32 :: (cross.hi32 + prod1.lo32) :: rest
         else
           (cross.hi32 + prod1.lo32) :: cross.lo32 :: rest)) := by
-  obtain ⟨stk, mem, locs, adv⟩ := s
+  obtain ⟨stk, mem, frames, adv⟩ := s
   simp only [MidenState.withStack] at hs ⊢
   subst hs
-  rw [rotr_decomp, MidenLean.exec_append]
-  rw [rotr_chunk1_correct shift lo hi rest mem locs adv hshift_u32]
+  rw [MidenLean.exec_body_eq _ _ _ _ rotr_decomp rfl, MidenLean.exec_append]
+  rw [rotr_chunk1_correct shift lo hi rest mem frames adv hshift_u32]
   miden_bind
   rw [MidenLean.exec_append]
-  rw [rotr_chunk2_correct shift lo hi rest mem locs adv hshift_u32]
+  rw [rotr_chunk2_correct shift lo hi rest mem frames adv hshift_u32]
   miden_bind
   rw [MidenLean.exec_append]
-  rw [rotr_chunk3_correct shift lo hi rest mem locs adv]
+  rw [rotr_chunk3_correct shift lo hi rest mem frames adv]
   miden_bind
   let cmp := decide (31 < shift.val)
   let shiftAnd31 := Felt.ofNat (shift.val &&& 31)
@@ -238,9 +238,9 @@ theorem u64_rotr_raw
   let cross := prod1.hi32 + hi * pow
   cases hcmp : cmp
   · simpa [cmp, hcmp] using
-      (rotr_chunk4_correct cmp cross.lo32 (cross.hi32 + prod1.lo32) rest mem locs adv)
+      (rotr_chunk4_correct cmp cross.lo32 (cross.hi32 + prod1.lo32) rest mem frames adv)
   · simpa [cmp, hcmp] using
-      (rotr_chunk4_correct cmp cross.lo32 (cross.hi32 + prod1.lo32) rest mem locs adv)
+      (rotr_chunk4_correct cmp cross.lo32 (cross.hi32 + prod1.lo32) rest mem frames adv)
 
 /-- Nat-level bridging for rotr no-swap case (1 ≤ eff ≤ 31, eff = 32 - shift).
     Shows the schoolbook decomposition matches the rotr formula

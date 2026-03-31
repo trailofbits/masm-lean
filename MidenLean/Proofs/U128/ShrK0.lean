@@ -86,12 +86,12 @@ private def shr_k0_cleanup : List Op := [
 set_option maxHeartbeats 1600000 in
 private theorem shr_k0_setup_correct
     (shift a0 a1 a2 a3 : Felt) (rest : List Felt)
-    (mem locs : Nat → Felt) (adv : List Felt)
+    (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (hshift_u32 : shift.isU32 = true)
     (hshift : shift.val ≤ 31) (hshift_pos : 0 < shift.val) :
-    exec 51 ⟨shift :: a0 :: a1 :: a2 :: a3 :: rest, mem, locs, adv⟩ shr_k0_setup =
+    exec 51 ⟨shift :: a0 :: a1 :: a2 :: a3 :: rest, mem, frames, adv⟩ shr_k0_setup =
     some ⟨Felt.ofNat (2 ^ (32 - shift.val)) :: shift :: a0 :: a1 :: a2 :: a3 :: rest,
-      mem, locs, adv⟩ := by
+      mem, frames, adv⟩ := by
   unfold exec shr_k0_setup execWithEnv
   simp only [List.foldlM]
   rw [stepPush]
@@ -113,18 +113,18 @@ private theorem shr_k0_setup_correct
 set_option maxHeartbeats 2000000 in
 private theorem shr_k0_compute1_correct
     (shift a0 a1 a2 a3 : Felt) (rest : List Felt)
-    (mem locs : Nat → Felt) (adv : List Felt)
+    (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (hshift_u32 : shift.isU32 = true)
     (ha2_u32 : a2.isU32 = true) (ha3_u32 : a3.isU32 = true)
     (hshift : shift.val ≤ 31) (hshift_pos : 0 < shift.val) :
     let pow := Felt.ofNat (2 ^ (32 - shift.val))
     exec 51
-      ⟨pow :: shift :: a0 :: a1 :: a2 :: a3 :: rest, mem, locs, adv⟩
+      ⟨pow :: shift :: a0 :: a1 :: a2 :: a3 :: rest, mem, frames, adv⟩
       shr_k0_compute1 =
     some ⟨Felt.ofNat ((a2.val / 2 ^ shift.val) ||| ((a3.val * 2 ^ (32 - shift.val)) % 2 ^ 32)) ::
       Felt.ofNat (a3.val / 2 ^ shift.val) ::
       pow :: shift :: a0 :: a1 :: a2 :: a3 :: rest,
-      mem, locs, adv⟩ := by
+      mem, frames, adv⟩ := by
   unfold exec shr_k0_compute1 execWithEnv
   simp only [List.foldlM]
   have hpow_u32 : (Felt.ofNat (2 ^ (32 - shift.val))).isU32 = true :=
@@ -163,17 +163,17 @@ set_option maxHeartbeats 2000000 in
 private theorem shr_k0_compute2_correct
     (shift a0 a1 a2 a3 : Felt) (rest : List Felt)
     (r0 r1 : Felt)
-    (mem locs : Nat → Felt) (adv : List Felt)
+    (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (hshift_u32 : shift.isU32 = true)
     (ha1_u32 : a1.isU32 = true) (ha2_u32 : a2.isU32 = true)
     (hshift : shift.val ≤ 31) (hshift_pos : 0 < shift.val) :
     let pow := Felt.ofNat (2 ^ (32 - shift.val))
     exec 51
-      ⟨r0 :: r1 :: pow :: shift :: a0 :: a1 :: a2 :: a3 :: rest, mem, locs, adv⟩
+      ⟨r0 :: r1 :: pow :: shift :: a0 :: a1 :: a2 :: a3 :: rest, mem, frames, adv⟩
       shr_k0_compute2 =
     some ⟨Felt.ofNat ((a1.val / 2 ^ shift.val) ||| ((a2.val * 2 ^ (32 - shift.val)) % 2 ^ 32)) ::
       r0 :: r1 :: pow :: shift :: a0 :: a1 :: a2 :: a3 :: rest,
-      mem, locs, adv⟩ := by
+      mem, frames, adv⟩ := by
   unfold exec shr_k0_compute2 execWithEnv
   simp only [List.foldlM]
   have hpow_u32 : (Felt.ofNat (2 ^ (32 - shift.val))).isU32 = true :=
@@ -206,17 +206,17 @@ set_option maxHeartbeats 2000000 in
 private theorem shr_k0_compute3_correct
     (shift a0 a1 a2 a3 : Felt) (rest : List Felt)
     (r0 r1 r2 : Felt)
-    (mem locs : Nat → Felt) (adv : List Felt)
+    (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (hshift_u32 : shift.isU32 = true)
     (ha0_u32 : a0.isU32 = true) (ha1_u32 : a1.isU32 = true)
     (hshift : shift.val ≤ 31) (hshift_pos : 0 < shift.val) :
     let pow := Felt.ofNat (2 ^ (32 - shift.val))
     exec 51
-      ⟨r0 :: r1 :: r2 :: pow :: shift :: a0 :: a1 :: a2 :: a3 :: rest, mem, locs, adv⟩
+      ⟨r0 :: r1 :: r2 :: pow :: shift :: a0 :: a1 :: a2 :: a3 :: rest, mem, frames, adv⟩
       shr_k0_compute3 =
     some ⟨Felt.ofNat ((a0.val / 2 ^ shift.val) ||| ((a1.val * 2 ^ (32 - shift.val)) % 2 ^ 32)) ::
       r0 :: r1 :: r2 :: pow :: shift :: a0 :: a1 :: a2 :: a3 :: rest,
-      mem, locs, adv⟩ := by
+      mem, frames, adv⟩ := by
   unfold exec shr_k0_compute3 execWithEnv
   simp only [List.foldlM]
   have hpow_u32 : (Felt.ofNat (2 ^ (32 - shift.val))).isU32 = true :=
@@ -248,10 +248,10 @@ private theorem shr_k0_compute3_correct
 set_option maxHeartbeats 2000000 in
 private theorem shr_k0_cleanup_correct
     (a b c d e f g h i j : Felt) (rest : List Felt)
-    (mem locs : Nat → Felt) (adv : List Felt) :
-    exec 51 ⟨a :: b :: c :: d :: e :: f :: g :: h :: i :: j :: rest, mem, locs, adv⟩
+    (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt) :
+    exec 51 ⟨a :: b :: c :: d :: e :: f :: g :: h :: i :: j :: rest, mem, frames, adv⟩
       shr_k0_cleanup =
-    some ⟨a :: b :: c :: d :: rest, mem, locs, adv⟩ := by
+    some ⟨a :: b :: c :: d :: rest, mem, frames, adv⟩ := by
   unfold exec shr_k0_cleanup execWithEnv
   simp only [List.foldlM]
   miden_movup
@@ -280,43 +280,43 @@ private theorem shr_k0_cleanup_correct
 set_option maxHeartbeats 2000000 in
 private theorem shr_k0_all
     (shift a0 a1 a2 a3 : Felt) (rest : List Felt)
-    (mem locs : Nat → Felt) (adv : List Felt)
+    (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (hshift_u32 : shift.isU32 = true)
     (ha0_u32 : a0.isU32 = true) (ha1_u32 : a1.isU32 = true)
     (ha2_u32 : a2.isU32 = true) (ha3_u32 : a3.isU32 = true)
     (hshift_pos : 0 < shift.val) (hshift : shift.val ≤ 31) :
-    exec 51 ⟨shift :: a0 :: a1 :: a2 :: a3 :: rest, mem, locs, adv⟩
+    exec 51 ⟨shift :: a0 :: a1 :: a2 :: a3 :: rest, mem, frames, adv⟩
       (shr_k0_setup ++ (shr_k0_compute1 ++ (shr_k0_compute2 ++ (shr_k0_compute3 ++ shr_k0_cleanup)))) =
     some ⟨Felt.ofNat ((a0.val / 2 ^ shift.val) ||| ((a1.val * 2 ^ (32 - shift.val)) % 2 ^ 32)) ::
       Felt.ofNat ((a1.val / 2 ^ shift.val) ||| ((a2.val * 2 ^ (32 - shift.val)) % 2 ^ 32)) ::
       Felt.ofNat ((a2.val / 2 ^ shift.val) ||| ((a3.val * 2 ^ (32 - shift.val)) % 2 ^ 32)) ::
-      Felt.ofNat (a3.val / 2 ^ shift.val) :: rest, mem, locs, adv⟩ := by
+      Felt.ofNat (a3.val / 2 ^ shift.val) :: rest, mem, frames, adv⟩ := by
   rw [exec_append]
-  rw [shr_k0_setup_correct shift a0 a1 a2 a3 rest mem locs adv hshift_u32 hshift hshift_pos]
+  rw [shr_k0_setup_correct shift a0 a1 a2 a3 rest mem frames adv hshift_u32 hshift hshift_pos]
   simp only [bind, Bind.bind, Option.bind]
   rw [exec_append]
-  rw [shr_k0_compute1_correct shift a0 a1 a2 a3 rest mem locs adv hshift_u32 ha2_u32 ha3_u32
+  rw [shr_k0_compute1_correct shift a0 a1 a2 a3 rest mem frames adv hshift_u32 ha2_u32 ha3_u32
     hshift hshift_pos]
   simp only [bind, Bind.bind, Option.bind]
   rw [exec_append]
   rw [shr_k0_compute2_correct shift a0 a1 a2 a3 rest
     (Felt.ofNat ((a2.val / 2 ^ shift.val) ||| ((a3.val * 2 ^ (32 - shift.val)) % 2 ^ 32)))
     (Felt.ofNat (a3.val / 2 ^ shift.val))
-    mem locs adv hshift_u32 ha1_u32 ha2_u32 hshift hshift_pos]
+    mem frames adv hshift_u32 ha1_u32 ha2_u32 hshift hshift_pos]
   simp only [bind, Bind.bind, Option.bind]
   rw [exec_append]
   rw [shr_k0_compute3_correct shift a0 a1 a2 a3 rest
     (Felt.ofNat ((a1.val / 2 ^ shift.val) ||| ((a2.val * 2 ^ (32 - shift.val)) % 2 ^ 32)))
     (Felt.ofNat ((a2.val / 2 ^ shift.val) ||| ((a3.val * 2 ^ (32 - shift.val)) % 2 ^ 32)))
     (Felt.ofNat (a3.val / 2 ^ shift.val))
-    mem locs adv hshift_u32 ha0_u32 ha1_u32 hshift hshift_pos]
+    mem frames adv hshift_u32 ha0_u32 ha1_u32 hshift hshift_pos]
   simp only [bind, Bind.bind, Option.bind]
   exact shr_k0_cleanup_correct
     (Felt.ofNat ((a0.val / 2 ^ shift.val) ||| ((a1.val * 2 ^ (32 - shift.val)) % 2 ^ 32)))
     (Felt.ofNat ((a1.val / 2 ^ shift.val) ||| ((a2.val * 2 ^ (32 - shift.val)) % 2 ^ 32)))
     (Felt.ofNat ((a2.val / 2 ^ shift.val) ||| ((a3.val * 2 ^ (32 - shift.val)) % 2 ^ 32)))
     (Felt.ofNat (a3.val / 2 ^ shift.val))
-    (Felt.ofNat (2 ^ (32 - shift.val))) shift a0 a1 a2 a3 rest mem locs adv
+    (Felt.ofNat (2 ^ (32 - shift.val))) shift a0 a1 a2 a3 rest mem frames adv
 
 -- ============================================================================
 -- Main theorem
@@ -343,13 +343,16 @@ theorem u128_shr_k0_raw
       Felt.ofNat ((a1.val / 2 ^ shift.val) ||| ((a2.val * pow) % 2 ^ 32)) ::
       Felt.ofNat ((a2.val / 2 ^ shift.val) ||| ((a3.val * pow) % 2 ^ 32)) ::
       Felt.ofNat (a3.val / 2 ^ shift.val) :: rest)) := by
-  obtain ⟨stk, mem, locs, adv⟩ := s
+  obtain ⟨stk, mem, frames, adv⟩ := s
   simp only [MidenState.withStack] at hs ⊢
   subst hs
-  have h := shr_k0_all shift a0 a1 a2 a3 rest mem locs adv
+  have h := shr_k0_all shift a0 a1 a2 a3 rest mem frames adv
     hshift_u32 ha0_u32 ha1_u32 ha2_u32 ha3_u32 hshift_pos hshift
-  simp only [exec, shr_k0_setup, shr_k0_compute1, shr_k0_compute2, shr_k0_compute3, shr_k0_cleanup,
-    Miden.Core.U128.shr_k0, List.nil_append, List.cons_append] at h ⊢
+  have hbody : Miden.Core.U128.shr_k0.body =
+      shr_k0_setup ++ (shr_k0_compute1 ++ (shr_k0_compute2 ++ (shr_k0_compute3 ++ shr_k0_cleanup))) := by
+    simp [Miden.Core.U128.shr_k0, shr_k0_setup, shr_k0_compute1, shr_k0_compute2,
+      shr_k0_compute3, shr_k0_cleanup]
+  rw [MidenLean.exec_body_eq _ _ _ _ hbody rfl]
   exact h
 
 set_option maxHeartbeats 4000000 in

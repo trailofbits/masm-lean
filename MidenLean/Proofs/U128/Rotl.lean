@@ -104,7 +104,7 @@ private def rotl_nonzero : List Op :=
 -- ============================================================================
 
 private theorem rotl_decomp :
-    Miden.Core.U128.rotl =
+    Miden.Core.U128.rotl.body =
     rotl_prefix ++ [.ifElse [.inst (.drop)] rotl_nonzero] := by
   simp [Miden.Core.U128.rotl, rotl_prefix, rotl_nonzero,
         rotl_dup_setup, rotl_mid_setup, rotl_combine]
@@ -115,12 +115,12 @@ private theorem rotl_decomp :
 
 private theorem rotl_prefix_correct (env : ProcEnv) (fuel : Nat)
     (shift a0 a1 a2 a3 : Felt) (rest : List Felt)
-    (mem locs : Nat → Felt) (adv : List Felt) :
+    (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt) :
     execWithEnv env (fuel + 1)
-      ⟨shift :: a0 :: a1 :: a2 :: a3 :: rest, mem, locs, adv⟩
+      ⟨shift :: a0 :: a1 :: a2 :: a3 :: rest, mem, frames, adv⟩
       rotl_prefix =
     some ⟨(if shift == (0 : Felt) then (1 : Felt) else 0) ::
-          shift :: a0 :: a1 :: a2 :: a3 :: rest, mem, locs, adv⟩ := by
+          shift :: a0 :: a1 :: a2 :: a3 :: rest, mem, frames, adv⟩ := by
   unfold rotl_prefix execWithEnv
   simp only [List.foldlM]
   dsimp only [bind, Bind.bind, Option.bind, pure, Pure.pure]
@@ -134,12 +134,12 @@ private theorem rotl_prefix_correct (env : ProcEnv) (fuel : Nat)
 set_option maxHeartbeats 4000000 in
 private theorem rotl_dup_setup_correct (env : ProcEnv) (fuel : Nat)
     (shift a0 a1 a2 a3 : Felt) (rest : List Felt)
-    (mem locs : Nat → Felt) (adv : List Felt) :
+    (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt) :
     execWithEnv env (fuel + 1)
-      ⟨shift :: a0 :: a1 :: a2 :: a3 :: rest, mem, locs, adv⟩
+      ⟨shift :: a0 :: a1 :: a2 :: a3 :: rest, mem, frames, adv⟩
       rotl_dup_setup =
     some ⟨shift :: a0 :: a1 :: a2 :: a3 ::
-          shift :: a0 :: a1 :: a2 :: a3 :: rest, mem, locs, adv⟩ := by
+          shift :: a0 :: a1 :: a2 :: a3 :: rest, mem, frames, adv⟩ := by
   unfold rotl_dup_setup execWithEnv
   simp only [List.foldlM]
   dsimp only [bind, Bind.bind, Option.bind, pure, Pure.pure]
@@ -157,15 +157,15 @@ private theorem rotl_dup_setup_correct (env : ProcEnv) (fuel : Nat)
 set_option maxHeartbeats 4000000 in
 private theorem rotl_mid_setup_correct (env : ProcEnv) (fuel : Nat)
     (s0 s1 s2 s3 shift a0 a1 a2 a3 : Felt) (rest : List Felt)
-    (mem locs : Nat → Felt) (adv : List Felt)
+    (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (hshift_u32 : shift.isU32 = true) :
     execWithEnv env (fuel + 1)
       ⟨s0 :: s1 :: s2 :: s3 :: shift :: a0 :: a1 :: a2 :: a3 :: rest,
-       mem, locs, adv⟩
+       mem, frames, adv⟩
       rotl_mid_setup =
     some ⟨Felt.ofNat (u32OverflowingSub 128 shift.val).2 ::
           a0 :: a1 :: a2 :: a3 :: s0 :: s1 :: s2 :: s3 :: rest,
-          mem, locs, adv⟩ := by
+          mem, frames, adv⟩ := by
   unfold rotl_mid_setup execWithEnv
   simp only [List.foldlM]
   dsimp only [bind, Bind.bind, Option.bind, pure, Pure.pure]
@@ -187,17 +187,17 @@ private theorem rotl_mid_setup_correct (env : ProcEnv) (fuel : Nat)
 set_option maxHeartbeats 4000000 in
 private theorem rotl_combine_correct (env : ProcEnv) (fuel : Nat)
     (r0 r1 r2 r3 s0 s1 s2 s3 : Felt) (rest : List Felt)
-    (mem locs : Nat → Felt) (adv : List Felt)
+    (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (hr0 : r0.isU32 = true) (hr1 : r1.isU32 = true)
     (hr2 : r2.isU32 = true) (hr3 : r3.isU32 = true)
     (hs0 : s0.isU32 = true) (hs1 : s1.isU32 = true)
     (hs2 : s2.isU32 = true) (hs3 : s3.isU32 = true) :
     execWithEnv env (fuel + 1)
-      ⟨r0 :: r1 :: r2 :: r3 :: s0 :: s1 :: s2 :: s3 :: rest, mem, locs, adv⟩
+      ⟨r0 :: r1 :: r2 :: r3 :: s0 :: s1 :: s2 :: s3 :: rest, mem, frames, adv⟩
       rotl_combine =
     some ⟨Felt.ofNat (r0.val ||| s0.val) :: Felt.ofNat (r1.val ||| s1.val) ::
           Felt.ofNat (r2.val ||| s2.val) :: Felt.ofNat (r3.val ||| s3.val) :: rest,
-          mem, locs, adv⟩ := by
+          mem, frames, adv⟩ := by
   unfold rotl_combine execWithEnv
   simp only [List.foldlM]
   dsimp only [bind, Bind.bind, Option.bind, pure, Pure.pure]
@@ -234,28 +234,28 @@ private theorem execWithEnv_append' (env : ProcEnv) (fuel : Nat)
 
 private theorem execWithEnv_ifElse_one'
     (env : ProcEnv) (fuel : Nat)
-    (rest : List Felt) (mem locs : Nat → Felt) (adv : List Felt)
+    (rest : List Felt) (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (thenBlk elseBlk : List Op) :
     execWithEnv env (fuel + 2)
-      ⟨(1 : Felt) :: rest, mem, locs, adv⟩
-      [.ifElse thenBlk elseBlk] =
-    execWithEnv env (fuel + 1) ⟨rest, mem, locs, adv⟩ thenBlk := by
+      ⟨(1 : Felt) :: rest, mem, frames, adv⟩
+      ([.ifElse thenBlk elseBlk] : List Op) =
+    execWithEnv env (fuel + 1) ⟨rest, mem, frames, adv⟩ thenBlk := by
   conv_lhs => unfold execWithEnv
   simp only [List.foldlM, MidenState.withStack]
   dsimp only [bind, Bind.bind, Option.bind, pure, Pure.pure]
   have hv1 : (1 : Felt).val = 1 := Felt.val_one'
   have hbeq : ((1 : Nat) == 1) = true := by decide
   simp only [hv1, hbeq, ↓reduceIte]
-  cases execWithEnv env (fuel + 1) ⟨rest, mem, locs, adv⟩ thenBlk <;> rfl
+  cases execWithEnv env (fuel + 1) ⟨rest, mem, frames, adv⟩ thenBlk <;> rfl
 
 private theorem execWithEnv_ifElse_zero'
     (env : ProcEnv) (fuel : Nat)
-    (rest : List Felt) (mem locs : Nat → Felt) (adv : List Felt)
+    (rest : List Felt) (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (thenBlk elseBlk : List Op) :
     execWithEnv env (fuel + 2)
-      ⟨(0 : Felt) :: rest, mem, locs, adv⟩
-      [.ifElse thenBlk elseBlk] =
-    execWithEnv env (fuel + 1) ⟨rest, mem, locs, adv⟩ elseBlk := by
+      ⟨(0 : Felt) :: rest, mem, frames, adv⟩
+      ([.ifElse thenBlk elseBlk] : List Op) =
+    execWithEnv env (fuel + 1) ⟨rest, mem, frames, adv⟩ elseBlk := by
   conv_lhs => unfold execWithEnv
   simp only [List.foldlM, MidenState.withStack]
   dsimp only [bind, Bind.bind, Option.bind, pure, Pure.pure]
@@ -263,7 +263,7 @@ private theorem execWithEnv_ifElse_zero'
   have hneq : ((0 : Nat) == 1) = false := by decide
   have hbeq : ((0 : Nat) == 0) = true := by decide
   simp only [hv0, hneq, hbeq, ↓reduceIte]
-  cases execWithEnv env (fuel + 1) ⟨rest, mem, locs, adv⟩ elseBlk <;> rfl
+  cases execWithEnv env (fuel + 1) ⟨rest, mem, frames, adv⟩ elseBlk <;> rfl
 
 -- ============================================================================
 -- Nonzero branch: parametric composition
@@ -275,7 +275,7 @@ set_option maxHeartbeats 8000000 in
     all limbs are u32. -/
 private theorem rotl_nonzero_correct (fuel : Nat)
     (shift a0 a1 a2 a3 : Felt) (rest : List Felt)
-    (mem locs : Nat → Felt) (adv : List Felt)
+    (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (s0 s1 s2 s3 r0 r1 r2 r3 : Felt)
     (hshift_u32 : shift.isU32 = true)
     (hs0 : s0.isU32 = true) (hs1 : s1.isU32 = true)
@@ -284,27 +284,27 @@ private theorem rotl_nonzero_correct (fuel : Nat)
     (hr2 : r2.isU32 = true) (hr3 : r3.isU32 = true)
     (hshl : execWithEnv u128ProcEnv (fuel + 7)
       ⟨shift :: a0 :: a1 :: a2 :: a3 ::
-       shift :: a0 :: a1 :: a2 :: a3 :: rest, mem, locs, adv⟩
+       shift :: a0 :: a1 :: a2 :: a3 :: rest, mem, frames, adv⟩
       Miden.Core.U128.shl =
       some ⟨s0 :: s1 :: s2 :: s3 ::
-            shift :: a0 :: a1 :: a2 :: a3 :: rest, mem, locs, adv⟩)
+            shift :: a0 :: a1 :: a2 :: a3 :: rest, mem, frames, adv⟩)
     (hshr : execWithEnv u128ProcEnv (fuel + 7)
       ⟨Felt.ofNat (u32OverflowingSub 128 shift.val).2 ::
-       a0 :: a1 :: a2 :: a3 :: s0 :: s1 :: s2 :: s3 :: rest, mem, locs, adv⟩
+       a0 :: a1 :: a2 :: a3 :: s0 :: s1 :: s2 :: s3 :: rest, mem, frames, adv⟩
       Miden.Core.U128.shr =
       some ⟨r0 :: r1 :: r2 :: r3 ::
-            s0 :: s1 :: s2 :: s3 :: rest, mem, locs, adv⟩) :
+            s0 :: s1 :: s2 :: s3 :: rest, mem, frames, adv⟩) :
     execWithEnv u128ProcEnv (fuel + 8)
-      ⟨shift :: a0 :: a1 :: a2 :: a3 :: rest, mem, locs, adv⟩
+      ⟨shift :: a0 :: a1 :: a2 :: a3 :: rest, mem, frames, adv⟩
       rotl_nonzero =
     some ⟨Felt.ofNat (r0.val ||| s0.val) :: Felt.ofNat (r1.val ||| s1.val) ::
           Felt.ofNat (r2.val ||| s2.val) :: Felt.ofNat (r3.val ||| s3.val) :: rest,
-          mem, locs, adv⟩ := by
+          mem, frames, adv⟩ := by
   unfold rotl_nonzero
   simp only [List.append_assoc]
   -- Step 1: dup setup
   rw [execWithEnv_append']
-  rw [rotl_dup_setup_correct u128ProcEnv (fuel + 7) shift a0 a1 a2 a3 rest mem locs adv]
+  rw [rotl_dup_setup_correct u128ProcEnv (fuel + 7) shift a0 a1 a2 a3 rest mem frames adv]
   simp only [bind, Bind.bind, Option.bind]
   -- Step 2: exec "shl"
   rw [execWithEnv_append']
@@ -318,7 +318,7 @@ private theorem rotl_nonzero_correct (fuel : Nat)
   -- Step 3: mid setup
   rw [execWithEnv_append']
   rw [rotl_mid_setup_correct u128ProcEnv (fuel + 7) s0 s1 s2 s3 shift a0 a1 a2 a3 rest
-    mem locs adv hshift_u32]
+    mem frames adv hshift_u32]
   simp only [bind, Bind.bind, Option.bind]
   -- Step 4: exec "shr"
   rw [execWithEnv_append']
@@ -331,7 +331,7 @@ private theorem rotl_nonzero_correct (fuel : Nat)
   simp only [bind, Bind.bind, Option.bind]
   -- Step 5: combine
   exact rotl_combine_correct u128ProcEnv (fuel + 7) r0 r1 r2 r3 s0 s1 s2 s3 rest
-    mem locs adv hr0 hr1 hr2 hr3 hs0 hs1 hs2 hs3
+    mem frames adv hr0 hr1 hr2 hr3 hs0 hs1 hs2 hs3
 
 -- ============================================================================
 -- Main correctness theorem
@@ -355,19 +355,19 @@ theorem u128_rotl_raw (fuel : Nat)
     (hshl : execWithEnv u128ProcEnv (fuel + 7)
       ⟨shift :: a0 :: a1 :: a2 :: a3 ::
        shift :: a0 :: a1 :: a2 :: a3 :: rest,
-       s.memory, s.locals, s.advice⟩
+       s.memory, s.frames, s.advice⟩
       Miden.Core.U128.shl =
       some ⟨s0 :: s1 :: s2 :: s3 ::
             shift :: a0 :: a1 :: a2 :: a3 :: rest,
-            s.memory, s.locals, s.advice⟩)
+            s.memory, s.frames, s.advice⟩)
     (hshr : execWithEnv u128ProcEnv (fuel + 7)
       ⟨Felt.ofNat (u32OverflowingSub 128 shift.val).2 ::
        a0 :: a1 :: a2 :: a3 :: s0 :: s1 :: s2 :: s3 :: rest,
-       s.memory, s.locals, s.advice⟩
+       s.memory, s.frames, s.advice⟩
       Miden.Core.U128.shr =
       some ⟨r0 :: r1 :: r2 :: r3 ::
             s0 :: s1 :: s2 :: s3 :: rest,
-            s.memory, s.locals, s.advice⟩) :
+            s.memory, s.frames, s.advice⟩) :
     execWithEnv u128ProcEnv (fuel + 9) s Miden.Core.U128.rotl =
     some (s.withStack (
       if shift == (0 : Felt) then
@@ -375,11 +375,11 @@ theorem u128_rotl_raw (fuel : Nat)
       else
         Felt.ofNat (r0.val ||| s0.val) :: Felt.ofNat (r1.val ||| s1.val) ::
         Felt.ofNat (r2.val ||| s2.val) :: Felt.ofNat (r3.val ||| s3.val) :: rest)) := by
-  obtain ⟨stk, mem, locs, adv⟩ := s
+  obtain ⟨stk, mem, frames, adv⟩ := s
   simp only [MidenState.withStack] at hs hshl hshr ⊢
   subst hs
-  rw [rotl_decomp, execWithEnv_append']
-  rw [rotl_prefix_correct u128ProcEnv (fuel + 8) shift a0 a1 a2 a3 rest mem locs adv]
+  rw [execWithEnv_body_eq _ _ _ _ _ rotl_decomp rfl, execWithEnv_append']
+  rw [rotl_prefix_correct u128ProcEnv (fuel + 8) shift a0 a1 a2 a3 rest mem frames adv]
   simp only [bind, Bind.bind, Option.bind]
   by_cases hzero : shift == (0 : Felt)
   · -- shift == 0: identity
@@ -396,7 +396,7 @@ theorem u128_rotl_raw (fuel : Nat)
       have : shift.val ≠ 0 := fun hval =>
         hzero (beq_iff_eq.mpr ((ZMod.val_eq_zero shift).mp hval))
       omega
-    exact rotl_nonzero_correct fuel shift a0 a1 a2 a3 rest mem locs adv
+    exact rotl_nonzero_correct fuel shift a0 a1 a2 a3 rest mem frames adv
       s0 s1 s2 s3 r0 r1 r2 r3
       hshift_u32 hs0 hs1 hs2 hs3 hr0 hr1 hr2 hr3
       hshl hshr
@@ -412,7 +412,7 @@ theorem u128_rotl_correct (a : U128) (shift : U32) (rest : List Felt) (s : Miden
     some (s.withStack (
       (a.rotl shift.toNat).a0.val :: (a.rotl shift.toNat).a1.val ::
       (a.rotl shift.toNat).a2.val :: (a.rotl shift.toNat).a3.val :: rest)) := by
-  obtain ⟨stk, mem, locs, adv⟩ := s
+  obtain ⟨stk, mem, frames, adv⟩ := s
   simp only [MidenState.withStack] at hs ⊢
   subst hs
   by_cases hzero : shift.toNat = 0
@@ -421,8 +421,8 @@ theorem u128_rotl_correct (a : U128) (shift : U32) (rest : List Felt) (s : Miden
       simpa [U32.toNat, Felt.val_zero'] using hzero
     have hshift0b : (shift.val == (0 : Felt)) = true := by
       exact beq_iff_eq.mpr hshift0
-    rw [rotl_decomp, execWithEnv_append']
-    rw [rotl_prefix_correct u128ProcEnv 71 shift.val a.a0.val a.a1.val a.a2.val a.a3.val rest mem locs adv]
+    rw [execWithEnv_body_eq _ _ _ _ _ rotl_decomp rfl, execWithEnv_append']
+    rw [rotl_prefix_correct u128ProcEnv 71 shift.val a.a0.val a.a1.val a.a2.val a.a3.val rest mem frames adv]
     simp only [bind, Bind.bind, Option.bind, hshift0b, ↓reduceIte]
     rw [execWithEnv_ifElse_one' u128ProcEnv 70]
     conv_lhs => unfold execWithEnv
@@ -449,31 +449,31 @@ theorem u128_rotl_correct (a : U128) (shift : U32) (rest : List Felt) (s : Miden
         execWithEnv u128ProcEnv 70
           ⟨shift.val :: a.a0.val :: a.a1.val :: a.a2.val :: a.a3.val ::
             shift.val :: a.a0.val :: a.a1.val :: a.a2.val :: a.a3.val :: rest,
-            mem, locs, adv⟩
+            mem, frames, adv⟩
           Miden.Core.U128.shl =
         some ⟨(a.shl shift.toNat).a0.val :: (a.shl shift.toNat).a1.val ::
               (a.shl shift.toNat).a2.val :: (a.shl shift.toNat).a3.val ::
               shift.val :: a.a0.val :: a.a1.val :: a.a2.val :: a.a3.val :: rest,
-              mem, locs, adv⟩ := by
+              mem, frames, adv⟩ := by
       simpa [MidenState.withStack] using
         (u128_shl_correct a shift
           (shift.val :: a.a0.val :: a.a1.val :: a.a2.val :: a.a3.val :: rest)
           ⟨shift.val :: a.a0.val :: a.a1.val :: a.a2.val :: a.a3.val ::
             shift.val :: a.a0.val :: a.a1.val :: a.a2.val :: a.a3.val :: rest,
-            mem, locs, adv⟩
+            mem, frames, adv⟩
           rfl hshift_lt128)
     have hshr :
         execWithEnv u128ProcEnv 70
           ⟨shiftComp.val :: a.a0.val :: a.a1.val :: a.a2.val :: a.a3.val ::
             (a.shl shift.toNat).a0.val :: (a.shl shift.toNat).a1.val ::
             (a.shl shift.toNat).a2.val :: (a.shl shift.toNat).a3.val :: rest,
-            mem, locs, adv⟩
+            mem, frames, adv⟩
           Miden.Core.U128.shr =
         some ⟨(a.shr (128 - shift.toNat)).a0.val :: (a.shr (128 - shift.toNat)).a1.val ::
               (a.shr (128 - shift.toNat)).a2.val :: (a.shr (128 - shift.toNat)).a3.val ::
               (a.shl shift.toNat).a0.val :: (a.shl shift.toNat).a1.val ::
               (a.shl shift.toNat).a2.val :: (a.shl shift.toNat).a3.val :: rest,
-              mem, locs, adv⟩ := by
+              mem, frames, adv⟩ := by
       simpa [MidenState.withStack, hshiftComp_toNat] using
         (u128_shr_correct_run 63 a shiftComp
           ((a.shl shift.toNat).a0.val :: (a.shl shift.toNat).a1.val ::
@@ -481,10 +481,10 @@ theorem u128_rotl_correct (a : U128) (shift : U32) (rest : List Felt) (s : Miden
           ⟨shiftComp.val :: a.a0.val :: a.a1.val :: a.a2.val :: a.a3.val ::
             (a.shl shift.toNat).a0.val :: (a.shl shift.toNat).a1.val ::
             (a.shl shift.toNat).a2.val :: (a.shl shift.toNat).a3.val :: rest,
-            mem, locs, adv⟩
+            mem, frames, adv⟩
           rfl hshiftComp_lt128)
     have hraw := u128_rotl_raw 63 shift.val a.a0.val a.a1.val a.a2.val a.a3.val rest
-      ⟨shift.val :: a.a0.val :: a.a1.val :: a.a2.val :: a.a3.val :: rest, mem, locs, adv⟩
+      ⟨shift.val :: a.a0.val :: a.a1.val :: a.a2.val :: a.a3.val :: rest, mem, frames, adv⟩
       rfl shift.isU32
       (a.shl shift.toNat).a0.val (a.shl shift.toNat).a1.val
       (a.shl shift.toNat).a2.val (a.shl shift.toNat).a3.val

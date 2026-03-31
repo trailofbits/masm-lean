@@ -30,14 +30,14 @@ theorem u128_widening_mul_raw
       u128MulC3 a0 a1 a2 a3 b0 b1 b2 b3 ::
       (if u128MulOverflowBool a0 a1 a2 a3 b0 b1 b2 b3 then (1 : Felt) else 0) ::
       rest)) := by
-  obtain ⟨stk, mem, locs, adv⟩ := s
+  obtain ⟨stk, mem, frames, adv⟩ := s
   simp only [MidenState.withStack] at hs ⊢
   subst hs
   unfold Miden.Core.U128.widening_mul execWithEnv
   simp only [List.foldlM, u128ProcEnv]
   dsimp only [bind, Bind.bind, Option.bind]
   rw [show execWithEnv u128ProcEnv 30
-      ⟨b0 :: b1 :: b2 :: b3 :: a0 :: a1 :: a2 :: a3 :: rest, mem, locs, adv⟩
+      ⟨b0 :: b1 :: b2 :: b3 :: a0 :: a1 :: a2 :: a3 :: rest, mem, frames, adv⟩
       Miden.Core.U128.overflowing_mul =
       some ⟨
         (if u128MulOverflowBool a0 a1 a2 a3 b0 b1 b2 b3 then (1 : Felt) else 0) ::
@@ -46,8 +46,8 @@ theorem u128_widening_mul_raw
         u128MulC2 a0 a1 a2 b0 b1 b2 ::
         u128MulC3 a0 a1 a2 a3 b0 b1 b2 b3 ::
         rest,
-        mem, locs, adv⟩
-      from u128_overflowing_mul_run u128ProcEnv 29 a0 a1 a2 a3 b0 b1 b2 b3 rest mem locs adv
+        mem, frames, adv⟩
+      from u128_overflowing_mul_run u128ProcEnv 29 a0 a1 a2 a3 b0 b1 b2 b3 rest mem frames adv
         ha0 ha1 ha2 ha3 hb0 hb1 hb2 hb3]
   miden_bind
   miden_movdn

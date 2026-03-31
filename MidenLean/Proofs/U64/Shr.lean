@@ -209,19 +209,19 @@ private def shr_chunk4 : List Op := [
 ]
 
 private theorem shr_decomp :
-    Miden.Core.U64.shr = shr_chunk1 ++ (shr_chunk2 ++ (shr_chunk3 ++ shr_chunk4)) := by
+    Miden.Core.U64.shr.body = shr_chunk1 ++ (shr_chunk2 ++ (shr_chunk3 ++ shr_chunk4)) := by
   simp [Miden.Core.U64.shr, shr_chunk1, shr_chunk2, shr_chunk3, shr_chunk4]
 
 private theorem shr_chunk1_correct
-    (lo hi shift : Felt) (rest : List Felt) (mem locs : Nat → Felt) (adv : List Felt)
+    (lo hi shift : Felt) (rest : List Felt) (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (hshift : shift.val ≤ 63) (hhi : hi.isU32 = true) :
     let pow := Felt.ofNat (2 ^ shift.val)
     let pow_lo := pow.lo32
     let pow_hi := pow.hi32
     let denom := pow_hi + pow_lo
-    exec 42 ⟨shift :: lo :: hi :: rest, mem, locs, adv⟩ shr_chunk1 =
+    exec 42 ⟨shift :: lo :: hi :: rest, mem, frames, adv⟩ shr_chunk1 =
       some ⟨Felt.ofNat (hi.val % denom.val) ::
-        Felt.ofNat (hi.val / denom.val) :: pow_lo :: lo :: rest, mem, locs, adv⟩ := by
+        Felt.ofNat (hi.val / denom.val) :: pow_lo :: lo :: rest, mem, frames, adv⟩ := by
   unfold exec shr_chunk1 execWithEnv
   simp only [List.foldlM]
   miden_movup
@@ -243,7 +243,7 @@ private theorem shr_chunk1_correct
   rfl
 
 private theorem shr_chunk2_correct
-    (lo hi shift : Felt) (rest : List Felt) (mem locs : Nat → Felt) (adv : List Felt)
+    (lo hi shift : Felt) (rest : List Felt) (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (hlo : lo.isU32 = true) :
     let pow := Felt.ofNat (2 ^ shift.val)
     let pow_lo := pow.lo32
@@ -254,10 +254,10 @@ private theorem shr_chunk2_correct
     let pow_lo_eq0 : Felt := if pow_lo == (0 : Felt) then 1 else 0
     let cond := !decide (pow_lo.val < pow_lo_eq0.val)
     let diff := Felt.ofNat (u32OverflowingSub pow_lo.val pow_lo_eq0.val).2
-    exec 42 ⟨hi_rem :: hi_quot :: pow_lo :: lo :: rest, mem, locs, adv⟩ shr_chunk2 =
+    exec 42 ⟨hi_rem :: hi_quot :: pow_lo :: lo :: rest, mem, frames, adv⟩ shr_chunk2 =
       some ⟨Felt.ofNat (lo.val % diff.val) :: Felt.ofNat (lo.val / diff.val) ::
         hi_quot :: hi_rem :: diff :: (if cond then (1 : Felt) else 0) :: rest,
-        mem, locs, adv⟩ := by
+        mem, frames, adv⟩ := by
   unfold exec shr_chunk2 execWithEnv
   simp only [List.foldlM]
   miden_swap
@@ -287,14 +287,14 @@ private theorem shr_chunk2_correct
 
 private theorem shr_chunk3_correct
     (lo_rem lo_quot hi_quot hi_rem diff : Felt) (cond : Bool)
-    (rest : List Felt) (mem locs : Nat → Felt) (adv : List Felt)
+    (rest : List Felt) (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (hdiff_ne_zero : (diff == (0 : Felt)) = false) :
     let cond_felt : Felt := if cond then 1 else 0
     let mix := lo_quot + (((4294967296 : Felt) * cond_felt) * diff⁻¹) * hi_rem
-    exec 42 ⟨lo_rem :: lo_quot :: hi_quot :: hi_rem :: diff :: cond_felt :: rest, mem, locs, adv⟩
+    exec 42 ⟨lo_rem :: lo_quot :: hi_quot :: hi_rem :: diff :: cond_felt :: rest, mem, frames, adv⟩
         shr_chunk3 =
       some ⟨(if cond then hi_quot else mix) :: (if cond then mix else hi_quot) ::
-        cond_felt :: rest, mem, locs, adv⟩ := by
+        cond_felt :: rest, mem, frames, adv⟩ := by
   unfold exec shr_chunk3 execWithEnv
   simp only [List.foldlM]
   miden_swap
@@ -342,14 +342,14 @@ theorem u64_shr_raw
       if cond then
         (lo_quot + (4294967296 : Felt) * diff⁻¹ * hi_rem) :: hi_quot :: rest
       else hi_quot :: (0 : Felt) :: rest)) := by
-  obtain ⟨stk, mem, locs, adv⟩ := s
+  obtain ⟨stk, mem, frames, adv⟩ := s
   simp only [MidenState.withStack] at hs ⊢
   subst hs
-  rw [shr_decomp, MidenLean.exec_append]
-  rw [shr_chunk1_correct (mem := mem) (locs := locs) (adv := adv) (hshift := hshift) (hhi := hhi)]
+  rw [MidenLean.exec_body_eq _ _ _ _ shr_decomp rfl, MidenLean.exec_append]
+  rw [shr_chunk1_correct (mem := mem) (adv := adv) (hshift := hshift) (hhi := hhi)]
   simp only [bind, Bind.bind, Option.bind]
   rw [MidenLean.exec_append]
-  rw [shr_chunk2_correct (mem := mem) (locs := locs) (adv := adv) (hlo := hlo)]
+  rw [shr_chunk2_correct (mem := mem) (adv := adv) (hlo := hlo)]
   simp only [bind, Bind.bind, Option.bind]
   rw [MidenLean.exec_append]
   have h_diff_ne_zero_felt := shr_diff_ne_zero_felt (Felt.ofNat (2 ^ shift.val)).lo32
@@ -375,7 +375,7 @@ theorem u64_shr_raw
     (cond := !decide
       ((Felt.ofNat (2 ^ shift.val)).lo32.val <
         (if (Felt.ofNat (2 ^ shift.val)).lo32 == 0 then (1 : Felt) else 0).val))
-    (mem := mem) (locs := locs) (adv := adv) (rest := rest)
+    (mem := mem) (adv := adv) (rest := rest)
     (hdiff_ne_zero := h_diff_ne_zero_felt)]
   simp only [bind, Bind.bind, Option.bind]
   unfold exec shr_chunk4 execWithEnv

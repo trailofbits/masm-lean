@@ -92,7 +92,7 @@ private def shl_false_branch : List Op :=
 -- ============================================================================
 
 private theorem shl_decomp :
-    Miden.Core.U128.shl = shl_prefix ++ [.ifElse shl_true_branch shl_false_branch] := by
+    Miden.Core.U128.shl.body = shl_prefix ++ [.ifElse shl_true_branch shl_false_branch] := by
   simp [Miden.Core.U128.shl, shl_prefix, shl_true_branch, shl_true_setup,
         shl_false_branch, shl_false_setup]
 
@@ -103,14 +103,14 @@ private theorem shl_decomp :
 set_option maxHeartbeats 4000000 in
 private theorem shl_prefix_correct (env : ProcEnv) (fuel : Nat)
     (shift a0 a1 a2 a3 : Felt) (rest : List Felt)
-    (mem locs : Nat → Felt) (adv : List Felt)
+    (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (hshift_u32 : shift.isU32 = true)
     (hshift_lt128 : shift.val < 128) :
     execWithEnv env (fuel + 1)
-      ⟨shift :: a0 :: a1 :: a2 :: a3 :: rest, mem, locs, adv⟩
+      ⟨shift :: a0 :: a1 :: a2 :: a3 :: rest, mem, frames, adv⟩
       shl_prefix =
     some ⟨(if shift.val < 64 then (1 : Felt) else 0) ::
-          shift :: a0 :: a1 :: a2 :: a3 :: rest, mem, locs, adv⟩ := by
+          shift :: a0 :: a1 :: a2 :: a3 :: rest, mem, frames, adv⟩ := by
   unfold shl_prefix execWithEnv
   simp only [List.foldlM]
   dsimp only [bind, Bind.bind, Option.bind]
@@ -135,14 +135,14 @@ private theorem shl_prefix_correct (env : ProcEnv) (fuel : Nat)
 set_option maxHeartbeats 4000000 in
 private theorem shl_true_setup_correct (env : ProcEnv) (fuel : Nat)
     (shift a0 a1 a2 a3 : Felt) (rest : List Felt)
-    (mem locs : Nat → Felt) (adv : List Felt)
+    (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (hshift_lt64 : shift.val < 64) :
     let p := Felt.ofNat (2 ^ shift.val)
     execWithEnv env (fuel + 1)
-      ⟨shift :: a0 :: a1 :: a2 :: a3 :: rest, mem, locs, adv⟩
+      ⟨shift :: a0 :: a1 :: a2 :: a3 :: rest, mem, frames, adv⟩
       shl_true_setup =
     some ⟨p.lo32 :: p.hi32 :: 0 :: 0 :: a0 :: a1 :: a2 :: a3 :: rest,
-          mem, locs, adv⟩ := by
+          mem, frames, adv⟩ := by
   unfold shl_true_setup execWithEnv
   simp only [List.foldlM]
   dsimp only [bind, Bind.bind, Option.bind]
@@ -163,17 +163,17 @@ private theorem shl_true_setup_correct (env : ProcEnv) (fuel : Nat)
 set_option maxHeartbeats 4000000 in
 private theorem shl_false_setup_correct (env : ProcEnv) (fuel : Nat)
     (shift a0 a1 a2 a3 : Felt) (rest : List Felt)
-    (mem locs : Nat → Felt) (adv : List Felt)
+    (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (hshift_u32 : shift.isU32 = true)
     (hshift_ge64 : ¬(shift.val < 64))
     (hshift_lt128 : shift.val < 128) :
     let s64 := Felt.ofNat (u32OverflowingSub shift.val 64).2
     let q := Felt.ofNat (2 ^ s64.val)
     execWithEnv env (fuel + 1)
-      ⟨shift :: a0 :: a1 :: a2 :: a3 :: rest, mem, locs, adv⟩
+      ⟨shift :: a0 :: a1 :: a2 :: a3 :: rest, mem, frames, adv⟩
       shl_false_setup =
     some ⟨0 :: 0 :: q.lo32 :: q.hi32 :: a0 :: a1 :: a2 :: a3 :: rest,
-          mem, locs, adv⟩ := by
+          mem, frames, adv⟩ := by
   unfold shl_false_setup execWithEnv
   simp only [List.foldlM]
   dsimp only [bind, Bind.bind, Option.bind]
@@ -196,22 +196,22 @@ private theorem shl_false_setup_correct (env : ProcEnv) (fuel : Nat)
 set_option maxHeartbeats 8000000 in
 private theorem shl_true_branch_correct (fuel : Nat)
     (shift a0 a1 a2 a3 : Felt) (rest : List Felt)
-    (mem locs : Nat → Felt) (adv : List Felt)
+    (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (hshift_lt64 : shift.val < 64)
     (ha0 : a0.isU32 = true) (ha1 : a1.isU32 = true)
     (ha2 : a2.isU32 = true) (ha3 : a3.isU32 = true) :
     let p := Felt.ofNat (2 ^ shift.val)
     execWithEnv u128ProcEnv (fuel + 2)
-      ⟨shift :: a0 :: a1 :: a2 :: a3 :: rest, mem, locs, adv⟩
+      ⟨shift :: a0 :: a1 :: a2 :: a3 :: rest, mem, frames, adv⟩
       shl_true_branch =
     some ⟨u128MulC0 a0 p.lo32 ::
           u128MulC1 a0 a1 p.lo32 p.hi32 ::
           u128MulC2 a0 a1 a2 p.lo32 p.hi32 0 ::
           u128MulC3 a0 a1 a2 a3 p.lo32 p.hi32 0 0 ::
-          rest, mem, locs, adv⟩ := by
-  show execWithEnv u128ProcEnv (fuel + 2) _ (shl_true_setup ++ [.inst (.exec "wrapping_mul")]) = _
+          rest, mem, frames, adv⟩ := by
+  show execWithEnv u128ProcEnv (fuel + 2) _ (shl_true_setup ++ ([.inst (.exec "wrapping_mul")] : List Op)) = _
   rw [execWithEnv_append]
-  rw [shl_true_setup_correct u128ProcEnv (fuel + 1) shift a0 a1 a2 a3 rest mem locs adv hshift_lt64]
+  rw [shl_true_setup_correct u128ProcEnv (fuel + 1) shift a0 a1 a2 a3 rest mem frames adv hshift_lt64]
   simp only [bind, Bind.bind, Option.bind]
   -- Now execute [.inst (.exec "wrapping_mul")]
   unfold execWithEnv
@@ -220,7 +220,7 @@ private theorem shl_true_branch_correct (fuel : Nat)
     (Felt.ofNat (2 ^ shift.val)).lo32
     (Felt.ofNat (2 ^ shift.val)).hi32
     0 0
-    rest mem locs adv ha0 ha1 ha2 ha3
+    rest mem frames adv ha0 ha1 ha2 ha3
     (U32.lo32_isU32 _)
     (U32.hi32_isU32_of_val_lt_2_64 _ (pow2_val_lt_2_64 shift.val hshift_lt64))
     (by apply felt_ofNat_isU32_of_lt; norm_num)
@@ -233,7 +233,7 @@ private theorem shl_true_branch_correct (fuel : Nat)
 set_option maxHeartbeats 8000000 in
 private theorem shl_false_branch_correct (fuel : Nat)
     (shift a0 a1 a2 a3 : Felt) (rest : List Felt)
-    (mem locs : Nat → Felt) (adv : List Felt)
+    (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (hshift_u32 : shift.isU32 = true)
     (hshift_ge64 : ¬(shift.val < 64))
     (hshift_lt128 : shift.val < 128)
@@ -242,16 +242,16 @@ private theorem shl_false_branch_correct (fuel : Nat)
     let s64 := Felt.ofNat (u32OverflowingSub shift.val 64).2
     let q := Felt.ofNat (2 ^ s64.val)
     execWithEnv u128ProcEnv (fuel + 2)
-      ⟨shift :: a0 :: a1 :: a2 :: a3 :: rest, mem, locs, adv⟩
+      ⟨shift :: a0 :: a1 :: a2 :: a3 :: rest, mem, frames, adv⟩
       shl_false_branch =
     some ⟨u128MulC0 a0 0 ::
           u128MulC1 a0 a1 0 0 ::
           u128MulC2 a0 a1 a2 0 0 q.lo32 ::
           u128MulC3 a0 a1 a2 a3 0 0 q.lo32 q.hi32 ::
-          rest, mem, locs, adv⟩ := by
-  show execWithEnv u128ProcEnv (fuel + 2) _ (shl_false_setup ++ [.inst (.exec "wrapping_mul")]) = _
+          rest, mem, frames, adv⟩ := by
+  show execWithEnv u128ProcEnv (fuel + 2) _ (shl_false_setup ++ ([.inst (.exec "wrapping_mul")] : List Op)) = _
   rw [execWithEnv_append]
-  rw [shl_false_setup_correct u128ProcEnv (fuel + 1) shift a0 a1 a2 a3 rest mem locs adv
+  rw [shl_false_setup_correct u128ProcEnv (fuel + 1) shift a0 a1 a2 a3 rest mem frames adv
     hshift_u32 hshift_ge64 hshift_lt128]
   simp only [bind, Bind.bind, Option.bind]
   -- Now execute [.inst (.exec "wrapping_mul")]
@@ -261,7 +261,7 @@ private theorem shl_false_branch_correct (fuel : Nat)
     0 0
     (Felt.ofNat (2 ^ (Felt.ofNat (u32OverflowingSub shift.val 64).2).val)).lo32
     (Felt.ofNat (2 ^ (Felt.ofNat (u32OverflowingSub shift.val 64).2).val)).hi32
-    rest mem locs adv ha0 ha1 ha2 ha3
+    rest mem frames adv ha0 ha1 ha2 ha3
     (by apply felt_ofNat_isU32_of_lt; norm_num)
     (by apply felt_ofNat_isU32_of_lt; norm_num)
     (U32.lo32_isU32 _)
@@ -274,36 +274,36 @@ private theorem shl_false_branch_correct (fuel : Nat)
 
 private theorem execWithEnv_ifElse_one
     (env : ProcEnv) (fuel : Nat)
-    (rest : List Felt) (mem locs : Nat → Felt) (adv : List Felt)
+    (rest : List Felt) (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (thenBlk elseBlk : List Op) :
     execWithEnv env (fuel + 2)
-      ⟨(1 : Felt) :: rest, mem, locs, adv⟩
-      [.ifElse thenBlk elseBlk] =
-    execWithEnv env (fuel + 1) ⟨rest, mem, locs, adv⟩ thenBlk := by
+      ⟨(1 : Felt) :: rest, mem, frames, adv⟩
+      ([.ifElse thenBlk elseBlk] : List Op) =
+    execWithEnv env (fuel + 1) ⟨rest, mem, frames, adv⟩ thenBlk := by
   conv_lhs => unfold execWithEnv
-  simp only [List.foldlM, MidenState.withStack]
+  simp only [Procedure.ofOps, List.foldlM, MidenState.withStack]
   dsimp only [bind, Bind.bind, Option.bind, pure, Pure.pure]
   have hv1 : (1 : Felt).val = 1 := Felt.val_one'
   have hbeq : ((1 : Nat) == 1) = true := by decide
   simp only [hv1, hbeq, ↓reduceIte]
-  cases execWithEnv env (fuel + 1) ⟨rest, mem, locs, adv⟩ thenBlk <;> rfl
+  cases execWithEnv env (fuel + 1) ⟨rest, mem, frames, adv⟩ thenBlk <;> rfl
 
 private theorem execWithEnv_ifElse_zero
     (env : ProcEnv) (fuel : Nat)
-    (rest : List Felt) (mem locs : Nat → Felt) (adv : List Felt)
+    (rest : List Felt) (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (thenBlk elseBlk : List Op) :
     execWithEnv env (fuel + 2)
-      ⟨(0 : Felt) :: rest, mem, locs, adv⟩
-      [.ifElse thenBlk elseBlk] =
-    execWithEnv env (fuel + 1) ⟨rest, mem, locs, adv⟩ elseBlk := by
+      ⟨(0 : Felt) :: rest, mem, frames, adv⟩
+      ([.ifElse thenBlk elseBlk] : List Op) =
+    execWithEnv env (fuel + 1) ⟨rest, mem, frames, adv⟩ elseBlk := by
   conv_lhs => unfold execWithEnv
-  simp only [List.foldlM, MidenState.withStack]
+  simp only [Procedure.ofOps, List.foldlM, MidenState.withStack]
   dsimp only [bind, Bind.bind, Option.bind, pure, Pure.pure]
   have hv0 : (0 : Felt).val = 0 := Felt.val_zero'
   have hneq : ((0 : Nat) == 1) = false := by decide
   have hbeq : ((0 : Nat) == 0) = true := by decide
   simp only [hv0, hneq, hbeq, ↓reduceIte]
-  cases execWithEnv env (fuel + 1) ⟨rest, mem, locs, adv⟩ elseBlk <;> rfl
+  cases execWithEnv env (fuel + 1) ⟨rest, mem, frames, adv⟩ elseBlk <;> rfl
 
 -- ============================================================================
 -- Composition: u128_shl_run
@@ -313,13 +313,13 @@ set_option maxHeartbeats 8000000 in
 theorem u128_shl_run
     (fuel : Nat)
     (shift a0 a1 a2 a3 : Felt) (rest : List Felt)
-    (mem locs : Nat → Felt) (adv : List Felt)
+    (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (hshift_u32 : shift.isU32 = true)
     (hshift_lt128 : shift.val < 128)
     (ha0 : a0.isU32 = true) (ha1 : a1.isU32 = true)
     (ha2 : a2.isU32 = true) (ha3 : a3.isU32 = true) :
     execWithEnv u128ProcEnv (fuel + 3)
-      ⟨shift :: a0 :: a1 :: a2 :: a3 :: rest, mem, locs, adv⟩
+      ⟨shift :: a0 :: a1 :: a2 :: a3 :: rest, mem, frames, adv⟩
       Miden.Core.U128.shl =
     (if shift.val < 64 then
       let p := Felt.ofNat (2 ^ shift.val)
@@ -327,7 +327,7 @@ theorem u128_shl_run
             u128MulC1 a0 a1 p.lo32 p.hi32 ::
             u128MulC2 a0 a1 a2 p.lo32 p.hi32 0 ::
             u128MulC3 a0 a1 a2 a3 p.lo32 p.hi32 0 0 ::
-            rest, mem, locs, adv⟩
+            rest, mem, frames, adv⟩
     else
       let s64 := Felt.ofNat (u32OverflowingSub shift.val 64).2
       let q := Felt.ofNat (2 ^ s64.val)
@@ -335,9 +335,9 @@ theorem u128_shl_run
             u128MulC1 a0 a1 0 0 ::
             u128MulC2 a0 a1 a2 0 0 q.lo32 ::
             u128MulC3 a0 a1 a2 a3 0 0 q.lo32 q.hi32 ::
-            rest, mem, locs, adv⟩) := by
-  rw [shl_decomp, execWithEnv_append]
-  rw [shl_prefix_correct u128ProcEnv (fuel + 2) shift a0 a1 a2 a3 rest mem locs adv
+            rest, mem, frames, adv⟩) := by
+  rw [execWithEnv_body_eq _ _ _ _ _ shl_decomp rfl, execWithEnv_append]
+  rw [shl_prefix_correct u128ProcEnv (fuel + 2) shift a0 a1 a2 a3 rest mem frames adv
     hshift_u32 hshift_lt128]
   simp only [bind, Bind.bind, Option.bind]
   -- Case split on shift < 64
@@ -345,12 +345,12 @@ theorem u128_shl_run
   · -- shift < 64: condition is 1, take true branch
     simp only [hlt, ↓reduceIte]
     rw [execWithEnv_ifElse_one]
-    exact shl_true_branch_correct fuel shift a0 a1 a2 a3 rest mem locs adv
+    exact shl_true_branch_correct fuel shift a0 a1 a2 a3 rest mem frames adv
       hlt ha0 ha1 ha2 ha3
   · -- shift >= 64: condition is 0, take false branch
     simp only [hlt, ↓reduceIte]
     rw [execWithEnv_ifElse_zero]
-    exact shl_false_branch_correct fuel shift a0 a1 a2 a3 rest mem locs adv
+    exact shl_false_branch_correct fuel shift a0 a1 a2 a3 rest mem frames adv
       hshift_u32 hlt hshift_lt128 ha0 ha1 ha2 ha3
 
 -- ============================================================================
@@ -388,10 +388,10 @@ theorem u128_shl_raw
         u128MulC2 a0 a1 a2 0 0 q.lo32 ::
         u128MulC3 a0 a1 a2 a3 0 0 q.lo32 q.hi32 ::
         rest))) := by
-  obtain ⟨stk, mem, locs, adv⟩ := s
+  obtain ⟨stk, mem, frames, adv⟩ := s
   simp only [MidenState.withStack] at hs ⊢
   subst hs
-  have h := u128_shl_run 67 shift a0 a1 a2 a3 rest mem locs adv
+  have h := u128_shl_run 67 shift a0 a1 a2 a3 rest mem frames adv
     hshift_u32 hshift_lt128 ha0 ha1 ha2 ha3
   simpa using h
 

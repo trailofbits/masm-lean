@@ -33,9 +33,8 @@ theorem u64_shl_raw
   miden_setup_env Miden.Core.U64.shl
   -- Resolve the wrapping_mul procedure call
   simp only [shlProcEnv]
-  dsimp only [bind, Bind.bind, Option.bind]
   unfold Miden.Core.U64.wrapping_mul execWithEnv
-  simp only [List.foldlM, bind, Bind.bind, Option.bind, pure, Pure.pure]
+  simp only [Procedure.ofOps, List.foldlM, bind, Bind.bind, Option.bind, pure, Pure.pure]
   -- shl preamble: pow2; u32Split; movup 2; movup 3; swap 1
   rw [stepPow2 (ha := by assumption)]; miden_bind
   rw [stepU32Split]; miden_bind

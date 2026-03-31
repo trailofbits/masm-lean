@@ -85,7 +85,7 @@ private def divmod_chunk3b : List Op := [
 ]
 
 private theorem divmod_decomp :
-    Miden.Core.U64.divmod =
+    Miden.Core.U64.divmod.body =
       divmod_chunk1a ++
         (divmod_chunk1b ++ (divmod_chunk1c ++ (divmod_chunk2 ++ (divmod_chunk3a ++ divmod_chunk3b)))) := by
   simp [Miden.Core.U64.divmod, divmod_chunk1a, divmod_chunk1b, divmod_chunk1c, divmod_chunk2,
@@ -95,7 +95,7 @@ set_option maxHeartbeats 12000000 in
 private theorem divmod_chunk1a_correct
     (a_lo a_hi b_lo b_hi : Felt) (rest : List Felt)
     (q_lo q_hi r_lo r_hi : Felt) (adv_rest : List Felt)
-    (mem locs : Nat → Felt)
+    (mem : Nat → Felt) (frames : List LocalFrame)
     (hq_hi_u32 : q_hi.isU32 = true)
     (hq_lo_u32 : q_lo.isU32 = true)
     (hb_lo_u32 : b_lo.isU32 = true)
@@ -108,11 +108,11 @@ private theorem divmod_chunk1a_correct
     let madd1_lo := Felt.ofNat ((b_hi.val * q_hi.val + (b_lo.val * q_hi.val) / 2^32) % 2^32)
     execWithEnv u64ProcEnv 50
       { stack := b_lo :: b_hi :: a_lo :: a_hi :: rest,
-        memory := mem, locals := locs,
+        memory := mem, frames := frames,
         advice := q_lo :: q_hi :: r_lo :: r_hi :: adv_rest }
       divmod_chunk1a =
     some { stack := madd1_lo :: cross0_lo :: q_hi :: q_lo :: b_lo :: b_hi :: a_lo :: a_hi :: rest,
-           memory := mem, locals := locs, advice := r_lo :: r_hi :: adv_rest } := by
+           memory := mem, frames := frames, advice := r_lo :: r_hi :: adv_rest } := by
   simp only []
   unfold divmod_chunk1a execWithEnv
   simp only [List.foldlM]
@@ -128,12 +128,12 @@ private theorem divmod_chunk1a_correct
   rw [show execInstruction
       { stack := b_lo :: b_hi :: a_lo :: a_hi :: rest,
         memory := mem,
-        locals := locs,
+        frames := frames,
         advice := q_lo :: q_hi :: r_lo :: r_hi :: adv_rest }
       (Instruction.emitImm 14153021663962350784) =
       some { stack := b_lo :: b_hi :: a_lo :: a_hi :: rest,
              memory := mem,
-             locals := locs,
+             frames := frames,
              advice := q_lo :: q_hi :: r_lo :: r_hi :: adv_rest } by
       unfold execInstruction
       rfl]
@@ -159,7 +159,7 @@ set_option maxHeartbeats 12000000 in
 private theorem divmod_chunk1b_correct
     (a_lo a_hi b_lo b_hi : Felt) (rest : List Felt)
     (q_lo q_hi r_lo r_hi : Felt) (adv_rest : List Felt)
-    (mem locs : Nat → Felt)
+    (mem : Nat → Felt) (frames : List LocalFrame)
     (hq_lo_u32 : q_lo.isU32 = true)
     (hb_lo_u32 : b_lo.isU32 = true)
     (madd1_lo_val : (Felt.ofNat ((b_hi.val * q_hi.val +
@@ -174,10 +174,10 @@ private theorem divmod_chunk1b_correct
       (b_hi.val * q_hi.val + (b_lo.val * q_hi.val) / 2^32) % 2^32) % 2^32)
     execWithEnv u64ProcEnv 50
       { stack := madd1_lo :: cross0_lo :: q_hi :: q_lo :: b_lo :: b_hi :: a_lo :: a_hi :: rest,
-        memory := mem, locals := locs, advice := r_lo :: r_hi :: adv_rest }
+        memory := mem, frames := frames, advice := r_lo :: r_hi :: adv_rest }
       divmod_chunk1b =
     some { stack := madd2_lo :: cross0_lo :: q_hi :: q_lo :: b_lo :: b_hi :: a_lo :: a_hi :: rest,
-           memory := mem, locals := locs, advice := r_lo :: r_hi :: adv_rest } := by
+           memory := mem, frames := frames, advice := r_lo :: r_hi :: adv_rest } := by
   simp only []
   unfold divmod_chunk1b execWithEnv
   simp only [List.foldlM]
@@ -208,7 +208,7 @@ set_option maxHeartbeats 12000000 in
 private theorem divmod_chunk1c_correct
     (a_lo a_hi b_lo b_hi : Felt) (rest : List Felt)
     (q_lo q_hi r_lo r_hi : Felt) (adv_rest : List Felt)
-    (mem locs : Nat → Felt)
+    (mem : Nat → Felt) (frames : List LocalFrame)
     (hr_hi_u32 : r_hi.isU32 = true)
     (hr_lo_u32 : r_lo.isU32 = true)
     (h_bhi_qlo_zero : ((b_hi * q_lo : Felt) == (0 : Felt)) = true) :
@@ -217,11 +217,11 @@ private theorem divmod_chunk1c_correct
       (b_hi.val * q_hi.val + (b_lo.val * q_hi.val) / 2^32) % 2^32) % 2^32)
     execWithEnv u64ProcEnv 50
       { stack := madd2_lo :: cross0_lo :: q_hi :: q_lo :: b_lo :: b_hi :: a_lo :: a_hi :: rest,
-        memory := mem, locals := locs, advice := r_lo :: r_hi :: adv_rest }
+        memory := mem, frames := frames, advice := r_lo :: r_hi :: adv_rest }
       divmod_chunk1c =
     some { stack := r_hi :: r_lo :: madd2_lo :: cross0_lo ::
                     q_hi :: q_lo :: b_lo :: b_hi :: a_lo :: a_hi :: rest,
-           memory := mem, locals := locs, advice := adv_rest } := by
+           memory := mem, frames := frames, advice := adv_rest } := by
   simp only []
   unfold divmod_chunk1c execWithEnv
   simp only [List.foldlM]
@@ -246,7 +246,7 @@ set_option maxHeartbeats 12000000 in
 private theorem divmod_chunk2_correct
     (a_lo a_hi b_lo b_hi : Felt) (rest : List Felt)
     (q_lo q_hi r_lo r_hi : Felt) (adv_rest : List Felt)
-    (mem locs : Nat → Felt)
+    (mem : Nat → Felt) (frames : List LocalFrame)
     (hr_hi_u32 : r_hi.isU32 = true)
     (hr_lo_u32 : r_lo.isU32 = true)
     (hb_lo_u32 : b_lo.isU32 = true)
@@ -262,11 +262,11 @@ private theorem divmod_chunk2_correct
     execWithEnv u64ProcEnv 50
       { stack := r_hi :: r_lo :: madd2_lo :: cross0_lo ::
                  q_hi :: q_lo :: b_lo :: b_hi :: a_lo :: a_hi :: rest,
-        memory := mem, locals := locs, advice := adv_rest }
+        memory := mem, frames := frames, advice := adv_rest }
       divmod_chunk2 =
     some { stack := r_hi :: r_lo :: madd2_lo :: cross0_lo ::
                     q_hi :: q_lo :: a_lo :: a_hi :: rest,
-           memory := mem, locals := locs, advice := adv_rest } := by
+           memory := mem, frames := frames, advice := adv_rest } := by
   simp only []
   unfold divmod_chunk2 execWithEnv
   simp only [List.foldlM]
@@ -302,7 +302,7 @@ set_option maxHeartbeats 12000000 in
 private theorem divmod_chunk3a_correct
     (a_lo a_hi b_lo b_hi : Felt) (rest : List Felt)
     (q_lo q_hi r_lo r_hi : Felt) (adv_rest : List Felt)
-    (mem locs : Nat → Felt)
+    (mem : Nat → Felt) (frames : List LocalFrame)
     (hr_hi_u32 : r_hi.isU32 = true)
     (cross0_lo_val : (Felt.ofNat ((b_lo.val * q_hi.val) % 2^32)).val =
         (b_lo.val * q_hi.val) % 2^32)
@@ -315,11 +315,11 @@ private theorem divmod_chunk3a_correct
     execWithEnv u64ProcEnv 50
       { stack := r_hi :: r_lo :: madd2_lo :: cross0_lo ::
                  q_hi :: q_lo :: a_lo :: a_hi :: rest,
-        memory := mem, locals := locs, advice := adv_rest }
+        memory := mem, frames := frames, advice := adv_rest }
       divmod_chunk3a =
     some { stack := sum0_hi :: sum0_lo :: r_hi :: r_lo :: madd2_lo ::
                     q_hi :: q_lo :: a_lo :: a_hi :: rest,
-           memory := mem, locals := locs, advice := adv_rest } := by
+           memory := mem, frames := frames, advice := adv_rest } := by
   simp only []
   unfold divmod_chunk3a execWithEnv
   simp only [List.foldlM]
@@ -336,7 +336,7 @@ set_option maxHeartbeats 12000000 in
 private theorem divmod_chunk3b_correct
     (a_lo a_hi b_lo b_hi : Felt) (rest : List Felt)
     (q_lo q_hi r_lo r_hi : Felt) (adv_rest : List Felt)
-    (mem locs : Nat → Felt)
+    (mem : Nat → Felt) (frames : List LocalFrame)
     (hr_hi_u32 : r_hi.isU32 = true)
     (hr_lo_u32 : r_lo.isU32 = true)
     (cross0_lo_val : (Felt.ofNat ((b_lo.val * q_hi.val) % 2^32)).val =
@@ -363,10 +363,10 @@ private theorem divmod_chunk3b_correct
     execWithEnv u64ProcEnv 50
       { stack := sum0_hi :: sum0_lo :: r_hi :: r_lo :: madd2_lo ::
                  q_hi :: q_lo :: a_lo :: a_hi :: rest,
-        memory := mem, locals := locs, advice := adv_rest }
+        memory := mem, frames := frames, advice := adv_rest }
       divmod_chunk3b =
     some { stack := r_hi :: r_lo :: q_hi :: q_lo :: rest,
-           memory := mem, locals := locs, advice := adv_rest } := by
+           memory := mem, frames := frames, advice := adv_rest } := by
   simp only []
   unfold divmod_chunk3b execWithEnv
   simp only [List.foldlM]
@@ -425,7 +425,7 @@ set_option maxHeartbeats 12000000 in
 private theorem divmod_chunk1a_none
     (a_lo a_hi b_lo b_hi : Felt) (rest : List Felt)
     (q_lo q_hi r_lo r_hi : Felt) (adv_rest : List Felt)
-    (mem locs : Nat → Felt)
+    (mem : Nat → Felt) (frames : List LocalFrame)
     (hq_hi_u32 : q_hi.isU32 = true)
     (hq_lo_u32 : q_lo.isU32 = true)
     (hb_lo_u32 : b_lo.isU32 = true)
@@ -434,7 +434,7 @@ private theorem divmod_chunk1a_none
         (b_lo.val * q_hi.val) / 2^32) / 2^32) == (0 : Felt)) = true)) :
     execWithEnv u64ProcEnv 50
       { stack := b_lo :: b_hi :: a_lo :: a_hi :: rest,
-        memory := mem, locals := locs,
+        memory := mem, frames := frames,
         advice := q_lo :: q_hi :: r_lo :: r_hi :: adv_rest }
       divmod_chunk1a = none := by
   unfold divmod_chunk1a execWithEnv
@@ -446,11 +446,11 @@ private theorem divmod_chunk1a_none
     felt_ofNat_val_lt _ (u32_prod_div_lt_prime b_lo q_hi hb_lo_u32 hq_hi_u32)
   rw [show execInstruction
       { stack := b_lo :: b_hi :: a_lo :: a_hi :: rest,
-        memory := mem, locals := locs,
+        memory := mem, frames := frames,
         advice := q_lo :: q_hi :: r_lo :: r_hi :: adv_rest }
       (Instruction.emitImm 14153021663962350784) =
       some { stack := b_lo :: b_hi :: a_lo :: a_hi :: rest,
-             memory := mem, locals := locs,
+             memory := mem, frames := frames,
              advice := q_lo :: q_hi :: r_lo :: r_hi :: adv_rest } by
       unfold execInstruction; rfl]
   miden_bind
@@ -480,7 +480,7 @@ set_option maxHeartbeats 12000000 in
 private theorem divmod_chunk1b_none
     (a_lo a_hi b_lo b_hi : Felt) (rest : List Felt)
     (q_lo q_hi r_lo r_hi : Felt) (adv_rest : List Felt)
-    (mem locs : Nat → Felt)
+    (mem : Nat → Felt) (frames : List LocalFrame)
     (hq_lo_u32 : q_lo.isU32 = true)
     (hb_lo_u32 : b_lo.isU32 = true)
     (madd1_lo_val : (Felt.ofNat ((b_hi.val * q_hi.val +
@@ -493,7 +493,7 @@ private theorem divmod_chunk1b_none
     let madd1_lo := Felt.ofNat ((b_hi.val * q_hi.val + (b_lo.val * q_hi.val) / 2^32) % 2^32)
     execWithEnv u64ProcEnv 50
       { stack := madd1_lo :: cross0_lo :: q_hi :: q_lo :: b_lo :: b_hi :: a_lo :: a_hi :: rest,
-        memory := mem, locals := locs, advice := r_lo :: r_hi :: adv_rest }
+        memory := mem, frames := frames, advice := r_lo :: r_hi :: adv_rest }
       divmod_chunk1b = none := by
   simp only []
   unfold divmod_chunk1b execWithEnv
@@ -521,14 +521,14 @@ set_option maxHeartbeats 12000000 in
 private theorem divmod_chunk1c_none
     (a_lo a_hi b_lo b_hi : Felt) (rest : List Felt)
     (q_lo q_hi r_lo r_hi : Felt) (adv_rest : List Felt)
-    (mem locs : Nat → Felt)
+    (mem : Nat → Felt) (frames : List LocalFrame)
     (h_not : ¬(((b_hi * q_lo : Felt) == (0 : Felt)) = true)) :
     let cross0_lo := Felt.ofNat ((b_lo.val * q_hi.val) % 2^32)
     let madd2_lo := Felt.ofNat ((b_lo.val * q_lo.val +
       (b_hi.val * q_hi.val + (b_lo.val * q_hi.val) / 2^32) % 2^32) % 2^32)
     execWithEnv u64ProcEnv 50
       { stack := madd2_lo :: cross0_lo :: q_hi :: q_lo :: b_lo :: b_hi :: a_lo :: a_hi :: rest,
-        memory := mem, locals := locs, advice := r_lo :: r_hi :: adv_rest }
+        memory := mem, frames := frames, advice := r_lo :: r_hi :: adv_rest }
       divmod_chunk1c = none := by
   simp only []
   unfold divmod_chunk1c execWithEnv
@@ -548,7 +548,7 @@ set_option maxHeartbeats 12000000 in
 private theorem divmod_chunk2_none
     (a_lo a_hi b_lo b_hi : Felt) (rest : List Felt)
     (q_lo q_hi r_lo r_hi : Felt) (adv_rest : List Felt)
-    (mem locs : Nat → Felt)
+    (mem : Nat → Felt) (frames : List LocalFrame)
     (hr_hi_u32 : r_hi.isU32 = true)
     (hr_lo_u32 : r_lo.isU32 = true)
     (hb_lo_u32 : b_lo.isU32 = true)
@@ -564,7 +564,7 @@ private theorem divmod_chunk2_none
     execWithEnv u64ProcEnv 50
       { stack := r_hi :: r_lo :: madd2_lo :: cross0_lo ::
                  q_hi :: q_lo :: b_lo :: b_hi :: a_lo :: a_hi :: rest,
-        memory := mem, locals := locs, advice := adv_rest }
+        memory := mem, frames := frames, advice := adv_rest }
       divmod_chunk2 = none := by
   simp only []
   unfold divmod_chunk2 execWithEnv
@@ -610,7 +610,7 @@ set_option maxHeartbeats 12000000 in
 private theorem divmod_chunk3b_none_add2
     (a_lo a_hi b_lo b_hi : Felt) (rest : List Felt)
     (q_lo q_hi r_lo r_hi : Felt) (adv_rest : List Felt)
-    (mem locs : Nat → Felt)
+    (mem : Nat → Felt) (frames : List LocalFrame)
     (hr_hi_u32 : r_hi.isU32 = true)
     (hr_lo_u32 : r_lo.isU32 = true)
     (cross0_lo_val : (Felt.ofNat ((b_lo.val * q_hi.val) % 2^32)).val =
@@ -631,7 +631,7 @@ private theorem divmod_chunk3b_none_add2
     execWithEnv u64ProcEnv 50
       { stack := sum0_hi :: sum0_lo :: r_hi :: r_lo :: madd2_lo ::
                  q_hi :: q_lo :: a_lo :: a_hi :: rest,
-        memory := mem, locals := locs, advice := adv_rest }
+        memory := mem, frames := frames, advice := adv_rest }
       divmod_chunk3b = none := by
   simp only []
   unfold divmod_chunk3b execWithEnv
@@ -681,7 +681,7 @@ set_option maxHeartbeats 12000000 in
 private theorem divmod_chunk3b_none_ahi
     (a_lo a_hi b_lo b_hi : Felt) (rest : List Felt)
     (q_lo q_hi r_lo r_hi : Felt) (adv_rest : List Felt)
-    (mem locs : Nat → Felt)
+    (mem : Nat → Felt) (frames : List LocalFrame)
     (hr_hi_u32 : r_hi.isU32 = true)
     (hr_lo_u32 : r_lo.isU32 = true)
     (cross0_lo_val : (Felt.ofNat ((b_lo.val * q_hi.val) % 2^32)).val =
@@ -706,7 +706,7 @@ private theorem divmod_chunk3b_none_ahi
     execWithEnv u64ProcEnv 50
       { stack := sum0_hi :: sum0_lo :: r_hi :: r_lo :: madd2_lo ::
                  q_hi :: q_lo :: a_lo :: a_hi :: rest,
-        memory := mem, locals := locs, advice := adv_rest }
+        memory := mem, frames := frames, advice := adv_rest }
       divmod_chunk3b = none := by
   simp only []
   unfold divmod_chunk3b execWithEnv
@@ -761,7 +761,7 @@ set_option maxHeartbeats 12000000 in
 private theorem divmod_chunk3b_none_alo
     (a_lo a_hi b_lo b_hi : Felt) (rest : List Felt)
     (q_lo q_hi r_lo r_hi : Felt) (adv_rest : List Felt)
-    (mem locs : Nat → Felt)
+    (mem : Nat → Felt) (frames : List LocalFrame)
     (hr_hi_u32 : r_hi.isU32 = true)
     (hr_lo_u32 : r_lo.isU32 = true)
     (cross0_lo_val : (Felt.ofNat ((b_lo.val * q_hi.val) % 2^32)).val =
@@ -788,7 +788,7 @@ private theorem divmod_chunk3b_none_alo
     execWithEnv u64ProcEnv 50
       { stack := sum0_hi :: sum0_lo :: r_hi :: r_lo :: madd2_lo ::
                  q_hi :: q_lo :: a_lo :: a_hi :: rest,
-        memory := mem, locals := locs, advice := adv_rest }
+        memory := mem, frames := frames, advice := adv_rest }
       divmod_chunk3b = none := by
   simp only []
   unfold divmod_chunk3b execWithEnv
@@ -896,33 +896,33 @@ theorem u64_divmod_raw
     execWithEnv u64ProcEnv 50 s Miden.Core.U64.divmod =
     some { stack := r_hi :: r_lo :: q_hi :: q_lo :: rest,
            memory := s.memory,
-           locals := s.locals,
+           frames := s.frames,
            advice := adv_rest } := by
-  obtain ⟨stk, mem, locs, adv⟩ := s
+  obtain ⟨stk, mem, frames, adv⟩ := s
   simp only [] at hadv
   subst hs
   subst hadv
-  rw [divmod_decomp, execWithEnv_append]
-  rw [divmod_chunk1a_correct a_lo a_hi b_lo b_hi rest q_lo q_hi r_lo r_hi adv_rest mem locs
+  rw [execWithEnv_body_eq _ _ _ _ _ divmod_decomp rfl, execWithEnv_append]
+  rw [divmod_chunk1a_correct a_lo a_hi b_lo b_hi rest q_lo q_hi r_lo r_hi adv_rest mem frames
       hq_hi_u32 hq_lo_u32 hb_lo_u32 hb_hi_u32 cross0_hi_val h_madd1_hi_zero]
   miden_bind
   rw [execWithEnv_append]
-  rw [divmod_chunk1b_correct a_lo a_hi b_lo b_hi rest q_lo q_hi r_lo r_hi adv_rest mem locs
+  rw [divmod_chunk1b_correct a_lo a_hi b_lo b_hi rest q_lo q_hi r_lo r_hi adv_rest mem frames
       hq_lo_u32 hb_lo_u32 madd1_lo_val h_madd2_hi_zero]
   miden_bind
   rw [execWithEnv_append]
-  rw [divmod_chunk1c_correct a_lo a_hi b_lo b_hi rest q_lo q_hi r_lo r_hi adv_rest mem locs
+  rw [divmod_chunk1c_correct a_lo a_hi b_lo b_hi rest q_lo q_hi r_lo r_hi adv_rest mem frames
       hr_hi_u32 hr_lo_u32 h_bhi_qlo_zero]
   miden_bind
   rw [execWithEnv_append]
-  rw [divmod_chunk2_correct a_lo a_hi b_lo b_hi rest q_lo q_hi r_lo r_hi adv_rest mem locs
+  rw [divmod_chunk2_correct a_lo a_hi b_lo b_hi rest q_lo q_hi r_lo r_hi adv_rest mem frames
       hr_hi_u32 hr_lo_u32 hb_lo_u32 hb_hi_u32 h_lt_result]
   miden_bind
   rw [execWithEnv_append]
-  rw [divmod_chunk3a_correct a_lo a_hi b_lo b_hi rest q_lo q_hi r_lo r_hi adv_rest mem locs
+  rw [divmod_chunk3a_correct a_lo a_hi b_lo b_hi rest q_lo q_hi r_lo r_hi adv_rest mem frames
       hr_hi_u32 cross0_lo_val]
   miden_bind
-  rw [divmod_chunk3b_correct a_lo a_hi b_lo b_hi rest q_lo q_hi r_lo r_hi adv_rest mem locs
+  rw [divmod_chunk3b_correct a_lo a_hi b_lo b_hi rest q_lo q_hi r_lo r_hi adv_rest mem frames
       hr_hi_u32 hr_lo_u32 cross0_lo_val madd2_lo_val h_add2_hi_zero h_a_hi_eq h_a_lo_eq]
 
 /-- `u64::divmod` verifies and returns quotient and remainder of two u64 values.
@@ -1012,13 +1012,13 @@ theorem u64_divmod_correct (a b q r : U64) (rest : List Felt) (adv_rest : List F
     execWithEnv u64ProcEnv 50 s Miden.Core.U64.divmod =
     some { stack := r.lo.val :: r.hi.val :: q.lo.val :: q.hi.val :: rest,
            memory := s.memory,
-           locals := s.locals,
+           frames := s.frames,
            advice := adv_rest }
     ↔ (q.toNat * b.toNat + r.toNat = a.toNat ∧ r.toNat < b.toNat) := by
   constructor
   · -- Forward: execution success → q*b+r=a ∧ r<b
     intro hexec
-    obtain ⟨stk, mem, locs, adv⟩ := s
+    obtain ⟨stk, mem, frames, adv⟩ := s
     simp only [] at hs hadv; subst hs; subst hadv
     -- Extract u32 bounds
     have hql_b : q.lo.val.val < 2^32 := by
@@ -1045,13 +1045,13 @@ theorem u64_divmod_correct (a b q r : U64) (rest : List Felt) (adv_rest : List F
     have h_cond1 : (Felt.ofNat ((bh * ql + (bl * ql) / 2^32) / 2^32) == (0 : Felt)) = true := by
       by_contra h_not
       have := divmod_chunk1a_none a.lo.val a.hi.val b.lo.val b.hi.val rest q.hi.val q.lo.val r.hi.val r.lo.val adv_rest
-        mem locs q.lo.isU32 q.hi.isU32 b.lo.isU32 b.hi.isU32 h_not
-      rw [divmod_decomp, execWithEnv_append] at hexec
+        mem frames q.lo.isU32 q.hi.isU32 b.lo.isU32 b.hi.isU32 h_not
+      rw [execWithEnv_body_eq _ _ _ _ _ divmod_decomp rfl, execWithEnv_append] at hexec
       rw [this] at hexec
       simp [bind, Bind.bind, Option.bind] at hexec
     -- Use chunk1a_correct to determine the intermediate state
-    rw [divmod_decomp, execWithEnv_append] at hexec
-    rw [divmod_chunk1a_correct a.lo.val a.hi.val b.lo.val b.hi.val rest q.hi.val q.lo.val r.hi.val r.lo.val adv_rest mem locs
+    rw [execWithEnv_body_eq _ _ _ _ _ divmod_decomp rfl, execWithEnv_append] at hexec
+    rw [divmod_chunk1a_correct a.lo.val a.hi.val b.lo.val b.hi.val rest q.hi.val q.lo.val r.hi.val r.lo.val adv_rest mem frames
         q.lo.isU32 q.hi.isU32 b.lo.isU32 b.hi.isU32
         (felt_ofNat_val_lt _ (u32_prod_div_lt_prime b.lo.val q.lo.val b.lo.isU32 q.lo.isU32))
         h_cond1] at hexec
@@ -1061,20 +1061,20 @@ theorem u64_divmod_correct (a b q r : U64) (rest : List Felt) (adv_rest : List F
     have h_cond2 : (Felt.ofNat ((bl * qh +
         (bh * ql + (bl * ql) / 2^32) % 2^32) / 2^32) == (0 : Felt)) = true := by
       by_contra h_not
-      rw [divmod_chunk1b_none a.lo.val a.hi.val b.lo.val b.hi.val rest q.hi.val q.lo.val r.hi.val r.lo.val adv_rest mem locs
+      rw [divmod_chunk1b_none a.lo.val a.hi.val b.lo.val b.hi.val rest q.hi.val q.lo.val r.hi.val r.lo.val adv_rest mem frames
           q.hi.isU32 b.lo.isU32 (felt_ofNat_val_lt _ (u32_mod_lt_prime _)) h_not] at hexec
       simp [bind, Bind.bind, Option.bind] at hexec
-    rw [divmod_chunk1b_correct a.lo.val a.hi.val b.lo.val b.hi.val rest q.hi.val q.lo.val r.hi.val r.lo.val adv_rest mem locs
+    rw [divmod_chunk1b_correct a.lo.val a.hi.val b.lo.val b.hi.val rest q.hi.val q.lo.val r.hi.val r.lo.val adv_rest mem frames
         q.hi.isU32 b.lo.isU32 (felt_ofNat_val_lt _ (u32_mod_lt_prime _)) h_cond2] at hexec
     simp only [bind, Bind.bind, Option.bind] at hexec
     rw [execWithEnv_append] at hexec
     -- Extract condition 3: bhi * qhi = 0 (from chunk1c assertion)
     have h_cond3 : ((b.hi.val * q.hi.val : Felt) == (0 : Felt)) = true := by
       by_contra h_not
-      rw [divmod_chunk1c_none a.lo.val a.hi.val b.lo.val b.hi.val rest q.hi.val q.lo.val r.hi.val r.lo.val adv_rest mem locs
+      rw [divmod_chunk1c_none a.lo.val a.hi.val b.lo.val b.hi.val rest q.hi.val q.lo.val r.hi.val r.lo.val adv_rest mem frames
           h_not] at hexec
       simp [bind, Bind.bind, Option.bind] at hexec
-    rw [divmod_chunk1c_correct a.lo.val a.hi.val b.lo.val b.hi.val rest q.hi.val q.lo.val r.hi.val r.lo.val adv_rest mem locs
+    rw [divmod_chunk1c_correct a.lo.val a.hi.val b.lo.val b.hi.val rest q.hi.val q.lo.val r.hi.val r.lo.val adv_rest mem frames
         r.lo.isU32 r.hi.isU32 h_cond3] at hexec
     simp only [bind, Bind.bind, Option.bind] at hexec
     rw [execWithEnv_append] at hexec
@@ -1085,17 +1085,17 @@ theorem u64_divmod_correct (a b q r : U64) (rest : List Felt) (adv_rest : List F
         let hi_eq := Felt.ofNat (u32OverflowingSub r.hi.val.val b.hi.val.val).2 == (0 : Felt)
         (borrow_hi || (hi_eq && borrow_lo)) = true := by
       by_contra h_not
-      rw [divmod_chunk2_none a.lo.val a.hi.val b.lo.val b.hi.val rest q.hi.val q.lo.val r.hi.val r.lo.val adv_rest mem locs
+      rw [divmod_chunk2_none a.lo.val a.hi.val b.lo.val b.hi.val rest q.hi.val q.lo.val r.hi.val r.lo.val adv_rest mem frames
           r.lo.isU32 r.hi.isU32 b.lo.isU32 b.hi.isU32 h_not] at hexec
       simp [bind, Bind.bind, Option.bind] at hexec
-    rw [divmod_chunk2_correct a.lo.val a.hi.val b.lo.val b.hi.val rest q.hi.val q.lo.val r.hi.val r.lo.val adv_rest mem locs
+    rw [divmod_chunk2_correct a.lo.val a.hi.val b.lo.val b.hi.val rest q.hi.val q.lo.val r.hi.val r.lo.val adv_rest mem frames
         r.lo.isU32 r.hi.isU32 b.lo.isU32 b.hi.isU32 h_cond4] at hexec
     simp only [bind, Bind.bind, Option.bind] at hexec
     rw [execWithEnv_append] at hexec
     -- chunk3a: no assertions
     have cross0_lo_val : (Felt.ofNat ((bl * ql) % 2^32)).val = (bl * ql) % 2^32 :=
       felt_ofNat_val_lt _ (u32_mod_lt_prime _)
-    rw [divmod_chunk3a_correct a.lo.val a.hi.val b.lo.val b.hi.val rest q.hi.val q.lo.val r.hi.val r.lo.val adv_rest mem locs
+    rw [divmod_chunk3a_correct a.lo.val a.hi.val b.lo.val b.hi.val rest q.hi.val q.lo.val r.hi.val r.lo.val adv_rest mem frames
         r.lo.isU32 cross0_lo_val] at hexec
     simp only [bind, Bind.bind, Option.bind] at hexec
     -- chunk3b: three assertions
@@ -1108,7 +1108,7 @@ theorem u64_divmod_correct (a b q r : U64) (rest : List Felt) (adv_rest : List F
         (bl * qh + (bh * ql + (bl * ql) / 2^32) % 2^32) % 2^32 +
         (rl + (bl * ql) % 2^32) / 2^32) / 2^32) == (0 : Felt)) = true := by
       by_contra h_not
-      rw [divmod_chunk3b_none_add2 a.lo.val a.hi.val b.lo.val b.hi.val rest q.hi.val q.lo.val r.hi.val r.lo.val adv_rest mem locs
+      rw [divmod_chunk3b_none_add2 a.lo.val a.hi.val b.lo.val b.hi.val rest q.hi.val q.lo.val r.hi.val r.lo.val adv_rest mem frames
           r.lo.isU32 r.hi.isU32 cross0_lo_val madd2_lo_val h_not] at hexec
       simp at hexec
     -- Condition 6: a_hi equality
@@ -1116,13 +1116,13 @@ theorem u64_divmod_correct (a b q r : U64) (rest : List Felt) (adv_rest : List F
         (bl * qh + (bh * ql + (bl * ql) / 2^32) % 2^32) % 2^32 +
         (rl + (bl * ql) % 2^32) / 2^32) % 2^32) := by
       by_contra h_not
-      rw [divmod_chunk3b_none_ahi a.lo.val a.hi.val b.lo.val b.hi.val rest q.hi.val q.lo.val r.hi.val r.lo.val adv_rest mem locs
+      rw [divmod_chunk3b_none_ahi a.lo.val a.hi.val b.lo.val b.hi.val rest q.hi.val q.lo.val r.hi.val r.lo.val adv_rest mem frames
           r.lo.isU32 r.hi.isU32 cross0_lo_val madd2_lo_val h_cond5 h_not] at hexec
       simp at hexec
     -- Condition 7: a_lo equality
     have h_cond7 : a.lo.val = Felt.ofNat ((rl + (bl * ql) % 2^32) % 2^32) := by
       by_contra h_not
-      rw [divmod_chunk3b_none_alo a.lo.val a.hi.val b.lo.val b.hi.val rest q.hi.val q.lo.val r.hi.val r.lo.val adv_rest mem locs
+      rw [divmod_chunk3b_none_alo a.lo.val a.hi.val b.lo.val b.hi.val rest q.hi.val q.lo.val r.hi.val r.lo.val adv_rest mem frames
           r.lo.isU32 r.hi.isU32 cross0_lo_val madd2_lo_val h_cond5 h_cond6 h_not] at hexec
       simp at hexec
     -- Lift conditions to Nat level
@@ -1243,7 +1243,7 @@ theorem divmod_conditions_of_exec (a b q r : U64) (rest : List Felt) (adv_rest :
     {s' : MidenState}
     (hexec : execWithEnv u64ProcEnv 50 s Miden.Core.U64.divmod = some s') :
     q.toNat * b.toNat + r.toNat = a.toNat ∧ r.toNat < b.toNat := by
-  obtain ⟨stk, mem, locs, adv⟩ := s
+  obtain ⟨stk, mem, frames, adv⟩ := s
   simp only [] at hs hadv; subst hs; subst hadv
   have hql_b : q.lo.val.val < 2^32 := by
     have := q.lo.isU32; simp only [Felt.isU32, decide_eq_true_eq] at this; exact this
@@ -1266,12 +1266,12 @@ theorem divmod_conditions_of_exec (a b q r : U64) (rest : List Felt) (adv_rest :
   have h_cond1 : (Felt.ofNat ((bh * ql + (bl * ql) / 2^32) / 2^32) == (0 : Felt)) = true := by
     by_contra h_not
     have := divmod_chunk1a_none a.lo.val a.hi.val b.lo.val b.hi.val rest q.hi.val q.lo.val r.hi.val r.lo.val adv_rest
-      mem locs q.lo.isU32 q.hi.isU32 b.lo.isU32 b.hi.isU32 h_not
-    rw [divmod_decomp, execWithEnv_append] at hexec
+      mem frames q.lo.isU32 q.hi.isU32 b.lo.isU32 b.hi.isU32 h_not
+    rw [execWithEnv_body_eq _ _ _ _ _ divmod_decomp rfl, execWithEnv_append] at hexec
     rw [this] at hexec
     simp [bind, Bind.bind, Option.bind] at hexec
-  rw [divmod_decomp, execWithEnv_append] at hexec
-  rw [divmod_chunk1a_correct a.lo.val a.hi.val b.lo.val b.hi.val rest q.hi.val q.lo.val r.hi.val r.lo.val adv_rest mem locs
+  rw [execWithEnv_body_eq _ _ _ _ _ divmod_decomp rfl, execWithEnv_append] at hexec
+  rw [divmod_chunk1a_correct a.lo.val a.hi.val b.lo.val b.hi.val rest q.hi.val q.lo.val r.hi.val r.lo.val adv_rest mem frames
       q.lo.isU32 q.hi.isU32 b.lo.isU32 b.hi.isU32
       (felt_ofNat_val_lt _ (u32_prod_div_lt_prime b.lo.val q.lo.val b.lo.isU32 q.lo.isU32))
       h_cond1] at hexec
@@ -1280,19 +1280,19 @@ theorem divmod_conditions_of_exec (a b q r : U64) (rest : List Felt) (adv_rest :
   have h_cond2 : (Felt.ofNat ((bl * qh +
       (bh * ql + (bl * ql) / 2^32) % 2^32) / 2^32) == (0 : Felt)) = true := by
     by_contra h_not
-    rw [divmod_chunk1b_none a.lo.val a.hi.val b.lo.val b.hi.val rest q.hi.val q.lo.val r.hi.val r.lo.val adv_rest mem locs
+    rw [divmod_chunk1b_none a.lo.val a.hi.val b.lo.val b.hi.val rest q.hi.val q.lo.val r.hi.val r.lo.val adv_rest mem frames
         q.hi.isU32 b.lo.isU32 (felt_ofNat_val_lt _ (u32_mod_lt_prime _)) h_not] at hexec
     simp [bind, Bind.bind, Option.bind] at hexec
-  rw [divmod_chunk1b_correct a.lo.val a.hi.val b.lo.val b.hi.val rest q.hi.val q.lo.val r.hi.val r.lo.val adv_rest mem locs
+  rw [divmod_chunk1b_correct a.lo.val a.hi.val b.lo.val b.hi.val rest q.hi.val q.lo.val r.hi.val r.lo.val adv_rest mem frames
       q.hi.isU32 b.lo.isU32 (felt_ofNat_val_lt _ (u32_mod_lt_prime _)) h_cond2] at hexec
   simp only [bind, Bind.bind, Option.bind] at hexec
   rw [execWithEnv_append] at hexec
   have h_cond3 : ((b.hi.val * q.hi.val : Felt) == (0 : Felt)) = true := by
     by_contra h_not
-    rw [divmod_chunk1c_none a.lo.val a.hi.val b.lo.val b.hi.val rest q.hi.val q.lo.val r.hi.val r.lo.val adv_rest mem locs
+    rw [divmod_chunk1c_none a.lo.val a.hi.val b.lo.val b.hi.val rest q.hi.val q.lo.val r.hi.val r.lo.val adv_rest mem frames
         h_not] at hexec
     simp [bind, Bind.bind, Option.bind] at hexec
-  rw [divmod_chunk1c_correct a.lo.val a.hi.val b.lo.val b.hi.val rest q.hi.val q.lo.val r.hi.val r.lo.val adv_rest mem locs
+  rw [divmod_chunk1c_correct a.lo.val a.hi.val b.lo.val b.hi.val rest q.hi.val q.lo.val r.hi.val r.lo.val adv_rest mem frames
       r.lo.isU32 r.hi.isU32 h_cond3] at hexec
   simp only [bind, Bind.bind, Option.bind] at hexec
   rw [execWithEnv_append] at hexec
@@ -1302,16 +1302,16 @@ theorem divmod_conditions_of_exec (a b q r : U64) (rest : List Felt) (adv_rest :
       let hi_eq := Felt.ofNat (u32OverflowingSub r.hi.val.val b.hi.val.val).2 == (0 : Felt)
       (borrow_hi || (hi_eq && borrow_lo)) = true := by
     by_contra h_not
-    rw [divmod_chunk2_none a.lo.val a.hi.val b.lo.val b.hi.val rest q.hi.val q.lo.val r.hi.val r.lo.val adv_rest mem locs
+    rw [divmod_chunk2_none a.lo.val a.hi.val b.lo.val b.hi.val rest q.hi.val q.lo.val r.hi.val r.lo.val adv_rest mem frames
         r.lo.isU32 r.hi.isU32 b.lo.isU32 b.hi.isU32 h_not] at hexec
     simp [bind, Bind.bind, Option.bind] at hexec
-  rw [divmod_chunk2_correct a.lo.val a.hi.val b.lo.val b.hi.val rest q.hi.val q.lo.val r.hi.val r.lo.val adv_rest mem locs
+  rw [divmod_chunk2_correct a.lo.val a.hi.val b.lo.val b.hi.val rest q.hi.val q.lo.val r.hi.val r.lo.val adv_rest mem frames
       r.lo.isU32 r.hi.isU32 b.lo.isU32 b.hi.isU32 h_cond4] at hexec
   simp only [bind, Bind.bind, Option.bind] at hexec
   rw [execWithEnv_append] at hexec
   have cross0_lo_val : (Felt.ofNat ((bl * ql) % 2^32)).val = (bl * ql) % 2^32 :=
     felt_ofNat_val_lt _ (u32_mod_lt_prime _)
-  rw [divmod_chunk3a_correct a.lo.val a.hi.val b.lo.val b.hi.val rest q.hi.val q.lo.val r.hi.val r.lo.val adv_rest mem locs
+  rw [divmod_chunk3a_correct a.lo.val a.hi.val b.lo.val b.hi.val rest q.hi.val q.lo.val r.hi.val r.lo.val adv_rest mem frames
       r.lo.isU32 cross0_lo_val] at hexec
   simp only [bind, Bind.bind, Option.bind] at hexec
   have madd2_lo_val : (Felt.ofNat ((bl * qh +
@@ -1322,19 +1322,19 @@ theorem divmod_conditions_of_exec (a b q r : U64) (rest : List Felt) (adv_rest :
       (bl * qh + (bh * ql + (bl * ql) / 2^32) % 2^32) % 2^32 +
       (rl + (bl * ql) % 2^32) / 2^32) / 2^32) == (0 : Felt)) = true := by
     by_contra h_not
-    rw [divmod_chunk3b_none_add2 a.lo.val a.hi.val b.lo.val b.hi.val rest q.hi.val q.lo.val r.hi.val r.lo.val adv_rest mem locs
+    rw [divmod_chunk3b_none_add2 a.lo.val a.hi.val b.lo.val b.hi.val rest q.hi.val q.lo.val r.hi.val r.lo.val adv_rest mem frames
         r.lo.isU32 r.hi.isU32 cross0_lo_val madd2_lo_val h_not] at hexec
     simp at hexec
   have h_cond6 : a.hi.val = Felt.ofNat ((rh +
       (bl * qh + (bh * ql + (bl * ql) / 2^32) % 2^32) % 2^32 +
       (rl + (bl * ql) % 2^32) / 2^32) % 2^32) := by
     by_contra h_not
-    rw [divmod_chunk3b_none_ahi a.lo.val a.hi.val b.lo.val b.hi.val rest q.hi.val q.lo.val r.hi.val r.lo.val adv_rest mem locs
+    rw [divmod_chunk3b_none_ahi a.lo.val a.hi.val b.lo.val b.hi.val rest q.hi.val q.lo.val r.hi.val r.lo.val adv_rest mem frames
         r.lo.isU32 r.hi.isU32 cross0_lo_val madd2_lo_val h_cond5 h_not] at hexec
     simp at hexec
   have h_cond7 : a.lo.val = Felt.ofNat ((rl + (bl * ql) % 2^32) % 2^32) := by
     by_contra h_not
-    rw [divmod_chunk3b_none_alo a.lo.val a.hi.val b.lo.val b.hi.val rest q.hi.val q.lo.val r.hi.val r.lo.val adv_rest mem locs
+    rw [divmod_chunk3b_none_alo a.lo.val a.hi.val b.lo.val b.hi.val rest q.hi.val q.lo.val r.hi.val r.lo.val adv_rest mem frames
         r.lo.isU32 r.hi.isU32 cross0_lo_val madd2_lo_val h_cond5 h_cond6 h_not] at hexec
     simp at hexec
   have hprod_bl_ql := Nat.mul_le_mul (show bl ≤ 2^32 - 1 from by omega)

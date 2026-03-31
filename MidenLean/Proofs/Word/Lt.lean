@@ -16,19 +16,19 @@ private theorem felt_ite_gt_decide (a b : Felt) :
 set_option maxHeartbeats 4000000 in
 private theorem lt_iteration
     (result undecided : Bool) (b_i a_i : Felt) (tail : List Felt)
-    (mem locs : Nat → Felt) (adv : List Felt) :
+    (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt) :
     let eq_flag := (b_i == a_i)
     let gt_flag := decide (a_i.val > b_i.val)
     let new_result := result || (undecided && gt_flag)
     let new_undecided := undecided && eq_flag
     execWithEnv wordProcEnv 2
       ⟨(if result then (1:Felt) else 0) :: (if undecided then (1:Felt) else 0) ::
-        b_i :: a_i :: tail, mem, locs, adv⟩
-      [.inst (.movup 3), .inst (.movup 3), .inst (.dup 0), .inst (.dup 2),
+        b_i :: a_i :: tail, mem, frames, adv⟩
+      ([.inst (.movup 3), .inst (.movup 3), .inst (.dup 0), .inst (.dup 2),
        .inst (.eq), .inst (.movdn 3), .inst (.gt), .inst (.dup 3),
-       .inst (.and), .inst (.or), .inst (.movdn 2), .inst (.and), .inst (.swap 1)] =
+       .inst (.and), .inst (.or), .inst (.movdn 2), .inst (.and), .inst (.swap 1)] : List Op) =
     some ⟨(if new_result then (1:Felt) else 0) ::
-          (if new_undecided then (1:Felt) else 0) :: tail, mem, locs, adv⟩ := by
+          (if new_undecided then (1:Felt) else 0) :: tail, mem, frames, adv⟩ := by
   unfold execWithEnv
   simp only [List.foldlM]
   miden_step; miden_step  -- movup 3, movup 3
@@ -48,15 +48,15 @@ private theorem lt_iteration
 
 private theorem lt_iteration_init
     (b_i a_i : Felt) (tail : List Felt)
-    (mem locs : Nat → Felt) (adv : List Felt) :
+    (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt) :
     execWithEnv wordProcEnv 2
-      ⟨(0:Felt) :: (1:Felt) :: b_i :: a_i :: tail, mem, locs, adv⟩
-      [.inst (.movup 3), .inst (.movup 3), .inst (.dup 0), .inst (.dup 2),
+      ⟨(0:Felt) :: (1:Felt) :: b_i :: a_i :: tail, mem, frames, adv⟩
+      ([.inst (.movup 3), .inst (.movup 3), .inst (.dup 0), .inst (.dup 2),
        .inst (.eq), .inst (.movdn 3), .inst (.gt), .inst (.dup 3),
-       .inst (.and), .inst (.or), .inst (.movdn 2), .inst (.and), .inst (.swap 1)] =
+       .inst (.and), .inst (.or), .inst (.movdn 2), .inst (.and), .inst (.swap 1)] : List Op) =
     some ⟨(if decide (a_i.val > b_i.val) then (1:Felt) else 0) ::
-          (if (b_i == a_i) then (1:Felt) else 0) :: tail, mem, locs, adv⟩ :=
-  lt_iteration false true b_i a_i tail mem locs adv
+          (if (b_i == a_i) then (1:Felt) else 0) :: tail, mem, frames, adv⟩ :=
+  lt_iteration false true b_i a_i tail mem frames adv
 
 set_option maxHeartbeats 16000000 in
 /-- `word::lt` compares two words lexicographically. -/
@@ -69,37 +69,38 @@ theorem word_lt_correct
                   || ((b3 == a3) && (b2 == a2) && (b1 == a1) && decide (a0.val > b0.val))
     execWithEnv wordProcEnv 3 s Miden.Core.Word.lt =
     some (s.withStack ((if result then (1:Felt) else 0) :: rest)) := by
-  obtain ⟨stk, mem, locs, adv⟩ := s
+  obtain ⟨stk, mem, frames, adv⟩ := s
   simp only [MidenState.withStack] at hs ⊢
   subst hs
   unfold Miden.Core.Word.lt execWithEnv
-  simp only [List.foldlM, wordProcEnv]
+  simp [Procedure.ofOps, wordProcEnv]
   dsimp only [bind, Bind.bind, Option.bind]
-  rw [arrange_for_wordProcEnv a0 a1 a2 a3 b0 b1 b2 b3 rest mem locs adv]
+  rw [arrange_for_wordProcEnv a0 a1 a2 a3 b0 b1 b2 b3 rest mem frames adv]
   dsimp only [bind, Bind.bind, Option.bind]
   rw [stepPush]; miden_bind
   rw [stepPush]; miden_bind
   -- Iteration 1
   unfold execWithEnv.doRepeat
-  rw [lt_iteration_init b3 a3 (b2 :: a2 :: b1 :: a1 :: b0 :: a0 :: rest) mem locs adv]
+  rw [lt_iteration_init b3 a3 (b2 :: a2 :: b1 :: a1 :: b0 :: a0 :: rest) mem frames adv]
   dsimp only []
   -- Iteration 2
   unfold execWithEnv.doRepeat
-  rw [lt_iteration _ _ b2 a2 (b1 :: a1 :: b0 :: a0 :: rest) mem locs adv]
+  rw [lt_iteration _ _ b2 a2 (b1 :: a1 :: b0 :: a0 :: rest) mem frames adv]
   dsimp only []
   -- Iteration 3
   unfold execWithEnv.doRepeat
-  rw [lt_iteration _ _ b1 a1 (b0 :: a0 :: rest) mem locs adv]
+  rw [lt_iteration _ _ b1 a1 (b0 :: a0 :: rest) mem frames adv]
   dsimp only []
   -- Iteration 4
   unfold execWithEnv.doRepeat
-  rw [lt_iteration _ _ b0 a0 rest mem locs adv]
+  rw [lt_iteration _ _ b0 a0 rest mem frames adv]
   dsimp only []
   -- Base case
   unfold execWithEnv.doRepeat
   dsimp only [bind, Bind.bind, Option.bind]
   miden_step  -- swap 1
   rw [stepDrop]
-  dsimp only [bind, Bind.bind, Option.bind, pure, Pure.pure]
+  congr 1; congr 1; congr 1; congr 1
+  simp only [Bool.or_eq_true, decide_eq_true_eq, Bool.and_eq_true, beq_iff_eq, gt_iff_lt]
 
 end MidenLean.Proofs

@@ -20,7 +20,7 @@ theorem u64_eqz_raw
     some (s.withStack (
       (if (lo == (0 : Felt)) && (hi == (0 : Felt))
        then (1 : Felt) else 0) :: rest)) := by
-  obtain ⟨stk, mem, locs, adv⟩ := s
+  obtain ⟨stk, mem, frames, adv⟩ := s
   simp only [MidenState.withStack] at hs ⊢
   subst hs
   unfold exec Miden.Core.U64.eqz execWithEnv

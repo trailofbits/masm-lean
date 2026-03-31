@@ -23,6 +23,15 @@ private def mkState (stk : List Felt) : MidenState :=
 private def mkStateAdv (stk : List Felt) (adv : List Felt) : MidenState :=
   MidenState.ofStackAdvice stk adv
 
+/-- State with stack and an active local frame for testing local-memory ops.
+    `numLocals` defaults to 32, large enough for all existing tests. -/
+private def mkStateWithFrame (stk : List Felt) (numLocals : Nat := 32) : MidenState :=
+  let aligned := alignLocals numLocals
+  { stack := stk
+  , memory := zeroMemory
+  , frames := [{ base := 0, numLocals, alignedNumLocals := aligned }]
+  , advice := [] }
+
 /-- Run a single instruction on a state. -/
 private def runInst (s : MidenState) (i : Instruction) : Option MidenState :=
   execInstruction s i
@@ -41,10 +50,10 @@ private def checkStack (result : Option MidenState) (expected : List Felt) : Boo
 private def checkNone (result : Option MidenState) : Bool :=
   result.isNone
 
-/-- Check that specific local slots have the expected values. -/
+/-- Check that specific local slots have the expected values in memory-backed local storage. -/
 private def checkLocals (result : Option MidenState) (pairs : List (Nat × Felt)) : Bool :=
   match result with
-  | some s => pairs.all fun (idx, v) => s.locals idx == v
+  | some s => pairs.all fun (idx, v) => s.memory (LOCAL_MEM_BASE + idx) == v
   | none => false
 
 -- Felt constants for readability
@@ -849,9 +858,9 @@ private def u32max : Nat := 2^32
   let r := runInst s .memLoad
   unless checkNone r do panic! "memLoad: OOB should fail"
 
--- locLoad/locStore: basic
+-- locLoad/locStore: basic (requires active frame)
 #eval do
-  let s := mkState [42]
+  let s := mkStateWithFrame [42]
   let r1 := runInst s (.locStore 0)
   match r1 with
   | some s1 =>
@@ -860,6 +869,18 @@ private def u32max : Nat := 2^32
     | some s2 => unless s2.stack.head! == (42 : Felt) do panic! "locLoad: should read stored value"
     | none => panic! "locLoad should not fail"
   | none => panic! "locStore should not fail"
+
+-- locLoad/locStore: fails with no active frame
+#eval do
+  let s := mkState [42]
+  let r := runInst s (.locStore 0)
+  unless checkNone r do panic! "locStore: should fail with no frame"
+
+-- locLoad: out-of-bounds index fails
+#eval do
+  let s := mkStateWithFrame [42] (numLocals := 4)
+  let r := runInst s (.locStore 4)
+  unless checkNone r do panic! "locStore: out-of-bounds should fail"
 
 -- ============================================================================
 -- Tier 3: Control Flow (AC-15)
@@ -974,7 +995,7 @@ private def u32max : Nat := 2^32
 -- Per spec: "top of stack is placed at local[i+3]"
 -- So stack [e0, e1, e2, e3, ...] → local[i]=e3, local[i+1]=e2, local[i+2]=e1, local[i+3]=e0
 #eval do
-  let s := mkState [10, 20, 30, 40, 99]
+  let s := mkStateWithFrame [10, 20, 30, 40, 99]
   let r := runInst s (.locStorewBe 0)
   -- stack preserved
   unless checkStack r [10, 20, 30, 40, 99] do panic! "locStorewBe: stack not preserved"
@@ -986,7 +1007,7 @@ private def u32max : Nat := 2^32
 -- Per spec: "top of stack is placed at local[i]"
 -- So stack [e0, e1, e2, e3, ...] → local[i]=e0, local[i+1]=e1, local[i+2]=e2, local[i+3]=e3
 #eval do
-  let s := mkState [10, 20, 30, 40, 99]
+  let s := mkStateWithFrame [10, 20, 30, 40, 99]
   let r := runInst s (.locStorewLe 0)
   -- stack preserved
   unless checkStack r [10, 20, 30, 40, 99] do panic! "locStorewLe: stack not preserved"
@@ -996,15 +1017,27 @@ private def u32max : Nat := 2^32
 
 -- locStorewBe: insufficient stack (fewer than 4 elements) → returns none
 #eval do
-  let s := mkState [1, 2, 3]
+  let s := mkStateWithFrame [1, 2, 3]
   let r := runInst s (.locStorewBe 0)
   unless checkNone r do panic! "locStorewBe: insufficient stack should fail"
 
 -- locStorewLe: insufficient stack (fewer than 4 elements) → returns none
 #eval do
-  let s := mkState [1, 2, 3]
+  let s := mkStateWithFrame [1, 2, 3]
   let r := runInst s (.locStorewLe 0)
   unless checkNone r do panic! "locStorewLe: insufficient stack should fail"
+
+-- locStorewBe: misaligned index fails
+#eval do
+  let s := mkStateWithFrame [10, 20, 30, 40, 99]
+  let r := runInst s (.locStorewBe 1)
+  unless checkNone r do panic! "locStorewBe: misaligned index should fail"
+
+-- locStorewBe: no frame fails
+#eval do
+  let s := mkState [10, 20, 30, 40, 99]
+  let r := runInst s (.locStorewBe 0)
+  unless checkNone r do panic! "locStorewBe: no frame should fail"
 
 -- ============================================================================
 -- Tier 3: Local Memory – locLoadwBe / locLoadwLe (AC-12)
@@ -1015,7 +1048,7 @@ private def u32max : Nat := 2^32
 -- So locals [i]=v0, [i+1]=v1, [i+2]=v2, [i+3]=v3 → stack [v3, v2, v1, v0, ...]
 #eval do
   -- First store values to locals via locStorewLe (LE: top→local[0], etc.)
-  let s := mkState [100, 200, 300, 400]
+  let s := mkStateWithFrame [100, 200, 300, 400]
   let r1 := runInst s (.locStorewLe 0)
   match r1 with
   | some s1 =>
@@ -1031,7 +1064,7 @@ private def u32max : Nat := 2^32
 -- So locals [i]=v0, [i+1]=v1, [i+2]=v2, [i+3]=v3 → stack [v0, v1, v2, v3, ...]
 #eval do
   -- First store values to locals via locStorewLe (LE: top→local[0], etc.)
-  let s := mkState [100, 200, 300, 400]
+  let s := mkStateWithFrame [100, 200, 300, 400]
   let r1 := runInst s (.locStorewLe 0)
   match r1 with
   | some s1 =>
@@ -1043,13 +1076,13 @@ private def u32max : Nat := 2^32
 
 -- locLoadwBe: insufficient stack (fewer than 4 elements) → returns none
 #eval do
-  let s := mkState [1, 2, 3]
+  let s := mkStateWithFrame [1, 2, 3]
   let r := runInst s (.locLoadwBe 0)
   unless checkNone r do panic! "locLoadwBe: insufficient stack should fail"
 
 -- locLoadwLe: insufficient stack (fewer than 4 elements) → returns none
 #eval do
-  let s := mkState [1, 2, 3]
+  let s := mkStateWithFrame [1, 2, 3]
   let r := runInst s (.locLoadwLe 0)
   unless checkNone r do panic! "locLoadwLe: insufficient stack should fail"
 
@@ -1059,7 +1092,7 @@ private def u32max : Nat := 2^32
 
 -- Round-trip: locStorewBe then locLoadwBe → top 4 elements unchanged
 #eval do
-  let s := mkState [10, 20, 30, 40, 99]
+  let s := mkStateWithFrame [10, 20, 30, 40, 99]
   let r1 := runInst s (.locStorewBe 0)
   match r1 with
   | some s1 =>
@@ -1071,7 +1104,7 @@ private def u32max : Nat := 2^32
 
 -- Round-trip: locStorewLe then locLoadwLe → top 4 elements unchanged
 #eval do
-  let s := mkState [10, 20, 30, 40, 99]
+  let s := mkStateWithFrame [10, 20, 30, 40, 99]
   let r1 := runInst s (.locStorewLe 0)
   match r1 with
   | some s1 =>
@@ -1083,7 +1116,7 @@ private def u32max : Nat := 2^32
 -- BE store: stack [a,b,c,d] → local[0]=d, local[1]=c, local[2]=b, local[3]=a
 -- LE load:  local[0]=d → top, local[1]=c, local[2]=b, local[3]=a → stack [d,c,b,a]
 #eval do
-  let s := mkState [10, 20, 30, 40, 99]
+  let s := mkStateWithFrame [10, 20, 30, 40, 99]
   let r1 := runInst s (.locStorewBe 0)
   match r1 with
   | some s1 =>
@@ -1095,7 +1128,7 @@ private def u32max : Nat := 2^32
 -- LE store: stack [a,b,c,d] → local[0]=a, local[1]=b, local[2]=c, local[3]=d
 -- BE load:  local[3]=d → top, local[2]=c, local[1]=b, local[0]=a → stack [d,c,b,a]
 #eval do
-  let s := mkState [10, 20, 30, 40, 99]
+  let s := mkStateWithFrame [10, 20, 30, 40, 99]
   let r1 := runInst s (.locStorewLe 0)
   match r1 with
   | some s1 =>
@@ -1105,7 +1138,7 @@ private def u32max : Nat := 2^32
 
 -- Round-trip at nonzero index: locStorewBe.4 then locLoadwBe.4
 #eval do
-  let s := mkState [5, 6, 7, 8, 99]
+  let s := mkStateWithFrame [5, 6, 7, 8, 99]
   let r1 := runInst s (.locStorewBe 4)
   match r1 with
   | some s1 =>
@@ -1113,11 +1146,196 @@ private def u32max : Nat := 2^32
     unless checkStack r2 [5, 6, 7, 8, 99] do panic! "round-trip BE-BE idx=4: stack mismatch"
   | none => panic! "locStorewBe should not fail"
 
+-- locaddr: pushes correct absolute address
+#eval do
+  let s := mkStateWithFrame [99] (numLocals := 8)
+  let r := runInst s (.locaddr 3)
+  -- LOCAL_MEM_BASE + base + idx = 2^31 + 0 + 3 = 2147483651
+  unless checkStack r [Felt.ofNat 2147483651, 99] do panic! "locaddr: wrong address"
+
+-- locaddr: out of bounds fails
+#eval do
+  let s := mkStateWithFrame [99] (numLocals := 4)
+  let r := runInst s (.locaddr 4)
+  unless checkNone r do panic! "locaddr: out-of-bounds should fail"
+
+-- locaddr: no frame fails
+#eval do
+  let s := mkState [99]
+  let r := runInst s (.locaddr 0)
+  unless checkNone r do panic! "locaddr: no frame should fail"
+
+-- Writing to a local via memStore after locaddr is visible via locLoad.
+#eval do
+  let proc : Procedure := { name := "mixed_mem_to_loc", numLocals := 4, body := [
+    .inst (.locaddr 0),
+    .inst .memStore,
+    .inst (.locLoad 0)
+  ]}
+  let s : MidenState := { stack := [42, 99], memory := zeroMemory, frames := [], advice := [] }
+  let r := exec 4 s proc
+  unless checkStack r [42, 99] do panic! "mixed mem->loc: stack wrong"
+  unless checkLocals r [(0, 42)] do panic! "mixed mem->loc: local memory wrong"
+
+-- Writing to a local via locStore is visible via memLoad from locaddr.
+#eval do
+  let proc : Procedure := { name := "mixed_loc_to_mem", numLocals := 4, body := [
+    .inst (.locStore 1),
+    .inst (.locaddr 1),
+    .inst .memLoad
+  ]}
+  let s : MidenState := { stack := [77, 99], memory := zeroMemory, frames := [], advice := [] }
+  let r := exec 4 s proc
+  unless checkStack r [77, 99] do panic! "mixed loc->mem: stack wrong"
+
+-- Word writes via memStorewBe after locaddr are visible via locLoadwBe.
+#eval do
+  let proc : Procedure := { name := "mixed_memw_to_locw", numLocals := 8, body := [
+    .inst (.locaddr 4),
+    .inst .memStorewBe,
+    .inst .dropw,
+    .inst .padw,
+    .inst (.locLoadwBe 4)
+  ]}
+  let s : MidenState := { stack := [10, 20, 30, 40, 99], memory := zeroMemory, frames := [], advice := [] }
+  let r := exec 6 s proc
+  unless checkStack r [10, 20, 30, 40, 99] do panic! "mixed memw->locw: stack wrong"
+  unless checkLocals r [(4, 40), (5, 30), (6, 20), (7, 10)] do
+    panic! "mixed memw->locw: local memory wrong"
+
+-- A callee can update a caller's local by receiving its locaddr and using memStore.
+#eval do
+  let inner : Procedure := { name := "inner", numLocals := 0, body := [
+    .inst .memStore
+  ]}
+  let outer : Procedure := { name := "outer", numLocals := 4, body := [
+    .inst (.locaddr 0),
+    .inst (.exec "inner"),
+    .inst (.locLoad 0)
+  ]}
+  let env : ProcEnv := fun name => if name == "inner" then some inner else none
+  let s : MidenState := { stack := [55, 99], memory := zeroMemory, frames := [], advice := [] }
+  let r := execWithEnv env 5 s outer
+  unless checkStack r [55, 99] do panic! "callee memStore via locaddr: stack wrong"
+  unless checkLocals r [(0, 55)] do panic! "callee memStore via locaddr: local memory wrong"
+
+-- Frame allocation via execWithEnv: procedure with numLocals > 0 gets a frame
+#eval do
+  let proc : Procedure := { name := "test", numLocals := 8, body := [
+    .inst (.locStorewBe 0),
+    .inst (.locLoadwBe 0)
+  ]}
+  let s : MidenState := { stack := [10, 20, 30, 40, 99], memory := zeroMemory, frames := [], advice := [] }
+  let r := exec 2 s proc
+  -- After frame alloc, store, load, and frame dealloc: stack should be preserved
+  unless checkStack r [10, 20, 30, 40, 99] do panic! "frame alloc: round-trip failed"
+  -- frames should be restored to empty after procedure returns
+  match r with
+  | some s' => unless s'.frames == [] do panic! "frame alloc: frames not restored"
+  | none => panic! "frame alloc: should succeed"
+
+-- ============================================================================
+-- Tier 3: Nested Exec / Frame Isolation (AC-15 / AC-12)
+-- ============================================================================
+
+-- Nested exec: inner procedure gets its own frame
+#eval do
+  -- Inner procedure: stores word to locals[0..3], reads it back
+  let inner : Procedure := { name := "inner", numLocals := 4, body := [
+    .inst (.locStorewBe 0),
+    .inst (.locLoadwBe 0)
+  ]}
+  -- Outer procedure: calls inner via exec
+  let outer : Procedure := { name := "outer", numLocals := 8, body := [
+    .inst (.locStorewBe 0),  -- store to outer's locals
+    .inst (.exec "inner")    -- call inner (which stores to inner's locals)
+  ]}
+  let env : ProcEnv := fun name => if name == "inner" then some inner else none
+  let s : MidenState := { stack := [1, 2, 3, 4, 99], memory := zeroMemory, frames := [], advice := [] }
+  let r := execWithEnv env 5 s outer
+  -- After outer returns, frames should be empty
+  match r with
+  | some s' =>
+    unless s'.frames == [] do panic! "nested exec: frames not restored"
+    unless s'.stack == [1, 2, 3, 4, 99] do panic! "nested exec: stack wrong"
+  | none => panic! "nested exec: should succeed"
+
+-- Nested exec: inner procedure's locals don't overwrite outer's locals
+#eval do
+  let inner : Procedure := { name := "inner", numLocals := 4, body := [
+    .inst (.push 77), .inst (.push 88), .inst (.push 99), .inst (.push 66),
+    .inst (.locStorewBe 0),  -- stores [66,99,88,77] to inner's local slots
+    .inst (.drop), .inst (.drop), .inst (.drop), .inst (.drop)  -- clean up stack
+  ]}
+  let outer : Procedure := { name := "outer", numLocals := 4, body := [
+    .inst (.locStorewBe 0),  -- store [10,20,30,40] to outer's locals
+    .inst (.exec "inner"),   -- inner writes to its own frame
+    .inst (.locLoadwBe 0)    -- read back outer's locals - should be unchanged
+  ]}
+  let env : ProcEnv := fun name => if name == "inner" then some inner else none
+  let s : MidenState := { stack := [10, 20, 30, 40, 99], memory := zeroMemory, frames := [], advice := [] }
+  let r := execWithEnv env 15 s outer
+  match r with
+  | some s' =>
+    -- After outer reads back its locals, stack should be [10, 20, 30, 40, 99]
+    unless s'.stack == [10, 20, 30, 40, 99] do panic! "nested frame isolation: stack wrong"
+  | none => panic! "nested frame isolation: should succeed"
+
+-- Procedure with numLocals=0 does NOT allocate a frame
+#eval do
+  let proc : Procedure := { name := "nop_proc", numLocals := 0, body := [
+    .inst (.push 42)
+  ]}
+  let s : MidenState := { stack := [99], memory := zeroMemory, frames := [], advice := [] }
+  let r := exec 2 s proc
+  match r with
+  | some s' =>
+    unless s'.frames == [] do panic! "numLocals=0: frames should stay empty"
+    unless s'.stack == [42, 99] do panic! "numLocals=0: stack wrong"
+  | none => panic! "numLocals=0: should succeed"
+
+-- Frame base offset: second nested call gets offset past first frame
+#eval do
+  let proc1 : Procedure := { name := "p1", numLocals := 8, body := [
+    .inst (.locaddr 0)  -- should push LOCAL_MEM_BASE + 0
+  ]}
+  let proc2 : Procedure := { name := "p2", numLocals := 4, body := [
+    .inst (.exec "p1"),     -- p1 gets base = 4 (after p2's aligned 4)
+    .inst (.locaddr 0)      -- p2's locaddr 0 should push LOCAL_MEM_BASE + 0
+  ]}
+  -- p2 is the outer procedure. When p2 runs, it gets base=0 (first frame).
+  -- When p1 runs inside p2, p1 gets base = p2.alignedNumLocals = 4.
+  -- So p1.locaddr(0) = LOCAL_MEM_BASE + 4 = 2^31 + 4
+  -- And p2.locaddr(0) = LOCAL_MEM_BASE + 0 = 2^31
+  let env : ProcEnv := fun name => if name == "p1" then some proc1 else none
+  let s : MidenState := { stack := [99], memory := zeroMemory, frames := [], advice := [] }
+  let r := execWithEnv env 5 s proc2
+  match r with
+  | some s' =>
+    -- Stack should be [LOCAL_MEM_BASE + 0, LOCAL_MEM_BASE + 4, 99]
+    -- i.e. [2147483648, 2147483652, 99]
+    -- p2.locaddr(0) is on top (executed last), p1.locaddr(0) is below
+    let expected : List Felt := [Felt.ofNat 2147483648, Felt.ofNat 2147483652, 99]
+    unless s'.stack == expected do panic! "frame offset: stack wrong"
+  | none => panic! "frame offset: should succeed"
+
+-- locStorewBe: out-of-bounds index + 4 > numLocals fails
+#eval do
+  let s := mkStateWithFrame [10, 20, 30, 40, 99] (numLocals := 4)
+  let r := runInst s (.locStorewBe 4)
+  unless checkNone r do panic! "locStorewBe: out-of-bounds (idx+4 > numLocals) should fail"
+
+-- locLoadwBe: out-of-bounds index + 4 > numLocals fails
+#eval do
+  let s := mkStateWithFrame [10, 20, 30, 40, 99] (numLocals := 4)
+  let r := runInst s (.locLoadwBe 4)
+  unless checkNone r do panic! "locLoadwBe: out-of-bounds (idx+4 > numLocals) should fail"
+
 -- ============================================================================
 -- Summary
 -- ============================================================================
 
 -- If we reach here, all tests passed.
--- Total test count: ~120 tests covering all instruction categories.
+-- Total test count: ~130 tests covering all instruction categories.
 
 end MidenLean.Tests

@@ -23,17 +23,17 @@ theorem u128_wrapping_sub_raw
     (hb2 : b2.isU32 = true) (hb3 : b3.isU32 = true) :
     execWithEnv u128ProcEnv 31 s Miden.Core.U128.wrapping_sub =
     some (s.withStack (u128WrappingSubResult a0 a1 a2 a3 b0 b1 b2 b3 rest)) := by
-  obtain ⟨stk, mem, locs, adv⟩ := s
+  obtain ⟨stk, mem, frames, adv⟩ := s
   simp only [MidenState.withStack] at hs ⊢
   subst hs
   unfold Miden.Core.U128.wrapping_sub execWithEnv
   simp only [List.foldlM, u128ProcEnv]
   dsimp only [bind, Bind.bind, Option.bind]
   rw [show execWithEnv u128ProcEnv 30
-      ⟨b0 :: b1 :: b2 :: b3 :: a0 :: a1 :: a2 :: a3 :: rest, mem, locs, adv⟩
+      ⟨b0 :: b1 :: b2 :: b3 :: a0 :: a1 :: a2 :: a3 :: rest, mem, frames, adv⟩
       Miden.Core.U128.overflowing_sub =
-      some ⟨u128OverflowingSubResult a0 a1 a2 a3 b0 b1 b2 b3 rest, mem, locs, adv⟩
-      from u128_overflowing_sub_run u128ProcEnv 29 a0 a1 a2 a3 b0 b1 b2 b3 rest mem locs adv
+      some ⟨u128OverflowingSubResult a0 a1 a2 a3 b0 b1 b2 b3 rest, mem, frames, adv⟩
+      from u128_overflowing_sub_run u128ProcEnv 29 a0 a1 a2 a3 b0 b1 b2 b3 rest mem frames adv
         ha0 ha1 ha2 ha3 hb0 hb1 hb2 hb3]
   miden_bind
   unfold u128OverflowingSubResult u128WrappingSubResult

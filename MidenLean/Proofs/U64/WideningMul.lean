@@ -39,15 +39,15 @@ private def widening_mul_chunk2 : List Op := [
 ]
 
 private theorem widening_mul_decomp :
-    Miden.Core.U64.widening_mul = widening_mul_chunk1 ++ widening_mul_chunk2 := by
+    Miden.Core.U64.widening_mul.body = widening_mul_chunk1 ++ widening_mul_chunk2 := by
   simp [Miden.Core.U64.widening_mul, widening_mul_chunk1, widening_mul_chunk2]
 
 set_option maxHeartbeats 12000000 in
 private theorem widening_mul_chunk1_correct
-    (a_lo a_hi b_lo b_hi : Felt) (rest : List Felt) (mem locs : Nat → Felt) (adv : List Felt)
+    (a_lo a_hi b_lo b_hi : Felt) (rest : List Felt) (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (ha_lo : a_lo.isU32 = true) (ha_hi : a_hi.isU32 = true)
     (hb_lo : b_lo.isU32 = true) (hb_hi : b_hi.isU32 = true) :
-    exec 30 ⟨b_lo :: b_hi :: a_lo :: a_hi :: rest, mem, locs, adv⟩ widening_mul_chunk1 =
+    exec 30 ⟨b_lo :: b_hi :: a_lo :: a_hi :: rest, mem, frames, adv⟩ widening_mul_chunk1 =
       some ⟨Felt.ofNat
               ((b_lo.val * a_hi.val + (b_hi.val * a_lo.val + b_lo.val * a_lo.val / 2 ^ 32) % 2 ^ 32) /
                 2 ^ 32) ::
@@ -56,7 +56,7 @@ private theorem widening_mul_chunk1_correct
                 2 ^ 32) ::
             Felt.ofNat ((b_hi.val * a_lo.val + b_lo.val * a_lo.val / 2 ^ 32) / 2 ^ 32) ::
             Felt.ofNat (b_lo.val * a_lo.val % 2 ^ 32) ::
-            a_hi :: b_hi :: rest, mem, locs, adv⟩ := by
+            a_hi :: b_hi :: rest, mem, frames, adv⟩ := by
   unfold exec widening_mul_chunk1 execWithEnv
   simp only [List.foldlM]
   rw [stepReversew]
@@ -93,7 +93,7 @@ private theorem widening_mul_chunk1_correct
 
 set_option maxHeartbeats 12000000 in
 private theorem widening_mul_chunk2_correct
-    (a_lo a_hi b_lo b_hi : Felt) (rest : List Felt) (mem locs : Nat → Felt) (adv : List Felt)
+    (a_lo a_hi b_lo b_hi : Felt) (rest : List Felt) (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (ha_lo : a_lo.isU32 = true) (ha_hi : a_hi.isU32 = true)
     (hb_lo : b_lo.isU32 = true) (hb_hi : b_hi.isU32 = true) :
     exec 30
@@ -105,7 +105,7 @@ private theorem widening_mul_chunk2_correct
               2 ^ 32) ::
           Felt.ofNat ((b_hi.val * a_lo.val + b_lo.val * a_lo.val / 2 ^ 32) / 2 ^ 32) ::
           Felt.ofNat (b_lo.val * a_lo.val % 2 ^ 32) ::
-          a_hi :: b_hi :: rest, mem, locs, adv⟩
+          a_hi :: b_hi :: rest, mem, frames, adv⟩
         widening_mul_chunk2 =
       some ⟨Felt.ofNat (b_lo.val * a_lo.val % 2 ^ 32) ::
             Felt.ofNat
@@ -131,7 +131,7 @@ private theorem widening_mul_chunk2_correct
                     (b_lo.val * a_hi.val + (b_hi.val * a_lo.val + b_lo.val * a_lo.val / 2 ^ 32) % 2 ^ 32) /
                       2 ^ 32) /
                   2 ^ 32)) ::
-            rest, mem, locs, adv⟩ := by
+            rest, mem, frames, adv⟩ := by
   unfold exec widening_mul_chunk2 execWithEnv
   simp only [List.foldlM]
   miden_movup
@@ -258,11 +258,11 @@ theorem u64_widening_mul_raw
       Felt.ofNat (cross2 % 2 ^ 32) ::
       Felt.ofNat (widenAdd % 2 ^ 32) ::
       (Felt.ofNat (widenAdd / 2 ^ 32) + Felt.ofNat (high / 2 ^ 32)) :: rest)) := by
-  obtain ⟨stk, mem, locs, adv⟩ := s
+  obtain ⟨stk, mem, frames, adv⟩ := s
   simp only [MidenState.withStack] at hs ⊢
   subst hs
-  rw [widening_mul_decomp, MidenLean.exec_append]
-  rw [widening_mul_chunk1_correct a_lo a_hi b_lo b_hi rest mem locs adv ha_lo ha_hi hb_lo hb_hi]
+  rw [MidenLean.exec_body_eq _ _ _ _ widening_mul_decomp rfl, MidenLean.exec_append]
+  rw [widening_mul_chunk1_correct a_lo a_hi b_lo b_hi rest mem frames adv ha_lo ha_hi hb_lo hb_hi]
   miden_bind
   let prod0 := b_lo.val * a_lo.val
   let cross1 := b_hi.val * a_lo.val + prod0 / 2 ^ 32
@@ -270,7 +270,7 @@ theorem u64_widening_mul_raw
   let high := b_hi.val * a_hi.val + cross2 / 2 ^ 32
   let widenAdd := cross1 / 2 ^ 32 + high % 2 ^ 32
   simpa [prod0, cross1, cross2, high, widenAdd] using
-    (widening_mul_chunk2_correct a_lo a_hi b_lo b_hi rest mem locs adv ha_lo ha_hi hb_lo hb_hi)
+    (widening_mul_chunk2_correct a_lo a_hi b_lo b_hi rest mem frames adv ha_lo ha_hi hb_lo hb_hi)
 
 private theorem schoolbook_widening_mul_eq (al ah bl bh : Nat) :
     let p0 := bl * al

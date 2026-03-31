@@ -36,10 +36,10 @@ theorem u128_mod_correct
     execWithEnv u128ProcEnv 34 s Miden.Core.U128.mod =
     some { stack := r.a0.val :: r.a1.val :: r.a2.val :: r.a3.val :: rest,
            memory := s.memory,
-           locals := s.locals,
+           frames := s.frames,
            advice := adv_rest }
     ↔ (q.toNat * b.toNat + r.toNat = a.toNat ∧ r.toNat < b.toNat) := by
-  obtain ⟨stk, mem, locs, adv⟩ := s
+  obtain ⟨stk, mem, frames, adv⟩ := s
   simp only [] at hs hadv
   subst hs
   subst hadv
@@ -52,7 +52,7 @@ theorem u128_mod_correct
       { stack := b.a0.val :: b.a1.val :: b.a2.val :: b.a3.val ::
                    a.a0.val :: a.a1.val :: a.a2.val :: a.a3.val :: rest,
         memory := mem,
-        locals := locs,
+        frames := frames,
         advice := r.a0.val :: r.a1.val :: r.a2.val :: r.a3.val ::
                   q.a0.val :: q.a1.val :: q.a2.val :: q.a3.val :: adv_rest }
       Miden.Core.U128.divmod with
@@ -65,7 +65,7 @@ theorem u128_mod_correct
               { stack := b.a0.val :: b.a1.val :: b.a2.val :: b.a3.val ::
                          a.a0.val :: a.a1.val :: a.a2.val :: a.a3.val :: rest,
                 memory := mem,
-                locals := locs,
+                frames := frames,
                 advice := r.a0.val :: r.a1.val :: r.a2.val :: r.a3.val ::
                           q.a0.val :: q.a1.val :: q.a2.val :: q.a3.val :: adv_rest }
               Miden.Core.U128.divmod = some val := by
@@ -78,20 +78,20 @@ theorem u128_mod_correct
           { stack := b.a0.val :: b.a1.val :: b.a2.val :: b.a3.val ::
                      a.a0.val :: a.a1.val :: a.a2.val :: a.a3.val :: rest,
             memory := mem,
-            locals := locs,
+            frames := frames,
             advice := r.a0.val :: r.a1.val :: r.a2.val :: r.a3.val ::
                       q.a0.val :: q.a1.val :: q.a2.val :: q.a3.val :: adv_rest }
           Miden.Core.U128.divmod =
         some { stack := r.a0.val :: r.a1.val :: r.a2.val :: r.a3.val ::
                          q.a0.val :: q.a1.val :: q.a2.val :: q.a3.val :: rest,
                memory := mem,
-               locals := locs,
+               frames := frames,
                advice := adv_rest } :=
       (u128_divmod_correct a b q r rest adv_rest
         { stack := b.a0.val :: b.a1.val :: b.a2.val :: b.a3.val ::
                    a.a0.val :: a.a1.val :: a.a2.val :: a.a3.val :: rest,
           memory := mem,
-          locals := locs,
+          frames := frames,
           advice := r.a0.val :: r.a1.val :: r.a2.val :: r.a3.val ::
                     q.a0.val :: q.a1.val :: q.a2.val :: q.a3.val :: adv_rest }
         rfl rfl).mpr ⟨hdiv, hlt⟩

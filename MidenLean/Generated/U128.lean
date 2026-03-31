@@ -5,7 +5,10 @@ open MidenLean
 
 namespace Miden.Core.U128
 
-def overflowing_add : List Op := [
+def overflowing_add : Procedure := {
+  name := "overflowing_add",
+  numLocals := 0,
+  body := [
   .inst (.movup 4),
   .inst (.u32WidenAdd),
   .inst (.movdn 7),
@@ -21,19 +24,28 @@ def overflowing_add : List Op := [
   .inst (.movup 2),
   .inst (.u32WidenAdd3),
   .inst (.movdn 4)
-]
+] }
 
-def widening_add : List Op := [
+def widening_add : Procedure := {
+  name := "widening_add",
+  numLocals := 0,
+  body := [
   .inst (.exec "overflowing_add"),
   .inst (.movdn 4)
-]
+] }
 
-def wrapping_add : List Op := [
+def wrapping_add : Procedure := {
+  name := "wrapping_add",
+  numLocals := 0,
+  body := [
   .inst (.exec "overflowing_add"),
   .inst (.drop)
-]
+] }
 
-def overflowing_sub : List Op := [
+def overflowing_sub : Procedure := {
+  name := "overflowing_sub",
+  numLocals := 0,
+  body := [
   .inst (.movup 7),
   .inst (.movup 7),
   .inst (.movup 7),
@@ -78,14 +90,20 @@ def overflowing_sub : List Op := [
   .inst (.movdn 2),
   .inst (.swap 1),
   .inst (.movup 4)
-]
+] }
 
-def wrapping_sub : List Op := [
+def wrapping_sub : Procedure := {
+  name := "wrapping_sub",
+  numLocals := 0,
+  body := [
   .inst (.exec "overflowing_sub"),
   .inst (.drop)
-]
+] }
 
-def overflowing_mul : List Op := [
+def overflowing_mul : Procedure := {
+  name := "overflowing_mul",
+  numLocals := 0,
+  body := [
   .inst (.movup 7),
   .inst (.movup 7),
   .inst (.movup 7),
@@ -197,14 +215,20 @@ def overflowing_mul : List Op := [
   .inst (.drop),
   .inst (.swap 1),
   .inst (.movdn 4)
-]
+] }
 
-def widening_mul : List Op := [
+def widening_mul : Procedure := {
+  name := "widening_mul",
+  numLocals := 0,
+  body := [
   .inst (.exec "overflowing_mul"),
   .inst (.movdn 4)
-]
+] }
 
-def wrapping_mul : List Op := [
+def wrapping_mul : Procedure := {
+  name := "wrapping_mul",
+  numLocals := 0,
+  body := [
   .inst (.movup 7),
   .inst (.movup 7),
   .inst (.movup 7),
@@ -265,9 +289,12 @@ def wrapping_mul : List Op := [
   .inst (.movdn 3),
   .inst (.movdn 2),
   .inst (.swap 1)
-]
+] }
 
-def eq : List Op := [
+def eq : Procedure := {
+  name := "eq",
+  numLocals := 0,
+  body := [
   .inst (.movup 4),
   .inst (.eq),
   .inst (.movup 4),
@@ -282,9 +309,12 @@ def eq : List Op := [
   .inst (.movup 2),
   .inst (.eq),
   .inst (.and)
-]
+] }
 
-def neq : List Op := [
+def neq : Procedure := {
+  name := "neq",
+  numLocals := 0,
+  body := [
   .inst (.movup 4),
   .inst (.neq),
   .inst (.movup 4),
@@ -299,9 +329,12 @@ def neq : List Op := [
   .inst (.movup 2),
   .inst (.neq),
   .inst (.or)
-]
+] }
 
-def eqz : List Op := [
+def eqz : Procedure := {
+  name := "eqz",
+  numLocals := 0,
+  body := [
   .inst (.eqImm 0),
   .inst (.swap 1),
   .inst (.eqImm 0),
@@ -312,18 +345,24 @@ def eqz : List Op := [
   .inst (.swap 1),
   .inst (.eqImm 0),
   .inst (.and)
-]
+] }
 
-def lt : List Op := [
+def lt : Procedure := {
+  name := "lt",
+  numLocals := 0,
+  body := [
   .inst (.exec "overflowing_sub"),
   .inst (.movdn 4),
   .inst (.drop),
   .inst (.drop),
   .inst (.drop),
   .inst (.drop)
-]
+] }
 
-def gt : List Op := [
+def gt : Procedure := {
+  name := "gt",
+  numLocals := 0,
+  body := [
   .inst (.swapw 1),
   .inst (.exec "overflowing_sub"),
   .inst (.movdn 4),
@@ -331,33 +370,48 @@ def gt : List Op := [
   .inst (.drop),
   .inst (.drop),
   .inst (.drop)
-]
+] }
 
-def lte : List Op := [
+def lte : Procedure := {
+  name := "lte",
+  numLocals := 0,
+  body := [
   .inst (.exec "gt"),
   .inst (.not)
-]
+] }
 
-def gte : List Op := [
+def gte : Procedure := {
+  name := "gte",
+  numLocals := 0,
+  body := [
   .inst (.exec "lt"),
   .inst (.not)
-]
+] }
 
-def min : List Op := [
+def min : Procedure := {
+  name := "min",
+  numLocals := 0,
+  body := [
   .inst (.dupw 1),
   .inst (.dupw 1),
   .inst (.exec "gt"),
   .inst (.cdropw)
-]
+] }
 
-def max : List Op := [
+def max : Procedure := {
+  name := "max",
+  numLocals := 0,
+  body := [
   .inst (.dupw 1),
   .inst (.dupw 1),
   .inst (.exec "lt"),
   .inst (.cdropw)
-]
+] }
 
-def and : List Op := [
+def and : Procedure := {
+  name := "and",
+  numLocals := 0,
+  body := [
   .inst (.movup 4),
   .inst (.u32And),
   .inst (.movup 4),
@@ -370,9 +424,12 @@ def and : List Op := [
   .inst (.movup 4),
   .inst (.u32And),
   .inst (.reversew)
-]
+] }
 
-def or : List Op := [
+def or : Procedure := {
+  name := "or",
+  numLocals := 0,
+  body := [
   .inst (.movup 4),
   .inst (.u32Or),
   .inst (.movup 4),
@@ -385,9 +442,12 @@ def or : List Op := [
   .inst (.movup 4),
   .inst (.u32Or),
   .inst (.reversew)
-]
+] }
 
-def xor : List Op := [
+def xor : Procedure := {
+  name := "xor",
+  numLocals := 0,
+  body := [
   .inst (.movup 4),
   .inst (.u32Xor),
   .inst (.movup 4),
@@ -400,9 +460,12 @@ def xor : List Op := [
   .inst (.movup 4),
   .inst (.u32Xor),
   .inst (.reversew)
-]
+] }
 
-def not : List Op := [
+def not : Procedure := {
+  name := "not",
+  numLocals := 0,
+  body := [
   .inst (.movup 3),
   .inst (.u32Not),
   .inst (.movup 3),
@@ -411,9 +474,12 @@ def not : List Op := [
   .inst (.u32Not),
   .inst (.movup 3),
   .inst (.u32Not)
-]
+] }
 
-def clz : List Op := [
+def clz : Procedure := {
+  name := "clz",
+  numLocals := 0,
+  body := [
   .inst (.movup 3),
   .inst (.dup 0),
   .inst (.eqImm 0),
@@ -451,9 +517,12 @@ def clz : List Op := [
     .inst (.drop),
     .inst (.u32Clz)
 ]
-]
+] }
 
-def ctz : List Op := [
+def ctz : Procedure := {
+  name := "ctz",
+  numLocals := 0,
+  body := [
   .inst (.dup 0),
   .inst (.eqImm 0),
   .ifElse [
@@ -488,9 +557,12 @@ def ctz : List Op := [
     .inst (.drop),
     .inst (.u32Ctz)
 ]
-]
+] }
 
-def clo : List Op := [
+def clo : Procedure := {
+  name := "clo",
+  numLocals := 0,
+  body := [
   .inst (.movup 3),
   .inst (.dup 0),
   .inst (.eqImm 4294967295),
@@ -528,9 +600,12 @@ def clo : List Op := [
     .inst (.drop),
     .inst (.u32Clo)
 ]
-]
+] }
 
-def cto : List Op := [
+def cto : Procedure := {
+  name := "cto",
+  numLocals := 0,
+  body := [
   .inst (.dup 0),
   .inst (.eqImm 4294967295),
   .ifElse [
@@ -565,9 +640,12 @@ def cto : List Op := [
     .inst (.drop),
     .inst (.u32Cto)
 ]
-]
+] }
 
-def shl : List Op := [
+def shl : Procedure := {
+  name := "shl",
+  numLocals := 0,
+  body := [
   .inst (.dup 0),
   .inst (.push 128),
   .inst (.u32Lt),
@@ -592,9 +670,12 @@ def shl : List Op := [
     .inst (.push 0),
     .inst (.exec "wrapping_mul")
 ]
-]
+] }
 
-def shr : List Op := [
+def shr : Procedure := {
+  name := "shr",
+  numLocals := 0,
+  body := [
   .inst (.dup 0),
   .inst (.push 128),
   .inst (.u32Lt),
@@ -646,9 +727,12 @@ def shr : List Op := [
 ]
 ]
 ]
-]
+] }
 
-def shr_k0 : List Op := [
+def shr_k0 : Procedure := {
+  name := "shr_k0",
+  numLocals := 0,
+  body := [
   .inst (.push 32),
   .inst (.dup 1),
   .inst (.u32WrappingSub),
@@ -695,9 +779,12 @@ def shr_k0 : List Op := [
   .inst (.drop),
   .inst (.movup 4),
   .inst (.drop)
-]
+] }
 
-def shr_k1 : List Op := [
+def shr_k1 : Procedure := {
+  name := "shr_k1",
+  numLocals := 0,
+  body := [
   .inst (.dup 0),
   .inst (.eqImm 0),
   .ifElse [
@@ -739,9 +826,12 @@ def shr_k1 : List Op := [
     .inst (.drop),
     .inst (.drop)
 ]
-]
+] }
 
-def shr_k2 : List Op := [
+def shr_k2 : Procedure := {
+  name := "shr_k2",
+  numLocals := 0,
+  body := [
   .inst (.dup 0),
   .inst (.eqImm 0),
   .ifElse [
@@ -774,9 +864,12 @@ def shr_k2 : List Op := [
     .inst (.drop),
     .inst (.drop)
 ]
-]
+] }
 
-def shr_k3 : List Op := [
+def shr_k3 : Procedure := {
+  name := "shr_k3",
+  numLocals := 0,
+  body := [
   .inst (.movup 4),
   .inst (.swap 1),
   .inst (.u32Shr),
@@ -784,9 +877,12 @@ def shr_k3 : List Op := [
   .inst (.drop),
   .inst (.drop),
   .inst (.drop)
-]
+] }
 
-def rotl : List Op := [
+def rotl : Procedure := {
+  name := "rotl",
+  numLocals := 0,
+  body := [
   .inst (.dup 0),
   .inst (.eqImm 0),
   .ifElse [
@@ -822,9 +918,12 @@ def rotl : List Op := [
     .inst (.u32Or),
     .inst (.movdn 3)
 ]
-]
+] }
 
-def rotr : List Op := [
+def rotr : Procedure := {
+  name := "rotr",
+  numLocals := 0,
+  body := [
   .inst (.dup 0),
   .inst (.eqImm 0),
   .ifElse [
@@ -860,20 +959,29 @@ def rotr : List Op := [
     .inst (.u32Or),
     .inst (.movdn 3)
 ]
-]
+] }
 
-def div : List Op := [
+def div : Procedure := {
+  name := "div",
+  numLocals := 0,
+  body := [
   .inst (.exec "divmod"),
   .inst (.dropw)
-]
+] }
 
-def mod : List Op := [
+def mod : Procedure := {
+  name := "mod",
+  numLocals := 0,
+  body := [
   .inst (.exec "divmod"),
   .inst (.swapw 1),
   .inst (.dropw)
-]
+] }
 
-def divmod : List Op := [
+def divmod : Procedure := {
+  name := "divmod",
+  numLocals := 0,
+  body := [
   .inst (.emitImm 15463989275656898604),
   .inst (.padw),
   .inst (.advLoadW),
@@ -1032,6 +1140,6 @@ def divmod : List Op := [
   .inst (.assertWithError "u128 divmod: remainder >= divisor"),
   .inst (.swapw 2),
   .inst (.dropw)
-]
+] }
 
 end Miden.Core.U128
