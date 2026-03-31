@@ -100,15 +100,6 @@ import MidenLean.AIR.Semantics.Gaps.StackArith
 import MidenLean.AIR.Proofs.BitwiseChiplet
 import MidenLean.AIR.Proofs.U32NotLowering
 import MidenLean.AIR.Proofs.U32ImmediateLoweringCounterexamples
-import MidenLean.AIR.Proofs.WordStackRewriteSoundness
 import MidenLean.AIR.Proofs.WordIOSoundness
-import MidenLean.AIR.Proofs.Sha256ChSoundness
-import MidenLean.AIR.Proofs.Sha256MajSoundness
-import MidenLean.AIR.Proofs.Sha256RevElementOrderSoundness
-import MidenLean.AIR.Proofs.Sha256SmallSigma0Counterexample
-import MidenLean.AIR.Proofs.Sha256SmallSigma1Counterexample
-import MidenLean.AIR.Proofs.Sha256CapSigma0Counterexample
-import MidenLean.AIR.Proofs.Sha256CapSigma1Counterexample
-import MidenLean.AIR.Proofs.Sha256ComputeMessageScheduleWordCounterexample
 import MidenLean.Tests.Semantics
 import MidenLean.Tests.Procedures

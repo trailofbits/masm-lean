@@ -74,6 +74,13 @@ set_option maxHeartbeats 400000 in
     some ⟨d :: c :: b :: a :: rest, mem, frames, adv⟩ := by
   unfold execInstruction execReversew; rfl
 
+set_option maxHeartbeats 400000 in
+@[miden_dispatch] theorem stepReversedw (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
+    (a b c d e f g h : Felt) (rest : List Felt) :
+    execInstruction ⟨a :: b :: c :: d :: e :: f :: g :: h :: rest, mem, frames, adv⟩ .reversedw =
+    some ⟨h :: g :: f :: e :: d :: c :: b :: a :: rest, mem, frames, adv⟩ := by
+  unfold execInstruction execReversedw; rfl
+
 set_option maxHeartbeats 800000 in
 @[miden_dispatch] theorem stepDupw0 (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (a b c d : Felt) (rest : List Felt) :
