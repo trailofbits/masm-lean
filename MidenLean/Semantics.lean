@@ -246,6 +246,12 @@ def execReversew (s : MidenState) : Option MidenState :=
   | a :: b :: c :: d :: rest => some (s.withStack (d :: c :: b :: a :: rest))
   | _ => none
 
+def execReversedw (s : MidenState) : Option MidenState :=
+  match s.stack with
+  | a :: b :: c :: d :: e :: f :: g :: h :: rest =>
+    some (s.withStack (h :: g :: f :: e :: d :: c :: b :: a :: rest))
+  | _ => none
+
 -- Conditional operations
 
 def execCswap (s : MidenState) : Option MidenState :=
@@ -1038,6 +1044,7 @@ def execInstruction (s : MidenState) (i : Instruction) : Option MidenState :=
   | .movupw n => execMovupw n s
   | .movdnw n => execMovdnw n s
   | .reversew => execReversew s
+  | .reversedw => execReversedw s
   | .cswap => execCswap s
   | .cswapw => execCswapw s
   | .cdrop => execCdrop s

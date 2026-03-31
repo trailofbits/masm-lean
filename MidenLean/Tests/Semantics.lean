@@ -6,6 +6,9 @@
   string on failure, so `lake build` success implies all tests pass.
 -/
 import MidenLean.Semantics
+import MidenLean.Generated.Sha256
+import MidenLean.Proofs.Sha256.Common
+import MidenLean.Spec.WordOrder
 
 namespace MidenLean.Tests
 
@@ -40,6 +43,10 @@ private def runInst (s : MidenState) (i : Instruction) : Option MidenState :=
 private def runOps (fuel : Nat) (s : MidenState) (ops : List Op) : Option MidenState :=
   exec fuel s ops
 
+/-- Run a SHA-256 helper that may use nested `exec` calls. -/
+private def runSha256Ops (fuel : Nat) (s : MidenState) (ops : List Op) : Option MidenState :=
+  execWithEnv MidenLean.Proofs.sha256ProcEnv fuel s ops
+
 /-- Check that the resulting stack matches expected values. -/
 private def checkStack (result : Option MidenState) (expected : List Felt) : Bool :=
   match result with
@@ -54,6 +61,23 @@ private def checkNone (result : Option MidenState) : Bool :=
 private def checkLocals (result : Option MidenState) (pairs : List (Nat × Felt)) : Bool :=
   match result with
   | some s => pairs.all fun (idx, v) => s.memory (LOCAL_MEM_BASE + idx) == v
+  | none => false
+
+/-- Check four consecutive memory values. -/
+private def checkMemoryWord (result : Option MidenState) (addr : Nat) (expected : List Felt) : Bool :=
+  match result with
+  | some s => [s.memory addr, s.memory (addr + 1), s.memory (addr + 2), s.memory (addr + 3)] == expected
+  | none => false
+
+/-- Check four consecutive local values. -/
+private def checkLocalWord (result : Option MidenState) (idx : Nat) (expected : List Felt) : Bool :=
+  match result with
+  | some s =>
+      [ s.memory (LOCAL_MEM_BASE + idx)
+      , s.memory (LOCAL_MEM_BASE + idx + 1)
+      , s.memory (LOCAL_MEM_BASE + idx + 2)
+      , s.memory (LOCAL_MEM_BASE + idx + 3)
+      ] == expected
   | none => false
 
 -- Felt constants for readability
@@ -401,6 +425,86 @@ private def u32max : Nat := 2^32
   let s := mkState [1, 2, 3, 4, 5]
   let r := runInst s .reversew
   unless checkStack r [4, 3, 2, 1, 5] do panic! "reversew failed"
+
+-- reversedw
+#eval do
+  let s := mkState [1, 2, 3, 4, 5, 6, 7, 8, 9]
+  let r := runInst s .reversedw
+  unless checkStack r [8, 7, 6, 5, 4, 3, 2, 1, 9] do panic! "reversedw failed"
+
+-- Lean-side accessor model: top of stack maps to word[0]
+#eval do
+  let got := stackWordAccessor [11, 12, 13, 14, 15] 0
+  unless got == [11, 12, 13, 14] do panic! "stackWordAccessor top-word orientation failed"
+
+-- Lean-side accessor model zero-pads partial reads
+#eval do
+  let got := stackWordAccessor [16] 0
+  unless got == [16, 0, 0, 0] do panic! "stackWordAccessor zero padding failed"
+
+-- mem_loadw_be
+#eval do
+  let s := (mkState [100, 9, 9, 9, 9, 7]).writeMemory 100 1
+    |>.writeMemory 101 2
+    |>.writeMemory 102 3
+    |>.writeMemory 103 4
+  let r := runInst s .memLoadwBe
+  unless checkStack r [4, 3, 2, 1, 7] do panic! "memLoadwBe orientation failed"
+
+-- mem_loadw_le
+#eval do
+  let s := (mkState [100, 9, 9, 9, 9, 7]).writeMemory 100 1
+    |>.writeMemory 101 2
+    |>.writeMemory 102 3
+    |>.writeMemory 103 4
+  let r := runInst s .memLoadwLe
+  unless checkStack r [1, 2, 3, 4, 7] do panic! "memLoadwLe orientation failed"
+
+-- mem_storew_be
+#eval do
+  let s := mkState [100, 1, 2, 3, 4, 7]
+  let r := runInst s .memStorewBe
+  unless checkStack r [1, 2, 3, 4, 7] do panic! "memStorewBe stack preservation failed"
+  unless checkMemoryWord r 100 [4, 3, 2, 1] do panic! "memStorewBe memory orientation failed"
+
+-- mem_storew_le
+#eval do
+  let s := mkState [100, 1, 2, 3, 4, 7]
+  let r := runInst s .memStorewLe
+  unless checkStack r [1, 2, 3, 4, 7] do panic! "memStorewLe stack preservation failed"
+  unless checkMemoryWord r 100 [1, 2, 3, 4] do panic! "memStorewLe memory orientation failed"
+
+-- loc_loadw_be
+#eval do
+  let s := (mkStateWithFrame [9, 9, 9, 9, 7]).writeMemory LOCAL_MEM_BASE 1
+    |>.writeMemory (LOCAL_MEM_BASE + 1) 2
+    |>.writeMemory (LOCAL_MEM_BASE + 2) 3
+    |>.writeMemory (LOCAL_MEM_BASE + 3) 4
+  let r := runInst s (.locLoadwBe 0)
+  unless checkStack r [4, 3, 2, 1, 7] do panic! "locLoadwBe orientation failed"
+
+-- loc_loadw_le
+#eval do
+  let s := (mkStateWithFrame [9, 9, 9, 9, 7]).writeMemory LOCAL_MEM_BASE 1
+    |>.writeMemory (LOCAL_MEM_BASE + 1) 2
+    |>.writeMemory (LOCAL_MEM_BASE + 2) 3
+    |>.writeMemory (LOCAL_MEM_BASE + 3) 4
+  let r := runInst s (.locLoadwLe 0)
+  unless checkStack r [1, 2, 3, 4, 7] do panic! "locLoadwLe orientation failed"
+
+-- loc_storew_be
+#eval do
+  let s := mkStateWithFrame [1, 2, 3, 4, 7]
+  let r := runInst s (.locStorewBe 0)
+  unless checkStack r [1, 2, 3, 4, 7] do panic! "locStorewBe stack preservation failed"
+  unless checkLocalWord r 0 [4, 3, 2, 1] do panic! "locStorewBe local orientation failed"
+
+-- loc_storew_le
+#eval do
+  let s := mkStateWithFrame [1, 2, 3, 4, 7]
+  let r := runInst s (.locStorewLe 0)
+  unless checkStack r [1, 2, 3, 4, 7] do panic! "locStorewLe stack preservation failed"
+  unless checkLocalWord r 0 [1, 2, 3, 4] do panic! "locStorewLe local orientation failed"
 
 -- ============================================================================
 -- Tier 1: Conditional Operations (AC-6)
@@ -994,7 +1098,7 @@ private def u32max : Nat := 2^32
 -- locStorewBe: stores top word in big-endian order and preserves stack
 -- Per spec: "top of stack is placed at local[i+3]"
 -- So stack [e0, e1, e2, e3, ...] → local[i]=e3, local[i+1]=e2, local[i+2]=e1, local[i+3]=e0
-#eval do
+#eval! do
   let s := mkStateWithFrame [10, 20, 30, 40, 99]
   let r := runInst s (.locStorewBe 0)
   -- stack preserved
@@ -1006,7 +1110,7 @@ private def u32max : Nat := 2^32
 -- locStorewLe: stores top word in little-endian order and preserves stack
 -- Per spec: "top of stack is placed at local[i]"
 -- So stack [e0, e1, e2, e3, ...] → local[i]=e0, local[i+1]=e1, local[i+2]=e2, local[i+3]=e3
-#eval do
+#eval! do
   let s := mkStateWithFrame [10, 20, 30, 40, 99]
   let r := runInst s (.locStorewLe 0)
   -- stack preserved
@@ -1166,7 +1270,7 @@ private def u32max : Nat := 2^32
   unless checkNone r do panic! "locaddr: no frame should fail"
 
 -- Writing to a local via memStore after locaddr is visible via locLoad.
-#eval do
+#eval! do
   let proc : Procedure := { name := "mixed_mem_to_loc", numLocals := 4, body := [
     .inst (.locaddr 0),
     .inst .memStore,
@@ -1189,7 +1293,7 @@ private def u32max : Nat := 2^32
   unless checkStack r [77, 99] do panic! "mixed loc->mem: stack wrong"
 
 -- Word writes via memStorewBe after locaddr are visible via locLoadwBe.
-#eval do
+#eval! do
   let proc : Procedure := { name := "mixed_memw_to_locw", numLocals := 8, body := [
     .inst (.locaddr 4),
     .inst .memStorewBe,
@@ -1204,7 +1308,7 @@ private def u32max : Nat := 2^32
     panic! "mixed memw->locw: local memory wrong"
 
 -- A callee can update a caller's local by receiving its locaddr and using memStore.
-#eval do
+#eval! do
   let inner : Procedure := { name := "inner", numLocals := 0, body := [
     .inst .memStore
   ]}
@@ -1330,6 +1434,170 @@ private def u32max : Nat := 2^32
   let s := mkStateWithFrame [10, 20, 30, 40, 99] (numLocals := 4)
   let r := runInst s (.locLoadwBe 4)
   unless checkNone r do panic! "locLoadwBe: out-of-bounds (idx+4 > numLocals) should fail"
+
+-- Tier 4: SHA-256 Helper Procedures (Layer 0)
+-- ============================================================================
+
+-- small_sigma_0: concrete schedule value used by the SHA-256 padding block
+#eval do
+  let s := mkState [512, 99]
+  let r := runOps 20 s Miden.Crypto.Sha256.small_sigma_0
+  unless checkStack r [8388676, 99] do
+    panic! "small_sigma_0: sigma_0(512) should be 8388676"
+
+-- small_sigma_0: high-bit input used in the precomputed schedule audit
+#eval do
+  let s := mkState [0x80000000, 7, 8]
+  let r := runOps 20 s Miden.Crypto.Sha256.small_sigma_0
+  unless checkStack r [285220864, 7, 8] do
+    panic! "small_sigma_0: sigma_0(0x80000000) should be 285220864"
+
+-- small_sigma_0 rejects non-u32 inputs at the local helper boundary
+#eval do
+  let bad : Felt := Felt.ofNat (u32max + 1)
+  let s := mkState [bad, 123]
+  let r := runOps 20 s Miden.Crypto.Sha256.small_sigma_0
+  unless checkNone r do
+    panic! "small_sigma_0: non-u32 input should be rejected"
+
+-- small_sigma_1: concrete schedule value used by the SHA-256 padding block
+#eval do
+  let s := mkState [512, 99]
+  let r := runOps 20 s Miden.Crypto.Sha256.small_sigma_1
+  unless checkStack r [20971520, 99] do
+    panic! "small_sigma_1: sigma_1(512) should be 20971520"
+
+-- small_sigma_1: high-bit input used in the precomputed schedule audit
+#eval do
+  let s := mkState [0x80000000, 7, 8]
+  let r := runOps 20 s Miden.Crypto.Sha256.small_sigma_1
+  unless checkStack r [2117632, 7, 8] do
+    panic! "small_sigma_1: sigma_1(0x80000000) should be 2117632"
+
+-- small_sigma_1 rejects non-u32 inputs at the local helper boundary
+#eval do
+  let bad : Felt := Felt.ofNat (u32max + 1)
+  let s := mkState [bad, 123]
+  let r := runOps 20 s Miden.Crypto.Sha256.small_sigma_1
+  unless checkNone r do
+    panic! "small_sigma_1: non-u32 input should be rejected"
+
+-- cap_sigma_0: concrete compression value used in the SHA-256 round function
+#eval do
+  let s := mkState [512, 99]
+  let r := runOps 20 s Miden.Crypto.Sha256.cap_sigma_0
+  unless checkStack r [268959872, 99] do
+    panic! "cap_sigma_0: Sigma_0(512) should be 268959872"
+
+-- cap_sigma_0: high-bit input used in the precomputed schedule audit
+#eval do
+  let s := mkState [0x80000000, 7, 8]
+  let r := runOps 20 s Miden.Crypto.Sha256.cap_sigma_0
+  unless checkStack r [537133568, 7, 8] do
+    panic! "cap_sigma_0: Sigma_0(0x80000000) should be 537133568"
+
+-- cap_sigma_0 rejects non-u32 inputs at the local helper boundary
+#eval do
+  let bad : Felt := Felt.ofNat (u32max + 1)
+  let s := mkState [bad, 123]
+  let r := runOps 20 s Miden.Crypto.Sha256.cap_sigma_0
+  unless checkNone r do
+    panic! "cap_sigma_0: non-u32 input should be rejected"
+
+-- cap_sigma_1: concrete compression value used in the SHA-256 round function
+#eval do
+  let s := mkState [512, 99]
+  let r := runOps 20 s Miden.Crypto.Sha256.cap_sigma_1
+  unless checkStack r [1073807368, 99] do
+    panic! "cap_sigma_1: Sigma_1(512) should be 1073807368"
+
+-- cap_sigma_1: high-bit input used in the precomputed schedule audit
+#eval do
+  let s := mkState [0x80000000, 7, 8]
+  let r := runOps 20 s Miden.Crypto.Sha256.cap_sigma_1
+  unless checkStack r [34603072, 7, 8] do
+    panic! "cap_sigma_1: Sigma_1(0x80000000) should be 34603072"
+
+-- cap_sigma_1 rejects non-u32 inputs at the local helper boundary
+#eval do
+  let bad : Felt := Felt.ofNat (u32max + 1)
+  let s := mkState [bad, 123]
+  let r := runOps 20 s Miden.Crypto.Sha256.cap_sigma_1
+  unless checkNone r do
+    panic! "cap_sigma_1: non-u32 input should be rejected"
+
+-- ch: when x = 0xFFFFFFFF the helper should select y
+#eval do
+  let s := mkState [0xFFFFFFFF, 0x12345678, 0xA5A5A5A5, 77]
+  let r := runOps 20 s Miden.Crypto.Sha256.ch
+  unless checkStack r [0x12345678, 77] do
+    panic! "ch: ch(0xFFFFFFFF, y, z) should equal y"
+
+-- ch: mixed-bit witness covering both the `x & y` and `~x & z` branches
+#eval do
+  let s := mkState [0x0F0F0F0F, 0x12345678, 0xA5A5A5A5, 77]
+  let r := runOps 20 s Miden.Crypto.Sha256.ch
+  unless checkStack r [0xA2A4A6A8, 77] do
+    panic! "ch: mixed witness should produce 0xA2A4A6A8"
+
+-- ch rejects non-u32 inputs at the local helper boundary
+#eval do
+  let bad : Felt := Felt.ofNat (u32max + 1)
+  let s := mkState [bad, 0x12345678, 0xA5A5A5A5, 77]
+  let r := runOps 20 s Miden.Crypto.Sha256.ch
+  unless checkNone r do
+    panic! "ch: non-u32 input should be rejected"
+
+-- rev_element_order: reverse the first four stack elements and preserve the tail
+#eval do
+  let s := mkState [11, 22, 33, 44, 55, 66]
+  let r := runOps 20 s Miden.Crypto.Sha256.rev_element_order
+  unless checkStack r [44, 33, 22, 11, 55, 66] do
+    panic! "rev_element_order: should reverse the first four elements"
+
+-- rev_element_order rejects stacks shorter than four elements
+#eval do
+  let s := mkState [11, 22, 33]
+  let r := runOps 20 s Miden.Crypto.Sha256.rev_element_order
+  unless checkNone r do
+    panic! "rev_element_order: stack underflow should be rejected"
+
+-- compute_message_schedule_word: nontrivial schedule-word expansion with tail preservation
+#eval do
+  let s := mkState [512, 7, 256, 11, 42]
+  let r := runSha256Ops 20 s Miden.Crypto.Sha256.compute_message_schedule_word
+  unless checkStack r [25165876, 42] do
+    panic! "compute_message_schedule_word: expected [25165876, 42]"
+
+-- compute_message_schedule_word rejects non-u32 inputs at the local helper boundary
+#eval do
+  let bad : Felt := Felt.ofNat (u32max + 1)
+  let s := mkState [bad, 7, 256, 11, 42]
+  let r := runSha256Ops 20 s Miden.Crypto.Sha256.compute_message_schedule_word
+  unless checkNone r do
+    panic! "compute_message_schedule_word: non-u32 input should be rejected"
+
+-- maj: when x = y the helper should return x
+#eval do
+  let s := mkState [0x12345678, 0x12345678, 0xA5A5A5A5, 77]
+  let r := runOps 20 s Miden.Crypto.Sha256.maj
+  unless checkStack r [0x12345678, 77] do
+    panic! "maj: maj(x, x, z) should equal x"
+
+-- maj: mixed-bit witness covering all three pairwise `and` branches
+#eval do
+  let s := mkState [0x33333333, 0x55555555, 0x0F0F0F0F, 77]
+  let r := runOps 20 s Miden.Crypto.Sha256.maj
+  unless checkStack r [0x17171717, 77] do
+    panic! "maj: mixed witness should produce 0x17171717"
+
+-- maj rejects non-u32 inputs at the local helper boundary
+#eval do
+  let bad : Felt := Felt.ofNat (u32max + 1)
+  let s := mkState [bad, 0x55555555, 0x0F0F0F0F, 77]
+  let r := runOps 20 s Miden.Crypto.Sha256.maj
+  unless checkNone r do
+    panic! "maj: non-u32 input should be rejected"
 
 -- ============================================================================
 -- Summary

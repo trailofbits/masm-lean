@@ -506,6 +506,36 @@ set_option maxHeartbeats 4000000 in
   unfold execInstruction execU32Not u32Max
   simp [ha, MidenState.withStack]
 
+set_option maxHeartbeats 4000000 in
+@[miden_dispatch] theorem stepU32ShrImm (n : Nat) (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
+    (a : Felt) (rest : List Felt)
+    (ha : a.isU32 = true) (hn : n < 32) :
+    execInstruction ⟨a :: rest, mem, frames, adv⟩ (.u32ShrImm n) =
+    some ⟨Felt.ofNat (a.val / 2 ^ n) :: rest, mem, frames, adv⟩ := by
+  unfold execInstruction execU32ShrImm
+  have hle : ¬ n > 31 := by omega
+  simp [ha, hle, MidenState.withStack]
+
+set_option maxHeartbeats 4000000 in
+@[miden_dispatch] theorem stepU32RotlImm (n : Nat) (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
+    (a : Felt) (rest : List Felt)
+    (ha : a.isU32 = true) (hn : n < 32) :
+    execInstruction ⟨a :: rest, mem, frames, adv⟩ (.u32RotlImm n) =
+    some ⟨Felt.ofNat (u32RotateLeft a.val n) :: rest, mem, frames, adv⟩ := by
+  unfold execInstruction execU32RotlImm
+  have hle : ¬ n > 31 := by omega
+  simp [ha, hle, MidenState.withStack]
+
+set_option maxHeartbeats 4000000 in
+@[miden_dispatch] theorem stepU32RotrImm (n : Nat) (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
+    (a : Felt) (rest : List Felt)
+    (ha : a.isU32 = true) (hn : n < 32) :
+    execInstruction ⟨a :: rest, mem, frames, adv⟩ (.u32RotrImm n) =
+    some ⟨Felt.ofNat (u32RotateRight a.val n) :: rest, mem, frames, adv⟩ := by
+  unfold execInstruction execU32RotrImm
+  have hle : ¬ n > 31 := by omega
+  simp [ha, hle, MidenState.withStack]
+
 -- ============================================================================
 -- U32 comparison (require isU32 preconditions)
 -- ============================================================================
@@ -549,6 +579,15 @@ set_option maxHeartbeats 4000000 in
 -- ============================================================================
 -- U32 bit counting
 -- ============================================================================
+
+set_option maxHeartbeats 4000000 in
+@[miden_dispatch] theorem stepU32Popcnt (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
+    (a : Felt) (rest : List Felt)
+    (ha : a.isU32 = true) :
+    execInstruction ⟨a :: rest, mem, frames, adv⟩ .u32Popcnt =
+    some ⟨Felt.ofNat (u32PopCount a.val) :: rest, mem, frames, adv⟩ := by
+  unfold execInstruction execU32Popcnt
+  simp [ha, MidenState.withStack]
 
 set_option maxHeartbeats 4000000 in
 @[miden_dispatch] theorem stepU32Clz (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)

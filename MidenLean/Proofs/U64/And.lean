@@ -50,4 +50,47 @@ theorem u64_and_correct (a b : U64) (rest : List Felt) (s : MidenState)
   simp only [U64.and_lo, U64.and_hi, Nat.and_comm a.lo.val.val, Nat.and_comm a.hi.val.val]
   exact u64_and_raw a.lo.val a.hi.val b.lo.val b.hi.val rest s hs a.lo.isU32 a.hi.isU32 b.lo.isU32 b.hi.isU32
 
+-- Soundness dual (same structure as u64_xor_sound / u64_or_sound)
+set_option maxHeartbeats 16000000 in
+/-- Soundness of `u64::and`: if execution succeeds, then the stack had four u32 values
+    and the output is their pairwise bitwise AND. -/
+theorem u64_and_sound
+    (s s' : MidenState)
+    (h : exec 10 s Miden.Core.U64.and = some s') :
+    ∃ a_lo a_hi b_lo b_hi rest,
+      s.stack = b_lo :: b_hi :: a_lo :: a_hi :: rest
+      ∧ a_lo.isU32 = true
+      ∧ a_hi.isU32 = true
+      ∧ b_lo.isU32 = true
+      ∧ b_hi.isU32 = true
+      ∧ s' = s.withStack (
+        Felt.ofNat (b_lo.val &&& a_lo.val) ::
+        Felt.ofNat (b_hi.val &&& a_hi.val) :: rest) := by
+  obtain ⟨stk, mem, frames, adv⟩ := s
+  simp only [MidenState.withStack] at h ⊢
+  unfold exec Miden.Core.U64.and execWithEnv at h
+  simp only [List.foldlM] at h
+  match stk with
+  | [] | [_] | [_, _] => simp [execInstruction, execMovup, removeNth] at h
+  | b_lo :: b_hi :: a_lo :: rest3 =>
+    match rest3 with
+    | [] =>
+      simp only [execInstruction, execMovup, removeNth, bind, Bind.bind, Option.bind,
+        MidenState.withStack] at h
+      by_cases hc : b_lo.isU32 = true <;> by_cases hd : a_lo.isU32 = true <;>
+        simp [execU32And, hc, hd, execSwap, MidenState.withStack] at h
+    | a_hi :: rest =>
+      simp only [execInstruction, execMovup, removeNth,
+        List.getElem?_cons_zero, List.getElem?_cons_succ,
+        List.eraseIdx_cons_succ, List.eraseIdx_cons_zero,
+        bind, Bind.bind, Option.bind, MidenState.withStack] at h
+      by_cases hb_lo : b_lo.isU32 = true <;> by_cases ha_lo : a_lo.isU32 = true
+      · simp only [execU32And, MidenState.withStack] at h
+        simp only [execSwap, MidenState.withStack] at h
+        by_cases hb_hi : b_hi.isU32 = true <;> by_cases ha_hi : a_hi.isU32 = true
+        · refine ⟨a_lo, a_hi, b_lo, b_hi, rest, rfl, ha_lo, ha_hi, hb_lo, hb_hi, ?_⟩
+          simp_all [pure, Pure.pure]
+        all_goals (exfalso; simp_all)
+      all_goals (exfalso; simp_all [execU32And])
+
 end MidenLean.Proofs

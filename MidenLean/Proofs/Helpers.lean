@@ -246,6 +246,57 @@ theorem u32OverflowingSub_borrow_ite (a b : Nat) :
       ≤ (2^32 - 1) * (2^32 - 1) / 2^32 := Nat.div_le_div_right h3
     _ < 2^32 := by native_decide
 
+-- Helper: division of a u32 value is still u32
+@[miden_bound] theorem u32_div_pow_isU32 (a : Felt) (n : Nat)
+    (ha : a.isU32 = true) :
+    (Felt.ofNat (a.val / 2^n)).isU32 = true := by
+  apply felt_ofNat_isU32_of_lt
+  simp only [Felt.isU32, decide_eq_true_eq] at ha
+  exact Nat.lt_of_le_of_lt (Nat.div_le_self _ _) ha
+
+-- Helper: Nat.lor of two values below 2^k stays below 2^k (via BitVec)
+theorem Nat_or_lt_of_lt {a b k : Nat} (ha : a < 2^k) (hb : b < 2^k) :
+    a ||| b < 2^k := by
+  have h := (BitVec.ofNat k a ||| BitVec.ofNat k b).isLt
+  rwa [BitVec.toNat_or, BitVec.toNat_ofNat, BitVec.toNat_ofNat,
+       Nat.mod_eq_of_lt ha, Nat.mod_eq_of_lt hb] at h
+
+-- Helper: Nat.xor of two values below 2^k stays below 2^k (via BitVec)
+theorem Nat_xor_lt_of_lt {a b k : Nat} (ha : a < 2^k) (hb : b < 2^k) :
+    a ^^^ b < 2^k := by
+  have h := (BitVec.ofNat k a ^^^ BitVec.ofNat k b).isLt
+  rwa [BitVec.toNat_xor, BitVec.toNat_ofNat, BitVec.toNat_ofNat,
+       Nat.mod_eq_of_lt ha, Nat.mod_eq_of_lt hb] at h
+
+-- Helper: u32RotateRight of a u32 value is u32
+@[miden_bound] theorem u32RotateRight_isU32 (a : Felt) (n : Nat)
+    (ha : a.isU32 = true) :
+    (Felt.ofNat (u32RotateRight a.val n)).isU32 = true := by
+  apply felt_ofNat_isU32_of_lt
+  simp only [Felt.isU32, decide_eq_true_eq] at ha
+  unfold u32RotateRight u32Max
+  apply Nat_or_lt_of_lt
+  · exact Nat.lt_of_le_of_lt (Nat.div_le_self _ _) ha
+  · exact Nat.mod_lt _ (by positivity)
+
+-- Helper: u32RotateLeft of a u32 value is u32
+@[miden_bound] theorem u32RotateLeft_isU32 (a : Felt) (n : Nat)
+    (ha : a.isU32 = true) :
+    (Felt.ofNat (u32RotateLeft a.val n)).isU32 = true := by
+  apply felt_ofNat_isU32_of_lt
+  simp only [Felt.isU32, decide_eq_true_eq] at ha
+  unfold u32RotateLeft u32Max
+  apply Nat_or_lt_of_lt
+  · exact Nat.mod_lt _ (by positivity)
+  · exact Nat.lt_of_le_of_lt (Nat.div_le_self _ _) ha
+
+-- Helper: Nat.xor of two u32 values is u32
+@[miden_bound] theorem u32_xor_isU32 (a b : Nat)
+    (ha : a < 2^32) (hb : b < 2^32) :
+    (Felt.ofNat (a ^^^ b)).isU32 = true := by
+  apply felt_ofNat_isU32_of_lt
+  exact Nat_xor_lt_of_lt ha hb
+
 @[miden_bound] theorem u32_prod_div_lt_prime (a b : Felt)
     (ha : a.isU32 = true) (hb : b.isU32 = true) :
     a.val * b.val / 2^32 < GOLDILOCKS_PRIME := by

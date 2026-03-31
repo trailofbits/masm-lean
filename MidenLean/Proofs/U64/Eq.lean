@@ -48,4 +48,53 @@ theorem u64_eq_correct (a b : U64) (rest : List Felt) (s : MidenState)
   have h := u64_eq_raw b.lo.val b.hi.val a.lo.val a.hi.val rest s hs
   rw [U64.beq_comm a b]; exact h
 
+-- ============================================================================
+-- Soundness dual: execution success implies valid inputs and correct output
+-- ============================================================================
+
+set_option maxHeartbeats 4000000 in
+/-- Soundness of `u64::eq`: if execution succeeds, then the stack had four
+    elements and the output is the correct equality test.
+    This is the converse of `u64_eq_correct`. Together they form a
+    biconditional: the procedure succeeds iff the stack has at least four
+    elements, and the output is always the u64 equality result.
+
+    Hypothesis audit (Phase 1):
+    - `hs : s.stack = b_lo :: b_hi :: a_lo :: a_hi :: rest` — enforced:
+      `movup 2` requires at least 3 elements, and the sequence of instructions
+      needs 4 stack elements total. Execution returns `none` otherwise.
+    - No `isU32` hypotheses — the procedure uses only `movup`, `eq`, `swap`,
+      and `and`. The `eq` instruction works on arbitrary field elements and
+      always produces a boolean (0 or 1), so `and` always succeeds. -/
+theorem u64_eq_sound (s s' : MidenState)
+    (h : exec 10 s Miden.Core.U64.eq = some s') :
+    ∃ b_lo b_hi a_lo a_hi rest,
+      s.stack = b_lo :: b_hi :: a_lo :: a_hi :: rest
+      ∧ s' = s.withStack (
+        (if (b_lo == a_lo) && (b_hi == a_hi)
+         then (1 : Felt) else 0) :: rest) := by
+  obtain ⟨stk, mem, frames, adv⟩ := s
+  simp only [MidenState.withStack] at h ⊢
+  unfold exec Miden.Core.U64.eq execWithEnv at h
+  simp only [List.foldlM] at h
+  match hstk : stk with
+  | [] => simp [execInstruction, execMovup, removeNth] at h
+  | [_] => simp [execInstruction, execMovup, removeNth] at h
+  | [_, _] => simp [execInstruction, execMovup, removeNth] at h
+  | [_, _, _] =>
+    simp [execInstruction, execMovup, removeNth, execEq, execSwap,
+      bind, Bind.bind, Option.bind, List.eraseIdx] at h
+  | b_lo :: b_hi :: a_lo :: a_hi :: rest =>
+    refine ⟨b_lo, b_hi, a_lo, a_hi, rest, rfl, ?_⟩
+    have hc :=
+      u64_eq_raw b_lo b_hi a_lo a_hi rest
+        ⟨b_lo :: b_hi :: a_lo :: a_hi :: rest, mem, frames, adv⟩ rfl
+    have : exec 10 ⟨b_lo :: b_hi :: a_lo :: a_hi :: rest, mem, frames, adv⟩
+        Miden.Core.U64.eq = some s' := by
+      unfold exec Miden.Core.U64.eq execWithEnv
+      simp only [List.foldlM]
+      exact h
+    rw [hc] at this
+    exact (Option.some.inj this).symm
+
 end MidenLean.Proofs

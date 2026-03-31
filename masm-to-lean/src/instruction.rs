@@ -186,6 +186,7 @@ pub fn translate_instruction(inst: &Instruction) -> Result<String> {
 
         // Stack: reverse
         Reversew => ".reversew".into(),
+        Reversedw => ".reversedw".into(),
 
         // Stack: conditional
         CSwap => ".cswap".into(),
