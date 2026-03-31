@@ -296,19 +296,19 @@ def isU32Add3 : FExpr :=
 
 /-- Canonical degree-6 selector for `U32SUB` (`100_001x`). -/
 def isU32Sub : FExpr :=
-  FExpr.times opBit6
-    (FExpr.times notOpBit5
-      (FExpr.times notOpBit4
-        (FExpr.times notOpBit3
-          (FExpr.times notOpBit2 opBit1))))
+  FExpr.times opBit6 <|
+    FExpr.times notOpBit5 <|
+      FExpr.times notOpBit4 <|
+        FExpr.times notOpBit3 <|
+          FExpr.times notOpBit2 opBit1
 
 /-- Canonical degree-6 selector for `U32DIV` (`100_011x`). -/
 def isU32Div : FExpr :=
-  FExpr.times opBit6
-    (FExpr.times notOpBit5
-      (FExpr.times notOpBit4
-        (FExpr.times notOpBit3
-          (FExpr.times opBit2 opBit1)))))
+  FExpr.times opBit6 <|
+    FExpr.times notOpBit5 <|
+      FExpr.times notOpBit4 <|
+        FExpr.times notOpBit3 <|
+          FExpr.times opBit2 opBit1
 
 /-- Canonical degree-6 selector for `U32MADD` (`100_111x`). -/
 def isU32Madd : FExpr :=

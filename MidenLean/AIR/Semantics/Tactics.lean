@@ -2159,6 +2159,120 @@ macro_rules
           whenTransition, gate, assertEq, assertZero, FExpr.eval,
           AirRow.boundaryAt, AirRow.boundary, AirRow.baseAt, AirRow.base
         ])
+
+/-- Normalize the canonical `Subsystems.StackArith.u32DivDividend.eval` side of a
+refinement goal. -/
+syntax (name := air_simp_canonical_u32_div_dividend)
+  "air_simp_canonical_u32_div_dividend" : tactic
+
+macro_rules
+  | `(tactic| air_simp_canonical_u32_div_dividend) =>
+      `(tactic|
+        simp [MainWidth,
+          MidenLean.AIR.Semantics.Subsystems.StackArith.u32DivDividend,
+          MidenLean.AIR.Semantics.Subsystems.StackArith.isU32Div,
+          MidenLean.AIR.Semantics.Subsystems.StackArith.s0,
+          MidenLean.AIR.Semantics.Subsystems.StackArith.s0Next,
+          MidenLean.AIR.Semantics.Subsystems.StackArith.s1,
+          MidenLean.AIR.Semantics.Subsystems.StackArith.s1Next,
+          MidenLean.AIR.Semantics.Subsystems.StackArith.opBit1,
+          MidenLean.AIR.Semantics.Subsystems.StackArith.opBit2,
+          MidenLean.AIR.Semantics.Subsystems.StackArith.opBit3,
+          MidenLean.AIR.Semantics.Subsystems.StackArith.opBit4,
+          MidenLean.AIR.Semantics.Subsystems.StackArith.opBit5,
+          MidenLean.AIR.Semantics.Subsystems.StackArith.opBit6,
+          MidenLean.AIR.Semantics.Subsystems.StackArith.notOpBit3,
+          MidenLean.AIR.Semantics.Subsystems.StackArith.notOpBit4,
+          MidenLean.AIR.Semantics.Subsystems.StackArith.notOpBit5,
+          MidenLean.AIR.Semantics.Subsystems.StackArith.opBit1Col,
+          MidenLean.AIR.Semantics.Subsystems.StackArith.opBit2Col,
+          MidenLean.AIR.Semantics.Subsystems.StackArith.opBit3Col,
+          MidenLean.AIR.Semantics.Subsystems.StackArith.opBit4Col,
+          MidenLean.AIR.Semantics.Subsystems.StackArith.opBit5Col,
+          MidenLean.AIR.Semantics.Subsystems.StackArith.opBit6Col,
+          MidenLean.AIR.Semantics.Subsystems.StackArith.s0Col,
+          MidenLean.AIR.Semantics.Subsystems.StackArith.s1Col,
+          whenTransition, gate, assertEq, assertZero, FExpr.eval,
+          AirRow.boundaryAt, AirRow.boundary, AirRow.baseAt, AirRow.base
+        ])
+
+/-- Normalize the canonical `Subsystems.StackArith.u32DivLow.eval` side of a
+refinement goal. -/
+syntax (name := air_simp_canonical_u32_div_low)
+  "air_simp_canonical_u32_div_low" : tactic
+
+macro_rules
+  | `(tactic| air_simp_canonical_u32_div_low) =>
+      `(tactic|
+        simp [MainWidth,
+          MidenLean.AIR.Semantics.Subsystems.StackArith.u32DivLow,
+          MidenLean.AIR.Semantics.Subsystems.StackArith.isU32Div,
+          MidenLean.AIR.Semantics.Subsystems.StackArith.u32VLo,
+          MidenLean.AIR.Semantics.Subsystems.StackArith.twoPow16,
+          MidenLean.AIR.Semantics.Subsystems.StackArith.s1,
+          MidenLean.AIR.Semantics.Subsystems.StackArith.s1Next,
+          MidenLean.AIR.Semantics.Subsystems.StackArith.uopH0,
+          MidenLean.AIR.Semantics.Subsystems.StackArith.uopH1,
+          MidenLean.AIR.Semantics.Subsystems.StackArith.opBit1,
+          MidenLean.AIR.Semantics.Subsystems.StackArith.opBit2,
+          MidenLean.AIR.Semantics.Subsystems.StackArith.opBit3,
+          MidenLean.AIR.Semantics.Subsystems.StackArith.opBit4,
+          MidenLean.AIR.Semantics.Subsystems.StackArith.opBit5,
+          MidenLean.AIR.Semantics.Subsystems.StackArith.opBit6,
+          MidenLean.AIR.Semantics.Subsystems.StackArith.notOpBit3,
+          MidenLean.AIR.Semantics.Subsystems.StackArith.notOpBit4,
+          MidenLean.AIR.Semantics.Subsystems.StackArith.notOpBit5,
+          MidenLean.AIR.Semantics.Subsystems.StackArith.opBit1Col,
+          MidenLean.AIR.Semantics.Subsystems.StackArith.opBit2Col,
+          MidenLean.AIR.Semantics.Subsystems.StackArith.opBit3Col,
+          MidenLean.AIR.Semantics.Subsystems.StackArith.opBit4Col,
+          MidenLean.AIR.Semantics.Subsystems.StackArith.opBit5Col,
+          MidenLean.AIR.Semantics.Subsystems.StackArith.opBit6Col,
+          MidenLean.AIR.Semantics.Subsystems.StackArith.uopH0Col,
+          MidenLean.AIR.Semantics.Subsystems.StackArith.uopH1Col,
+          MidenLean.AIR.Semantics.Subsystems.StackArith.s1Col,
+          whenTransition, gate, assertEq, assertZero, FExpr.eval,
+          AirRow.boundaryAt, AirRow.boundary, AirRow.baseAt, AirRow.base
+        ])
+
+/-- Normalize the canonical `Subsystems.StackArith.u32DivHigh.eval` side of a
+refinement goal. -/
+syntax (name := air_simp_canonical_u32_div_high)
+  "air_simp_canonical_u32_div_high" : tactic
+
+macro_rules
+  | `(tactic| air_simp_canonical_u32_div_high) =>
+      `(tactic|
+        simp [MainWidth,
+          MidenLean.AIR.Semantics.Subsystems.StackArith.u32DivHigh,
+          MidenLean.AIR.Semantics.Subsystems.StackArith.isU32Div,
+          MidenLean.AIR.Semantics.Subsystems.StackArith.u32VHi,
+          MidenLean.AIR.Semantics.Subsystems.StackArith.twoPow16,
+          MidenLean.AIR.Semantics.Subsystems.StackArith.s0,
+          MidenLean.AIR.Semantics.Subsystems.StackArith.s0Next,
+          MidenLean.AIR.Semantics.Subsystems.StackArith.uopH2,
+          MidenLean.AIR.Semantics.Subsystems.StackArith.uopH3,
+          MidenLean.AIR.Semantics.Subsystems.StackArith.opBit1,
+          MidenLean.AIR.Semantics.Subsystems.StackArith.opBit2,
+          MidenLean.AIR.Semantics.Subsystems.StackArith.opBit3,
+          MidenLean.AIR.Semantics.Subsystems.StackArith.opBit4,
+          MidenLean.AIR.Semantics.Subsystems.StackArith.opBit5,
+          MidenLean.AIR.Semantics.Subsystems.StackArith.opBit6,
+          MidenLean.AIR.Semantics.Subsystems.StackArith.notOpBit3,
+          MidenLean.AIR.Semantics.Subsystems.StackArith.notOpBit4,
+          MidenLean.AIR.Semantics.Subsystems.StackArith.notOpBit5,
+          MidenLean.AIR.Semantics.Subsystems.StackArith.opBit1Col,
+          MidenLean.AIR.Semantics.Subsystems.StackArith.opBit2Col,
+          MidenLean.AIR.Semantics.Subsystems.StackArith.opBit3Col,
+          MidenLean.AIR.Semantics.Subsystems.StackArith.opBit4Col,
+          MidenLean.AIR.Semantics.Subsystems.StackArith.opBit5Col,
+          MidenLean.AIR.Semantics.Subsystems.StackArith.opBit6Col,
+          MidenLean.AIR.Semantics.Subsystems.StackArith.uopH2Col,
+          MidenLean.AIR.Semantics.Subsystems.StackArith.uopH3Col,
+          MidenLean.AIR.Semantics.Subsystems.StackArith.s0Col,
+          whenTransition, gate, assertEq, assertZero, FExpr.eval,
+          AirRow.boundaryAt, AirRow.boundary, AirRow.baseAt, AirRow.base
+        ])
 /-- Normalize the canonical `Subsystems.StackArith.u32Assert2Hi.eval` side
 of a refinement goal. -/
 syntax (name := air_simp_canonical_u32_assert2_hi)

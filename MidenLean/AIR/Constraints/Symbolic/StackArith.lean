@@ -556,9 +556,10 @@ def u32DivDividend : SymbolicConstraint := base_20_to_39[17]
 
 @[simp] theorem u32DivDividend_apply (f : SymbolicFrame) :
     u32DivDividend f =
-      (f.colCurr 8 * (f.colCurr 9 * (1 - f.colCurr 10)) *
-        ((f.colCurr 13 * (1 - f.colCurr 12)) * (1 - f.colCurr 11))) *
-        (f.s 1 - ((f.s 0 * f.s' 1) + f.s' 0)) := by
+      f.is_transition *
+        (((f.colCurr 8 * (f.colCurr 9 * (1 - f.colCurr 10))) *
+          ((f.colCurr 13 * (1 - f.colCurr 12)) * (1 - f.colCurr 11))) *
+          (f.s 1 - ((f.s 0 * f.s' 1) + f.s' 0))) := by
   rfl
 
 /-- Public alias for extracted `U32DIV` remainder-low relation (`base[38]`). -/
@@ -566,9 +567,10 @@ def u32DivLow : SymbolicConstraint := base_20_to_39[18]
 
 @[simp] theorem u32DivLow_apply (f : SymbolicFrame) :
     u32DivLow f =
-      (f.colCurr 8 * (f.colCurr 9 * (1 - f.colCurr 10)) *
-        ((f.colCurr 13 * (1 - f.colCurr 12)) * (1 - f.colCurr 11))) *
-        ((f.s 1 - f.s' 1) - ((f.h 1 * Felt.ofNat 65536) + f.h 0)) := by
+      f.is_transition *
+        (((f.colCurr 8 * (f.colCurr 9 * (1 - f.colCurr 10))) *
+          ((f.colCurr 13 * (1 - f.colCurr 12)) * (1 - f.colCurr 11))) *
+          ((f.s 1 - f.s' 1) - ((f.h 1 * Felt.ofNat 65536) + f.h 0))) := by
   rfl
 
 /-- Public alias for extracted `U32DIV` remainder-high relation (`base[39]`). -/
@@ -576,9 +578,10 @@ def u32DivHigh : SymbolicConstraint := base_20_to_39[19]
 
 @[simp] theorem u32DivHigh_apply (f : SymbolicFrame) :
     u32DivHigh f =
-      (f.colCurr 8 * (f.colCurr 9 * (1 - f.colCurr 10)) *
-        ((f.colCurr 13 * (1 - f.colCurr 12)) * (1 - f.colCurr 11))) *
-        ((f.s 0 - f.s' 0) - (((f.h 3 * Felt.ofNat 65536) + f.h 2) + 1)) := by
+      f.is_transition *
+        (((f.colCurr 8 * (f.colCurr 9 * (1 - f.colCurr 10))) *
+          ((f.colCurr 13 * (1 - f.colCurr 12)) * (1 - f.colCurr 11))) *
+          ((f.s 0 - f.s' 0) - (((f.h 3 * Felt.ofNat 65536) + f.h 2) + 1))) := by
   rfl
 
 /-- Public alias for extracted `U32ASSERT2` high-output relation (`base[40]`). -/
