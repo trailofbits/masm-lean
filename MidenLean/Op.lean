@@ -19,7 +19,23 @@ inductive Op where
 /-- A named procedure. -/
 structure Procedure where
   name : String
+  numLocals : Nat
   body : List Op
+
+/-- Wrap a raw op list as an anonymous procedure with no declared locals.
+    This is a Phase 1 compatibility shim while generated procedures are still `List Op`. -/
+abbrev Procedure.ofOps (body : List Op) : Procedure :=
+  { name := "<anonymous>", numLocals := 0, body }
+
+/-- Wrap a raw op list as a named procedure with an explicit local count.
+    This is used by manual proof environments until generated code is regenerated.
+    Defined as `def` (not `abbrev`) so that `simp`/`dsimp` do not auto-unfold it;
+    use `execWithEnv_ofNameOps` to normalize `execWithEnv` calls instead. -/
+def Procedure.ofNameOps (name : String) (numLocals : Nat) (body : List Op) : Procedure :=
+  { name, numLocals, body }
+
+instance : Coe (List Op) Procedure where
+  coe := Procedure.ofOps
 
 /-- A module: a collection of named procedures. -/
 structure Module where
@@ -27,7 +43,7 @@ structure Module where
   procedures : List Procedure
 
 /-- Look up a procedure by name in a list of procedures. -/
-def Procedure.lookup (procs : List Procedure) (name : String) : Option (List Op) :=
-  procs.find? (fun p => p.name == name) |>.map (fun p => p.body)
+def Procedure.lookup (procs : List Procedure) (name : String) : Option Procedure :=
+  procs.find? (fun p => p.name == name)
 
 end MidenLean

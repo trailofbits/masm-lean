@@ -31,7 +31,7 @@ theorem u128_ctz_raw
           Felt.ofNat (u32CountTrailingZeros b.val) + 32
       else
         Felt.ofNat (u32CountTrailingZeros a.val)) :: rest)) := by
-  obtain ⟨stk, mem, locs, adv⟩ := s
+  obtain ⟨stk, mem, frames, adv⟩ := s
   simp only [MidenState.withStack] at hs ⊢
   subst hs
   unfold exec Miden.Core.U128.ctz execWithEnv

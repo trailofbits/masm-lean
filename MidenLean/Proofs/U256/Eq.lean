@@ -11,27 +11,25 @@ open MidenLean.Tactics
 -- Helper step lemmas
 -- ============================================================================
 
-private theorem stepSwapw3 (mem locs : Nat → Felt) (adv : List Felt)
+private theorem stepSwapw3 (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (a0 a1 a2 a3 b0 b1 b2 b3 c0 c1 c2 c3 d0 d1 d2 d3 : Felt) (rest : List Felt) :
     execInstruction ⟨a0 :: a1 :: a2 :: a3 :: b0 :: b1 :: b2 :: b3 ::
-        c0 :: c1 :: c2 :: c3 :: d0 :: d1 :: d2 :: d3 :: rest, mem, locs, adv⟩ (.swapw 3) =
+        c0 :: c1 :: c2 :: c3 :: d0 :: d1 :: d2 :: d3 :: rest, mem, frames, adv⟩ (.swapw 3) =
       some ⟨d0 :: d1 :: d2 :: d3 :: b0 :: b1 :: b2 :: b3 ::
-        c0 :: c1 :: c2 :: c3 :: a0 :: a1 :: a2 :: a3 :: rest, mem, locs, adv⟩ := by
+        c0 :: c1 :: c2 :: c3 :: a0 :: a1 :: a2 :: a3 :: rest, mem, frames, adv⟩ := by
   unfold execInstruction execSwapw; simp [MidenState.withStack]
 
-private theorem stepEqw (mem locs : Nat → Felt) (adv : List Felt)
+private theorem stepEqw (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (b0 b1 b2 b3 a0 a1 a2 a3 : Felt) (rest : List Felt) :
-    execInstruction ⟨b0 :: b1 :: b2 :: b3 :: a0 :: a1 :: a2 :: a3 :: rest, mem, locs, adv⟩ .eqw =
+    execInstruction ⟨b0 :: b1 :: b2 :: b3 :: a0 :: a1 :: a2 :: a3 :: rest, mem, frames, adv⟩ .eqw =
       some ⟨(if (a0 == b0) && (a1 == b1) && (a2 == b2) && (a3 == b3) then (1 : Felt) else 0) ::
-        b0 :: b1 :: b2 :: b3 :: a0 :: a1 :: a2 :: a3 :: rest, mem, locs, adv⟩ := by
+        b0 :: b1 :: b2 :: b3 :: a0 :: a1 :: a2 :: a3 :: rest, mem, frames, adv⟩ := by
   unfold execInstruction execEqw; simp [MidenState.withStack]
 
-private theorem stepMovdn8 (mem locs : Nat → Felt) (adv : List Felt)
+private theorem stepMovdn8 (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (top a0 a1 a2 a3 a4 a5 a6 a7 : Felt) (rest : List Felt) :
-    execInstruction ⟨top :: a0 :: a1 :: a2 :: a3 :: a4 :: a5 :: a6 :: a7 :: rest,
-        mem, locs, adv⟩ (.movdn 8) =
-      some ⟨a0 :: a1 :: a2 :: a3 :: a4 :: a5 :: a6 :: a7 :: top :: rest,
-        mem, locs, adv⟩ := by
+    execInstruction ⟨top :: a0 :: a1 :: a2 :: a3 :: a4 :: a5 :: a6 :: a7 :: rest, mem, frames, adv⟩ (.movdn 8) =
+      some ⟨a0 :: a1 :: a2 :: a3 :: a4 :: a5 :: a6 :: a7 :: top :: rest, mem, frames, adv⟩ := by
   unfold execInstruction execMovdn
   simp [MidenState.withStack, insertAt, List.take, List.drop,
     List.cons_append, List.nil_append]
@@ -51,7 +49,7 @@ theorem u256_eq_raw (fuel : Nat)
       (if ((b3 == a3) && (b2 == a2) && (b1 == a1) && (b0 == a0)) &&
           ((b7 == a7) && (b6 == a6) && (b5 == a5) && (b4 == a4))
        then (1 : Felt) else 0) :: rest)) := by
-  obtain ⟨stk, mem, locs, adv⟩ := s
+  obtain ⟨stk, mem, frames, adv⟩ := s
   simp only [MidenState.withStack] at hs ⊢
   subst hs
   -- Unfold procedure and resolve env

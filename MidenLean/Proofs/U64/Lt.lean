@@ -25,13 +25,13 @@ theorem u64_lt_raw
       let borrow_hi := decide (a_hi.val < b_hi.val)
       let hi_eq := Felt.ofNat (u32OverflowingSub a_hi.val b_hi.val).2 == (0 : Felt)
       (if borrow_hi || (hi_eq && borrow_lo) then (1 : Felt) else 0) :: rest)) := by
-  obtain ⟨stk, mem, locs, adv⟩ := s
+  obtain ⟨stk, mem, frames, adv⟩ := s
   simp only [MidenState.withStack] at hs ⊢
   subst hs
   unfold exec Miden.Core.U64.lt execWithEnv
   simp only [List.foldlM]
   change (do
-    let s' ← execInstruction ⟨b_lo :: b_hi :: a_lo :: a_hi :: rest, mem, locs, adv⟩ (.movup 3)
+    let s' ← execInstruction ⟨b_lo :: b_hi :: a_lo :: a_hi :: rest, mem, frames, adv⟩ (.movup 3)
     let s' ← execInstruction s' (.movup 3)
     let s' ← execInstruction s' (.movup 2)
     let s' ← execInstruction s' (.u32OverflowSub)

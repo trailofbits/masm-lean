@@ -26,22 +26,13 @@ theorem u64_wrapping_add_raw
       let hi_sum := a_hi.val + b_hi.val + carry
       Felt.ofNat (lo_sum % 2 ^ 32) ::
       Felt.ofNat (hi_sum % 2 ^ 32) :: rest)) := by
-  obtain ⟨stk, mem, locs, adv⟩ := s
+  obtain ⟨stk, mem, frames, adv⟩ := s
   simp only [MidenState.withStack] at hs ⊢
   subst hs
   unfold Miden.Core.U64.wrapping_add execWithEnv
   simp only [List.foldlM, u64ProcEnv]
   dsimp only [bind, Bind.bind, Option.bind]
-  rw [show execWithEnv u64ProcEnv 9
-      ⟨b_lo :: b_hi :: a_lo :: a_hi :: rest, mem, locs, adv⟩
-      Miden.Core.U64.overflowing_add =
-      some ⟨
-        Felt.ofNat ((a_hi.val + b_hi.val + (b_lo.val + a_lo.val) / 2 ^ 32) / 2 ^ 32) ::
-        Felt.ofNat ((b_lo.val + a_lo.val) % 2 ^ 32) ::
-        Felt.ofNat ((a_hi.val + b_hi.val + (b_lo.val + a_lo.val) / 2 ^ 32) % 2 ^ 32) ::
-        rest,
-        mem, locs, adv⟩
-      from u64_overflowing_add_run u64ProcEnv 8 a_lo a_hi b_lo b_hi rest mem locs adv
+  rw [u64_overflowing_add_run u64ProcEnv 8 a_lo a_hi b_lo b_hi rest mem frames adv
         ha_lo ha_hi hb_lo hb_hi]
   miden_bind
   rw [stepDrop]

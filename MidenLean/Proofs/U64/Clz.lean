@@ -18,22 +18,22 @@ theorem u64_clz_raw (lo hi : Felt) (rest : List Felt) (s : MidenState)
       (if hi == (0 : Felt)
        then Felt.ofNat (u32CountLeadingZeros lo.val) + 32
        else Felt.ofNat (u32CountLeadingZeros hi.val)) :: rest)) := by
-  obtain ⟨stk, mem, locs, adv⟩ := s
+  obtain ⟨stk, mem, frames, adv⟩ := s
   simp only [MidenState.withStack] at hs ⊢
   subst hs
   unfold exec Miden.Core.U64.clz execWithEnv
-  simp only [List.foldlM]
+  simp only [Procedure.ofOps, List.foldlM]
   change (do
-    let s' ← execInstruction ⟨lo :: hi :: rest, mem, locs, adv⟩ (.swap 1)
+    let s' ← execInstruction ⟨lo :: hi :: rest, mem, frames, adv⟩ (.swap 1)
     let s' ← execInstruction s' (.dup 0)
     let s' ← execInstruction s' (.eqImm 0)
     let s' ← (match s'.stack with
       | cond :: rest' =>
         if cond.val == 1 then
-          execWithEnv (fun _ => none) 19 (s'.withStack rest') [
+          execOpsWithEnv (fun _ => none) 19 (s'.withStack rest') [
             .inst (.drop), .inst (.u32Clz), .inst (.addImm 32)]
         else if cond.val == 0 then
-          execWithEnv (fun _ => none) 19 (s'.withStack rest') [
+          execOpsWithEnv (fun _ => none) 19 (s'.withStack rest') [
             .inst (.swap 1), .inst (.drop), .inst (.u32Clz)]
         else none
       | _ => none)
@@ -45,13 +45,13 @@ theorem u64_clz_raw (lo hi : Felt) (rest : List Felt) (s : MidenState)
   by_cases h : hi == (0 : Felt)
   · -- Case: hi == 0 (then branch)
     simp [h, MidenState.withStack]
-    unfold execWithEnv; simp only [List.foldlM]
+    unfold execOpsWithEnv execWithEnv; simp only [Procedure.ofOps, List.foldlM]
     rw [stepDrop]; miden_bind
     rw [stepU32Clz (ha := hlo)]; miden_bind
     rw [stepAddImm]
   · -- Case: hi != 0 (else branch)
     simp [h, MidenState.withStack]
-    unfold execWithEnv; simp only [List.foldlM]
+    unfold execOpsWithEnv execWithEnv; simp only [Procedure.ofOps, List.foldlM]
     simp (config := { decide := true }) only [bind, Bind.bind, Option.bind, pure, Pure.pure]
     rw [stepSwap (hn := by decide) (htop := rfl) (hnth := rfl)]; miden_bind
     rw [stepDrop]; miden_bind

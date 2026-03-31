@@ -22,7 +22,7 @@ theorem u128_shr_k3_raw
     (hshift : shift.val ≤ 31) :
     exec 12 s Miden.Core.U128.shr_k3 =
     some (s.withStack (Felt.ofNat (a3.val / 2 ^ shift.val) :: rest)) := by
-  obtain ⟨stk, mem, locs, adv⟩ := s
+  obtain ⟨stk, mem, frames, adv⟩ := s
   simp only [MidenState.withStack] at hs ⊢
   subst hs
   unfold exec Miden.Core.U128.shr_k3 execWithEnv

@@ -7,10 +7,10 @@ open MidenLean
 open MidenLean.StepLemmas
 open MidenLean.Tactics
 
-private theorem u32Assert2_isU32 {a b : Felt} {rest : List Felt} {mem locs : Nat → Felt}
-    {adv : List Felt} {s' : MidenState}
-    (h : execInstruction ⟨a :: b :: rest, mem, locs, adv⟩ .u32Assert2 = some s') :
-    a.isU32 = true ∧ b.isU32 = true ∧ s' = ⟨a :: b :: rest, mem, locs, adv⟩ := by
+private theorem u32Assert2_isU32 {a b : Felt} {rest : List Felt} {mem : Nat → Felt}
+    {frames : List LocalFrame} {adv : List Felt} {s' : MidenState}
+    (h : execInstruction ⟨a :: b :: rest, mem, frames, adv⟩ .u32Assert2 = some s') :
+    a.isU32 = true ∧ b.isU32 = true ∧ s' = ⟨a :: b :: rest, mem, frames, adv⟩ := by
   unfold execInstruction execU32Assert2 at h
   simp only [Felt.isU32] at h ⊢
   split at h
@@ -27,9 +27,9 @@ private theorem bind_some_eq {x : Option MidenState} {f : MidenState → Option 
   · simp at h
   · exact ⟨_, rfl, h⟩
 
-private theorem movup3_concrete (a b c d : Felt) (rest : List Felt) (mem locs : Nat → Felt) (adv : List Felt) :
-    execInstruction ⟨a :: b :: c :: d :: rest, mem, locs, adv⟩ (.movup 3) =
-    some ⟨d :: a :: b :: c :: rest, mem, locs, adv⟩ := by
+private theorem movup3_concrete (a b c d : Felt) (rest : List Felt) (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt) :
+    execInstruction ⟨a :: b :: c :: d :: rest, mem, frames, adv⟩ (.movup 3) =
+    some ⟨d :: a :: b :: c :: rest, mem, frames, adv⟩ := by
   unfold execInstruction execMovup removeNth
   simp [MidenState.withStack]
 
@@ -42,13 +42,13 @@ theorem u64_u32assert4_correct
     exec 10 s Miden.Core.U64.u32assert4 =
     some (s.withStack (a :: b :: c :: d :: rest)) ↔
     (a.isU32 = true ∧ b.isU32 = true ∧ c.isU32 = true ∧ d.isU32 = true) := by
-  obtain ⟨stk, mem, locs, adv⟩ := s
+  obtain ⟨stk, mem, frames, adv⟩ := s
   simp only [MidenState.withStack] at hs ⊢
   subst hs
   unfold exec Miden.Core.U64.u32assert4 execWithEnv
   simp only [List.foldlM]
   change (do
-    let s' ← execInstruction ⟨a :: b :: c :: d :: rest, mem, locs, adv⟩ .u32Assert2
+    let s' ← execInstruction ⟨a :: b :: c :: d :: rest, mem, frames, adv⟩ .u32Assert2
     let s' ← execInstruction s' (.movup 3)
     let s' ← execInstruction s' (.movup 3)
     let s' ← execInstruction s' .u32Assert2

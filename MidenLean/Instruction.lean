@@ -158,6 +158,7 @@ inductive Instruction where
   | locLoadwLe (idx : Nat)
   | locStorewBe (idx : Nat)
   | locStorewLe (idx : Nat)
+  | locaddr (idx : Nat)
 
   -- Advice stack
   | advPush (n : Nat)

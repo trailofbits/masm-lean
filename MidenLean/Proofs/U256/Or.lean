@@ -44,27 +44,27 @@ private def or_half2 : List Op := [
 ]
 
 private theorem or_decomp :
-    Miden.Core.U256.or = or_half1 ++ or_half2 := by
+    Miden.Core.U256.or.body = or_half1 ++ or_half2 := by
   simp [Miden.Core.U256.or, or_half1, or_half2]
 
 -- ============================================================================
 -- Swapw helper lemmas
 -- ============================================================================
 
-private theorem stepSwapw3 (mem locs : Nat → Felt) (adv : List Felt)
+private theorem stepSwapw3 (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (a0 a1 a2 a3 b0 b1 b2 b3 c0 c1 c2 c3 d0 d1 d2 d3 : Felt) (rest : List Felt) :
     execInstruction ⟨a0 :: a1 :: a2 :: a3 :: b0 :: b1 :: b2 :: b3 ::
-        c0 :: c1 :: c2 :: c3 :: d0 :: d1 :: d2 :: d3 :: rest, mem, locs, adv⟩ (.swapw 3) =
+        c0 :: c1 :: c2 :: c3 :: d0 :: d1 :: d2 :: d3 :: rest, mem, frames, adv⟩ (.swapw 3) =
       some ⟨d0 :: d1 :: d2 :: d3 :: b0 :: b1 :: b2 :: b3 ::
-        c0 :: c1 :: c2 :: c3 :: a0 :: a1 :: a2 :: a3 :: rest, mem, locs, adv⟩ := by
+        c0 :: c1 :: c2 :: c3 :: a0 :: a1 :: a2 :: a3 :: rest, mem, frames, adv⟩ := by
   unfold execInstruction execSwapw; simp [MidenState.withStack]
 
-private theorem stepSwapw2 (mem locs : Nat → Felt) (adv : List Felt)
+private theorem stepSwapw2 (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (a0 a1 a2 a3 b0 b1 b2 b3 c0 c1 c2 c3 : Felt) (rest : List Felt) :
     execInstruction ⟨a0 :: a1 :: a2 :: a3 :: b0 :: b1 :: b2 :: b3 ::
-        c0 :: c1 :: c2 :: c3 :: rest, mem, locs, adv⟩ (.swapw 2) =
+        c0 :: c1 :: c2 :: c3 :: rest, mem, frames, adv⟩ (.swapw 2) =
       some ⟨c0 :: c1 :: c2 :: c3 :: b0 :: b1 :: b2 :: b3 ::
-        a0 :: a1 :: a2 :: a3 :: rest, mem, locs, adv⟩ := by
+        a0 :: a1 :: a2 :: a3 :: rest, mem, frames, adv⟩ := by
   unfold execInstruction execSwapw; simp [MidenState.withStack]
 
 -- ============================================================================
@@ -74,18 +74,18 @@ private theorem stepSwapw2 (mem locs : Nat → Felt) (adv : List Felt)
 set_option maxHeartbeats 16000000 in
 private theorem or_half1_correct
     (a0 a1 a2 a3 a4 a5 a6 a7 b0 b1 b2 b3 b4 b5 b6 b7 : Felt)
-    (rest : List Felt) (mem locs : Nat → Felt) (adv : List Felt)
+    (rest : List Felt) (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (ha4 : a4.isU32 = true) (ha5 : a5.isU32 = true)
     (ha6 : a6.isU32 = true) (ha7 : a7.isU32 = true)
     (hb4 : b4.isU32 = true) (hb5 : b5.isU32 = true)
     (hb6 : b6.isU32 = true) (hb7 : b7.isU32 = true) :
     exec 31 ⟨b0 :: b1 :: b2 :: b3 :: b4 :: b5 :: b6 :: b7 ::
-        a0 :: a1 :: a2 :: a3 :: a4 :: a5 :: a6 :: a7 :: rest, mem, locs, adv⟩ or_half1 =
+        a0 :: a1 :: a2 :: a3 :: a4 :: a5 :: a6 :: a7 :: rest, mem, frames, adv⟩ or_half1 =
     some ⟨Felt.ofNat (a4.val ||| b4.val) ::
         Felt.ofNat (a5.val ||| b5.val) ::
         Felt.ofNat (a6.val ||| b6.val) ::
         Felt.ofNat (a7.val ||| b7.val) ::
-        a0 :: a1 :: a2 :: a3 :: b0 :: b1 :: b2 :: b3 :: rest, mem, locs, adv⟩ := by
+        a0 :: a1 :: a2 :: a3 :: b0 :: b1 :: b2 :: b3 :: rest, mem, frames, adv⟩ := by
   unfold exec or_half1 execWithEnv
   simp only [List.foldlM]
   rw [stepSwapw3]; miden_bind
@@ -103,18 +103,18 @@ set_option maxHeartbeats 16000000 in
 private theorem or_half2_correct
     (a0 a1 a2 a3 b0 b1 b2 b3 : Felt)
     (r4 r5 r6 r7 : Felt)
-    (rest : List Felt) (mem locs : Nat → Felt) (adv : List Felt)
+    (rest : List Felt) (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (ha0 : a0.isU32 = true) (ha1 : a1.isU32 = true)
     (ha2 : a2.isU32 = true) (ha3 : a3.isU32 = true)
     (hb0 : b0.isU32 = true) (hb1 : b1.isU32 = true)
     (hb2 : b2.isU32 = true) (hb3 : b3.isU32 = true) :
     exec 31 ⟨r4 :: r5 :: r6 :: r7 ::
-        a0 :: a1 :: a2 :: a3 :: b0 :: b1 :: b2 :: b3 :: rest, mem, locs, adv⟩ or_half2 =
+        a0 :: a1 :: a2 :: a3 :: b0 :: b1 :: b2 :: b3 :: rest, mem, frames, adv⟩ or_half2 =
     some ⟨Felt.ofNat (b0.val ||| a0.val) ::
         Felt.ofNat (b1.val ||| a1.val) ::
         Felt.ofNat (b2.val ||| a2.val) ::
         Felt.ofNat (b3.val ||| a3.val) ::
-        r4 :: r5 :: r6 :: r7 :: rest, mem, locs, adv⟩ := by
+        r4 :: r5 :: r6 :: r7 :: rest, mem, frames, adv⟩ := by
   unfold exec or_half2 execWithEnv
   simp only [List.foldlM]
   rw [stepSwapw2]; miden_bind
@@ -156,10 +156,10 @@ theorem u256_or_raw
       Felt.ofNat (a5.val ||| b5.val) ::
       Felt.ofNat (a6.val ||| b6.val) ::
       Felt.ofNat (a7.val ||| b7.val) :: rest)) := by
-  obtain ⟨stk, mem, locs, adv⟩ := s
+  obtain ⟨stk, mem, frames, adv⟩ := s
   simp only [MidenState.withStack] at hs ⊢
   subst hs
-  rw [or_decomp, MidenLean.exec_append]
+  rw [MidenLean.exec_body_eq _ _ _ _ or_decomp rfl, MidenLean.exec_append]
   rw [or_half1_correct (ha4 := ha4) (ha5 := ha5) (ha6 := ha6) (ha7 := ha7)
     (hb4 := hb4) (hb5 := hb5) (hb6 := hb6) (hb7 := hb7)]
   simp only [bind, Bind.bind, Option.bind]

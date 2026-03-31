@@ -64,9 +64,9 @@ theorem u64_div_raw
     execWithEnv u64ProcEnv 51 s Miden.Core.U64.div =
     some { stack := q_hi :: q_lo :: rest,
            memory := s.memory,
-           locals := s.locals,
+           frames := s.frames,
            advice := adv_rest } := by
-  obtain ⟨stk, mem, locs, adv⟩ := s
+  obtain ⟨stk, mem, frames, adv⟩ := s
   simp only [] at hadv
   subst hs; subst hadv
   -- Unfold div: exec "divmod"; drop; drop
@@ -75,16 +75,11 @@ theorem u64_div_raw
   dsimp only [bind, Bind.bind, Option.bind]
   -- The exec "divmod" resolves and calls execWithEnv u64ProcEnv 50 s divmod_body
   -- Use the divmod correctness theorem
-  rw [show execWithEnv u64ProcEnv 50
-    ⟨b_lo :: b_hi :: a_lo :: a_hi :: rest, mem, locs, q_lo :: q_hi :: r_lo :: r_hi :: adv_rest⟩
-    Miden.Core.U64.divmod =
-    some { stack := r_hi :: r_lo :: q_hi :: q_lo :: rest,
-           memory := mem, locals := locs, advice := adv_rest }
-    from u64_divmod_raw a_lo a_hi b_lo b_hi rest q_lo q_hi r_lo r_hi adv_rest
-      ⟨b_lo :: b_hi :: a_lo :: a_hi :: rest, mem, locs, q_lo :: q_hi :: r_lo :: r_hi :: adv_rest⟩
-      rfl rfl hq_hi_u32 hq_lo_u32 hr_hi_u32 hr_lo_u32 hb_lo_u32 hb_hi_u32
-      cross0_hi_val h_madd1_hi_zero madd1_lo_val h_madd2_hi_zero h_bhi_qlo_zero
-      cross0_lo_val madd2_lo_val h_lt_result h_add2_hi_zero h_a_hi_eq h_a_lo_eq]
+  rw [u64_divmod_raw a_lo a_hi b_lo b_hi rest q_lo q_hi r_lo r_hi adv_rest
+        ⟨b_lo :: b_hi :: a_lo :: a_hi :: rest, mem, frames, q_lo :: q_hi :: r_lo :: r_hi :: adv_rest⟩
+        rfl rfl hq_hi_u32 hq_lo_u32 hr_hi_u32 hr_lo_u32 hb_lo_u32 hb_hi_u32
+        cross0_hi_val h_madd1_hi_zero madd1_lo_val h_madd2_hi_zero h_bhi_qlo_zero
+        cross0_lo_val madd2_lo_val h_lt_result h_add2_hi_zero h_a_hi_eq h_a_lo_eq]
   -- Reduce match (some {...}) to expose execInstruction calls
   simp only []
   -- Now we have the divmod result and just need to drop twice
@@ -104,10 +99,10 @@ theorem u64_div_correct (a b q r : U64) (rest : List Felt) (adv_rest : List Felt
     execWithEnv u64ProcEnv 51 s Miden.Core.U64.div =
     some { stack := q.lo.val :: q.hi.val :: rest,
            memory := s.memory,
-           locals := s.locals,
+           frames := s.frames,
            advice := adv_rest }
     ↔ (q.toNat * b.toNat + r.toNat = a.toNat ∧ r.toNat < b.toNat) := by
-  obtain ⟨stk, mem, locs, adv⟩ := s
+  obtain ⟨stk, mem, frames, adv⟩ := s
   simp only [] at hs hadv; subst hs; subst hadv
   constructor
   · -- Forward: div success → conditions
@@ -118,7 +113,8 @@ theorem u64_div_correct (a b q r : U64) (rest : List Felt) (adv_rest : List Felt
     -- Case split on divmod result
     revert hexec
     cases h_dm : execWithEnv u64ProcEnv 50
-      { stack := b.lo.val :: b.hi.val :: a.lo.val :: a.hi.val :: rest, memory := mem, locals := locs,
+      { stack := b.lo.val :: b.hi.val :: a.lo.val :: a.hi.val :: rest, memory := mem,
+        frames := frames,
         advice := q.hi.val :: q.lo.val :: r.hi.val :: r.lo.val :: adv_rest }
       Miden.Core.U64.divmod with
     | none => simp [bind, Bind.bind, Option.bind]
@@ -128,7 +124,7 @@ theorem u64_div_correct (a b q r : U64) (rest : List Felt) (adv_rest : List Felt
   · -- Backward: conditions → div success
     intro ⟨hdiv, hlt⟩
     have h_divmod := (u64_divmod_correct a b q r rest adv_rest
-      ⟨b.lo.val :: b.hi.val :: a.lo.val :: a.hi.val :: rest, mem, locs,
+      ⟨b.lo.val :: b.hi.val :: a.lo.val :: a.hi.val :: rest, mem, frames,
        q.hi.val :: q.lo.val :: r.hi.val :: r.lo.val :: adv_rest⟩ rfl rfl).mpr ⟨hdiv, hlt⟩
     unfold Miden.Core.U64.div execWithEnv
     simp only [List.foldlM, u64ProcEnv]

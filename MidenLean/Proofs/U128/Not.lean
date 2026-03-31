@@ -8,11 +8,11 @@ open MidenLean
 open MidenLean.StepLemmas
 open MidenLean.Tactics
 
-private theorem stepU32NotLocal (mem locs : Nat → Felt) (adv : List Felt)
+private theorem stepU32NotLocal (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (a : Felt) (rest : List Felt)
     (ha : a.isU32 = true) :
-    execInstruction ⟨a :: rest, mem, locs, adv⟩ .u32Not =
-    some ⟨Felt.ofNat (u32Max - 1 - a.val) :: rest, mem, locs, adv⟩ := by
+    execInstruction ⟨a :: rest, mem, frames, adv⟩ .u32Not =
+    some ⟨Felt.ofNat (u32Max - 1 - a.val) :: rest, mem, frames, adv⟩ := by
   unfold execInstruction execU32Not u32Max
   simp [ha, MidenState.withStack]
 
@@ -31,7 +31,7 @@ theorem u128_not_raw
       Felt.ofNat (u32Max - 1 - a1.val) ::
       Felt.ofNat (u32Max - 1 - a2.val) ::
       Felt.ofNat (u32Max - 1 - a3.val) :: rest)) := by
-  obtain ⟨stk, mem, locs, adv⟩ := s
+  obtain ⟨stk, mem, frames, adv⟩ := s
   simp only [MidenState.withStack] at hs ⊢
   subst hs
   unfold exec Miden.Core.U128.not execWithEnv

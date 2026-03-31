@@ -887,63 +887,101 @@ def execMemLoadwLeImm (addr : Nat) (s : MidenState) : Option MidenState :=
       some (s.withStack (e0 :: e1 :: e2 :: e3 :: rest))
   | _ => none
 
--- Procedure locals
+/-- Round a local count up to the next multiple of 4 (word-aligned). -/
+def alignLocals (n : Nat) : Nat :=
+  (n + 3) / 4 * 4
+
+/-- Get the current (topmost) local frame, if any. -/
+def currentFrame (frames : List LocalFrame) : Option LocalFrame :=
+  frames.head?
+
+-- ============================================================================
+-- Procedure locals (frame-aware)
+-- ============================================================================
 
 def execLocLoad (idx : Nat) (s : MidenState) : Option MidenState :=
-  some (s.withStack (s.locals idx :: s.stack))
+  do
+    let v ← s.readLocal? idx
+    pure (s.withStack (v :: s.stack))
 
 def execLocStore (idx : Nat) (s : MidenState) : Option MidenState :=
   match s.stack with
-  | v :: rest => some ((s.writeLocal idx v).withStack rest)
+  | v :: rest =>
+      do
+        let s' ← s.writeLocal? idx v
+        pure (s'.withStack rest)
   | _ => none
 
 /-- Store the top word to locals at index `idx` in big-endian order.
-    The word remains on the stack. -/
+    The word remains on the stack.
+    Requires `idx % 4 = 0` and `idx + 4 ≤ frame.numLocals`. -/
 def execLocStorewBe (idx : Nat) (s : MidenState) : Option MidenState :=
-  match s.stack with
-  | e0 :: e1 :: e2 :: e3 :: rest =>
-    let s' := s.writeLocal idx e3
-      |>.writeLocal (idx+1) e2
-      |>.writeLocal (idx+2) e1
-      |>.writeLocal (idx+3) e0
-    some (s'.withStack (e0 :: e1 :: e2 :: e3 :: rest))
-  | _ => none
+  match s.stack, currentFrame s.frames with
+  | e0 :: e1 :: e2 :: e3 :: rest, some frame =>
+    if idx % 4 != 0 || idx + 4 > frame.numLocals then none
+    else
+      let baseAddr := frame.localAddr idx
+      let s' := s.writeMemory baseAddr e3
+        |>.writeMemory (baseAddr + 1) e2
+        |>.writeMemory (baseAddr + 2) e1
+        |>.writeMemory (baseAddr + 3) e0
+      some (s'.withStack (e0 :: e1 :: e2 :: e3 :: rest))
+  | _, _ => none
 
 /-- Store the top word to locals at index `idx` in little-endian order.
-    The word remains on the stack. -/
+    The word remains on the stack.
+    Requires `idx % 4 = 0` and `idx + 4 ≤ frame.numLocals`. -/
 def execLocStorewLe (idx : Nat) (s : MidenState) : Option MidenState :=
-  match s.stack with
-  | e0 :: e1 :: e2 :: e3 :: rest =>
-    let s' := s.writeLocal idx e0
-      |>.writeLocal (idx+1) e1
-      |>.writeLocal (idx+2) e2
-      |>.writeLocal (idx+3) e3
-    some (s'.withStack (e0 :: e1 :: e2 :: e3 :: rest))
-  | _ => none
+  match s.stack, currentFrame s.frames with
+  | e0 :: e1 :: e2 :: e3 :: rest, some frame =>
+    if idx % 4 != 0 || idx + 4 > frame.numLocals then none
+    else
+      let baseAddr := frame.localAddr idx
+      let s' := s.writeMemory baseAddr e0
+        |>.writeMemory (baseAddr + 1) e1
+        |>.writeMemory (baseAddr + 2) e2
+        |>.writeMemory (baseAddr + 3) e3
+      some (s'.withStack (e0 :: e1 :: e2 :: e3 :: rest))
+  | _, _ => none
 
 /-- Load a word from locals at index `idx` in big-endian order,
-    overwriting the top word on the stack. -/
+    overwriting the top word on the stack.
+    Requires `idx % 4 = 0` and `idx + 4 ≤ frame.numLocals`. -/
 def execLocLoadwBe (idx : Nat) (s : MidenState) : Option MidenState :=
-  match s.stack with
-  | _ :: _ :: _ :: _ :: rest =>
-    let e3 := s.locals idx
-    let e2 := s.locals (idx+1)
-    let e1 := s.locals (idx+2)
-    let e0 := s.locals (idx+3)
-    some (s.withStack (e0 :: e1 :: e2 :: e3 :: rest))
-  | _ => none
+  match s.stack, currentFrame s.frames with
+  | _ :: _ :: _ :: _ :: rest, some frame =>
+    if idx % 4 != 0 || idx + 4 > frame.numLocals then none
+    else
+      let baseAddr := frame.localAddr idx
+      let e3 := s.memory baseAddr
+      let e2 := s.memory (baseAddr + 1)
+      let e1 := s.memory (baseAddr + 2)
+      let e0 := s.memory (baseAddr + 3)
+      some (s.withStack (e0 :: e1 :: e2 :: e3 :: rest))
+  | _, _ => none
 
 /-- Load a word from locals at index `idx` in little-endian order,
-    overwriting the top word on the stack. -/
+    overwriting the top word on the stack.
+    Requires `idx % 4 = 0` and `idx + 4 ≤ frame.numLocals`. -/
 def execLocLoadwLe (idx : Nat) (s : MidenState) : Option MidenState :=
-  match s.stack with
-  | _ :: _ :: _ :: _ :: rest =>
-    let e0 := s.locals idx
-    let e1 := s.locals (idx+1)
-    let e2 := s.locals (idx+2)
-    let e3 := s.locals (idx+3)
-    some (s.withStack (e0 :: e1 :: e2 :: e3 :: rest))
-  | _ => none
+  match s.stack, currentFrame s.frames with
+  | _ :: _ :: _ :: _ :: rest, some frame =>
+    if idx % 4 != 0 || idx + 4 > frame.numLocals then none
+    else
+      let baseAddr := frame.localAddr idx
+      let e0 := s.memory baseAddr
+      let e1 := s.memory (baseAddr + 1)
+      let e2 := s.memory (baseAddr + 2)
+      let e3 := s.memory (baseAddr + 3)
+      some (s.withStack (e0 :: e1 :: e2 :: e3 :: rest))
+  | _, _ => none
+
+/-- Push the absolute address of local slot `idx` onto the stack.
+    Requires an active frame and `idx < frame.numLocals`. -/
+def execLocAddr (idx : Nat) (s : MidenState) : Option MidenState :=
+  do
+    let addr ← s.localAddr? idx
+    pure (s.withStack (Felt.ofNat addr :: s.stack))
 
 -- Advice stack
 
@@ -1094,6 +1132,7 @@ def execInstruction (s : MidenState) (i : Instruction) : Option MidenState :=
   | .locLoadwLe idx => execLocLoadwLe idx s
   | .locStorewBe idx => execLocStorewBe idx s
   | .locStorewLe idx => execLocStorewLe idx s
+  | .locaddr idx => execLocAddr idx s
   | .advPush n => execAdvPush n s
   | .advLoadW => execAdvLoadW s
   | .emit => execEmit s
@@ -1105,35 +1144,75 @@ def execInstruction (s : MidenState) (i : Instruction) : Option MidenState :=
 -- ============================================================================
 
 /-- A procedure environment maps procedure names to their bodies. -/
-def ProcEnv := String → Option (List Op)
+def ProcEnv := String → Option Procedure
 
-/-- Execute a list of operations given a procedure environment.
-    `fuel` bounds recursion to ensure termination. -/
-def execWithEnv (env : ProcEnv) (fuel : Nat) (s : MidenState) (ops : List Op) : Option MidenState :=
-  match fuel with
-  | 0 => none  -- out of fuel
-  | fuel' + 1 =>
-    ops.foldlM (fun state op =>
-      match op with
-      | Op.inst (Instruction.exec target) =>
-        match env target with
-        | some body => execWithEnv env fuel' state body
+/-- Execute a procedure given a procedure environment.
+    For procedures with `numLocals = 0`, this directly folds over the op list.
+    For procedures with `numLocals > 0`, a local frame is allocated before
+    execution and deallocated on return. -/
+def execWithEnv (env : ProcEnv) (fuel : Nat) (s : MidenState) (proc : Procedure) : Option MidenState :=
+  match proc with
+  | ⟨_, numLocals, ops⟩ =>
+    match fuel with
+    | 0 => none  -- out of fuel
+    | fuel' + 1 =>
+      match numLocals with
+      | 0 =>
+        -- Fast path: no frame allocation, exactly as before
+        ops.foldlM (fun state op =>
+          match op with
+          | Op.inst (Instruction.exec target) =>
+            match env target with
+            | some callee => execWithEnv env fuel' state callee
+            | none => none
+          | Op.inst i => execInstruction state i
+          | Op.ifElse thenBlk elseBlk =>
+            match state.stack with
+            | cond :: rest =>
+              if cond.val == 1 then
+                execWithEnv env fuel' (state.withStack rest) thenBlk
+              else if cond.val == 0 then
+                execWithEnv env fuel' (state.withStack rest) elseBlk
+              else none
+            | _ => none
+          | Op.repeat count body =>
+            doRepeat fuel' count body state
+          | Op.whileTrue body =>
+            doWhile fuel' fuel' body state
+        ) s
+      | _ + 1 =>
+        -- Allocate a local frame for the procedure
+        let aligned := alignLocals numLocals
+        let base := match s.frames with
+          | [] => 0
+          | f :: _ => f.base + f.alignedNumLocals
+        let frame : LocalFrame := { base, numLocals, alignedNumLocals := aligned }
+        let s' := { s with frames := frame :: s.frames }
+        let result := ops.foldlM (fun state op =>
+          match op with
+          | Op.inst (Instruction.exec target) =>
+            match env target with
+            | some callee => execWithEnv env fuel' state callee
+            | none => none
+          | Op.inst i => execInstruction state i
+          | Op.ifElse thenBlk elseBlk =>
+            match state.stack with
+            | cond :: rest =>
+              if cond.val == 1 then
+                execWithEnv env fuel' (state.withStack rest) thenBlk
+              else if cond.val == 0 then
+                execWithEnv env fuel' (state.withStack rest) elseBlk
+              else none
+            | _ => none
+          | Op.repeat count body =>
+            doRepeat fuel' count body state
+          | Op.whileTrue body =>
+            doWhile fuel' fuel' body state
+        ) s'
+        -- Deallocate the frame on return
+        match result with
+        | some r => some { r with frames := s.frames }
         | none => none
-      | Op.inst i => execInstruction state i
-      | Op.ifElse thenBlk elseBlk =>
-        match state.stack with
-        | cond :: rest =>
-          if cond.val == 1 then
-            execWithEnv env fuel' (state.withStack rest) thenBlk
-          else if cond.val == 0 then
-            execWithEnv env fuel' (state.withStack rest) elseBlk
-          else none
-        | _ => none
-      | Op.repeat count body =>
-        doRepeat fuel' count body state
-      | Op.whileTrue body =>
-        doWhile fuel' fuel' body state
-    ) s
 where
   doRepeat (fuel : Nat) (n : Nat) (body : List Op) (st : MidenState) : Option MidenState :=
     match n with
@@ -1156,13 +1235,34 @@ where
         else none
       | _ => none
 
+/-- Execute a list of operations given a procedure environment.
+    This is the low-level block executor used by control-flow blocks and proof chunking. -/
+def execOpsWithEnv (env : ProcEnv) (fuel : Nat) (s : MidenState) (ops : List Op) : Option MidenState :=
+  execWithEnv env fuel s ops
+
+/-- Executing an anonymous compatibility wrapper is the same as executing its body. -/
+theorem execWithEnv_ofOps (env : ProcEnv) (fuel : Nat) (s : MidenState) (ops : List Op) :
+    execWithEnv env fuel s (Procedure.ofOps ops) = execWithEnv env fuel s ops := by
+  cases fuel <;> simp [execWithEnv, Procedure.ofOps]
+
+/-- Executing a named wrapper with `numLocals = 0` is the same as executing its body. -/
+theorem execWithEnv_ofNameOps
+    (env : ProcEnv) (fuel : Nat) (s : MidenState)
+    (name : String) (numLocals : Nat) (ops : List Op) (h : numLocals = 0) :
+    execWithEnv env fuel s (Procedure.ofNameOps name numLocals ops) = execWithEnv env fuel s ops := by
+  subst h; cases fuel <;> simp [execWithEnv, Procedure.ofOps, Procedure.ofNameOps]
+
+/-- Compatibility aliases for proofs which refer to the block executor's loop helpers. -/
+abbrev execOpsWithEnv.doRepeat := execWithEnv.doRepeat
+abbrev execOpsWithEnv.doWhile := execWithEnv.doWhile
+
 /-- Execute with an empty procedure environment. -/
-def exec (fuel : Nat) (s : MidenState) (ops : List Op) : Option MidenState :=
-  execWithEnv (fun _ => none) fuel s ops
+def exec (fuel : Nat) (s : MidenState) (proc : Procedure) : Option MidenState :=
+  execWithEnv (fun _ => none) fuel s proc
 
 /-- Execute with a list of named procedures as environment. -/
-def execWithProcs (procs : List Procedure) (fuel : Nat) (s : MidenState) (ops : List Op)
+def execWithProcs (procs : List Procedure) (fuel : Nat) (s : MidenState) (proc : Procedure)
     : Option MidenState :=
-  execWithEnv (fun name => Procedure.lookup procs name) fuel s ops
+  execWithEnv (fun name => Procedure.lookup procs name) fuel s proc
 
 end MidenLean

@@ -16,44 +16,44 @@ private theorem exec_append (fuel : Nat) (s : MidenState) (xs ys : List Op) :
       exec fuel s' ys) := by
   simpa [exec] using execWithEnv_append (env := fun _ => none) fuel s xs ys
 
-private theorem stepU32AssertWLocal (mem locs : Nat → Felt) (adv : List Felt)
+private theorem stepU32AssertWLocal (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (a b c d : Felt) (rest : List Felt)
     (ha : a.isU32 = true) (hb : b.isU32 = true) (hc : c.isU32 = true) (hd : d.isU32 = true) :
-    execInstruction ⟨a :: b :: c :: d :: rest, mem, locs, adv⟩ .u32AssertW =
-      some ⟨a :: b :: c :: d :: rest, mem, locs, adv⟩ := by
+    execInstruction ⟨a :: b :: c :: d :: rest, mem, frames, adv⟩ .u32AssertW =
+      some ⟨a :: b :: c :: d :: rest, mem, frames, adv⟩ := by
   unfold execInstruction execU32AssertW
   simp [ha, hb, hc, hd]
 
-private theorem stepAdvLoadWLocal (mem locs : Nat → Felt)
+private theorem stepAdvLoadWLocal (mem : Nat → Felt) (frames : List LocalFrame)
     (top0 top1 top2 top3 : Felt) (rest : List Felt)
     (v0 v1 v2 v3 : Felt) (adv_rest : List Felt) :
-    execInstruction ⟨top0 :: top1 :: top2 :: top3 :: rest, mem, locs, v0 :: v1 :: v2 :: v3 :: adv_rest⟩
+    execInstruction ⟨top0 :: top1 :: top2 :: top3 :: rest, mem, frames, v0 :: v1 :: v2 :: v3 :: adv_rest⟩
         .advLoadW =
-      some ⟨v0 :: v1 :: v2 :: v3 :: rest, mem, locs, adv_rest⟩ := by
+      some ⟨v0 :: v1 :: v2 :: v3 :: rest, mem, frames, adv_rest⟩ := by
   unfold execInstruction execAdvLoadW
   simp [MidenState.withAdvice, MidenState.withStack]
 
-private theorem stepAssertzWithErrorLocal (msg : String) (mem locs : Nat → Felt) (adv : List Felt)
+private theorem stepAssertzWithErrorLocal (msg : String) (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (a : Felt) (rest : List Felt)
     (ha : a.val = 0) :
-    execInstruction ⟨a :: rest, mem, locs, adv⟩ (.assertzWithError msg) =
-      some ⟨rest, mem, locs, adv⟩ := by
+    execInstruction ⟨a :: rest, mem, frames, adv⟩ (.assertzWithError msg) =
+      some ⟨rest, mem, frames, adv⟩ := by
   unfold execInstruction execAssertz
   simp [ha, MidenState.withStack]
 
-private theorem stepAssertzWithError_noneLocal (msg : String) (mem locs : Nat → Felt) (adv : List Felt)
+private theorem stepAssertzWithError_noneLocal (msg : String) (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (a : Felt) (rest : List Felt)
     (ha : a.val ≠ 0) :
-    execInstruction ⟨a :: rest, mem, locs, adv⟩ (.assertzWithError msg) = none := by
+    execInstruction ⟨a :: rest, mem, frames, adv⟩ (.assertzWithError msg) = none := by
   unfold execInstruction execAssertz
   simp [show ¬ (a.val == 0) = true from by simp [ha]]
 
-private theorem stepSwapw2Local (mem locs : Nat → Felt) (adv : List Felt)
+private theorem stepSwapw2Local (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (a0 a1 a2 a3 b0 b1 b2 b3 c0 c1 c2 c3 : Felt) (rest : List Felt) :
     execInstruction ⟨a0 :: a1 :: a2 :: a3 :: b0 :: b1 :: b2 :: b3 :: c0 :: c1 :: c2 :: c3 :: rest,
-        mem, locs, adv⟩ (.swapw 2) =
+        mem, frames, adv⟩ (.swapw 2) =
       some ⟨c0 :: c1 :: c2 :: c3 :: b0 :: b1 :: b2 :: b3 :: a0 :: a1 :: a2 :: a3 :: rest,
-        mem, locs, adv⟩ := by
+        mem, frames, adv⟩ := by
   unfold execInstruction execSwapw
   simp [MidenState.withStack]
 
@@ -273,43 +273,43 @@ private def divmodSetup : List Op := [
 
 private theorem divmodSetup_run
     (q0 q1 q2 q3 r0 r1 r2 r3 b0 b1 b2 b3 a0 a1 a2 a3 : Felt)
-    (rest adv_rest : List Felt) (mem locs : Nat → Felt)
+    (rest adv_rest : List Felt) (mem : Nat → Felt) (frames : List LocalFrame)
     (hq0 : q0.isU32 = true) (hq1 : q1.isU32 = true) (hq2 : q2.isU32 = true) (hq3 : q3.isU32 = true)
     (hr0 : r0.isU32 = true) (hr1 : r1.isU32 = true) (hr2 : r2.isU32 = true) (hr3 : r3.isU32 = true) :
     exec 163
       ⟨b0 :: b1 :: b2 :: b3 :: a0 :: a1 :: a2 :: a3 :: rest,
-        mem, locs, r0 :: r1 :: r2 :: r3 :: q0 :: q1 :: q2 :: q3 :: adv_rest⟩
+        mem, frames, r0 :: r1 :: r2 :: r3 :: q0 :: q1 :: q2 :: q3 :: adv_rest⟩
       divmodSetup =
     some ⟨q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 ::
             b0 :: b1 :: b2 :: b3 :: a0 :: a1 :: a2 :: a3 :: rest,
-          mem, locs, adv_rest⟩ := by
+          mem, frames, adv_rest⟩ := by
   unfold divmodSetup exec execWithEnv
   simp only [List.foldlM]
   rw [show execInstruction
-      ⟨b0 :: b1 :: b2 :: b3 :: a0 :: a1 :: a2 :: a3 :: rest, mem, locs,
+      ⟨b0 :: b1 :: b2 :: b3 :: a0 :: a1 :: a2 :: a3 :: rest, mem, frames,
         r0 :: r1 :: r2 :: r3 :: q0 :: q1 :: q2 :: q3 :: adv_rest⟩
       (.emitImm 15463989275656898604) =
-      some ⟨b0 :: b1 :: b2 :: b3 :: a0 :: a1 :: a2 :: a3 :: rest, mem, locs,
+      some ⟨b0 :: b1 :: b2 :: b3 :: a0 :: a1 :: a2 :: a3 :: rest, mem, frames,
         r0 :: r1 :: r2 :: r3 :: q0 :: q1 :: q2 :: q3 :: adv_rest⟩ by
       unfold execInstruction
       rfl]
   miden_bind
   rw [stepPadw]
   miden_bind
-  rw [stepAdvLoadWLocal mem locs 0 0 0 0 (b0 :: b1 :: b2 :: b3 :: a0 :: a1 :: a2 :: a3 :: rest)
+  rw [stepAdvLoadWLocal mem frames 0 0 0 0 (b0 :: b1 :: b2 :: b3 :: a0 :: a1 :: a2 :: a3 :: rest)
       r0 r1 r2 r3 (q0 :: q1 :: q2 :: q3 :: adv_rest)]
   miden_bind
-  rw [stepU32AssertWLocal mem locs (q0 :: q1 :: q2 :: q3 :: adv_rest)
+  rw [stepU32AssertWLocal mem frames (q0 :: q1 :: q2 :: q3 :: adv_rest)
       r0 r1 r2 r3 (b0 :: b1 :: b2 :: b3 :: a0 :: a1 :: a2 :: a3 :: rest)
       hr0 hr1 hr2 hr3]
   miden_bind
   rw [stepPadw]
   miden_bind
-  rw [stepAdvLoadWLocal mem locs 0 0 0 0
+  rw [stepAdvLoadWLocal mem frames 0 0 0 0
       (r0 :: r1 :: r2 :: r3 :: b0 :: b1 :: b2 :: b3 :: a0 :: a1 :: a2 :: a3 :: rest)
       q0 q1 q2 q3 adv_rest]
   miden_bind
-  rw [stepU32AssertWLocal mem locs adv_rest
+  rw [stepU32AssertWLocal mem frames adv_rest
       q0 q1 q2 q3 (r0 :: r1 :: r2 :: r3 :: b0 :: b1 :: b2 :: b3 :: a0 :: a1 :: a2 :: a3 :: rest)
       hq0 hq1 hq2 hq3]
   simp [pure, Pure.pure]
@@ -411,19 +411,19 @@ private theorem divmodCol0Carry_eq
 
 private theorem divmodCol0_run
     (q0 q1 q2 q3 r0 r1 r2 r3 b0 b1 b2 b3 a0 a1 a2 a3 : Felt)
-    (rest adv_rest : List Felt) (mem locs : Nat → Felt)
+    (rest adv_rest : List Felt) (mem : Nat → Felt) (frames : List LocalFrame)
     (hq0 : q0.isU32 = true) (_hq1 : q1.isU32 = true) (_hq2 : q2.isU32 = true) (_hq3 : q3.isU32 = true)
     (hr0 : r0.isU32 = true) (ha0_eq : a0 = Felt.ofNat (u128DivmodCol0 q0.val b0.val r0.val % 2 ^ 32))
     (hb0 : b0.isU32 = true) :
     exec 163
       ⟨q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 ::
         b0 :: b1 :: b2 :: b3 :: a0 :: a1 :: a2 :: a3 :: rest,
-        mem, locs, adv_rest⟩
+        mem, frames, adv_rest⟩
       divmodCol0 =
     some ⟨Felt.ofNat (u128DivmodCol0 q0.val b0.val r0.val / 2 ^ 32) ::
             q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 ::
             b0 :: b1 :: b2 :: b3 :: a1 :: a2 :: a3 :: rest,
-          mem, locs, adv_rest⟩ := by
+          mem, frames, adv_rest⟩ := by
   unfold divmodCol0 exec execWithEnv
   simp only [List.foldlM]
   miden_dup
@@ -448,13 +448,13 @@ private theorem divmodCol0_run
           ({ stack := x :: q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 ::
               b0 :: b1 :: b2 :: b3 :: a1 :: a2 :: a3 :: rest
             , memory := mem
-            , locals := locs
+            , frames := frames
             , advice := adv_rest } : MidenState))
       (divmodCol0Carry_eq q0 b0 r0 hq0 hb0 hr0).symm)
 
 private theorem divmodCol0_none
     (q0 q1 q2 q3 r0 r1 r2 r3 b0 b1 b2 b3 a0 a1 a2 a3 : Felt)
-    (rest adv_rest : List Felt) (mem locs : Nat → Felt)
+    (rest adv_rest : List Felt) (mem : Nat → Felt) (frames : List LocalFrame)
     (hq0 : q0.isU32 = true) (_hq1 : q1.isU32 = true) (_hq2 : q2.isU32 = true) (_hq3 : q3.isU32 = true)
     (hr0 : r0.isU32 = true)
     (hb0 : b0.isU32 = true)
@@ -462,7 +462,7 @@ private theorem divmodCol0_none
     exec 163
       ⟨q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 ::
         b0 :: b1 :: b2 :: b3 :: a0 :: a1 :: a2 :: a3 :: rest,
-        mem, locs, adv_rest⟩
+        mem, frames, adv_rest⟩
       divmodCol0 =
     none := by
   unfold divmodCol0 exec execWithEnv
@@ -502,7 +502,7 @@ private def divmodCol1 : List Op := [
 set_option maxHeartbeats 12000000 in
 private theorem divmodCol1_run
     (c0 q0 q1 q2 q3 r0 r1 r2 r3 b0 b1 b2 b3 a1 a2 a3 : Felt)
-    (rest adv_rest : List Felt) (mem locs : Nat → Felt)
+    (rest adv_rest : List Felt) (mem : Nat → Felt) (frames : List LocalFrame)
     (hq0 : q0.isU32 = true) (hq1 : q1.isU32 = true)
     (hr1 : r1.isU32 = true)
     (hb0 : b0.isU32 = true) (hb1 : b1.isU32 = true)
@@ -512,13 +512,13 @@ private theorem divmodCol1_run
     exec 163
       ⟨c0 :: q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 ::
         b0 :: b1 :: b2 :: b3 :: a1 :: a2 :: a3 :: rest,
-        mem, locs, adv_rest⟩
+        mem, frames, adv_rest⟩
       divmodCol1 =
     some ⟨Felt.ofNat (u128DivmodCol1 q0.val q1.val b0.val b1.val r0.val r1.val / 2 ^ 32 % 2 ^ 32) ::
             Felt.ofNat (u128DivmodCol1 q0.val q1.val b0.val b1.val r0.val r1.val / 2 ^ 32 / 2 ^ 32) ::
             q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 ::
             b0 :: b1 :: b2 :: b3 :: a2 :: a3 :: rest,
-          mem, locs, adv_rest⟩ := by
+          mem, frames, adv_rest⟩ := by
   let base := 2 ^ 32
   let carry0 := u128DivmodCol0 q0.val b0.val r0.val / base
   let madd0Lo := (b0.val * q1.val + carry0) % base
@@ -639,7 +639,7 @@ private theorem divmodCol1_run
 
 private theorem divmodCol1_none
     (c0 q0 q1 q2 q3 r0 r1 r2 r3 b0 b1 b2 b3 a1 a2 a3 : Felt)
-    (rest adv_rest : List Felt) (mem locs : Nat → Felt)
+    (rest adv_rest : List Felt) (mem : Nat → Felt) (frames : List LocalFrame)
     (hq0 : q0.isU32 = true) (hq1 : q1.isU32 = true)
     (hr1 : r1.isU32 = true)
     (hb0 : b0.isU32 = true) (hb1 : b1.isU32 = true)
@@ -649,7 +649,7 @@ private theorem divmodCol1_none
     exec 163
       ⟨c0 :: q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 ::
         b0 :: b1 :: b2 :: b3 :: a1 :: a2 :: a3 :: rest,
-        mem, locs, adv_rest⟩
+        mem, frames, adv_rest⟩
       divmodCol1 =
     none := by
   let base := 2 ^ 32
@@ -781,7 +781,7 @@ private theorem divmodCol2_eq :
 set_option maxHeartbeats 12000000 in
 private theorem divmodCol2a_run
     (c1Lo c1Hi q0 q1 q2 q3 r0 r1 r2 r3 b0 b1 b2 b3 a2 a3 : Felt)
-    (rest adv_rest : List Felt) (mem locs : Nat → Felt)
+    (rest adv_rest : List Felt) (mem : Nat → Felt) (frames : List LocalFrame)
     (hq1 : q1.isU32 = true) (hq2 : q2.isU32 = true)
     (hb0 : b0.isU32 = true) (hb1 : b1.isU32 = true)
     (hc1Lo_u32 : c1Lo.isU32 = true)
@@ -796,12 +796,12 @@ private theorem divmodCol2a_run
     exec 163
       ⟨c1Lo :: c1Hi :: q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 ::
         b0 :: b1 :: b2 :: b3 :: a2 :: a3 :: rest,
-        mem, locs, adv_rest⟩
+        mem, frames, adv_rest⟩
       divmodCol2a =
     some ⟨Felt.ofNat lo1 :: Felt.ofNat sumHi ::
             q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 ::
             b0 :: b1 :: b2 :: b3 :: a2 :: a3 :: rest,
-          mem, locs, adv_rest⟩ := by
+          mem, frames, adv_rest⟩ := by
   let base := 2 ^ 32
   let lo0 := (b0.val * q2.val + c1Lo.val) % base
   let hi0 := (b0.val * q2.val + c1Lo.val) / base
@@ -877,7 +877,7 @@ private theorem divmodCol2a_run
 set_option maxHeartbeats 12000000 in
 private theorem divmodCol2b_run
     (c1Lo c1Hi q0 q1 q2 q3 r0 r1 r2 r3 b0 b1 b2 b3 a2 a3 : Felt)
-    (rest adv_rest : List Felt) (mem locs : Nat → Felt)
+    (rest adv_rest : List Felt) (mem : Nat → Felt) (frames : List LocalFrame)
     (hq0 : q0.isU32 = true) (hb2 : b2.isU32 = true) :
     let base := 2 ^ 32
     let lo0 := (b0.val * q2.val + c1Lo.val) % base
@@ -891,12 +891,12 @@ private theorem divmodCol2b_run
       ⟨Felt.ofNat lo1 :: Felt.ofNat sumHi ::
         q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 ::
         b0 :: b1 :: b2 :: b3 :: a2 :: a3 :: rest,
-        mem, locs, adv_rest⟩
+        mem, frames, adv_rest⟩
       divmodCol2b =
     some ⟨Felt.ofNat madd2Lo :: Felt.ofNat (sumHi + madd2Hi) ::
             q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 ::
             b0 :: b1 :: b2 :: b3 :: a2 :: a3 :: rest,
-          mem, locs, adv_rest⟩ := by
+          mem, frames, adv_rest⟩ := by
   let base := 2 ^ 32
   let lo0 := (b0.val * q2.val + c1Lo.val) % base
   let hi0 := (b0.val * q2.val + c1Lo.val) / base
@@ -935,7 +935,7 @@ private theorem divmodCol2b_run
 set_option maxHeartbeats 12000000 in
 private theorem divmodCol2c_run
     (c1Lo c1Hi q0 q1 q2 q3 r0 r1 r2 r3 b0 b1 b2 b3 a2 a3 : Felt)
-    (rest adv_rest : List Felt) (mem locs : Nat → Felt)
+    (rest adv_rest : List Felt) (mem : Nat → Felt) (frames : List LocalFrame)
     (hq0 : q0.isU32 = true) (hq1 : q1.isU32 = true) (hq2 : q2.isU32 = true)
     (hr2 : r2.isU32 = true)
     (hb0 : b0.isU32 = true) (hb1 : b1.isU32 = true) (hb2 : b2.isU32 = true)
@@ -959,7 +959,7 @@ private theorem divmodCol2c_run
       ⟨Felt.ofNat madd2Lo :: Felt.ofNat (sumHi + madd2Hi) ::
         q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 ::
         b0 :: b1 :: b2 :: b3 :: a2 :: a3 :: rest,
-        mem, locs, adv_rest⟩
+        mem, frames, adv_rest⟩
       divmodCol2c =
     some ⟨Felt.ofNat
               (u128DivmodCol2 q0.val q1.val q2.val b0.val b1.val b2.val r0.val r1.val r2.val /
@@ -971,7 +971,7 @@ private theorem divmodCol2c_run
                 2 ^ 32) ::
             q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 ::
             b0 :: b1 :: b2 :: b3 :: a3 :: rest,
-          mem, locs, adv_rest⟩ := by
+          mem, frames, adv_rest⟩ := by
   let base := 2 ^ 32
   let carry1 := u128DivmodCol1 q0.val q1.val b0.val b1.val r0.val r1.val / base
   let lo0 := (b0.val * q2.val + c1Lo.val) % base
@@ -1100,7 +1100,7 @@ private theorem divmodCol2c_run
 
 private theorem divmodCol2c_none
     (c1Lo c1Hi q0 q1 q2 q3 r0 r1 r2 r3 b0 b1 b2 b3 a2 a3 : Felt)
-    (rest adv_rest : List Felt) (mem locs : Nat → Felt)
+    (rest adv_rest : List Felt) (mem : Nat → Felt) (frames : List LocalFrame)
     (_hq0 : q0.isU32 = true) (_hq1 : q1.isU32 = true) (_hq2 : q2.isU32 = true)
     (hr2 : r2.isU32 = true)
     (_hb0 : b0.isU32 = true) (_hb1 : b1.isU32 = true) (_hb2 : b2.isU32 = true)
@@ -1125,7 +1125,7 @@ private theorem divmodCol2c_none
                 2 ^ 32)) ::
         q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 ::
         b0 :: b1 :: b2 :: b3 :: a2 :: a3 :: rest,
-        mem, locs, adv_rest⟩
+        mem, frames, adv_rest⟩
       divmodCol2c =
     none := by
   let base := 2 ^ 32
@@ -1220,7 +1220,7 @@ private theorem divmodCol2c_none
 set_option maxHeartbeats 12000000 in
 private theorem divmodCol2_run
     (c1Lo c1Hi q0 q1 q2 q3 r0 r1 r2 r3 b0 b1 b2 b3 a2 a3 : Felt)
-    (rest adv_rest : List Felt) (mem locs : Nat → Felt)
+    (rest adv_rest : List Felt) (mem : Nat → Felt) (frames : List LocalFrame)
     (hq0 : q0.isU32 = true) (hq1 : q1.isU32 = true) (hq2 : q2.isU32 = true)
     (hr2 : r2.isU32 = true)
     (hb0 : b0.isU32 = true) (hb1 : b1.isU32 = true) (hb2 : b2.isU32 = true)
@@ -1234,7 +1234,7 @@ private theorem divmodCol2_run
     exec 163
       ⟨c1Lo :: c1Hi :: q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 ::
         b0 :: b1 :: b2 :: b3 :: a2 :: a3 :: rest,
-        mem, locs, adv_rest⟩
+        mem, frames, adv_rest⟩
       divmodCol2 =
     some ⟨Felt.ofNat
               (u128DivmodCol2 q0.val q1.val q2.val b0.val b1.val b2.val r0.val r1.val r2.val /
@@ -1246,17 +1246,14 @@ private theorem divmodCol2_run
                 2 ^ 32) ::
             q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 ::
             b0 :: b1 :: b2 :: b3 :: a3 :: rest,
-          mem, locs, adv_rest⟩ := by
+          mem, frames, adv_rest⟩ := by
   rw [divmodCol2_eq, exec_append]
-  rw [divmodCol2a_run c1Lo c1Hi q0 q1 q2 q3 r0 r1 r2 r3 b0 b1 b2 b3 a2 a3 rest adv_rest mem locs
-      hq1 hq2 hb0 hb1 hc1Lo_u32 hc1Lo_val]
+  rw [divmodCol2a_run c1Lo c1Hi q0 q1 q2 q3 r0 r1 r2 r3 b0 b1 b2 b3 a2 a3 rest adv_rest mem frames      hq1 hq2 hb0 hb1 hc1Lo_u32 hc1Lo_val]
   miden_bind
   rw [exec_append]
-  rw [divmodCol2b_run c1Lo c1Hi q0 q1 q2 q3 r0 r1 r2 r3 b0 b1 b2 b3 a2 a3 rest adv_rest mem locs
-      hq0 hb2]
+  rw [divmodCol2b_run c1Lo c1Hi q0 q1 q2 q3 r0 r1 r2 r3 b0 b1 b2 b3 a2 a3 rest adv_rest mem frames      hq0 hb2]
   miden_bind
-  rw [divmodCol2c_run c1Lo c1Hi q0 q1 q2 q3 r0 r1 r2 r3 b0 b1 b2 b3 a2 a3 rest adv_rest mem locs
-      hq0 hq1 hq2 hr2 hb0 hb1 hb2 hc1Lo_u32 hc1Hi_u32 hc1Lo_val hc1Hi_val ha2_eq]
+  rw [divmodCol2c_run c1Lo c1Hi q0 q1 q2 q3 r0 r1 r2 r3 b0 b1 b2 b3 a2 a3 rest adv_rest mem frames      hq0 hq1 hq2 hr2 hb0 hb1 hb2 hc1Lo_u32 hc1Hi_u32 hc1Lo_val hc1Hi_val ha2_eq]
 
 private def divmodCol3a : List Op := [
   .inst (.dup 10),
@@ -1309,7 +1306,7 @@ private theorem divmodCol3_eq :
 set_option maxHeartbeats 12000000 in
 private theorem divmodCol3a_run
     (c2Lo c2Hi q0 q1 q2 q3 r0 r1 r2 r3 b0 b1 b2 b3 a3 : Felt)
-    (rest adv_rest : List Felt) (mem locs : Nat → Felt)
+    (rest adv_rest : List Felt) (mem : Nat → Felt) (frames : List LocalFrame)
     (hq2 : q2.isU32 = true) (hq3 : q3.isU32 = true)
     (hb0 : b0.isU32 = true) (hb1 : b1.isU32 = true)
     (hc2Lo_u32 : c2Lo.isU32 = true) :
@@ -1322,12 +1319,12 @@ private theorem divmodCol3a_run
     exec 163
       ⟨c2Lo :: c2Hi :: q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 ::
         b0 :: b1 :: b2 :: b3 :: a3 :: rest,
-        mem, locs, adv_rest⟩
+        mem, frames, adv_rest⟩
       divmodCol3a =
     some ⟨Felt.ofNat lo1 :: Felt.ofNat sumHi ::
             q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 ::
             b0 :: b1 :: b2 :: b3 :: a3 :: rest,
-          mem, locs, adv_rest⟩ := by
+          mem, frames, adv_rest⟩ := by
   let base := 2 ^ 32
   let lo0 := (b0.val * q3.val + c2Lo.val) % base
   let hi0 := (b0.val * q3.val + c2Lo.val) / base
@@ -1385,7 +1382,7 @@ private theorem divmodCol3a_run
 set_option maxHeartbeats 12000000 in
 private theorem divmodCol3b_run
     (c2Lo c2Hi q0 q1 q2 q3 r0 r1 r2 r3 b0 b1 b2 b3 a3 : Felt)
-    (rest adv_rest : List Felt) (mem locs : Nat → Felt)
+    (rest adv_rest : List Felt) (mem : Nat → Felt) (frames : List LocalFrame)
     (hq1 : q1.isU32 = true) (hb2 : b2.isU32 = true) :
     let base := 2 ^ 32
     let lo0 := (b0.val * q3.val + c2Lo.val) % base
@@ -1399,12 +1396,12 @@ private theorem divmodCol3b_run
       ⟨Felt.ofNat lo1 :: Felt.ofNat sumHi ::
         q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 ::
         b0 :: b1 :: b2 :: b3 :: a3 :: rest,
-        mem, locs, adv_rest⟩
+        mem, frames, adv_rest⟩
       divmodCol3b =
     some ⟨Felt.ofNat madd2Lo :: Felt.ofNat (sumHi + madd2Hi) ::
             q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 ::
             b0 :: b1 :: b2 :: b3 :: a3 :: rest,
-          mem, locs, adv_rest⟩ := by
+          mem, frames, adv_rest⟩ := by
   let base := 2 ^ 32
   let lo0 := (b0.val * q3.val + c2Lo.val) % base
   let hi0 := (b0.val * q3.val + c2Lo.val) / base
@@ -1442,7 +1439,7 @@ private theorem divmodCol3b_run
 
 private theorem divmodCol3c_run
     (c2Lo c2Hi q0 q1 q2 q3 r0 r1 r2 r3 b0 b1 b2 b3 a3 : Felt)
-    (rest adv_rest : List Felt) (mem locs : Nat → Felt)
+    (rest adv_rest : List Felt) (mem : Nat → Felt) (frames : List LocalFrame)
     (hq0 : q0.isU32 = true) (_hq1 : q1.isU32 = true) (_hq2 : q2.isU32 = true) (_hq3 : q3.isU32 = true)
     (hr3 : r3.isU32 = true)
     (_hb0 : b0.isU32 = true) (_hb1 : b1.isU32 = true) (_hb2 : b2.isU32 = true) (hb3 : b3.isU32 = true)
@@ -1480,11 +1477,11 @@ private theorem divmodCol3c_run
       ⟨Felt.ofNat madd2Lo :: Felt.ofNat sumHi' ::
         q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 ::
         b0 :: b1 :: b2 :: b3 :: a3 :: rest,
-        mem, locs, adv_rest⟩
+        mem, frames, adv_rest⟩
       divmodCol3c =
     some ⟨q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 ::
             b0 :: b1 :: b2 :: b3 :: rest,
-          mem, locs, adv_rest⟩ := by
+          mem, frames, adv_rest⟩ := by
   let base := 2 ^ 32
   let carry2 := u128DivmodCol2 q0.val q1.val q2.val b0.val b1.val b2.val r0.val r1.val r2.val / base
   let lo0 := (b0.val * q3.val + c2Lo.val) % base
@@ -1619,13 +1616,13 @@ private theorem divmodCol3c_run
     calc
       Felt.ofNat carry = Felt.ofNat 0 := by rw [hcarry_eq]
       _ = 0 := by exact Nat.cast_zero]
-  rw [stepAssertzWithErrorLocal "u128 divmod: carry overflow" mem locs adv_rest (0 : Felt)
+  rw [stepAssertzWithErrorLocal "u128 divmod: carry overflow" mem frames adv_rest (0 : Felt)
     (q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 :: b0 :: b1 :: b2 :: b3 :: rest) rfl]
   simp
 
 private theorem divmodCol3c_none_a3
     (c2Lo c2Hi q0 q1 q2 q3 r0 r1 r2 r3 b0 b1 b2 b3 a3 : Felt)
-    (rest adv_rest : List Felt) (mem locs : Nat → Felt)
+    (rest adv_rest : List Felt) (mem : Nat → Felt) (frames : List LocalFrame)
     (hq0 : q0.isU32 = true) (_hq1 : q1.isU32 = true) (_hq2 : q2.isU32 = true) (_hq3 : q3.isU32 = true)
     (hr3 : r3.isU32 = true)
     (_hb0 : b0.isU32 = true) (_hb1 : b1.isU32 = true) (_hb2 : b2.isU32 = true) (hb3 : b3.isU32 = true)
@@ -1654,7 +1651,7 @@ private theorem divmodCol3c_none_a3
       ⟨Felt.ofNat madd2Lo :: Felt.ofNat sumHi' ::
         q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 ::
         b0 :: b1 :: b2 :: b3 :: a3 :: rest,
-        mem, locs, adv_rest⟩
+        mem, frames, adv_rest⟩
       divmodCol3c =
     none := by
   let base := 2 ^ 32
@@ -1783,7 +1780,7 @@ private theorem divmodCol3c_none_a3
 
 private theorem divmodCol3c_none_carry
     (c2Lo c2Hi q0 q1 q2 q3 r0 r1 r2 r3 b0 b1 b2 b3 a3 : Felt)
-    (rest adv_rest : List Felt) (mem locs : Nat → Felt)
+    (rest adv_rest : List Felt) (mem : Nat → Felt) (frames : List LocalFrame)
     (hq0 : q0.isU32 = true) (_hq1 : q1.isU32 = true) (_hq2 : q2.isU32 = true) (_hq3 : q3.isU32 = true)
     (hr2 : r2.isU32 = true)
     (hr3 : r3.isU32 = true)
@@ -1818,7 +1815,7 @@ private theorem divmodCol3c_none_carry
       ⟨Felt.ofNat madd2Lo :: Felt.ofNat sumHi' ::
         q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 ::
         b0 :: b1 :: b2 :: b3 :: a3 :: rest,
-        mem, locs, adv_rest⟩
+        mem, frames, adv_rest⟩
       divmodCol3c =
     none := by
   let base := 2 ^ 32
@@ -2008,13 +2005,13 @@ private theorem divmodCol3c_none_carry
   miden_bind
   rw [← felt_ofNat_add]
   rw [show sumHi' + madd3Hi + addHi = carry by dsimp [carry]]
-  rw [stepAssertzWithError_noneLocal "u128 divmod: carry overflow" mem locs adv_rest
+  rw [stepAssertzWithError_noneLocal "u128 divmod: carry overflow" mem frames adv_rest
     (Felt.ofNat carry) (q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 :: b0 :: b1 :: b2 :: b3 :: rest)
     hfelt_nonzero]
 
 private theorem divmodCol3_run
     (c2Lo c2Hi q0 q1 q2 q3 r0 r1 r2 r3 b0 b1 b2 b3 a3 : Felt)
-    (rest adv_rest : List Felt) (mem locs : Nat → Felt)
+    (rest adv_rest : List Felt) (mem : Nat → Felt) (frames : List LocalFrame)
     (hq0 : q0.isU32 = true) (hq1 : q1.isU32 = true) (hq2 : q2.isU32 = true) (hq3 : q3.isU32 = true)
     (hr3 : r3.isU32 = true)
     (hb0 : b0.isU32 = true) (hb1 : b1.isU32 = true) (hb2 : b2.isU32 = true) (hb3 : b3.isU32 = true)
@@ -2037,21 +2034,18 @@ private theorem divmodCol3_run
     exec 163
       ⟨c2Lo :: c2Hi :: q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 ::
         b0 :: b1 :: b2 :: b3 :: a3 :: rest,
-        mem, locs, adv_rest⟩
+        mem, frames, adv_rest⟩
       divmodCol3 =
     some ⟨q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 ::
             b0 :: b1 :: b2 :: b3 :: rest,
-          mem, locs, adv_rest⟩ := by
+          mem, frames, adv_rest⟩ := by
   rw [divmodCol3_eq, exec_append]
-  rw [divmodCol3a_run c2Lo c2Hi q0 q1 q2 q3 r0 r1 r2 r3 b0 b1 b2 b3 a3 rest adv_rest mem locs
-      hq2 hq3 hb0 hb1 hc2Lo_u32]
+  rw [divmodCol3a_run c2Lo c2Hi q0 q1 q2 q3 r0 r1 r2 r3 b0 b1 b2 b3 a3 rest adv_rest mem frames      hq2 hq3 hb0 hb1 hc2Lo_u32]
   miden_bind
   rw [exec_append]
-  rw [divmodCol3b_run c2Lo c2Hi q0 q1 q2 q3 r0 r1 r2 r3 b0 b1 b2 b3 a3 rest adv_rest mem locs
-      hq1 hb2]
+  rw [divmodCol3b_run c2Lo c2Hi q0 q1 q2 q3 r0 r1 r2 r3 b0 b1 b2 b3 a3 rest adv_rest mem frames      hq1 hb2]
   miden_bind
-  rw [divmodCol3c_run c2Lo c2Hi q0 q1 q2 q3 r0 r1 r2 r3 b0 b1 b2 b3 a3 rest adv_rest mem locs
-      hq0 hq1 hq2 hq3 hr3 hb0 hb1 hb2 hb3 hc2Lo_u32 hc2Lo_val hc2Hi_val ha3_eq hcarry_zero]
+  rw [divmodCol3c_run c2Lo c2Hi q0 q1 q2 q3 r0 r1 r2 r3 b0 b1 b2 b3 a3 rest adv_rest mem frames      hq0 hq1 hq2 hq3 hr3 hb0 hb1 hb2 hb3 hc2Lo_u32 hc2Lo_val hc2Hi_val ha3_eq hcarry_zero]
 
 private def divmodOverflowP41Bool (q3 b1 : Felt) : Bool :=
   Felt.ofNat ((b1.val * q3.val) % 2 ^ 32) + Felt.ofNat ((b1.val * q3.val) / 2 ^ 32) != (0 : Felt)
@@ -2173,16 +2167,16 @@ private theorem divmodOverflow_eq :
 
 private theorem divmodOverflow1_bool_run
     (q0 q1 q2 q3 r0 r1 r2 r3 b0 b1 b2 b3 : Felt)
-    (rest adv_rest : List Felt) (mem locs : Nat → Felt)
+    (rest adv_rest : List Felt) (mem : Nat → Felt) (frames : List LocalFrame)
     (hq2 : q2.isU32 = true) (hq3 : q3.isU32 = true)
     (hb1 : b1.isU32 = true) (hb2 : b2.isU32 = true) :
     exec 163
       ⟨q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 :: b0 :: b1 :: b2 :: b3 :: rest,
-        mem, locs, adv_rest⟩
+        mem, frames, adv_rest⟩
       divmodOverflow1 =
     some ⟨(if divmodOverflowP41Bool q3 b1 || divmodOverflowP42Bool q2 b2 then (1 : Felt) else 0) ::
             q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 :: b0 :: b1 :: b2 :: b3 :: rest,
-          mem, locs, adv_rest⟩ := by
+          mem, frames, adv_rest⟩ := by
   unfold divmodOverflow1 exec execWithEnv
   simp only [List.foldlM]
   rw [stepPush]
@@ -2203,14 +2197,14 @@ private theorem divmodOverflow1_bool_run
             then (1 : Felt) else 0) ::
           (0 : Felt) ::
           q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 :: b0 :: b1 :: b2 :: b3 :: rest,
-          mem, locs, adv_rest⟩
+          mem, frames, adv_rest⟩
         Instruction.or =
       some ⟨(if false ||
               (Felt.ofNat ((b1.val * q3.val) / 2 ^ 32) + Felt.ofNat ((b1.val * q3.val) % 2 ^ 32) !=
                 (0 : Felt))
             then (1 : Felt) else 0) ::
             q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 :: b0 :: b1 :: b2 :: b3 :: rest,
-          mem, locs, adv_rest⟩ := by
+          mem, frames, adv_rest⟩ := by
     change execInstruction
       ⟨(if
             (Felt.ofNat ((b1.val * q3.val) / 2 ^ 32) + Felt.ofNat ((b1.val * q3.val) % 2 ^ 32) !=
@@ -2218,14 +2212,14 @@ private theorem divmodOverflow1_bool_run
           then (1 : Felt) else 0) ::
         (if false then (1 : Felt) else 0) ::
         q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 :: b0 :: b1 :: b2 :: b3 :: rest,
-        mem, locs, adv_rest⟩
+        mem, frames, adv_rest⟩
       Instruction.or =
       some ⟨(if false ||
               (Felt.ofNat ((b1.val * q3.val) / 2 ^ 32) + Felt.ofNat ((b1.val * q3.val) % 2 ^ 32) !=
                 (0 : Felt))
             then (1 : Felt) else 0) ::
             q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 :: b0 :: b1 :: b2 :: b3 :: rest,
-          mem, locs, adv_rest⟩
+          mem, frames, adv_rest⟩
     rw [stepOrIte]
   rw [hor]
   miden_bind
@@ -2243,13 +2237,13 @@ private theorem divmodOverflow1_bool_run
 
 private theorem divmodOverflow2_bool_run
     (q0 q1 q2 q3 r0 r1 r2 r3 b0 b1 b2 b3 : Felt)
-    (rest adv_rest : List Felt) (mem locs : Nat → Felt)
+    (rest adv_rest : List Felt) (mem : Nat → Felt) (frames : List LocalFrame)
     (hq1 : q1.isU32 = true) (_hq2 : q2.isU32 = true) (hq3 : q3.isU32 = true)
     (_hb1 : b1.isU32 = true) (hb2 : b2.isU32 = true) (hb3 : b3.isU32 = true) :
     exec 163
       ⟨(if divmodOverflowP41Bool q3 b1 || divmodOverflowP42Bool q2 b2 then (1 : Felt) else 0) ::
         q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 :: b0 :: b1 :: b2 :: b3 :: rest,
-        mem, locs, adv_rest⟩
+        mem, frames, adv_rest⟩
       divmodOverflow2 =
     some ⟨(if (((divmodOverflowP41Bool q3 b1 || divmodOverflowP42Bool q2 b2) ||
               divmodOverflowP43Bool q1 b3) ||
@@ -2257,7 +2251,7 @@ private theorem divmodOverflow2_bool_run
             (1 : Felt)
           else 0) ::
             q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 :: b0 :: b1 :: b2 :: b3 :: rest,
-          mem, locs, adv_rest⟩ := by
+          mem, frames, adv_rest⟩ := by
   unfold divmodOverflow2 exec execWithEnv
   simp only [List.foldlM]
   miden_dup
@@ -2305,7 +2299,7 @@ private theorem divmodOverflow3_decomp :
 
 private theorem divmodOverflow3Check_run
     (q0 q1 q2 q3 r0 r1 r2 r3 b0 b1 b2 b3 : Felt)
-    (rest adv_rest : List Felt) (mem locs : Nat → Felt)
+    (rest adv_rest : List Felt) (mem : Nat → Felt) (frames : List LocalFrame)
     (hq2 : q2.isU32 = true) (hq3 : q3.isU32 = true)
     (hb3 : b3.isU32 = true) :
     exec 163
@@ -2315,11 +2309,11 @@ private theorem divmodOverflow3Check_run
             (1 : Felt)
           else 0) ::
         q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 :: b0 :: b1 :: b2 :: b3 :: rest,
-        mem, locs, adv_rest⟩
+        mem, frames, adv_rest⟩
       divmodOverflow3Check =
     some ⟨(if divmodOverflowBool q1 q2 q3 b1 b2 b3 then (1 : Felt) else 0) ::
             q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 :: b0 :: b1 :: b2 :: b3 :: rest,
-          mem, locs, adv_rest⟩ := by
+          mem, frames, adv_rest⟩ := by
   unfold divmodOverflow3Check exec execWithEnv
   simp only [List.foldlM]
   miden_dup
@@ -2348,7 +2342,7 @@ private theorem divmodOverflow3Check_run
 
 private theorem divmodOverflow3_eval
     (q0 q1 q2 q3 r0 r1 r2 r3 b0 b1 b2 b3 : Felt)
-    (rest adv_rest : List Felt) (mem locs : Nat → Felt)
+    (rest adv_rest : List Felt) (mem : Nat → Felt) (frames : List LocalFrame)
     (hq2 : q2.isU32 = true) (hq3 : q3.isU32 = true)
     (hb3 : b3.isU32 = true) :
     exec 163
@@ -2358,55 +2352,51 @@ private theorem divmodOverflow3_eval
             (1 : Felt)
           else 0) ::
         q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 :: b0 :: b1 :: b2 :: b3 :: rest,
-        mem, locs, adv_rest⟩
+        mem, frames, adv_rest⟩
       divmodOverflow3 =
     if divmodOverflowBool q1 q2 q3 b1 b2 b3 then
       none
     else
       some ⟨q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 :: b0 :: b1 :: b2 :: b3 :: rest,
-        mem, locs, adv_rest⟩ := by
+        mem, frames, adv_rest⟩ := by
   rw [divmodOverflow3_decomp, exec_append]
-  rw [divmodOverflow3Check_run q0 q1 q2 q3 r0 r1 r2 r3 b0 b1 b2 b3 rest adv_rest mem locs
-      hq2 hq3 hb3]
+  rw [divmodOverflow3Check_run q0 q1 q2 q3 r0 r1 r2 r3 b0 b1 b2 b3 rest adv_rest mem frames      hq2 hq3 hb3]
   miden_bind
   by_cases hover : divmodOverflowBool q1 q2 q3 b1 b2 b3
   · rw [show ((if divmodOverflowBool q1 q2 q3 b1 b2 b3 then (1 : Felt) else 0) : Felt) = 1 by simp [hover]]
     unfold exec execWithEnv
     simp only [List.foldlM]
-    rw [stepAssertzWithError_noneLocal "u128 divmod: q*b overflow" mem locs adv_rest (1 : Felt)
+    rw [stepAssertzWithError_noneLocal "u128 divmod: q*b overflow" mem frames adv_rest (1 : Felt)
       (q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 :: b0 :: b1 :: b2 :: b3 :: rest) (by simp)]
     simp [hover]
   · rw [show ((if divmodOverflowBool q1 q2 q3 b1 b2 b3 then (1 : Felt) else 0) : Felt) = 0 by simp [hover]]
     unfold exec execWithEnv
     simp only [List.foldlM]
-    rw [stepAssertzWithErrorLocal "u128 divmod: q*b overflow" mem locs adv_rest (0 : Felt)
+    rw [stepAssertzWithErrorLocal "u128 divmod: q*b overflow" mem frames adv_rest (0 : Felt)
       (q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 :: b0 :: b1 :: b2 :: b3 :: rest) rfl]
     simp [hover, pure, Pure.pure]
 
 private theorem divmodOverflow_eval
     (q0 q1 q2 q3 r0 r1 r2 r3 b0 b1 b2 b3 : Felt)
-    (rest adv_rest : List Felt) (mem locs : Nat → Felt)
+    (rest adv_rest : List Felt) (mem : Nat → Felt) (frames : List LocalFrame)
     (hq1 : q1.isU32 = true) (hq2 : q2.isU32 = true) (hq3 : q3.isU32 = true)
     (hb1 : b1.isU32 = true) (hb2 : b2.isU32 = true) (hb3 : b3.isU32 = true) :
     exec 163
       ⟨q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 :: b0 :: b1 :: b2 :: b3 :: rest,
-        mem, locs, adv_rest⟩
+        mem, frames, adv_rest⟩
       divmodOverflow =
     if divmodOverflowBool q1 q2 q3 b1 b2 b3 then
       none
     else
       some ⟨q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 :: b0 :: b1 :: b2 :: b3 :: rest,
-        mem, locs, adv_rest⟩ := by
+        mem, frames, adv_rest⟩ := by
   rw [divmodOverflow_eq, exec_append]
-  rw [divmodOverflow1_bool_run q0 q1 q2 q3 r0 r1 r2 r3 b0 b1 b2 b3 rest adv_rest mem locs
-      hq2 hq3 hb1 hb2]
+  rw [divmodOverflow1_bool_run q0 q1 q2 q3 r0 r1 r2 r3 b0 b1 b2 b3 rest adv_rest mem frames      hq2 hq3 hb1 hb2]
   miden_bind
   rw [exec_append]
-  rw [divmodOverflow2_bool_run q0 q1 q2 q3 r0 r1 r2 r3 b0 b1 b2 b3 rest adv_rest mem locs
-      hq1 hq2 hq3 hb1 hb2 hb3]
+  rw [divmodOverflow2_bool_run q0 q1 q2 q3 r0 r1 r2 r3 b0 b1 b2 b3 rest adv_rest mem frames      hq1 hq2 hq3 hb1 hb2 hb3]
   miden_bind
-  rw [divmodOverflow3_eval q0 q1 q2 q3 r0 r1 r2 r3 b0 b1 b2 b3 rest adv_rest mem locs
-      hq2 hq3 hb3]
+  rw [divmodOverflow3_eval q0 q1 q2 q3 r0 r1 r2 r3 b0 b1 b2 b3 rest adv_rest mem frames      hq2 hq3 hb3]
 
 private theorem divmodOverflowProdBool_false
     (x y : Felt) (hx : x.isU32 = true) (hy : y.isU32 = true)
@@ -2451,17 +2441,17 @@ private theorem divmodOverflowProdBool_false
 
 private theorem divmodOverflow1_run
     (q0 q1 q2 q3 r0 r1 r2 r3 b0 b1 b2 b3 : Felt)
-    (rest adv_rest : List Felt) (mem locs : Nat → Felt)
+    (rest adv_rest : List Felt) (mem : Nat → Felt) (frames : List LocalFrame)
     (hq2 : q2.isU32 = true) (hq3 : q3.isU32 = true)
     (hb1 : b1.isU32 = true) (hb2 : b2.isU32 = true)
     (hq3b1_zero : q3.val * b1.val = 0)
     (hq2b2_zero : q2.val * b2.val = 0) :
     exec 163
       ⟨q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 :: b0 :: b1 :: b2 :: b3 :: rest,
-        mem, locs, adv_rest⟩
+        mem, frames, adv_rest⟩
       divmodOverflow1 =
     some ⟨(0 : Felt) :: q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 :: b0 :: b1 :: b2 :: b3 :: rest,
-          mem, locs, adv_rest⟩ := by
+          mem, frames, adv_rest⟩ := by
   unfold divmodOverflow1 exec execWithEnv
   simp only [List.foldlM]
   have hq3b1_zero' : b1.val * q3.val = 0 := by
@@ -2482,11 +2472,11 @@ private theorem divmodOverflow1_run
   rw [show execInstruction
       ⟨(0 : Felt) :: (0 : Felt) :: q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 ::
         b0 :: b1 :: b2 :: b3 :: rest,
-        mem, locs, adv_rest⟩
+        mem, frames, adv_rest⟩
       (.neqImm 0) =
       some ⟨(if false then (1 : Felt) else 0) :: (if false then (1 : Felt) else 0) ::
         q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 :: b0 :: b1 :: b2 :: b3 :: rest,
-        mem, locs, adv_rest⟩ by
+        mem, frames, adv_rest⟩ by
     rw [stepNeqImm]
     simp]
   miden_bind
@@ -2505,11 +2495,11 @@ private theorem divmodOverflow1_run
   rw [show execInstruction
       ⟨(0 : Felt) :: (0 : Felt) :: q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 ::
         b0 :: b1 :: b2 :: b3 :: rest,
-        mem, locs, adv_rest⟩
+        mem, frames, adv_rest⟩
       (.neqImm 0) =
       some ⟨(if false then (1 : Felt) else 0) :: (if false then (1 : Felt) else 0) ::
         q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 :: b0 :: b1 :: b2 :: b3 :: rest,
-        mem, locs, adv_rest⟩ by
+        mem, frames, adv_rest⟩ by
     rw [stepNeqImm]
     simp]
   miden_bind
@@ -2518,17 +2508,17 @@ private theorem divmodOverflow1_run
 
 private theorem divmodOverflow2_run
     (q0 q1 q2 q3 r0 r1 r2 r3 b0 b1 b2 b3 : Felt)
-    (rest adv_rest : List Felt) (mem locs : Nat → Felt)
+    (rest adv_rest : List Felt) (mem : Nat → Felt) (frames : List LocalFrame)
     (hq1 : q1.isU32 = true) (hq3 : q3.isU32 = true)
     (hb2 : b2.isU32 = true) (hb3 : b3.isU32 = true)
     (hq1b3_zero : q1.val * b3.val = 0)
     (hq3b2_zero : q3.val * b2.val = 0) :
     exec 163
       ⟨(0 : Felt) :: q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 :: b0 :: b1 :: b2 :: b3 :: rest,
-        mem, locs, adv_rest⟩
+        mem, frames, adv_rest⟩
       divmodOverflow2 =
     some ⟨(0 : Felt) :: q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 :: b0 :: b1 :: b2 :: b3 :: rest,
-          mem, locs, adv_rest⟩ := by
+          mem, frames, adv_rest⟩ := by
   unfold divmodOverflow2 exec execWithEnv
   simp only [List.foldlM]
   have hq1b3_zero' : b3.val * q1.val = 0 := by
@@ -2547,11 +2537,11 @@ private theorem divmodOverflow2_run
   rw [show execInstruction
       ⟨(0 : Felt) :: (0 : Felt) :: q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 ::
         b0 :: b1 :: b2 :: b3 :: rest,
-        mem, locs, adv_rest⟩
+        mem, frames, adv_rest⟩
       (.neqImm 0) =
       some ⟨(if false then (1 : Felt) else 0) :: (if false then (1 : Felt) else 0) ::
         q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 :: b0 :: b1 :: b2 :: b3 :: rest,
-        mem, locs, adv_rest⟩ by
+        mem, frames, adv_rest⟩ by
     rw [stepNeqImm]
     simp]
   miden_bind
@@ -2570,11 +2560,11 @@ private theorem divmodOverflow2_run
   rw [show execInstruction
       ⟨(0 : Felt) :: (0 : Felt) :: q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 ::
         b0 :: b1 :: b2 :: b3 :: rest,
-        mem, locs, adv_rest⟩
+        mem, frames, adv_rest⟩
       (.neqImm 0) =
       some ⟨(if false then (1 : Felt) else 0) :: (if false then (1 : Felt) else 0) ::
         q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 :: b0 :: b1 :: b2 :: b3 :: rest,
-        mem, locs, adv_rest⟩ by
+        mem, frames, adv_rest⟩ by
     rw [stepNeqImm]
     simp]
   miden_bind
@@ -2583,17 +2573,17 @@ private theorem divmodOverflow2_run
 
 private theorem divmodOverflow3_run
     (q0 q1 q2 q3 r0 r1 r2 r3 b0 b1 b2 b3 : Felt)
-    (rest adv_rest : List Felt) (mem locs : Nat → Felt)
+    (rest adv_rest : List Felt) (mem : Nat → Felt) (frames : List LocalFrame)
     (hq2 : q2.isU32 = true) (hq3 : q3.isU32 = true)
     (hb3 : b3.isU32 = true)
     (hq2b3_zero : q2.val * b3.val = 0)
     (hq3b3_zero : q3.val * b3.val = 0) :
     exec 163
       ⟨(0 : Felt) :: q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 :: b0 :: b1 :: b2 :: b3 :: rest,
-        mem, locs, adv_rest⟩
+        mem, frames, adv_rest⟩
       divmodOverflow3 =
     some ⟨q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 :: b0 :: b1 :: b2 :: b3 :: rest,
-          mem, locs, adv_rest⟩ := by
+          mem, frames, adv_rest⟩ := by
   unfold divmodOverflow3 exec execWithEnv
   simp only [List.foldlM]
   have hq2b3_zero' : b3.val * q2.val = 0 := by
@@ -2610,11 +2600,11 @@ private theorem divmodOverflow3_run
   rw [show execInstruction
       ⟨(0 : Felt) :: (0 : Felt) :: q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 ::
         b0 :: b1 :: b2 :: b3 :: rest,
-        mem, locs, adv_rest⟩
+        mem, frames, adv_rest⟩
       (.neqImm 0) =
       some ⟨(if false then (1 : Felt) else 0) :: (if false then (1 : Felt) else 0) ::
         q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 :: b0 :: b1 :: b2 :: b3 :: rest,
-        mem, locs, adv_rest⟩ by
+        mem, frames, adv_rest⟩ by
     rw [stepNeqImm]
     simp]
   miden_bind
@@ -2635,23 +2625,23 @@ private theorem divmodOverflow3_run
   rw [show execInstruction
       ⟨(0 : Felt) :: (0 : Felt) :: q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 ::
         b0 :: b1 :: b2 :: b3 :: rest,
-        mem, locs, adv_rest⟩
+        mem, frames, adv_rest⟩
       (.neqImm 0) =
       some ⟨(if false then (1 : Felt) else 0) :: (if false then (1 : Felt) else 0) ::
         q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 :: b0 :: b1 :: b2 :: b3 :: rest,
-        mem, locs, adv_rest⟩ by
+        mem, frames, adv_rest⟩ by
     rw [stepNeqImm]
     simp]
   miden_bind
   rw [stepOrIte (p := false) (q := false)]
   miden_bind
   simp
-  rw [stepAssertzWithErrorLocal "u128 divmod: q*b overflow" mem locs adv_rest (0 : Felt)
+  rw [stepAssertzWithErrorLocal "u128 divmod: q*b overflow" mem frames adv_rest (0 : Felt)
     (q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 :: b0 :: b1 :: b2 :: b3 :: rest) rfl]
 
 private theorem divmodOverflow_run
     (q0 q1 q2 q3 r0 r1 r2 r3 b0 b1 b2 b3 : Felt)
-    (rest adv_rest : List Felt) (mem locs : Nat → Felt)
+    (rest adv_rest : List Felt) (mem : Nat → Felt) (frames : List LocalFrame)
     (hq1 : q1.isU32 = true) (hq2 : q2.isU32 = true) (hq3 : q3.isU32 = true)
     (hb1 : b1.isU32 = true) (hb2 : b2.isU32 = true) (hb3 : b3.isU32 = true)
     (hq3b1_zero : q3.val * b1.val = 0)
@@ -2662,20 +2652,17 @@ private theorem divmodOverflow_run
     (hq3b3_zero : q3.val * b3.val = 0) :
     exec 163
       ⟨q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 :: b0 :: b1 :: b2 :: b3 :: rest,
-        mem, locs, adv_rest⟩
+        mem, frames, adv_rest⟩
       divmodOverflow =
     some ⟨q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 :: b0 :: b1 :: b2 :: b3 :: rest,
-          mem, locs, adv_rest⟩ := by
+          mem, frames, adv_rest⟩ := by
   rw [divmodOverflow_eq, exec_append]
-  rw [divmodOverflow1_run q0 q1 q2 q3 r0 r1 r2 r3 b0 b1 b2 b3 rest adv_rest mem locs
-      hq2 hq3 hb1 hb2 hq3b1_zero hq2b2_zero]
+  rw [divmodOverflow1_run q0 q1 q2 q3 r0 r1 r2 r3 b0 b1 b2 b3 rest adv_rest mem frames      hq2 hq3 hb1 hb2 hq3b1_zero hq2b2_zero]
   miden_bind
   rw [exec_append]
-  rw [divmodOverflow2_run q0 q1 q2 q3 r0 r1 r2 r3 b0 b1 b2 b3 rest adv_rest mem locs
-      hq1 hq3 hb2 hb3 hq1b3_zero hq3b2_zero]
+  rw [divmodOverflow2_run q0 q1 q2 q3 r0 r1 r2 r3 b0 b1 b2 b3 rest adv_rest mem frames      hq1 hq3 hb2 hb3 hq1b3_zero hq3b2_zero]
   miden_bind
-  rw [divmodOverflow3_run q0 q1 q2 q3 r0 r1 r2 r3 b0 b1 b2 b3 rest adv_rest mem locs
-      hq2 hq3 hb3 hq2b3_zero hq3b3_zero]
+  rw [divmodOverflow3_run q0 q1 q2 q3 r0 r1 r2 r3 b0 b1 b2 b3 rest adv_rest mem frames      hq2 hq3 hb3 hq2b3_zero hq3b3_zero]
 
 private def divmodCompare1 : List Op := [
   .inst (.dup 4),
@@ -2730,15 +2717,15 @@ private theorem divmodTail_eq :
 
 private theorem divmodCompare1_run
     (q0 q1 q2 q3 r0 r1 r2 r3 b0 b1 b2 b3 : Felt)
-    (rest adv_rest : List Felt) (mem locs : Nat → Felt)
+    (rest adv_rest : List Felt) (mem : Nat → Felt) (frames : List LocalFrame)
     (hr0 : r0.isU32 = true) (hb0 : b0.isU32 = true) :
     exec 163
       ⟨q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 :: b0 :: b1 :: b2 :: b3 :: rest,
-        mem, locs, adv_rest⟩
+        mem, frames, adv_rest⟩
       divmodCompare1 =
     some ⟨Felt.ofNat (u32OverflowingSub r0.val b0.val).1 ::
             q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 :: b0 :: b1 :: b2 :: b3 :: rest,
-          mem, locs, adv_rest⟩ := by
+          mem, frames, adv_rest⟩ := by
   unfold divmodCompare1 exec execWithEnv
   simp only [List.foldlM]
   miden_dup
@@ -2751,17 +2738,17 @@ private theorem divmodCompare1_run
 
 private theorem divmodCompare2_run
     (q0 q1 q2 q3 r0 r1 r2 r3 b0 b1 b2 b3 : Felt)
-    (rest adv_rest : List Felt) (mem locs : Nat → Felt)
+    (rest adv_rest : List Felt) (mem : Nat → Felt) (frames : List LocalFrame)
     (hr0 : r0.isU32 = true) (hr1 : r1.isU32 = true)
     (hb0 : b0.isU32 = true) (hb1 : b1.isU32 = true) :
     exec 163
       ⟨Felt.ofNat (u32OverflowingSub r0.val b0.val).1 ::
         q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 :: b0 :: b1 :: b2 :: b3 :: rest,
-        mem, locs, adv_rest⟩
+        mem, frames, adv_rest⟩
       divmodCompare2 =
     some ⟨u128Borrow1 r0 r1 b0 b1 ::
             q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 :: b0 :: b1 :: b2 :: b3 :: rest,
-          mem, locs, adv_rest⟩ := by
+          mem, frames, adv_rest⟩ := by
   unfold divmodCompare2 exec execWithEnv
   simp only [List.foldlM]
   miden_dup
@@ -2799,17 +2786,17 @@ private theorem divmodCompare2_run
 
 private theorem divmodCompare3_run
     (q0 q1 q2 q3 r0 r1 r2 r3 b0 b1 b2 b3 : Felt)
-    (rest adv_rest : List Felt) (mem locs : Nat → Felt)
+    (rest adv_rest : List Felt) (mem : Nat → Felt) (frames : List LocalFrame)
     (hr0 : r0.isU32 = true) (hr1 : r1.isU32 = true) (hr2 : r2.isU32 = true)
     (hb0 : b0.isU32 = true) (hb1 : b1.isU32 = true) (hb2 : b2.isU32 = true) :
     exec 163
       ⟨u128Borrow1 r0 r1 b0 b1 ::
         q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 :: b0 :: b1 :: b2 :: b3 :: rest,
-        mem, locs, adv_rest⟩
+        mem, frames, adv_rest⟩
       divmodCompare3 =
     some ⟨u128Borrow2 r0 r1 r2 b0 b1 b2 ::
             q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 :: b0 :: b1 :: b2 :: b3 :: rest,
-          mem, locs, adv_rest⟩ := by
+          mem, frames, adv_rest⟩ := by
   unfold divmodCompare3 exec execWithEnv
   simp only [List.foldlM]
   miden_dup
@@ -2879,17 +2866,17 @@ private theorem divmodCompare3_run
 
 private theorem divmodCompare4_run
     (q0 q1 q2 q3 r0 r1 r2 r3 b0 b1 b2 b3 : Felt)
-    (rest adv_rest : List Felt) (mem locs : Nat → Felt)
+    (rest adv_rest : List Felt) (mem : Nat → Felt) (frames : List LocalFrame)
     (hr0 : r0.isU32 = true) (hr1 : r1.isU32 = true) (hr2 : r2.isU32 = true) (hr3 : r3.isU32 = true)
     (hb0 : b0.isU32 = true) (hb1 : b1.isU32 = true) (hb2 : b2.isU32 = true) (hb3 : b3.isU32 = true)
     (h_lt_result : u128LtBool r0 r1 r2 r3 b0 b1 b2 b3 = true) :
     exec 163
       ⟨u128Borrow2 r0 r1 r2 b0 b1 b2 ::
         q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 :: b0 :: b1 :: b2 :: b3 :: rest,
-        mem, locs, adv_rest⟩
+        mem, frames, adv_rest⟩
       divmodCompare4 =
     some ⟨r0 :: r1 :: r2 :: r3 :: q0 :: q1 :: q2 :: q3 :: rest,
-          mem, locs, adv_rest⟩ := by
+          mem, frames, adv_rest⟩ := by
   unfold divmodCompare4 exec execWithEnv
   simp only [List.foldlM]
   miden_dup
@@ -3038,21 +3025,21 @@ private theorem divmodCompare4_run
   rw [stepAssertWithError (msg := "u128 divmod: remainder >= divisor")
       (h := by simp [h_lt_result])]
   miden_bind
-  rw [stepSwapw2Local mem locs adv_rest q0 q1 q2 q3 r0 r1 r2 r3 b0 b1 b2 b3 rest]
+  rw [stepSwapw2Local mem frames adv_rest q0 q1 q2 q3 r0 r1 r2 r3 b0 b1 b2 b3 rest]
   miden_bind
   rw [stepDropw]
   simp [pure, Pure.pure]
 
 private theorem divmodCompare4_none
     (q0 q1 q2 q3 r0 r1 r2 r3 b0 b1 b2 b3 : Felt)
-    (rest adv_rest : List Felt) (mem locs : Nat → Felt)
+    (rest adv_rest : List Felt) (mem : Nat → Felt) (frames : List LocalFrame)
     (hr0 : r0.isU32 = true) (hr1 : r1.isU32 = true) (hr2 : r2.isU32 = true) (hr3 : r3.isU32 = true)
     (hb0 : b0.isU32 = true) (hb1 : b1.isU32 = true) (hb2 : b2.isU32 = true) (hb3 : b3.isU32 = true)
     (h_lt_result : u128LtBool r0 r1 r2 r3 b0 b1 b2 b3 ≠ true) :
     exec 163
       ⟨u128Borrow2 r0 r1 r2 b0 b1 b2 ::
         q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 :: b0 :: b1 :: b2 :: b3 :: rest,
-        mem, locs, adv_rest⟩
+        mem, frames, adv_rest⟩
       divmodCompare4 =
     none := by
   unfold divmodCompare4 exec execWithEnv
@@ -3209,7 +3196,7 @@ private theorem divmodCompare4_none
 
 private theorem divmodTail_run
     (q0 q1 q2 q3 r0 r1 r2 r3 b0 b1 b2 b3 : Felt)
-    (rest adv_rest : List Felt) (mem locs : Nat → Felt)
+    (rest adv_rest : List Felt) (mem : Nat → Felt) (frames : List LocalFrame)
     (hq1 : q1.isU32 = true) (hq2 : q2.isU32 = true) (hq3 : q3.isU32 = true)
     (hr0 : r0.isU32 = true) (hr1 : r1.isU32 = true) (hr2 : r2.isU32 = true) (hr3 : r3.isU32 = true)
     (hb0 : b0.isU32 = true) (hb1 : b1.isU32 = true) (hb2 : b2.isU32 = true) (hb3 : b3.isU32 = true)
@@ -3222,30 +3209,26 @@ private theorem divmodTail_run
     (h_lt_result : u128LtBool r0 r1 r2 r3 b0 b1 b2 b3 = true) :
     exec 163
       ⟨q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 :: b0 :: b1 :: b2 :: b3 :: rest,
-        mem, locs, adv_rest⟩
+        mem, frames, adv_rest⟩
       divmodTail =
     some ⟨r0 :: r1 :: r2 :: r3 :: q0 :: q1 :: q2 :: q3 :: rest,
-          mem, locs, adv_rest⟩ := by
+          mem, frames, adv_rest⟩ := by
   rw [divmodTail_eq, exec_append]
-  rw [divmodOverflow_run q0 q1 q2 q3 r0 r1 r2 r3 b0 b1 b2 b3 rest adv_rest mem locs
-      hq1 hq2 hq3 hb1 hb2 hb3 hq3b1_zero hq2b2_zero hq1b3_zero hq3b2_zero hq2b3_zero hq3b3_zero]
+  rw [divmodOverflow_run q0 q1 q2 q3 r0 r1 r2 r3 b0 b1 b2 b3 rest adv_rest mem frames      hq1 hq2 hq3 hb1 hb2 hb3 hq3b1_zero hq2b2_zero hq1b3_zero hq3b2_zero hq2b3_zero hq3b3_zero]
   miden_bind
   rw [exec_append]
-  rw [divmodCompare1_run q0 q1 q2 q3 r0 r1 r2 r3 b0 b1 b2 b3 rest adv_rest mem locs hr0 hb0]
+  rw [divmodCompare1_run q0 q1 q2 q3 r0 r1 r2 r3 b0 b1 b2 b3 rest adv_rest mem frames hr0 hb0]
   miden_bind
   rw [exec_append]
-  rw [divmodCompare2_run q0 q1 q2 q3 r0 r1 r2 r3 b0 b1 b2 b3 rest adv_rest mem locs
-      hr0 hr1 hb0 hb1]
+  rw [divmodCompare2_run q0 q1 q2 q3 r0 r1 r2 r3 b0 b1 b2 b3 rest adv_rest mem frames      hr0 hr1 hb0 hb1]
   miden_bind
   rw [exec_append]
-  rw [divmodCompare3_run q0 q1 q2 q3 r0 r1 r2 r3 b0 b1 b2 b3 rest adv_rest mem locs
-      hr0 hr1 hr2 hb0 hb1 hb2]
+  rw [divmodCompare3_run q0 q1 q2 q3 r0 r1 r2 r3 b0 b1 b2 b3 rest adv_rest mem frames      hr0 hr1 hr2 hb0 hb1 hb2]
   miden_bind
-  rw [divmodCompare4_run q0 q1 q2 q3 r0 r1 r2 r3 b0 b1 b2 b3 rest adv_rest mem locs
-      hr0 hr1 hr2 hr3 hb0 hb1 hb2 hb3 h_lt_result]
+  rw [divmodCompare4_run q0 q1 q2 q3 r0 r1 r2 r3 b0 b1 b2 b3 rest adv_rest mem frames      hr0 hr1 hr2 hr3 hb0 hb1 hb2 hb3 h_lt_result]
 
 private theorem divmod_decomp :
-    Miden.Core.U128.divmod =
+    Miden.Core.U128.divmod.body =
       divmodSetup ++ (divmodCol0 ++ (divmodCol1 ++ (divmodCol2 ++ (divmodCol3 ++ divmodTail)))) := by
   simp [Miden.Core.U128.divmod, divmodSetup, divmodCol0, divmodCol1,
     divmodCol2, divmodCol2a, divmodCol2b, divmodCol2c,
@@ -4162,9 +4145,9 @@ theorem u128_divmod_raw
     exec 163 s Miden.Core.U128.divmod =
     some { stack := r0 :: r1 :: r2 :: r3 :: q0 :: q1 :: q2 :: q3 :: rest,
            memory := s.memory,
-           locals := s.locals,
+           frames := s.frames,
            advice := adv_rest } := by
-  obtain ⟨stk, mem, locs, adv⟩ := s
+  obtain ⟨stk, mem, frames, adv⟩ := s
   simp only at hs ⊢
   subst hs
   subst hadv
@@ -4253,19 +4236,16 @@ theorem u128_divmod_raw
   have h_lt_result : u128LtBool r0 r1 r2 r3 b0 b1 b2 b3 = true := by
     rw [divmodLtBool_eqRaw r0 r1 r2 r3 b0 b1 b2 b3 hr0 hr1 hr2 hr3 hb0 hb1 hb2 hb3]
     simpa using hlt
-  rw [divmod_decomp, exec_append]
-  rw [divmodSetup_run q0 q1 q2 q3 r0 r1 r2 r3 b0 b1 b2 b3 a0 a1 a2 a3 rest adv_rest mem locs
-      hq0 hq1 hq2 hq3 hr0 hr1 hr2 hr3]
+  rw [exec_body_eq _ _ _ _ divmod_decomp rfl, exec_append]
+  rw [divmodSetup_run q0 q1 q2 q3 r0 r1 r2 r3 b0 b1 b2 b3 a0 a1 a2 a3 rest adv_rest mem frames      hq0 hq1 hq2 hq3 hr0 hr1 hr2 hr3]
   miden_bind
   rw [exec_append]
-  rw [divmodCol0_run q0 q1 q2 q3 r0 r1 r2 r3 b0 b1 b2 b3 a0 a1 a2 a3 rest adv_rest mem locs
-      hq0 hq1 hq2 hq3 hr0 ha0_eq hb0]
+  rw [divmodCol0_run q0 q1 q2 q3 r0 r1 r2 r3 b0 b1 b2 b3 a0 a1 a2 a3 rest adv_rest mem frames      hq0 hq1 hq2 hq3 hr0 ha0_eq hb0]
   miden_bind
   rw [exec_append]
   rw [divmodCol1_run
       (Felt.ofNat (u128DivmodCol0 q0.val b0.val r0.val / 2 ^ 32))
-      q0 q1 q2 q3 r0 r1 r2 r3 b0 b1 b2 b3 a1 a2 a3 rest adv_rest mem locs
-      hq0 hq1 hr1 hb0 hb1
+      q0 q1 q2 q3 r0 r1 r2 r3 b0 b1 b2 b3 a1 a2 a3 rest adv_rest mem frames      hq0 hq1 hr1 hb0 hb1
       (felt_ofNat_isU32_of_lt _ (divmodCol0Carry_lt q0 b0 r0 hq0 hb0 hr0))
       (felt_ofNat_val_lt _ (u32_val_lt_prime _ (divmodCol0Carry_lt q0 b0 r0 hq0 hb0 hr0)))
       ha1_eq]
@@ -4274,8 +4254,7 @@ theorem u128_divmod_raw
   rw [divmodCol2_run
       (Felt.ofNat (u128DivmodCol1 q0.val q1.val b0.val b1.val r0.val r1.val / 2 ^ 32 % 2 ^ 32))
       (Felt.ofNat (u128DivmodCol1 q0.val q1.val b0.val b1.val r0.val r1.val / 2 ^ 32 / 2 ^ 32))
-      q0 q1 q2 q3 r0 r1 r2 r3 b0 b1 b2 b3 a2 a3 rest adv_rest mem locs
-      hq0 hq1 hq2 hr2 hb0 hb1 hb2
+      q0 q1 q2 q3 r0 r1 r2 r3 b0 b1 b2 b3 a2 a3 rest adv_rest mem frames      hq0 hq1 hq2 hr2 hb0 hb1 hb2
       (u32_mod_isU32 _)
       (felt_ofNat_isU32_of_lt _ hc1Hi_lt)
       (felt_ofNat_val_lt _ (u32_mod_lt_prime _))
@@ -4291,8 +4270,7 @@ theorem u128_divmod_raw
   rw [divmodCol3_run
       (Felt.ofNat (u128DivmodCol2 q0.val q1.val q2.val b0.val b1.val b2.val r0.val r1.val r2.val / 2 ^ 32 % 2 ^ 32))
       0
-      q0 q1 q2 q3 r0 r1 r2 r3 b0 b1 b2 b3 a3 rest adv_rest mem locs
-      hq0 hq1 hq2 hq3 hr3 hb0 hb1 hb2 hb3
+      q0 q1 q2 q3 r0 r1 r2 r3 b0 b1 b2 b3 a3 rest adv_rest mem frames      hq0 hq1 hq2 hq3 hr3 hb0 hb1 hb2 hb3
       (u32_mod_isU32 _)
       (felt_ofNat_val_lt _ (u32_mod_lt_prime _))
       (by
@@ -4301,8 +4279,7 @@ theorem u128_divmod_raw
       ha3_eq
       (by simpa [divmodCarry] using hcarry_zero)]
   miden_bind
-  rw [divmodTail_run q0 q1 q2 q3 r0 r1 r2 r3 b0 b1 b2 b3 rest adv_rest mem locs
-      hq1 hq2 hq3 hr0 hr1 hr2 hr3 hb0 hb1 hb2 hb3
+  rw [divmodTail_run q0 q1 q2 q3 r0 r1 r2 r3 b0 b1 b2 b3 rest adv_rest mem frames      hq1 hq2 hq3 hr0 hr1 hr2 hr3 hb0 hb1 hb2 hb3
       hq3b1_zero hq2b2_zero hq1b3_zero hq3b2_zero hq2b3_zero hq3b3_zero h_lt_result]
 
 set_option maxHeartbeats 16000000 in
@@ -4316,18 +4293,17 @@ theorem u128_divmod_conditions_of_exec
     {s' : MidenState}
     (hexec : exec 163 s Miden.Core.U128.divmod = some s') :
     q.toNat * b.toNat + r.toNat = a.toNat ∧ r.toNat < b.toNat := by
-  obtain ⟨stk, mem, locs, adv⟩ := s
+  obtain ⟨stk, mem, frames, adv⟩ := s
   simp only [] at hs hadv
   subst hs
   subst hadv
-  rw [divmod_decomp, exec_append] at hexec
+  rw [exec_body_eq _ _ _ _ divmod_decomp rfl, exec_append] at hexec
   rw [divmodSetup_run
       q.a0.val q.a1.val q.a2.val q.a3.val
       r.a0.val r.a1.val r.a2.val r.a3.val
       b.a0.val b.a1.val b.a2.val b.a3.val
       a.a0.val a.a1.val a.a2.val a.a3.val
-      rest adv_rest mem locs
-      q.a0.isU32 q.a1.isU32 q.a2.isU32 q.a3.isU32
+      rest adv_rest mem frames      q.a0.isU32 q.a1.isU32 q.a2.isU32 q.a3.isU32
       r.a0.isU32 r.a1.isU32 r.a2.isU32 r.a3.isU32] at hexec
   simp at hexec
   rw [exec_append] at hexec
@@ -4339,8 +4315,7 @@ theorem u128_divmod_conditions_of_exec
         r.a0.val r.a1.val r.a2.val r.a3.val
         b.a0.val b.a1.val b.a2.val b.a3.val
         a.a0.val a.a1.val a.a2.val a.a3.val
-        rest adv_rest mem locs
-        q.a0.isU32 q.a1.isU32 q.a2.isU32 q.a3.isU32
+        rest adv_rest mem frames        q.a0.isU32 q.a1.isU32 q.a2.isU32 q.a3.isU32
         r.a0.isU32 b.a0.isU32 h_not] at hexec
     simp at hexec
   rw [divmodCol0_run
@@ -4348,8 +4323,7 @@ theorem u128_divmod_conditions_of_exec
       r.a0.val r.a1.val r.a2.val r.a3.val
       b.a0.val b.a1.val b.a2.val b.a3.val
       a.a0.val a.a1.val a.a2.val a.a3.val
-      rest adv_rest mem locs
-      q.a0.isU32 q.a1.isU32 q.a2.isU32 q.a3.isU32
+      rest adv_rest mem frames      q.a0.isU32 q.a1.isU32 q.a2.isU32 q.a3.isU32
       r.a0.isU32 ha0_eq b.a0.isU32] at hexec
   simp at hexec
   simp only [← two_pow_32] at hexec
@@ -4376,8 +4350,7 @@ theorem u128_divmod_conditions_of_exec
         r.a0.val r.a1.val r.a2.val r.a3.val
         b.a0.val b.a1.val b.a2.val b.a3.val
         a.a1.val a.a2.val a.a3.val
-        rest adv_rest mem locs
-        q.a0.isU32 q.a1.isU32 r.a1.isU32
+        rest adv_rest mem frames        q.a0.isU32 q.a1.isU32 r.a1.isU32
         b.a0.isU32 b.a1.isU32
         hc0_u32 hc0_val h_not] at hexec
     simp at hexec
@@ -4387,8 +4360,7 @@ theorem u128_divmod_conditions_of_exec
       r.a0.val r.a1.val r.a2.val r.a3.val
       b.a0.val b.a1.val b.a2.val b.a3.val
       a.a1.val a.a2.val a.a3.val
-      rest adv_rest mem locs
-      q.a0.isU32 q.a1.isU32 r.a1.isU32
+      rest adv_rest mem frames      q.a0.isU32 q.a1.isU32 r.a1.isU32
       b.a0.isU32 b.a1.isU32
       hc0_u32 hc0_val ha1_eq] at hexec
   simp at hexec
@@ -4414,8 +4386,7 @@ theorem u128_divmod_conditions_of_exec
       r.a0.val r.a1.val r.a2.val r.a3.val
       b.a0.val b.a1.val b.a2.val b.a3.val
       a.a2.val a.a3.val
-      rest adv_rest mem locs
-      q.a1.isU32 q.a2.isU32 b.a0.isU32 b.a1.isU32
+      rest adv_rest mem frames      q.a1.isU32 q.a2.isU32 b.a0.isU32 b.a1.isU32
       (u32_mod_isU32 _)
       (felt_ofNat_val_lt _ (u32_mod_lt_prime _))] at hexec
   simp at hexec
@@ -4476,14 +4447,14 @@ theorem u128_divmod_conditions_of_exec
           r.a0.val :: r.a1.val :: r.a2.val :: r.a3.val ::
           b.a0.val :: b.a1.val :: b.a2.val :: b.a3.val ::
           a.a2.val :: a.a3.val :: rest,
-          mem, locs, adv_rest⟩
+          mem, frames, adv_rest⟩
         divmodCol2b =
       some ⟨Felt.ofNat col2Madd2Lo :: Felt.ofNat (col2SumHi + col2Madd2Hi) ::
               q.a0.val :: q.a1.val :: q.a2.val :: q.a3.val ::
               r.a0.val :: r.a1.val :: r.a2.val :: r.a3.val ::
               b.a0.val :: b.a1.val :: b.a2.val :: b.a3.val ::
               a.a2.val :: a.a3.val :: rest,
-            mem, locs, adv_rest⟩ := by
+            mem, frames, adv_rest⟩ := by
     dsimp [c1Lo, c1Hi, col2Lo0, col2Hi0, col2Lo1, col2Hi1, col2SumHi, col2Madd2Lo,
       col2Madd2Hi]
     simpa using
@@ -4500,8 +4471,7 @@ theorem u128_divmod_conditions_of_exec
         r.a0.val r.a1.val r.a2.val r.a3.val
         b.a0.val b.a1.val b.a2.val b.a3.val
         a.a2.val a.a3.val
-        rest adv_rest mem locs
-        q.a0.isU32 b.a2.isU32)
+        rest adv_rest mem frames        q.a0.isU32 b.a2.isU32)
   have hexecCol2c :
       ((exec 163
           ⟨Felt.ofNat col2Madd2Lo :: Felt.ofNat (col2SumHi + col2Madd2Hi) ::
@@ -4509,7 +4479,7 @@ theorem u128_divmod_conditions_of_exec
               r.a0.val :: r.a1.val :: r.a2.val :: r.a3.val ::
               b.a0.val :: b.a1.val :: b.a2.val :: b.a3.val ::
               a.a2.val :: a.a3.val :: rest,
-            mem, locs, adv_rest⟩
+            mem, frames, adv_rest⟩
           divmodCol2c).bind
         fun a => exec 163 a (divmodCol3 ++ divmodTail)) =
       some s' := by
@@ -4551,7 +4521,7 @@ theorem u128_divmod_conditions_of_exec
               r.a0.val :: r.a1.val :: r.a2.val :: r.a3.val ::
               b.a0.val :: b.a1.val :: b.a2.val :: b.a3.val ::
               a.a2.val :: a.a3.val :: rest,
-            mem, locs, adv_rest⟩
+            mem, frames, adv_rest⟩
             divmodCol2b).bind
           (fun st => exec 163 st divmodCol2c) =
         exec 163
@@ -4560,7 +4530,7 @@ theorem u128_divmod_conditions_of_exec
               r.a0.val :: r.a1.val :: r.a2.val :: r.a3.val ::
               b.a0.val :: b.a1.val :: b.a2.val :: b.a3.val ::
               a.a2.val :: a.a3.val :: rest,
-            mem, locs, adv_rest⟩
+            mem, frames, adv_rest⟩
           divmodCol2c := by
       rw [hCol2b]
       simp [Option.bind]
@@ -4602,7 +4572,7 @@ theorem u128_divmod_conditions_of_exec
               r.a0.val :: r.a1.val :: r.a2.val :: r.a3.val ::
               b.a0.val :: b.a1.val :: b.a2.val :: b.a3.val ::
               a.a2.val :: a.a3.val :: rest,
-            mem, locs, adv_rest⟩
+            mem, frames, adv_rest⟩
             divmodCol2b).bind
           (fun st => exec 163 st divmodCol2c)).bind
         (fun a => exec 163 a (divmodCol3 ++ divmodTail)) =
@@ -4625,7 +4595,7 @@ theorem u128_divmod_conditions_of_exec
             r.a0.val :: r.a1.val :: r.a2.val :: r.a3.val ::
             b.a0.val :: b.a1.val :: b.a2.val :: b.a3.val ::
             a.a2.val :: a.a3.val :: rest,
-          mem, locs, adv_rest⟩
+          mem, frames, adv_rest⟩
         divmodCol2c =
       none by
         dsimp [c1Lo, c1Hi, col2Lo0, col2Hi0, col2Lo1, col2Hi1, col2SumHi, col2Madd2Lo,
@@ -4644,8 +4614,7 @@ theorem u128_divmod_conditions_of_exec
             r.a0.val r.a1.val r.a2.val r.a3.val
             b.a0.val b.a1.val b.a2.val b.a3.val
             a.a2.val a.a3.val
-            rest adv_rest mem locs
-            q.a0.isU32 q.a1.isU32 q.a2.isU32 r.a2.isU32
+            rest adv_rest mem frames            q.a0.isU32 q.a1.isU32 q.a2.isU32 r.a2.isU32
             b.a0.isU32 b.a1.isU32 b.a2.isU32
             (u32_mod_isU32 _) (felt_ofNat_isU32_of_lt _ hc1Hi_lt)
             (felt_ofNat_val_lt _ (u32_mod_lt_prime _))
@@ -4658,7 +4627,7 @@ theorem u128_divmod_conditions_of_exec
           r.a0.val :: r.a1.val :: r.a2.val :: r.a3.val ::
           b.a0.val :: b.a1.val :: b.a2.val :: b.a3.val ::
           a.a2.val :: a.a3.val :: rest,
-        mem, locs, adv_rest⟩
+        mem, frames, adv_rest⟩
       divmodCol2c =
     some ⟨Felt.ofNat
               (u128DivmodCol2 q.a0.val.val q.a1.val.val q.a2.val.val b.a0.val.val b.a1.val.val b.a2.val.val
@@ -4674,7 +4643,7 @@ theorem u128_divmod_conditions_of_exec
             r.a0.val :: r.a1.val :: r.a2.val :: r.a3.val ::
             b.a0.val :: b.a1.val :: b.a2.val :: b.a3.val ::
             a.a3.val :: rest,
-          mem, locs, adv_rest⟩ by
+          mem, frames, adv_rest⟩ by
       dsimp [c1Lo, c1Hi, col2Lo0, col2Hi0, col2Lo1, col2Hi1, col2SumHi, col2Madd2Lo,
         col2Madd2Hi]
       simpa using
@@ -4691,8 +4660,7 @@ theorem u128_divmod_conditions_of_exec
           r.a0.val r.a1.val r.a2.val r.a3.val
           b.a0.val b.a1.val b.a2.val b.a3.val
           a.a2.val a.a3.val
-          rest adv_rest mem locs
-          q.a0.isU32 q.a1.isU32 q.a2.isU32 r.a2.isU32
+          rest adv_rest mem frames          q.a0.isU32 q.a1.isU32 q.a2.isU32 r.a2.isU32
           b.a0.isU32 b.a1.isU32 b.a2.isU32
           (u32_mod_isU32 _) (felt_ofNat_isU32_of_lt _ hc1Hi_lt)
           (felt_ofNat_val_lt _ (u32_mod_lt_prime _))
@@ -4724,8 +4692,7 @@ theorem u128_divmod_conditions_of_exec
       r.a0.val r.a1.val r.a2.val r.a3.val
       b.a0.val b.a1.val b.a2.val b.a3.val
       a.a3.val
-      rest adv_rest mem locs
-      q.a2.isU32 q.a3.isU32 b.a0.isU32 b.a1.isU32
+      rest adv_rest mem frames      q.a2.isU32 q.a3.isU32 b.a0.isU32 b.a1.isU32
       (u32_mod_isU32 _)] at hexec
   simp at hexec
   simp only [← two_pow_32] at hexec
@@ -4783,14 +4750,14 @@ theorem u128_divmod_conditions_of_exec
           r.a0.val :: r.a1.val :: r.a2.val :: r.a3.val ::
           b.a0.val :: b.a1.val :: b.a2.val :: b.a3.val ::
           a.a3.val :: rest,
-        mem, locs, adv_rest⟩
+        mem, frames, adv_rest⟩
         divmodCol3b =
       some ⟨Felt.ofNat col3Madd2Lo :: Felt.ofNat (col3SumHi + col3Madd2Hi) ::
               q.a0.val :: q.a1.val :: q.a2.val :: q.a3.val ::
               r.a0.val :: r.a1.val :: r.a2.val :: r.a3.val ::
               b.a0.val :: b.a1.val :: b.a2.val :: b.a3.val ::
               a.a3.val :: rest,
-            mem, locs, adv_rest⟩ := by
+            mem, frames, adv_rest⟩ := by
     dsimp [c2Lo, c2Hi, col3Lo0, col3Hi0, col3Lo1, col3Hi1, col3SumHi, col3Madd2Lo,
       col3Madd2Hi]
     simpa using
@@ -4809,8 +4776,7 @@ theorem u128_divmod_conditions_of_exec
         r.a0.val r.a1.val r.a2.val r.a3.val
         b.a0.val b.a1.val b.a2.val b.a3.val
         a.a3.val
-        rest adv_rest mem locs
-        q.a1.isU32 b.a2.isU32)
+        rest adv_rest mem frames        q.a1.isU32 b.a2.isU32)
   have hexecCol3c :
       ((exec 163
           ⟨Felt.ofNat col3Madd2Lo :: Felt.ofNat (col3SumHi + col3Madd2Hi) ::
@@ -4818,7 +4784,7 @@ theorem u128_divmod_conditions_of_exec
               r.a0.val :: r.a1.val :: r.a2.val :: r.a3.val ::
               b.a0.val :: b.a1.val :: b.a2.val :: b.a3.val ::
               a.a3.val :: rest,
-            mem, locs, adv_rest⟩
+            mem, frames, adv_rest⟩
           divmodCol3c).bind
         fun a => exec 163 a divmodTail) =
       some s' := by
@@ -4860,7 +4826,7 @@ theorem u128_divmod_conditions_of_exec
               r.a0.val :: r.a1.val :: r.a2.val :: r.a3.val ::
               b.a0.val :: b.a1.val :: b.a2.val :: b.a3.val ::
               a.a3.val :: rest,
-            mem, locs, adv_rest⟩
+            mem, frames, adv_rest⟩
             divmodCol3b).bind
           (fun st => exec 163 st divmodCol3c) =
         exec 163
@@ -4869,7 +4835,7 @@ theorem u128_divmod_conditions_of_exec
               r.a0.val :: r.a1.val :: r.a2.val :: r.a3.val ::
               b.a0.val :: b.a1.val :: b.a2.val :: b.a3.val ::
               a.a3.val :: rest,
-            mem, locs, adv_rest⟩
+            mem, frames, adv_rest⟩
           divmodCol3c := by
       rw [hCol3b]
       simp [Option.bind]
@@ -4911,7 +4877,7 @@ theorem u128_divmod_conditions_of_exec
               r.a0.val :: r.a1.val :: r.a2.val :: r.a3.val ::
               b.a0.val :: b.a1.val :: b.a2.val :: b.a3.val ::
               a.a3.val :: rest,
-            mem, locs, adv_rest⟩
+            mem, frames, adv_rest⟩
             divmodCol3b).bind
           (fun st => exec 163 st divmodCol3c)).bind
         (fun a => exec 163 a divmodTail) =
@@ -4940,8 +4906,7 @@ theorem u128_divmod_conditions_of_exec
         r.a0.val r.a1.val r.a2.val r.a3.val
         b.a0.val b.a1.val b.a2.val b.a3.val
         a.a3.val
-        rest adv_rest mem locs
-        q.a0.isU32 q.a1.isU32 q.a2.isU32 q.a3.isU32
+        rest adv_rest mem frames        q.a0.isU32 q.a1.isU32 q.a2.isU32 q.a3.isU32
         r.a3.isU32
         b.a0.isU32 b.a1.isU32 b.a2.isU32 b.a3.isU32
         (u32_mod_isU32 _)
@@ -4966,8 +4931,7 @@ theorem u128_divmod_conditions_of_exec
         r.a0.val r.a1.val r.a2.val r.a3.val
         b.a0.val b.a1.val b.a2.val b.a3.val
         a.a3.val
-        rest adv_rest mem locs
-        q.a0.isU32 q.a1.isU32 q.a2.isU32 q.a3.isU32
+        rest adv_rest mem frames        q.a0.isU32 q.a1.isU32 q.a2.isU32 q.a3.isU32
         r.a2.isU32 r.a3.isU32
         b.a0.isU32 b.a1.isU32 b.a2.isU32 b.a3.isU32
         (u32_mod_isU32 _) (felt_ofNat_isU32_of_lt _ hc2Hi_lt)
@@ -4986,8 +4950,7 @@ theorem u128_divmod_conditions_of_exec
       r.a0.val r.a1.val r.a2.val r.a3.val
       b.a0.val b.a1.val b.a2.val b.a3.val
       a.a3.val
-      rest adv_rest mem locs
-      q.a0.isU32 q.a1.isU32 q.a2.isU32 q.a3.isU32
+      rest adv_rest mem frames      q.a0.isU32 q.a1.isU32 q.a2.isU32 q.a3.isU32
       r.a3.isU32
       b.a0.isU32 b.a1.isU32 b.a2.isU32 b.a3.isU32
       (u32_mod_isU32 _)
@@ -5006,16 +4969,14 @@ theorem u128_divmod_conditions_of_exec
           q.a0.val q.a1.val q.a2.val q.a3.val
           r.a0.val r.a1.val r.a2.val r.a3.val
           b.a0.val b.a1.val b.a2.val b.a3.val
-          rest adv_rest mem locs
-          q.a1.isU32 q.a2.isU32 q.a3.isU32
+          rest adv_rest mem frames          q.a1.isU32 q.a2.isU32 q.a3.isU32
           b.a1.isU32 b.a2.isU32 b.a3.isU32] at hexec
       simp [hover_true] at hexec
   rw [divmodOverflow_eval
       q.a0.val q.a1.val q.a2.val q.a3.val
       r.a0.val r.a1.val r.a2.val r.a3.val
       b.a0.val b.a1.val b.a2.val b.a3.val
-      rest adv_rest mem locs
-      q.a1.isU32 q.a2.isU32 q.a3.isU32
+      rest adv_rest mem frames      q.a1.isU32 q.a2.isU32 q.a3.isU32
       b.a1.isU32 b.a2.isU32 b.a3.isU32] at hexec
   simp [hover_false, bind, Bind.bind, Option.bind] at hexec
   have hover_parts := by
@@ -5048,24 +5009,21 @@ theorem u128_divmod_conditions_of_exec
       q.a0.val q.a1.val q.a2.val q.a3.val
       r.a0.val r.a1.val r.a2.val r.a3.val
       b.a0.val b.a1.val b.a2.val b.a3.val
-      rest adv_rest mem locs
-      r.a0.isU32 b.a0.isU32] at hexec
+      rest adv_rest mem frames      r.a0.isU32 b.a0.isU32] at hexec
   simp at hexec
   rw [exec_append] at hexec
   rw [divmodCompare2_run
       q.a0.val q.a1.val q.a2.val q.a3.val
       r.a0.val r.a1.val r.a2.val r.a3.val
       b.a0.val b.a1.val b.a2.val b.a3.val
-      rest adv_rest mem locs
-      r.a0.isU32 r.a1.isU32 b.a0.isU32 b.a1.isU32] at hexec
+      rest adv_rest mem frames      r.a0.isU32 r.a1.isU32 b.a0.isU32 b.a1.isU32] at hexec
   simp at hexec
   rw [exec_append] at hexec
   rw [divmodCompare3_run
       q.a0.val q.a1.val q.a2.val q.a3.val
       r.a0.val r.a1.val r.a2.val r.a3.val
       b.a0.val b.a1.val b.a2.val b.a3.val
-      rest adv_rest mem locs
-      r.a0.isU32 r.a1.isU32 r.a2.isU32
+      rest adv_rest mem frames      r.a0.isU32 r.a1.isU32 r.a2.isU32
       b.a0.isU32 b.a1.isU32 b.a2.isU32] at hexec
   simp at hexec
   have h_lt_result : u128LtBool r.a0.val r.a1.val r.a2.val r.a3.val b.a0.val b.a1.val b.a2.val b.a3.val = true := by
@@ -5074,8 +5032,7 @@ theorem u128_divmod_conditions_of_exec
         q.a0.val q.a1.val q.a2.val q.a3.val
         r.a0.val r.a1.val r.a2.val r.a3.val
         b.a0.val b.a1.val b.a2.val b.a3.val
-        rest adv_rest mem locs
-        r.a0.isU32 r.a1.isU32 r.a2.isU32 r.a3.isU32
+        rest adv_rest mem frames        r.a0.isU32 r.a1.isU32 r.a2.isU32 r.a3.isU32
         b.a0.isU32 b.a1.isU32 b.a2.isU32 b.a3.isU32
         h_not] at hexec
     simp at hexec
@@ -5170,7 +5127,7 @@ theorem u128_divmod_correct
     some { stack := r.a0.val :: r.a1.val :: r.a2.val :: r.a3.val ::
                      q.a0.val :: q.a1.val :: q.a2.val :: q.a3.val :: rest,
            memory := s.memory,
-           locals := s.locals,
+           frames := s.frames,
            advice := adv_rest }
     ↔ (q.toNat * b.toNat + r.toNat = a.toNat ∧ r.toNat < b.toNat) := by
   constructor

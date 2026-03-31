@@ -101,6 +101,7 @@ macro_rules
       | (rw [stepU32DivMod (ha := by assumption) (hb := by assumption) (hbnz := by assumption)]; miden_bind)
       -- U32 arithmetic (with isU32 hypotheses via assumption)
       | (rw [stepU32WidenAdd (ha := by assumption) (hb := by assumption)]; miden_bind)
+      | (rw [stepU32OverflowAdd (ha := by assumption) (hb := by assumption)]; miden_bind)
       | (rw [stepU32WidenAdd3 (ha := by assumption) (hb := by assumption) (hc := by assumption)]; miden_bind)
       | (rw [stepU32OverflowSub (ha := by assumption) (hb := by assumption)]; miden_bind)
       | (rw [stepU32WidenMul (ha := by assumption) (hb := by assumption)]; miden_bind)
@@ -132,7 +133,15 @@ macro_rules
       | (rw [stepAdvPush1 (hadv := by assumption)]; miden_bind)
       | (rw [stepAdvPush2 (hadv := by assumption)]; miden_bind)
       -- No-ops
-      | rw [stepEmitImm]; miden_bind)
+      | rw [stepEmitImm]; miden_bind
+      -- Local memory (with frame hypotheses via assumption)
+      | (rw [stepLocLoad (hidx := by assumption)]; miden_bind)
+      | (rw [stepLocStore (hidx := by assumption)]; miden_bind)
+      | (rw [stepLocStorewBe (halign := by assumption) (hbound := by assumption)]; miden_bind)
+      | (rw [stepLocStorewLe (halign := by assumption) (hbound := by assumption)]; miden_bind)
+      | (rw [stepLocLoadwBe (halign := by assumption) (hbound := by assumption)]; miden_bind)
+      | (rw [stepLocLoadwLe (halign := by assumption) (hbound := by assumption)]; miden_bind)
+      | (rw [stepLocAddr (hidx := by assumption)]; miden_bind))
 
 /-- Step through all remaining instructions, finishing with pure. -/
 syntax "miden_steps" : tactic
@@ -146,38 +155,39 @@ macro_rules
 
 open Lean Elab Tactic Meta in
 /-- `miden_setup ProcName` automates the standard boilerplate for `exec`-based proofs.
-    Destructures `s`, substitutes `hs`, unfolds `exec`/`execWithEnv`, and normalizes.
+    Destructures `s`, substitutes `hs`, unfolds `exec`, the block wrapper, and `execWithEnv`,
+    then normalizes.
     After `miden_setup`, the goal is a chain of `execInstruction` calls bound with `>>=`. -/
 elab "miden_setup " proc:term : tactic => do
   let s := mkIdent `s
   let hs := mkIdent `hs
   let stk := mkIdent `stk
   let mem := mkIdent `mem
-  let locs := mkIdent `locs
+  let frames := mkIdent `frames
   let adv := mkIdent `adv
-  evalTactic (← `(tactic| obtain ⟨$stk, $mem, $locs, $adv⟩ := $s))
+  evalTactic (← `(tactic| obtain ⟨$stk, $mem, $frames, $adv⟩ := $s))
   evalTactic (← `(tactic| simp only [MidenState.withStack] at $hs ⊢))
   evalTactic (← `(tactic| subst $hs))
   let procId : TSyntax `ident := ⟨proc.raw⟩
   evalTactic (← `(tactic| unfold exec $procId execWithEnv))
-  evalTactic (← `(tactic| simp only [List.foldlM]))
+  evalTactic (← `(tactic| simp only [List.foldlM, Procedure.ofOps]))
 
 open Lean Elab Tactic Meta in
 /-- `miden_setup_env ProcName` is like `miden_setup` but for `execWithEnv`-based proofs.
-    Unfolds the procedure and execWithEnv (not `exec`). -/
+    Unfolds the procedure and `execWithEnv`. -/
 elab "miden_setup_env " proc:term : tactic => do
   let s := mkIdent `s
   let hs := mkIdent `hs
   let stk := mkIdent `stk
   let mem := mkIdent `mem
-  let locs := mkIdent `locs
+  let frames := mkIdent `frames
   let adv := mkIdent `adv
-  evalTactic (← `(tactic| obtain ⟨$stk, $mem, $locs, $adv⟩ := $s))
+  evalTactic (← `(tactic| obtain ⟨$stk, $mem, $frames, $adv⟩ := $s))
   evalTactic (← `(tactic| simp only [MidenState.withStack] at $hs ⊢))
   evalTactic (← `(tactic| subst $hs))
   let procId : TSyntax `ident := ⟨proc.raw⟩
   evalTactic (← `(tactic| unfold $procId execWithEnv))
-  evalTactic (← `(tactic| simp only [List.foldlM]))
+  evalTactic (← `(tactic| simp only [List.foldlM, Procedure.ofOps]))
 
 -- ============================================================================
 -- miden_call: resolve a procedure call
@@ -202,7 +212,7 @@ macro_rules
     `(tactic|
       (dsimp only [bind, Bind.bind, Option.bind]
        unfold $proc execWithEnv
-       simp only [List.foldlM]))
+       simp only [List.foldlM, Procedure.ofOps]))
 
 -- ============================================================================
 -- miden_loop: unfold one repeat iteration
@@ -217,7 +227,7 @@ macro_rules
   | `(tactic| miden_loop) =>
     `(tactic|
       (unfold execWithEnv.doRepeat
-       try (unfold execWithEnv; simp only [List.foldlM])))
+       try (unfold execWithEnv; simp only [List.foldlM, Procedure.ofOps])))
 
 -- ============================================================================
 -- miden_recover: Felt.ofNat value recovery

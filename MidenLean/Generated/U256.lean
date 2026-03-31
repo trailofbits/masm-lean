@@ -5,20 +5,29 @@ open MidenLean
 
 namespace Miden.Core.U256
 
-def u256_le_to_be : List Op := [
+def u256_le_to_be : Procedure := {
+  name := "u256_le_to_be",
+  numLocals := 0,
+  body := [
   .inst (.reversew),
   .inst (.swapw 1),
   .inst (.reversew)
-]
+] }
 
-def u256_le_to_be_pair : List Op := [
+def u256_le_to_be_pair : Procedure := {
+  name := "u256_le_to_be_pair",
+  numLocals := 0,
+  body := [
   .inst (.exec "u256_le_to_be"),
   .inst (.swapdw),
   .inst (.exec "u256_le_to_be"),
   .inst (.swapdw)
-]
+] }
 
-def add_with_carry_be : List Op := [
+def add_with_carry_be : Procedure := {
+  name := "add_with_carry_be",
+  numLocals := 0,
+  body := [
   .inst (.swapw 3),
   .inst (.movup 3),
   .inst (.movup 7),
@@ -47,31 +56,43 @@ def add_with_carry_be : List Op := [
   .inst (.movup 4),
   .inst (.movup 5),
   .inst (.u32OverflowAdd3)
-]
+] }
 
-def wrapping_add : List Op := [
+def wrapping_add : Procedure := {
+  name := "wrapping_add",
+  numLocals := 0,
+  body := [
   .inst (.exec "u256_le_to_be_pair"),
   .inst (.exec "add_with_carry_be"),
   .inst (.drop),
   .inst (.exec "u256_le_to_be")
-]
+] }
 
-def overflowing_add : List Op := [
+def overflowing_add : Procedure := {
+  name := "overflowing_add",
+  numLocals := 0,
+  body := [
   .inst (.exec "u256_le_to_be_pair"),
   .inst (.exec "add_with_carry_be"),
   .inst (.movdn 8),
   .inst (.exec "u256_le_to_be"),
   .inst (.movup 8)
-]
+] }
 
-def widening_add : List Op := [
+def widening_add : Procedure := {
+  name := "widening_add",
+  numLocals := 0,
+  body := [
   .inst (.exec "u256_le_to_be_pair"),
   .inst (.exec "add_with_carry_be"),
   .inst (.movdn 8),
   .inst (.exec "u256_le_to_be")
-]
+] }
 
-def sub_with_borrow_be : List Op := [
+def sub_with_borrow_be : Procedure := {
+  name := "sub_with_borrow_be",
+  numLocals := 0,
+  body := [
   .inst (.swapw 3),
   .inst (.movup 3),
   .inst (.movup 7),
@@ -125,24 +146,33 @@ def sub_with_borrow_be : List Op := [
   .inst (.u32OverflowSub),
   .inst (.movup 2),
   .inst (.add)
-]
+] }
 
-def wrapping_sub : List Op := [
+def wrapping_sub : Procedure := {
+  name := "wrapping_sub",
+  numLocals := 0,
+  body := [
   .inst (.exec "u256_le_to_be_pair"),
   .inst (.exec "sub_with_borrow_be"),
   .inst (.drop),
   .inst (.exec "u256_le_to_be")
-]
+] }
 
-def overflowing_sub : List Op := [
+def overflowing_sub : Procedure := {
+  name := "overflowing_sub",
+  numLocals := 0,
+  body := [
   .inst (.exec "u256_le_to_be_pair"),
   .inst (.exec "sub_with_borrow_be"),
   .inst (.movdn 8),
   .inst (.exec "u256_le_to_be"),
   .inst (.movup 8)
-]
+] }
 
-def and : List Op := [
+def and : Procedure := {
+  name := "and",
+  numLocals := 0,
+  body := [
   .inst (.swapw 3),
   .inst (.movup 3),
   .inst (.movup 7),
@@ -169,9 +199,12 @@ def and : List Op := [
   .inst (.movup 3),
   .inst (.movup 4),
   .inst (.u32And)
-]
+] }
 
-def or : List Op := [
+def or : Procedure := {
+  name := "or",
+  numLocals := 0,
+  body := [
   .inst (.swapw 3),
   .inst (.movup 3),
   .inst (.movup 7),
@@ -198,9 +231,12 @@ def or : List Op := [
   .inst (.movup 3),
   .inst (.movup 4),
   .inst (.u32Or)
-]
+] }
 
-def xor : List Op := [
+def xor : Procedure := {
+  name := "xor",
+  numLocals := 0,
+  body := [
   .inst (.swapw 3),
   .inst (.movup 3),
   .inst (.movup 7),
@@ -227,18 +263,24 @@ def xor : List Op := [
   .inst (.movup 3),
   .inst (.movup 4),
   .inst (.u32Xor)
-]
+] }
 
-def eqz : List Op := [
+def eqz : Procedure := {
+  name := "eqz",
+  numLocals := 0,
+  body := [
   .inst (.eqImm 0),
   .repeat 7 [
     .inst (.swap 1),
     .inst (.eqImm 0),
     .inst (.and)
 ]
-]
+] }
 
-def eq : List Op := [
+def eq : Procedure := {
+  name := "eq",
+  numLocals := 0,
+  body := [
   .inst (.exec "u256_le_to_be_pair"),
   .inst (.swapw 3),
   .inst (.eqw),
@@ -251,18 +293,24 @@ def eq : List Op := [
   .inst (.dropw),
   .inst (.dropw),
   .inst (.and)
-]
+] }
 
-def mulstep : List Op := [
+def mulstep : Procedure := {
+  name := "mulstep",
+  numLocals := 0,
+  body := [
   .inst (.movdn 2),
   .inst (.u32WidenMadd),
   .inst (.movup 2),
   .inst (.u32OverflowAdd),
   .inst (.movup 2),
   .inst (.add)
-]
+] }
 
-def mulstep4 : List Op := [
+def mulstep4 : Procedure := {
+  name := "mulstep4",
+  numLocals := 0,
+  body := [
   .inst (.movup 12),
   .inst (.dup 1),
   .inst (.movup 10),
@@ -291,9 +339,12 @@ def mulstep4 : List Op := [
   .inst (.exec "mulstep"),
   .inst (.swap 1),
   .inst (.movdn 6)
-]
+] }
 
-def wrapping_mul : List Op := [
+def wrapping_mul : Procedure := {
+  name := "wrapping_mul",
+  numLocals := 24,
+  body := [
   .inst (.exec "u256_le_to_be_pair"),
   .inst (.locStorewBe 0),
   .inst (.dropw),
@@ -611,6 +662,6 @@ def wrapping_mul : List Op := [
   .inst (.swapdw),
   .inst (.dropw),
   .inst (.dropw)
-]
+] }
 
 end Miden.Core.U256

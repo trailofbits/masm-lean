@@ -5,11 +5,17 @@ open MidenLean
 
 namespace Miden.Core.Word
 
-def reverse : List Op := [
+def reverse : Procedure := {
+  name := "reverse",
+  numLocals := 0,
+  body := [
   .inst (.reversew)
-]
+] }
 
-def store_word_u32s_le : List Op := [
+def store_word_u32s_le : Procedure := {
+  name := "store_word_u32s_le",
+  numLocals := 0,
+  body := [
   .inst (.swap 1),
   .inst (.u32Split),
   .inst (.movup 2),
@@ -25,18 +31,24 @@ def store_word_u32s_le : List Op := [
   .inst (.addImm 4),
   .inst (.memStorewLe),
   .inst (.dropw)
-]
+] }
 
-def eqz : List Op := [
+def eqz : Procedure := {
+  name := "eqz",
+  numLocals := 0,
+  body := [
   .inst (.eqImm 0),
   .repeat 3 [
     .inst (.swap 1),
     .inst (.eqImm 0),
     .inst (.and)
 ]
-]
+] }
 
-def testz : List Op := [
+def testz : Procedure := {
+  name := "testz",
+  numLocals := 0,
+  body := [
   .repeat 4 [
     .inst (.dup 3),
     .inst (.eqImm 0)
@@ -44,9 +56,12 @@ def testz : List Op := [
   .inst (.and),
   .inst (.and),
   .inst (.and)
-]
+] }
 
-def gt : List Op := [
+def gt : Procedure := {
+  name := "gt",
+  numLocals := 0,
+  body := [
   .inst (.exec "arrange_words_adjacent_le"),
   .inst (.push 1),
   .inst (.push 0),
@@ -67,14 +82,20 @@ def gt : List Op := [
 ],
   .inst (.swap 1),
   .inst (.drop)
-]
+] }
 
-def gte : List Op := [
+def gte : Procedure := {
+  name := "gte",
+  numLocals := 0,
+  body := [
   .inst (.exec "lt"),
   .inst (.not)
-]
+] }
 
-def lt : List Op := [
+def lt : Procedure := {
+  name := "lt",
+  numLocals := 0,
+  body := [
   .inst (.exec "arrange_words_adjacent_le"),
   .inst (.push 1),
   .inst (.push 0),
@@ -95,14 +116,20 @@ def lt : List Op := [
 ],
   .inst (.swap 1),
   .inst (.drop)
-]
+] }
 
-def lte : List Op := [
+def lte : Procedure := {
+  name := "lte",
+  numLocals := 0,
+  body := [
   .inst (.exec "gt"),
   .inst (.not)
-]
+] }
 
-def eq : List Op := [
+def eq : Procedure := {
+  name := "eq",
+  numLocals := 0,
+  body := [
   .inst (.movup 4),
   .inst (.eq),
   .inst (.swap 1),
@@ -116,9 +143,12 @@ def eq : List Op := [
   .inst (.movdn 2),
   .inst (.eq),
   .inst (.and)
-]
+] }
 
-def test_eq : List Op := [
+def test_eq : Procedure := {
+  name := "test_eq",
+  numLocals := 0,
+  body := [
   .inst (.dup 7),
   .inst (.dup 4),
   .inst (.eq),
@@ -134,9 +164,12 @@ def test_eq : List Op := [
   .inst (.dup 2),
   .inst (.eq),
   .inst (.and)
-]
+] }
 
-def arrange_words_adjacent_le : List Op := [
+def arrange_words_adjacent_le : Procedure := {
+  name := "arrange_words_adjacent_le",
+  numLocals := 0,
+  body := [
   .inst (.movup 7),
   .inst (.movup 4),
   .inst (.swap 1),
@@ -150,6 +183,6 @@ def arrange_words_adjacent_le : List Op := [
   .inst (.movdn 5),
   .inst (.movup 7),
   .inst (.movdn 6)
-]
+] }
 
 end Miden.Core.Word

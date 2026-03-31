@@ -11,17 +11,17 @@ open MidenLean.Tactics
 theorem u64_overflowing_add_run
     (env : ProcEnv) (fuel : Nat)
     (a_lo a_hi b_lo b_hi : Felt) (rest : List Felt)
-    (mem locs : Nat → Felt) (adv : List Felt)
+    (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (ha_lo : a_lo.isU32 = true) (ha_hi : a_hi.isU32 = true)
     (hb_lo : b_lo.isU32 = true) (hb_hi : b_hi.isU32 = true) :
-    execWithEnv env (fuel + 1) ⟨b_lo :: b_hi :: a_lo :: a_hi :: rest, mem, locs, adv⟩
+    execWithEnv env (fuel + 1) ⟨b_lo :: b_hi :: a_lo :: a_hi :: rest, mem, frames, adv⟩
       Miden.Core.U64.overflowing_add =
     some ⟨
       Felt.ofNat ((a_hi.val + b_hi.val + (b_lo.val + a_lo.val) / 2 ^ 32) / 2 ^ 32) ::
       Felt.ofNat ((b_lo.val + a_lo.val) % 2 ^ 32) ::
       Felt.ofNat ((a_hi.val + b_hi.val + (b_lo.val + a_lo.val) / 2 ^ 32) % 2 ^ 32) ::
       rest,
-      mem, locs, adv⟩ := by
+      mem, frames, adv⟩ := by
   unfold Miden.Core.U64.overflowing_add execWithEnv
   simp only [List.foldlM]
   miden_movup
@@ -59,11 +59,11 @@ theorem u64_overflowing_add_raw
       Felt.ofNat (hi_sum / 2 ^ 32) ::
       Felt.ofNat (lo_sum % 2 ^ 32) ::
       Felt.ofNat (hi_sum % 2 ^ 32) :: rest)) := by
-  obtain ⟨stk, mem, locs, adv⟩ := s
+  obtain ⟨stk, mem, frames, adv⟩ := s
   simp only [MidenState.withStack] at hs ⊢
   subst hs
   simpa [exec] using
-    u64_overflowing_add_run (fun _ => none) 9 a_lo a_hi b_lo b_hi rest mem locs adv
+    u64_overflowing_add_run (fun _ => none) 9 a_lo a_hi b_lo b_hi rest mem frames adv
       ha_lo ha_hi hb_lo hb_hi
 
 /-- `u64::overflowing_add` computes `a + b` with overflow detection.

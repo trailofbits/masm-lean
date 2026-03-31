@@ -18,10 +18,10 @@ private theorem ptr_add4_val (ptr : Felt) (hptr_room : ptr.val + 4 < 2 ^ 32) :
   rw [ZMod.val_add, felt4_val, Nat.mod_eq_of_lt hlt]
 
 private theorem stepMemStorewLeLocal
-    (mem locs : Nat → Felt) (adv : List Felt)
+    (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (a e0 e1 e2 e3 : Felt) (rest : List Felt)
     (ha_lt : a.val < 2 ^ 32) (ha_aligned : a.val % 4 = 0) :
-    execInstruction ⟨a :: e0 :: e1 :: e2 :: e3 :: rest, mem, locs, adv⟩ .memStorewLe =
+    execInstruction ⟨a :: e0 :: e1 :: e2 :: e3 :: rest, mem, frames, adv⟩ .memStorewLe =
       some ⟨e0 :: e1 :: e2 :: e3 :: rest,
         fun addr =>
           if addr = a.val + 3 then e3
@@ -29,7 +29,7 @@ private theorem stepMemStorewLeLocal
           else if addr = a.val + 1 then e1
           else if addr = a.val then e0
           else mem addr,
-        locs, adv⟩ := by
+        frames, adv⟩ := by
   unfold execInstruction execMemStorewLe
   have hlt : ¬a.val >= u32Max := by
     unfold u32Max
@@ -60,7 +60,7 @@ theorem word_store_word_u32s_le_correct
           |>.writeMemory (addr + 6) w3.lo32
           |>.writeMemory (addr + 7) w3.hi32
           |>.withStack rest)) := by
-  obtain ⟨stk, mem, locs, adv⟩ := s
+  obtain ⟨stk, mem, frames, adv⟩ := s
   simp only at hs
   subst hs
   let addr := out_ptr.val
