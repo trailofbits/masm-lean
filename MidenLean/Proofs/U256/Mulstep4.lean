@@ -127,10 +127,182 @@ theorem mulstep_execWithEnv
   simp only [pure, Pure.pure]
 
 -- ============================================================================
+-- Chunk definitions for mulstep4 decomposition
+-- ============================================================================
+
+/-- Setup and first mulstep call: movup 12, dup 1, movup 10, push 0, exec mulstep -/
+private def mulstep4_chunk1 : List Op := [
+  .inst (.movup 12), .inst (.dup 1), .inst (.movup 10), .inst (.push 0),
+  .inst (.exec "mulstep")
+]
+
+/-- Post-call-1 shuffle and second mulstep call -/
+private def mulstep4_chunk2 : List Op := [
+  .inst (.swap 1), .inst (.movdn 9), .inst (.dup 1), .inst (.movup 9),
+  .inst (.movup 13), .inst (.swap 3), .inst (.exec "mulstep")
+]
+
+/-- Post-call-2 shuffle and third mulstep call -/
+private def mulstep4_chunk3 : List Op := [
+  .inst (.swap 1), .inst (.movdn 8), .inst (.dup 1), .inst (.movup 8),
+  .inst (.movup 12), .inst (.swap 3), .inst (.exec "mulstep")
+]
+
+/-- Post-call-3 shuffle and fourth mulstep call -/
+private def mulstep4_chunk4 : List Op := [
+  .inst (.swap 1), .inst (.movdn 7), .inst (.dup 1), .inst (.movup 7),
+  .inst (.movup 11), .inst (.swap 3), .inst (.exec "mulstep")
+]
+
+/-- Final swap and movdn -/
+private def mulstep4_chunk5 : List Op := [
+  .inst (.swap 1), .inst (.movdn 6)
+]
+
+private theorem mulstep4_decomp :
+    Miden.Core.U256.mulstep4.body =
+    mulstep4_chunk1 ++ (mulstep4_chunk2 ++ (mulstep4_chunk3 ++
+      (mulstep4_chunk4 ++ mulstep4_chunk5))) := by
+  simp [Miden.Core.U256.mulstep4, mulstep4_chunk1, mulstep4_chunk2,
+        mulstep4_chunk3, mulstep4_chunk4, mulstep4_chunk5]
+
+-- ============================================================================
+-- Chunk correctness lemmas
+-- ============================================================================
+
+set_option maxHeartbeats 8000000 in
+/-- Chunk 1: setup + first mulstep.
+    Stack [x0..x12] ++ rest → [carry1, lo1, x0..x7, x9..x11] ++ rest -/
+private theorem mulstep4_chunk1_correct
+    (x0 x1 x2 x3 x4 x5 x6 x7 x8 x9 x10 x11 x12 : Felt) (rest : List Felt)
+    (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
+    (hx0 : x0.isU32 = true) (hx8 : x8.isU32 = true) (hx12 : x12.isU32 = true) :
+    execWithEnv u256ProcEnv 109
+      ⟨x0 :: x1 :: x2 :: x3 :: x4 :: x5 :: x6 :: x7 :: x8 :: x9 :: x10 :: x11 :: x12 :: rest,
+       mem, frames, adv⟩
+      mulstep4_chunk1 =
+    some ⟨mulstepCarry 0 x8 x0 x12 :: mulstepLo 0 x8 x0 x12 ::
+          x0 :: x1 :: x2 :: x3 :: x4 :: x5 :: x6 :: x7 :: x9 :: x10 :: x11 :: rest,
+          mem, frames, adv⟩ := by
+  unfold mulstep4_chunk1 execWithEnv
+  simp only [List.foldlM]
+  miden_movup; miden_dup; miden_movup; miden_step  -- push 0
+  simp only [u256ProcEnv]
+  have h0u : (0 : Felt).isU32 = true := by simp [Felt.isU32]
+  have hcall := mulstep_execWithEnv u256ProcEnv 107 0 x8 x0 x12
+    (x0 :: x1 :: x2 :: x3 :: x4 :: x5 :: x6 :: x7 :: x9 :: x10 :: x11 :: rest)
+    ⟨0 :: x8 :: x0 :: x12 :: x0 :: x1 :: x2 :: x3 :: x4 :: x5 :: x6 :: x7 :: x9 :: x10 :: x11 :: rest,
+     mem, frames, adv⟩
+    rfl h0u hx8 hx0 hx12
+  simp only [MidenState.withStack] at hcall
+  simp only [hcall, pure, Pure.pure]
+
+set_option maxHeartbeats 8000000 in
+/-- Chunk 2: post-call-1 shuffle + second mulstep.
+    Stack [carry, lo_prev, x0..x7, x9..x11] ++ rest
+    → [carry', lo', x0..x6, lo_prev, x9, x10] ++ rest -/
+private theorem mulstep4_chunk2_correct
+    (carry lo_prev x0 x1 x2 x3 x4 x5 x6 x7 x9 x10 x11 : Felt) (rest : List Felt)
+    (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
+    (hcarry : carry.isU32 = true) (hx0 : x0.isU32 = true)
+    (hx7 : x7.isU32 = true) (hx11 : x11.isU32 = true) :
+    execWithEnv u256ProcEnv 109
+      ⟨carry :: lo_prev :: x0 :: x1 :: x2 :: x3 :: x4 :: x5 :: x6 :: x7 :: x9 :: x10 :: x11 :: rest,
+       mem, frames, adv⟩
+      mulstep4_chunk2 =
+    some ⟨mulstepCarry carry x7 x0 x11 :: mulstepLo carry x7 x0 x11 ::
+          x0 :: x1 :: x2 :: x3 :: x4 :: x5 :: x6 :: lo_prev :: x9 :: x10 :: rest,
+          mem, frames, adv⟩ := by
+  unfold mulstep4_chunk2 execWithEnv
+  simp only [List.foldlM]
+  miden_swap; miden_movdn; miden_dup; miden_movup; miden_movup; miden_swap
+  simp only [u256ProcEnv]
+  have hcall := mulstep_execWithEnv u256ProcEnv 107 carry x7 x0 x11
+    (x0 :: x1 :: x2 :: x3 :: x4 :: x5 :: x6 :: lo_prev :: x9 :: x10 :: rest)
+    ⟨carry :: x7 :: x0 :: x11 :: x0 :: x1 :: x2 :: x3 :: x4 :: x5 :: x6 :: lo_prev :: x9 :: x10 :: rest,
+     mem, frames, adv⟩
+    rfl hcarry hx7 hx0 hx11
+  simp only [MidenState.withStack] at hcall
+  simp only [hcall, pure, Pure.pure]
+
+set_option maxHeartbeats 8000000 in
+/-- Chunk 3: post-call-2 shuffle + third mulstep.
+    Stack [carry, lo_prev, x0..x6, lo1, x9, x10] ++ rest
+    → [carry', lo', x0..x5, lo_prev, lo1, x9] ++ rest -/
+private theorem mulstep4_chunk3_correct
+    (carry lo_prev x0 x1 x2 x3 x4 x5 x6 lo1 x9 x10 : Felt) (rest : List Felt)
+    (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
+    (hcarry : carry.isU32 = true) (hx0 : x0.isU32 = true)
+    (hx6 : x6.isU32 = true) (hx10 : x10.isU32 = true) :
+    execWithEnv u256ProcEnv 109
+      ⟨carry :: lo_prev :: x0 :: x1 :: x2 :: x3 :: x4 :: x5 :: x6 :: lo1 :: x9 :: x10 :: rest,
+       mem, frames, adv⟩
+      mulstep4_chunk3 =
+    some ⟨mulstepCarry carry x6 x0 x10 :: mulstepLo carry x6 x0 x10 ::
+          x0 :: x1 :: x2 :: x3 :: x4 :: x5 :: lo_prev :: lo1 :: x9 :: rest,
+          mem, frames, adv⟩ := by
+  unfold mulstep4_chunk3 execWithEnv
+  simp only [List.foldlM]
+  miden_swap; miden_movdn; miden_dup; miden_movup; miden_movup; miden_swap
+  simp only [u256ProcEnv]
+  have hcall := mulstep_execWithEnv u256ProcEnv 107 carry x6 x0 x10
+    (x0 :: x1 :: x2 :: x3 :: x4 :: x5 :: lo_prev :: lo1 :: x9 :: rest)
+    ⟨carry :: x6 :: x0 :: x10 :: x0 :: x1 :: x2 :: x3 :: x4 :: x5 :: lo_prev :: lo1 :: x9 :: rest,
+     mem, frames, adv⟩
+    rfl hcarry hx6 hx0 hx10
+  simp only [MidenState.withStack] at hcall
+  simp only [hcall, pure, Pure.pure]
+
+set_option maxHeartbeats 8000000 in
+/-- Chunk 4: post-call-3 shuffle + fourth mulstep.
+    Stack [carry, lo_prev, x0..x5, lo2, lo1, x9] ++ rest
+    → [carry', lo', x0..x4, lo_prev, lo2, lo1] ++ rest -/
+private theorem mulstep4_chunk4_correct
+    (carry lo_prev x0 x1 x2 x3 x4 x5 lo2 lo1 x9 : Felt) (rest : List Felt)
+    (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
+    (hcarry : carry.isU32 = true) (hx0 : x0.isU32 = true)
+    (hx5 : x5.isU32 = true) (hx9 : x9.isU32 = true) :
+    execWithEnv u256ProcEnv 109
+      ⟨carry :: lo_prev :: x0 :: x1 :: x2 :: x3 :: x4 :: x5 :: lo2 :: lo1 :: x9 :: rest,
+       mem, frames, adv⟩
+      mulstep4_chunk4 =
+    some ⟨mulstepCarry carry x5 x0 x9 :: mulstepLo carry x5 x0 x9 ::
+          x0 :: x1 :: x2 :: x3 :: x4 :: lo_prev :: lo2 :: lo1 :: rest,
+          mem, frames, adv⟩ := by
+  unfold mulstep4_chunk4 execWithEnv
+  simp only [List.foldlM]
+  miden_swap; miden_movdn; miden_dup; miden_movup; miden_movup; miden_swap
+  simp only [u256ProcEnv]
+  have hcall := mulstep_execWithEnv u256ProcEnv 107 carry x5 x0 x9
+    (x0 :: x1 :: x2 :: x3 :: x4 :: lo_prev :: lo2 :: lo1 :: rest)
+    ⟨carry :: x5 :: x0 :: x9 :: x0 :: x1 :: x2 :: x3 :: x4 :: lo_prev :: lo2 :: lo1 :: rest,
+     mem, frames, adv⟩
+    rfl hcarry hx5 hx0 hx9
+  simp only [MidenState.withStack] at hcall
+  simp only [hcall, pure, Pure.pure]
+
+/-- Chunk 5: final swap and movdn.
+    Stack [carry, lo, x0..x4, lo3, lo2, lo1] ++ rest
+    → [carry, x0..x4, lo, lo3, lo2, lo1] ++ rest -/
+private theorem mulstep4_chunk5_correct
+    (carry lo x0 x1 x2 x3 x4 lo3 lo2 lo1 : Felt) (rest : List Felt)
+    (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt) :
+    execWithEnv u256ProcEnv 109
+      ⟨carry :: lo :: x0 :: x1 :: x2 :: x3 :: x4 :: lo3 :: lo2 :: lo1 :: rest,
+       mem, frames, adv⟩
+      mulstep4_chunk5 =
+    some ⟨carry :: x0 :: x1 :: x2 :: x3 :: x4 :: lo :: lo3 :: lo2 :: lo1 :: rest,
+          mem, frames, adv⟩ := by
+  unfold mulstep4_chunk5 execWithEnv
+  simp only [List.foldlM]
+  miden_swap; miden_movdn
+  simp only [pure, Pure.pure]
+
+-- ============================================================================
 -- Main theorem
 -- ============================================================================
 
-set_option maxHeartbeats 64000000 in
+set_option maxHeartbeats 8000000 in
 /-- `mulstep4` performs four sequential `mulstep` calls, threading carry through.
     Input stack:  [x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12] ++ rest
     Output stack: [carry4, x0, x1, x2, x3, x4, lo4, lo3, lo2, lo1] ++ rest
@@ -158,89 +330,33 @@ theorem u256_mulstep4_correct
     execWithEnv u256ProcEnv 109 s Miden.Core.U256.mulstep4 =
     some (s.withStack (carry4 :: x0 :: x1 :: x2 :: x3 :: x4 ::
                        lo4 :: lo3 :: lo2 :: lo1 :: rest)) := by
-  -- Setup
   obtain ⟨stk, mem, frames, adv⟩ := s
   simp only [MidenState.withStack] at hs ⊢
   subst hs
-  unfold Miden.Core.U256.mulstep4 execWithEnv
-  simp only [List.foldlM]
-  -- ==================================================================
-  -- Pre-call-1: movup 12, dup 1, movup 10, push 0
-  -- ==================================================================
-  miden_movup; miden_dup; miden_movup; miden_step
-  -- ==================================================================
-  -- Resolve all procedure lookups
-  -- ==================================================================
-  simp only [u256ProcEnv]
-  have h0u : (0 : Felt).isU32 = true := by simp [Felt.isU32]
-  -- ==================================================================
-  -- Call 1: rewrite execWithEnv call using mulstep_execWithEnv
-  -- Use `have` to create a rewrite equation, then `simp only` with it
-  -- ==================================================================
-  have hcall1 := mulstep_execWithEnv u256ProcEnv 107 0 x8 x0 x12
-    (x0 :: x1 :: x2 :: x3 :: x4 :: x5 :: x6 :: x7 :: x9 :: x10 :: x11 :: rest)
-    ⟨0 :: x8 :: x0 :: x12 :: x0 :: x1 :: x2 :: x3 :: x4 :: x5 :: x6 :: x7 :: x9 :: x10 :: x11 :: rest, mem, frames, adv⟩
-    rfl h0u hx8 hx0 hx12
-  simp only [MidenState.withStack] at hcall1
-  simp only [hcall1]
-  -- Pre-call-2
-  miden_swap; miden_movdn; miden_dup; miden_movup; miden_movup; miden_swap
-  -- ==================================================================
-  -- Call 2
-  -- ==================================================================
+  -- Decompose into chunks
+  rw [execWithEnv_body_eq _ _ _ _ _ mulstep4_decomp rfl, execWithEnv_append]
+  -- Chunk 1: setup + first mulstep
+  rw [mulstep4_chunk1_correct (hx0 := hx0) (hx8 := hx8) (hx12 := hx12)]
+  simp only [bind, Bind.bind, Option.bind]
+  -- Chunk 2: shuffle + second mulstep
+  rw [execWithEnv_append]
   have hc1u : (mulstepCarry 0 x8 x0 x12).isU32 = true :=
-    mulstep_carry_isU32 0 x8 x0 x12 h0u hx8 hx0 hx12
-  have hcall2 := mulstep_execWithEnv u256ProcEnv 107 (mulstepCarry 0 x8 x0 x12) x7 x0 x11
-    (x0 :: x1 :: x2 :: x3 :: x4 :: x5 :: x6 ::
-     mulstepLo 0 x8 x0 x12 :: x9 :: x10 :: rest)
-    ⟨mulstepCarry 0 x8 x0 x12 :: x7 :: x0 :: x11 :: x0 :: x1 :: x2 :: x3 :: x4 :: x5 :: x6 ::
-     mulstepLo 0 x8 x0 x12 :: x9 :: x10 :: rest, mem, frames, adv⟩
-    rfl hc1u hx7 hx0 hx11
-  simp only [MidenState.withStack] at hcall2
-  simp only [hcall2]
-  -- Pre-call-3
-  miden_swap; miden_movdn; miden_dup; miden_movup; miden_movup; miden_swap
-  -- ==================================================================
-  -- Call 3
-  -- ==================================================================
+    mulstep_carry_isU32 0 x8 x0 x12 (by simp [Felt.isU32]) hx8 hx0 hx12
+  rw [mulstep4_chunk2_correct (hcarry := hc1u) (hx0 := hx0) (hx7 := hx7) (hx11 := hx11)]
+  simp only [bind, Bind.bind, Option.bind]
+  -- Chunk 3: shuffle + third mulstep
+  rw [execWithEnv_append]
   have hc2u : (mulstepCarry (mulstepCarry 0 x8 x0 x12) x7 x0 x11).isU32 = true :=
     mulstep_carry_isU32 _ x7 x0 x11 hc1u hx7 hx0 hx11
-  have hcall3 := mulstep_execWithEnv u256ProcEnv 107
-    (mulstepCarry (mulstepCarry 0 x8 x0 x12) x7 x0 x11) x6 x0 x10
-    (x0 :: x1 :: x2 :: x3 :: x4 :: x5 ::
-     mulstepLo (mulstepCarry 0 x8 x0 x12) x7 x0 x11 ::
-     mulstepLo 0 x8 x0 x12 :: x9 :: rest)
-    ⟨mulstepCarry (mulstepCarry 0 x8 x0 x12) x7 x0 x11 :: x6 :: x0 :: x10 :: x0 :: x1 :: x2 :: x3 :: x4 :: x5 ::
-     mulstepLo (mulstepCarry 0 x8 x0 x12) x7 x0 x11 ::
-     mulstepLo 0 x8 x0 x12 :: x9 :: rest, mem, frames, adv⟩
-    rfl hc2u hx6 hx0 hx10
-  simp only [MidenState.withStack] at hcall3
-  simp only [hcall3]
-  -- Pre-call-4
-  miden_swap; miden_movdn; miden_dup; miden_movup; miden_movup; miden_swap
-  -- ==================================================================
-  -- Call 4
-  -- ==================================================================
+  rw [mulstep4_chunk3_correct (hcarry := hc2u) (hx0 := hx0) (hx6 := hx6) (hx10 := hx10)]
+  simp only [bind, Bind.bind, Option.bind]
+  -- Chunk 4: shuffle + fourth mulstep
+  rw [execWithEnv_append]
   have hc3u : (mulstepCarry (mulstepCarry (mulstepCarry 0 x8 x0 x12) x7 x0 x11) x6 x0 x10).isU32 = true :=
     mulstep_carry_isU32 _ x6 x0 x10 hc2u hx6 hx0 hx10
-  have hcall4 := mulstep_execWithEnv u256ProcEnv 107
-    (mulstepCarry (mulstepCarry (mulstepCarry 0 x8 x0 x12) x7 x0 x11) x6 x0 x10) x5 x0 x9
-    (x0 :: x1 :: x2 :: x3 :: x4 ::
-     mulstepLo (mulstepCarry (mulstepCarry 0 x8 x0 x12) x7 x0 x11) x6 x0 x10 ::
-     mulstepLo (mulstepCarry 0 x8 x0 x12) x7 x0 x11 ::
-     mulstepLo 0 x8 x0 x12 :: rest)
-    ⟨mulstepCarry (mulstepCarry (mulstepCarry 0 x8 x0 x12) x7 x0 x11) x6 x0 x10 :: x5 :: x0 :: x9 :: x0 :: x1 :: x2 :: x3 :: x4 ::
-     mulstepLo (mulstepCarry (mulstepCarry 0 x8 x0 x12) x7 x0 x11) x6 x0 x10 ::
-     mulstepLo (mulstepCarry 0 x8 x0 x12) x7 x0 x11 ::
-     mulstepLo 0 x8 x0 x12 :: rest, mem, frames, adv⟩
-    rfl hc3u hx5 hx0 hx9
-  simp only [MidenState.withStack] at hcall4
-  simp only [hcall4]
-  -- ==================================================================
-  -- Final: swap 1, movdn 6
-  -- ==================================================================
-  miden_swap; miden_movdn
-  -- Close
-  simp only [pure, Pure.pure]
+  rw [mulstep4_chunk4_correct (hcarry := hc3u) (hx0 := hx0) (hx5 := hx5) (hx9 := hx9)]
+  simp only [bind, Bind.bind, Option.bind]
+  -- Chunk 5: final swap and movdn
+  rw [mulstep4_chunk5_correct]
 
 end MidenLean.Proofs
