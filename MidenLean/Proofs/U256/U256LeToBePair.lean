@@ -23,7 +23,7 @@ private theorem stepSwapdw (mem : Nat → Felt) (frames : List LocalFrame) (adv 
 -- u256_le_to_be helper for execWithEnv context
 -- ============================================================================
 
-private theorem le_to_be_env (fuel : Nat)
+theorem le_to_be_env (fuel : Nat)
     (x0 x1 x2 x3 x4 x5 x6 x7 : Felt) (rest : List Felt)
     (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt) :
     execWithEnv u256ProcEnv (fuel + 1)

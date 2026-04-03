@@ -323,4 +323,31 @@ theorem felt_mul_beq_zero (a b : Felt) (h : a.val * b.val = 0)
   have hzero : (0 : Felt).val = 0 := Felt.val_zero'
   exact_mod_cast Fin.val_injective (by omega : (a * b).val = (0 : Felt).val)
 
+-- ============================================================================
+-- LocalFrame.localAddr comparison lemmas
+-- ============================================================================
+-- These are critical for resolving memory reads through if-then-else chains
+-- produced by locStorewBe. Since localAddr idx = LOCAL_MEM_BASE + base + idx,
+-- address equality reduces to offset equality.
+
+@[simp] theorem LocalFrame.localAddr_add_eq_localAddr_add_iff
+    (frame : LocalFrame) (i k j l : Nat) :
+    (frame.localAddr i + k = frame.localAddr j + l) ↔ (i + k = j + l) := by
+  unfold localAddr; omega
+
+@[simp] theorem LocalFrame.localAddr_eq_localAddr_add_iff
+    (frame : LocalFrame) (i j l : Nat) :
+    (frame.localAddr i = frame.localAddr j + l) ↔ (i = j + l) := by
+  unfold localAddr; omega
+
+@[simp] theorem LocalFrame.localAddr_add_eq_localAddr_iff
+    (frame : LocalFrame) (i k j : Nat) :
+    (frame.localAddr i + k = frame.localAddr j) ↔ (i + k = j) := by
+  unfold localAddr; omega
+
+@[simp] theorem LocalFrame.localAddr_eq_localAddr_iff
+    (frame : LocalFrame) (i j : Nat) :
+    (frame.localAddr i = frame.localAddr j) ↔ (i = j) := by
+  unfold localAddr; omega
+
 end MidenLean

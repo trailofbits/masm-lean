@@ -98,6 +98,42 @@ set_option maxHeartbeats 800000 in
   unfold execInstruction execSwapw
   simp [MidenState.withStack]
 
+set_option maxHeartbeats 1600000 in
+/-- movdnw 2: move the top word down by 2 word positions.
+    Stack: [a0..a3, b0..b3, c0..c3, rest] → [b0..b3, c0..c3, a0..a3, rest] -/
+@[miden_dispatch] theorem stepMovdnw2 (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
+    (a0 a1 a2 a3 b0 b1 b2 b3 c0 c1 c2 c3 : Felt) (rest : List Felt) :
+    execInstruction ⟨a0 :: a1 :: a2 :: a3 :: b0 :: b1 :: b2 :: b3 ::
+                     c0 :: c1 :: c2 :: c3 :: rest, mem, frames, adv⟩ (.movdnw 2) =
+    some ⟨b0 :: b1 :: b2 :: b3 :: c0 :: c1 :: c2 :: c3 ::
+          a0 :: a1 :: a2 :: a3 :: rest, mem, frames, adv⟩ := by
+  unfold execInstruction execMovdnw
+  simp [MidenState.withStack]
+
+set_option maxHeartbeats 1600000 in
+/-- movdnw 3: move the top word down by 3 word positions.
+    Stack: [a0..a3, b0..b3, c0..c3, d0..d3, rest] → [b0..b3, c0..c3, d0..d3, a0..a3, rest] -/
+@[miden_dispatch] theorem stepMovdnw3 (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
+    (a0 a1 a2 a3 b0 b1 b2 b3 c0 c1 c2 c3 d0 d1 d2 d3 : Felt) (rest : List Felt) :
+    execInstruction ⟨a0 :: a1 :: a2 :: a3 :: b0 :: b1 :: b2 :: b3 ::
+                     c0 :: c1 :: c2 :: c3 :: d0 :: d1 :: d2 :: d3 :: rest, mem, frames, adv⟩ (.movdnw 3) =
+    some ⟨b0 :: b1 :: b2 :: b3 :: c0 :: c1 :: c2 :: c3 ::
+          d0 :: d1 :: d2 :: d3 :: a0 :: a1 :: a2 :: a3 :: rest, mem, frames, adv⟩ := by
+  unfold execInstruction execMovdnw
+  simp [MidenState.withStack]
+
+set_option maxHeartbeats 800000 in
+/-- swapdw: swap the first two words with the second two words.
+    Stack: [a0..a3, b0..b3, c0..c3, d0..d3, rest] → [c0..c3, d0..d3, a0..a3, b0..b3, rest] -/
+@[miden_dispatch] theorem stepSwapdw (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
+    (a0 a1 a2 a3 b0 b1 b2 b3 c0 c1 c2 c3 d0 d1 d2 d3 : Felt) (rest : List Felt) :
+    execInstruction ⟨a0 :: a1 :: a2 :: a3 :: b0 :: b1 :: b2 :: b3 ::
+                     c0 :: c1 :: c2 :: c3 :: d0 :: d1 :: d2 :: d3 :: rest, mem, frames, adv⟩ .swapdw =
+    some ⟨c0 :: c1 :: c2 :: c3 :: d0 :: d1 :: d2 :: d3 ::
+          a0 :: a1 :: a2 :: a3 :: b0 :: b1 :: b2 :: b3 :: rest, mem, frames, adv⟩ := by
+  unfold execInstruction execSwapdw
+  simp [MidenState.withStack]
+
 -- ============================================================================
 -- Assertions
 -- ============================================================================

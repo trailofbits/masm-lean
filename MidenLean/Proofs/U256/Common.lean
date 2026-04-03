@@ -234,6 +234,13 @@ instance : BEq U256 where beq a b :=
   (a.a6.val == b.a6.val) && (a.a7.val == b.a7.val)
 
 -- ============================================================================
+-- Min/Max instances
+-- ============================================================================
+
+instance : Min U256 where min a b := if a ≤ b then a else b
+instance : Max U256 where max a b := if b ≤ a then a else b
+
+-- ============================================================================
 -- Bridging lemmas
 -- ============================================================================
 
@@ -311,6 +318,44 @@ theorem eqz_iff (x : U256) :
   constructor
   · intro h; omega
   · intro ⟨h0, h1, h2, h3, h4, h5, h6, h7⟩; omega
+
+-- ============================================================================
+-- High-level arithmetic operations
+-- ============================================================================
+
+/-- Add two U256 values with carry propagation.
+    Returns (carry, result) where carry ∈ {0, 1} and
+    carry * 2^256 + result.toNat = a.toNat + b.toNat. -/
+def addWithCarry (a b : U256) : Nat × U256 :=
+  ((a.toNat + b.toNat) / 2^256, ofNat (a.toNat + b.toNat))
+
+@[simp] theorem addWithCarry_fst (a b : U256) :
+    (a.addWithCarry b).1 = (a.toNat + b.toNat) / 2^256 := rfl
+
+@[simp] theorem addWithCarry_snd (a b : U256) :
+    (a.addWithCarry b).2 = ofNat (a.toNat + b.toNat) := rfl
+
+theorem addWithCarry_spec (a b : U256) :
+    (a.addWithCarry b).1 * 2^256 + (a.addWithCarry b).2.toNat = a.toNat + b.toNat := by
+  simp [addWithCarry, ofNat_toNat]; omega
+
+theorem addWithCarry_carry_le_one (a b : U256) : (a.addWithCarry b).1 ≤ 1 := by
+  simp [addWithCarry]; have := a.toNat_lt; have := b.toNat_lt; omega
+
+/-- Subtract two U256 values with borrow propagation.
+    Returns (borrow, result) where borrow ∈ {0, 1} and
+    result = (a - b) mod 2^256. -/
+def subWithBorrow (a b : U256) : Nat × U256 :=
+  (if a.toNat < b.toNat then 1 else 0, a - b)
+
+@[simp] theorem subWithBorrow_fst (a b : U256) :
+    (a.subWithBorrow b).1 = if a.toNat < b.toNat then 1 else 0 := rfl
+
+@[simp] theorem subWithBorrow_snd (a b : U256) :
+    (a.subWithBorrow b).2 = a - b := rfl
+
+@[simp] theorem min_def (a b : U256) : min a b = if a ≤ b then a else b := rfl
+@[simp] theorem max_def (a b : U256) : max a b = if b ≤ a then a else b := rfl
 
 end U256
 
