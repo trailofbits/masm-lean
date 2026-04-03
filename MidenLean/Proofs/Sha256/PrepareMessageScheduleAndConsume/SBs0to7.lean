@@ -114,14 +114,14 @@ private lemma sha256_SB0_expand_W16
     (w0 w1 w2 w3 w4 w5 w6 w7 w8 w9 w10 w11 w12 w13 w14 w15 : Felt)
     (hw0 : w0.isU32 = true) (hw1 : w1.isU32 = true)
     (hw9 : w9.isU32 = true) (hw14 : w14.isU32 = true)
-    (rest : List Felt) (mem locs : Nat → Felt) (adv : List Felt) :
+    (rest : List Felt) (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt) :
     execWithEnv sha256ProcEnv 2126
         ⟨w0::w1::w2::w3::w4::w5::w6::w7::w8::w9::w10::w11::w12::w13::w14::w15::rest,
-          mem, locs, adv⟩
+          mem, frames, adv⟩
         sha256SB0Expand_W16Ops =
     some ⟨sha256SB0W16 w0 w1 w9 w14 :: w15 :: w0 :: w1 :: w2 :: w3 :: w4 :: w5 ::
           w6 :: w7 :: w8 :: w9 :: w10 :: w11 :: w12 :: w13 :: w14 :: w15 :: rest,
-          mem, locs, adv⟩ := by
+          mem, frames, adv⟩ := by
   simp only [sha256SB0Expand_W16Ops]
   unfold execWithEnv; simp only [List.foldlM]
   miden_dup; miden_dup; miden_dup; miden_swap
@@ -139,15 +139,15 @@ private lemma sha256_SB0_expand_W17
     (w0 w1 w2 w3 w4 w5 w6 w7 w8 w9 w10 w11 w12 w13 w14 w15 W16 : Felt)
     (hw1 : w1.isU32 = true) (hw2 : w2.isU32 = true)
     (hw10 : w10.isU32 = true) (hw15 : w15.isU32 = true)
-    (rest : List Felt) (mem locs : Nat → Felt) (adv : List Felt) :
+    (rest : List Felt) (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt) :
     execWithEnv sha256ProcEnv 2126
         ⟨W16 :: w15 :: w0 :: w1 :: w2 :: w3 :: w4 :: w5 ::
           w6 :: w7 :: w8 :: w9 :: w10 :: w11 :: w12 :: w13 :: w14 :: w15 :: rest,
-          mem, locs, adv⟩
+          mem, frames, adv⟩
         sha256SB0Expand_W17Ops =
     some ⟨sha256SB0W17 w1 w2 w10 w15 :: W16 :: w0 :: w1 :: w2 :: w3 :: w4 :: w5 ::
           w6 :: w7 :: w8 :: w9 :: w10 :: w11 :: w12 :: w13 :: w14 :: w15 :: rest,
-          mem, locs, adv⟩ := by
+          mem, frames, adv⟩ := by
   simp only [sha256SB0Expand_W17Ops]
   unfold execWithEnv; simp only [List.foldlM]
   miden_swap; miden_dup; miden_swap
@@ -163,15 +163,15 @@ private lemma sha256_SB0_expand_W18
     (w0 w1 w2 w3 w4 w5 w6 w7 w8 w9 w10 w11 w12 w13 w14 w15 W16 W17 : Felt)
     (hw2 : w2.isU32 = true) (hw3 : w3.isU32 = true)
     (hw11 : w11.isU32 = true) (hW16 : W16.isU32 = true)
-    (rest : List Felt) (mem locs : Nat → Felt) (adv : List Felt) :
+    (rest : List Felt) (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt) :
     execWithEnv sha256ProcEnv 2126
         ⟨W17 :: W16 :: w0 :: w1 :: w2 :: w3 :: w4 :: w5 ::
           w6 :: w7 :: w8 :: w9 :: w10 :: w11 :: w12 :: w13 :: w14 :: w15 :: rest,
-          mem, locs, adv⟩
+          mem, frames, adv⟩
         sha256SB0Expand_W18Ops =
     some ⟨sha256SB0W18 w2 w3 w11 W16 :: W17 :: W16 :: w0 :: w1 :: w2 :: w3 :: w4 :: w5 ::
           w6 :: w7 :: w8 :: w9 :: w10 :: w11 :: w12 :: w13 :: w14 :: w15 :: rest,
-          mem, locs, adv⟩ := by
+          mem, frames, adv⟩ := by
   simp only [sha256SB0Expand_W18Ops]
   unfold execWithEnv; simp only [List.foldlM]
   miden_dup; miden_dup; miden_swap
@@ -187,16 +187,16 @@ private lemma sha256_SB0_expand_W19_swap
     (w0 w1 w2 w3 w4 w5 w6 w7 w8 w9 w10 w11 w12 w13 w14 w15 W16 W17 W18 : Felt)
     (hw3 : w3.isU32 = true) (hw4 : w4.isU32 = true)
     (hw12 : w12.isU32 = true) (hW17 : W17.isU32 = true)
-    (rest : List Felt) (mem locs : Nat → Felt) (adv : List Felt) :
+    (rest : List Felt) (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt) :
     execWithEnv sha256ProcEnv 2126
         ⟨W18 :: W17 :: W16 :: w0 :: w1 :: w2 :: w3 :: w4 :: w5 ::
           w6 :: w7 :: w8 :: w9 :: w10 :: w11 :: w12 :: w13 :: w14 :: w15 :: rest,
-          mem, locs, adv⟩
+          mem, frames, adv⟩
         sha256SB0Expand_W19_SwapOps =
     some ⟨w0 :: w1 :: w2 :: w3 :: sha256SB0W19 w3 w4 w12 W17 :: W18 :: W17 :: W16 ::
           w4 :: w5 :: w6 :: w7 :: w8 :: w9 :: w10 :: w11 ::
           w12 :: w13 :: w14 :: w15 :: rest,
-          mem, locs, adv⟩ := by
+          mem, frames, adv⟩ := by
   simp only [sha256SB0Expand_W19_SwapOps]
   unfold execWithEnv; simp only [List.foldlM]
   miden_dup; miden_dup; miden_dup; miden_dup
@@ -220,37 +220,37 @@ private lemma sha256_SB0_expand_bridge
     (hw3 : w3.isU32 = true) (hw4 : w4.isU32 = true)
     (hw9 : w9.isU32 = true) (hw10 : w10.isU32 = true) (hw11 : w11.isU32 = true)
     (hw12 : w12.isU32 = true) (hw14 : w14.isU32 = true) (hw15 : w15.isU32 = true)
-    (rest : List Felt) (mem locs : Nat → Felt) (adv : List Felt) :
+    (rest : List Felt) (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt) :
     let W16 := sha256SB0W16 w0 w1 w9 w14
     let W17 := sha256SB0W17 w1 w2 w10 w15
     let W18 := sha256SB0W18 w2 w3 w11 W16
     let W19 := sha256SB0W19 w3 w4 w12 W17
     execWithEnv sha256ProcEnv 2126
         ⟨w0::w1::w2::w3::w4::w5::w6::w7::w8::w9::w10::w11::w12::w13::w14::w15::rest,
-          mem, locs, adv⟩
+          mem, frames, adv⟩
         sha256SB0ExpandOps =
     some ⟨w0 :: w1 :: w2 :: w3 :: W19 :: W18 :: W17 :: W16 ::
           w4 :: w5 :: w6 :: w7 :: w8 :: w9 :: w10 :: w11 ::
           w12 :: w13 :: w14 :: w15 :: rest,
-          mem, locs, adv⟩ := by
+          mem, frames, adv⟩ := by
   rw [sha256SB0ExpandOps_split]
   rw [List.append_assoc, List.append_assoc, execWithEnv_append]
   rw [sha256_SB0_expand_W16 w0 w1 w2 w3 w4 w5 w6 w7 w8 w9 w10 w11 w12 w13 w14 w15
-      hw0 hw1 hw9 hw14 rest mem locs adv]
+      hw0 hw1 hw9 hw14 rest mem frames adv]
   simp only [bind, Bind.bind, Option.bind]
   rw [execWithEnv_append]
   rw [sha256_SB0_expand_W17 w0 w1 w2 w3 w4 w5 w6 w7 w8 w9 w10 w11 w12 w13 w14 w15
-      (sha256SB0W16 w0 w1 w9 w14) hw1 hw2 hw10 hw15 rest mem locs adv]
+      (sha256SB0W16 w0 w1 w9 w14) hw1 hw2 hw10 hw15 rest mem frames adv]
   simp only [bind, Bind.bind, Option.bind]
   rw [execWithEnv_append]
   rw [sha256_SB0_expand_W18 w0 w1 w2 w3 w4 w5 w6 w7 w8 w9 w10 w11 w12 w13 w14 w15
       (sha256SB0W16 w0 w1 w9 w14) (sha256SB0W17 w1 w2 w10 w15)
-      hw2 hw3 hw11 (u32_mod_isU32 _) rest mem locs adv]
+      hw2 hw3 hw11 (u32_mod_isU32 _) rest mem frames adv]
   simp only [bind, Bind.bind, Option.bind]
   rw [sha256_SB0_expand_W19_swap w0 w1 w2 w3 w4 w5 w6 w7 w8 w9 w10 w11 w12 w13 w14 w15
       (sha256SB0W16 w0 w1 w9 w14) (sha256SB0W17 w1 w2 w10 w15)
       (sha256SB0W18 w2 w3 w11 (sha256SB0W16 w0 w1 w9 w14))
-      hw3 hw4 hw12 (u32_mod_isU32 _) rest mem locs adv]
+      hw3 hw4 hw12 (u32_mod_isU32 _) rest mem frames adv]
 
 -- ============================================================================
 -- SB0 consume bridge
@@ -267,34 +267,60 @@ private lemma sha256_SB0_consume_bridge
     (hw3 : w3.isU32 = true)
     (ha : a.isU32 = true) (hb : b.isU32 = true) (hc : c.isU32 = true) (hd : d.isU32 = true)
     (he : e.isU32 = true) (hf : f.isU32 = true) (hg : g.isU32 = true) (hh : h.isU32 = true)
-    (rest : List Felt) (mem locs : Nat → Felt) (adv : List Felt)
-    (base : Nat → Felt)
-    (hlocs : locs = sha256WorkingLocs a b c d e f g h H0 H1 H2 H3 H4 H5 H6 H7 base) :
+    (rest : List Felt) (mem : Nat → Felt) (adv : List Felt)
+    (frame : LocalFrame) (frames_rest : List LocalFrame)
+    (hframe_locals : frame.numLocals = 16)
+    (hframe_aligned : frame.alignedNumLocals = 16)
+    (h3  : mem (frame.localAddr 3)  = a) (h2  : mem (frame.localAddr 2)  = b)
+    (h1  : mem (frame.localAddr 1)  = c) (h0  : mem (frame.localAddr 0)  = d)
+    (h7  : mem (frame.localAddr 7)  = e) (h6  : mem (frame.localAddr 6)  = f)
+    (h5  : mem (frame.localAddr 5)  = g) (h4  : mem (frame.localAddr 4)  = h)
+    (h11 : mem (frame.localAddr 11) = H0) (h10 : mem (frame.localAddr 10) = H1)
+    (h9  : mem (frame.localAddr 9)  = H2) (h8  : mem (frame.localAddr 8)  = H3)
+    (h15 : mem (frame.localAddr 15) = H4) (h14 : mem (frame.localAddr 14) = H5)
+    (h13 : mem (frame.localAddr 13) = H6) (h12 : mem (frame.localAddr 12) = H7) :
     let (na, nb, nc, nd, ne, nf, ng, nh) := sha256SB0Compress a b c d e f g h w0 w1 w2 w3
+    let b0 := frame.localAddr 0
+    let b4 := frame.localAddr 4
     execWithEnv sha256ProcEnv 2126
         ⟨w0 :: w1 :: w2 :: w3 :: W19 :: W18 :: W17 :: W16 ::
           w4 :: w5 :: w6 :: w7 :: w8 :: w9 :: w10 :: w11 ::
           w12 :: w13 :: w14 :: w15 :: rest,
-          mem, locs, adv⟩
+          mem, frame :: frames_rest, adv⟩
         sha256SB0ConsumeOps =
     some ⟨W19 :: W18 :: W17 :: W16 :: w4 :: w5 :: w6 :: w7 ::
           w8 :: w9 :: w10 :: w11 :: w12 :: w13 :: w14 :: w15 :: rest,
-          mem,
-          sha256WorkingLocs na nb nc nd ne nf ng nh H0 H1 H2 H3 H4 H5 H6 H7 base,
-          adv⟩ := by
-  subst hlocs
+          fun i =>
+            if i = b4 + 3 then ne else if i = b4 + 2 then nf else
+            if i = b4 + 1 then ng else if i = b4 then nh else
+            if i = b0 + 3 then na else if i = b0 + 2 then nb else
+            if i = b0 + 1 then nc else if i = b0 then nd else
+            mem i,
+          frame :: frames_rest, adv⟩ := by
   simp only [sha256SB0ConsumeOps]
   unfold execWithEnv; simp only [List.foldlM]
   -- push K0, padw, locLoadwBe 4, padw, locLoadwBe 0
   rw [stepPush]; miden_bind
   rw [stepPadw]; miden_bind
-  rw [stepLocLoadwBe 4 e f g h
-      (h0 := by simp [sha256WorkingLocs]) (h1 := by simp [sha256WorkingLocs])
-      (h2 := by simp [sha256WorkingLocs]) (h3 := by simp [sha256WorkingLocs])]; miden_bind
+  rw [stepLocLoadwBe (idx := 4) (frame := frame) (frames_rest := frames_rest)
+      (halign := by decide) (hbound := by omega)]; miden_bind
+  simp only [show frame.localAddr 4 + 3 = frame.localAddr 7 from by
+      simp [LocalFrame.localAddr],
+    show frame.localAddr 4 + 2 = frame.localAddr 6 from by
+      simp [LocalFrame.localAddr],
+    show frame.localAddr 4 + 1 = frame.localAddr 5 from by
+      simp [LocalFrame.localAddr]]
+  rw [h7, h6, h5, h4]
   rw [stepPadw]; miden_bind
-  rw [stepLocLoadwBe 0 a b c d
-      (h0 := by simp [sha256WorkingLocs]) (h1 := by simp [sha256WorkingLocs])
-      (h2 := by simp [sha256WorkingLocs]) (h3 := by simp [sha256WorkingLocs])]; miden_bind
+  rw [stepLocLoadwBe (idx := 0) (frame := frame) (frames_rest := frames_rest)
+      (halign := by decide) (hbound := by omega)]; miden_bind
+  simp only [show frame.localAddr 0 + 3 = frame.localAddr 3 from by
+      simp [LocalFrame.localAddr],
+    show frame.localAddr 0 + 2 = frame.localAddr 2 from by
+      simp [LocalFrame.localAddr],
+    show frame.localAddr 0 + 1 = frame.localAddr 1 from by
+      simp [LocalFrame.localAddr]]
+  rw [h3, h2, h1, h0]
   -- consume round 0 (K0=1116352408, W=w0)
   simp only [show sha256ProcEnv "consume_message_word" =
       some Miden.Core.Sha256.consume_message_word from rfl]
@@ -323,34 +349,15 @@ private lemma sha256_SB0_consume_bridge
       (u32_mod_isU32 _) (u32_mod_isU32 _) he (felt_ofNat_isU32_of_lt _ (by norm_num)) hw3]
   simp only [MidenState.withStack]
   -- locStorewBe 0, dropw, locStorewBe 4, dropw
-  rw [stepLocStorewBe]; miden_bind
+  rw [stepLocStorewBe (idx := 0) (frame := frame) (frames_rest := frames_rest)
+      (halign := by decide) (hbound := by omega)]; miden_bind
   rw [stepDropw]; miden_bind
-  rw [stepLocStorewBe]; miden_bind
+  rw [stepLocStorewBe (idx := 4) (frame := frame) (frames_rest := frames_rest)
+      (halign := by decide) (hbound := by omega)]; miden_bind
   rw [stepDropw]; miden_bind
-  -- Close: both sides should match after unfolding sha256SB0Compress and consumeResult
   dsimp only [pure, Pure.pure]
   simp only [sha256SB0Compress, consumeResult]
-  -- The locs field is a nested if-then-else chain from stores; prove it equals sha256WorkingLocs
-  -- Goal: some ⟨stk, mem, locs_from_stores, adv⟩ = some ⟨stk, mem, sha256WorkingLocs ..., adv⟩
-  -- The only difference is in the locals field (indices 0..7 were overwritten by stores).
-  -- Use f_equal to reduce to component equalities.
-  -- Note: after sha256SB0Compress/consumeResult unfold, both sides have matching concrete stacks.
-  have : ∀ (f g : Nat → Felt), f = g → ∀ (stk : List Felt) (mem : Nat → Felt) (adv : List Felt),
-      (some ⟨stk, mem, f, adv⟩ : Option MidenState) = some ⟨stk, mem, g, adv⟩ := by
-    intros f g h; subst h; intros; rfl
-  apply this
-  funext i
-  simp only [sha256WorkingLocs]
-  rcases Nat.lt_or_ge i 16 with hi | hi
-  · interval_cases i <;> simp
-  · simp only [if_neg (show i ≠ 15 from by omega), if_neg (show i ≠ 14 from by omega),
-               if_neg (show i ≠ 13 from by omega), if_neg (show i ≠ 12 from by omega),
-               if_neg (show i ≠ 11 from by omega), if_neg (show i ≠ 10 from by omega),
-               if_neg (show i ≠ 9 from by omega), if_neg (show i ≠ 8 from by omega),
-               if_neg (show i ≠ 7 from by omega), if_neg (show i ≠ 6 from by omega),
-               if_neg (show i ≠ 5 from by omega), if_neg (show i ≠ 4 from by omega),
-               if_neg (show i ≠ 3 from by omega), if_neg (show i ≠ 2 from by omega),
-               if_neg (show i ≠ 1 from by omega), if_neg (show i ≠ 0 from by omega)]
+  rfl
 
 -- ============================================================================
 -- SB0 bridge: chains expand and consume
@@ -372,26 +379,41 @@ lemma sha256_SB0_bridge
     (_hH0 : H0.isU32 = true) (_hH1 : H1.isU32 = true) (_hH2 : H2.isU32 = true)
     (_hH3 : H3.isU32 = true) (_hH4 : H4.isU32 = true) (_hH5 : H5.isU32 = true)
     (_hH6 : H6.isU32 = true) (_hH7 : H7.isU32 = true)
-    (rest : List Felt) (mem locs : Nat → Felt) (adv : List Felt)
-    (base : Nat → Felt)
-    (hlocs : locs = sha256WorkingLocs a b c d e f g h H0 H1 H2 H3 H4 H5 H6 H7 base) :
+    (rest : List Felt) (mem : Nat → Felt) (adv : List Felt)
+    (frame : LocalFrame) (frames_rest : List LocalFrame)
+    (hframe_locals : frame.numLocals = 16)
+    (hframe_aligned : frame.alignedNumLocals = 16)
+    (h3  : mem (frame.localAddr 3)  = a) (h2  : mem (frame.localAddr 2)  = b)
+    (h1  : mem (frame.localAddr 1)  = c) (h0  : mem (frame.localAddr 0)  = d)
+    (h7  : mem (frame.localAddr 7)  = e) (h6  : mem (frame.localAddr 6)  = f)
+    (h5  : mem (frame.localAddr 5)  = g) (h4  : mem (frame.localAddr 4)  = h)
+    (h11 : mem (frame.localAddr 11) = H0) (h10 : mem (frame.localAddr 10) = H1)
+    (h9  : mem (frame.localAddr 9)  = H2) (h8  : mem (frame.localAddr 8)  = H3)
+    (h15 : mem (frame.localAddr 15) = H4) (h14 : mem (frame.localAddr 14) = H5)
+    (h13 : mem (frame.localAddr 13) = H6) (h12 : mem (frame.localAddr 12) = H7) :
     let W16 := sha256SB0W16 w0 w1 w9 w14
     let W17 := sha256SB0W17 w1 w2 w10 w15
     let W18 := sha256SB0W18 w2 w3 w11 W16
     let W19 := sha256SB0W19 w3 w4 w12 W17
     let (na, nb, nc, nd, ne, nf, ng, nh) := sha256SB0Compress a b c d e f g h w0 w1 w2 w3
+    let b0 := frame.localAddr 0
+    let b4 := frame.localAddr 4
     execWithEnv sha256ProcEnv 2126
         ⟨w0::w1::w2::w3::w4::w5::w6::w7::w8::w9::w10::w11::w12::w13::w14::w15::rest,
-          mem, locs, adv⟩
+          mem, frame :: frames_rest, adv⟩
         sha256SB0Ops =
     some ⟨W19 :: W18 :: W17 :: W16 :: w4 :: w5 :: w6 :: w7 ::
           w8 :: w9 :: w10 :: w11 :: w12 :: w13 :: w14 :: w15 :: rest,
-          mem,
-          sha256WorkingLocs na nb nc nd ne nf ng nh H0 H1 H2 H3 H4 H5 H6 H7 base,
-          adv⟩ := by
+          fun i =>
+            if i = b4 + 3 then ne else if i = b4 + 2 then nf else
+            if i = b4 + 1 then ng else if i = b4 then nh else
+            if i = b0 + 3 then na else if i = b0 + 2 then nb else
+            if i = b0 + 1 then nc else if i = b0 then nd else
+            mem i,
+          frame :: frames_rest, adv⟩ := by
   rw [sha256SB0Ops_split, execWithEnv_append]
   rw [sha256_SB0_expand_bridge w0 w1 w2 w3 w4 w5 w6 w7 w8 w9 w10 w11 w12 w13 w14 w15
-      hw0 hw1 hw2 hw3 hw4 hw9 hw10 hw11 hw12 hw14 hw15 rest mem locs adv]
+      hw0 hw1 hw2 hw3 hw4 hw9 hw10 hw11 hw12 hw14 hw15 rest mem (frame :: frames_rest) adv]
   simp only [bind, Bind.bind, Option.bind]
   rw [sha256_SB0_consume_bridge w0 w1 w2 w3
       (sha256SB0W16 w0 w1 w9 w14) (sha256SB0W17 w1 w2 w10 w15)
@@ -400,9 +422,8 @@ lemma sha256_SB0_bridge
       w4 w5 w6 w7 w8 w9 w10 w11 w12 w13 w14 w15
       a b c d e f g h H0 H1 H2 H3 H4 H5 H6 H7
       hw0 hw1 hw2 hw3 ha hb hc hd he hf hg hh
-      rest mem locs adv base hlocs]
-  -- The residual goal differs in the sha256SB0Compress let-bindings vs expanded form.
-  -- These should be definitionally equal after unfolding the Compress and W definitions.
+      rest mem adv frame frames_rest hframe_locals hframe_aligned
+      h3 h2 h1 h0 h7 h6 h5 h4 h11 h10 h9 h8 h15 h14 h13 h12]
   dsimp only [sha256SB0Compress, consumeResult, sha256SB0W16, sha256SB0W17, sha256SB0W18, sha256SB0W19]
 
 -- ============================================================================
@@ -529,14 +550,14 @@ private lemma sha256_SB1_expand_W20
     (W19 W18 W17 W16 w4 w5 w6 w7 w8 w9 w10 w11 w12 w13 w14 w15 : Felt)
     (hW18 : W18.isU32 = true) (hw13 : w13.isU32 = true)
     (hw5 : w5.isU32 = true) (hw4 : w4.isU32 = true)
-    (rest : List Felt) (mem locs : Nat → Felt) (adv : List Felt) :
+    (rest : List Felt) (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt) :
     execWithEnv sha256ProcEnv 2126
         ⟨W19::W18::W17::W16::w4::w5::w6::w7::w8::w9::w10::w11::w12::w13::w14::w15::rest,
-          mem, locs, adv⟩
+          mem, frames, adv⟩
         sha256SB1Expand_W20Ops =
     some ⟨sha256SB1W20 W18 w13 w5 w4 :: w14 :: w15 :: W19 :: W18 :: W17 :: W16 ::
           w4 :: w5 :: w6 :: w7 :: w8 :: w9 :: w10 :: w11 :: w12 :: w13 :: w14 :: w15 :: rest,
-          mem, locs, adv⟩ := by
+          mem, frames, adv⟩ := by
   simp only [sha256SB1Expand_W20Ops]
   unfold execWithEnv; simp only [List.foldlM]
   miden_dup; miden_dup; miden_dup
@@ -562,15 +583,15 @@ private lemma sha256_SB1_expand_W21
     (W19 W18 W17 W16 w4 w5 w6 w7 w8 w9 w10 w11 w12 w13 w14 w15 W20 : Felt)
     (hW19 : W19.isU32 = true) (hw14 : w14.isU32 = true)
     (hw6 : w6.isU32 = true) (hw5 : w5.isU32 = true)
-    (rest : List Felt) (mem locs : Nat → Felt) (adv : List Felt) :
+    (rest : List Felt) (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt) :
     execWithEnv sha256ProcEnv 2126
         ⟨W20 :: w14 :: w15 :: W19 :: W18 :: W17 :: W16 ::
           w4 :: w5 :: w6 :: w7 :: w8 :: w9 :: w10 :: w11 :: w12 :: w13 :: w14 :: w15 :: rest,
-          mem, locs, adv⟩
+          mem, frames, adv⟩
         sha256SB1Expand_W21Ops =
     some ⟨sha256SB1W21 W19 w14 w6 w5 :: W20 :: w15 :: W19 :: W18 :: W17 :: W16 ::
           w4 :: w5 :: w6 :: w7 :: w8 :: w9 :: w10 :: w11 :: w12 :: w13 :: w14 :: w15 :: rest,
-          mem, locs, adv⟩ := by
+          mem, frames, adv⟩ := by
   simp only [sha256SB1Expand_W21Ops]
   unfold execWithEnv; simp only [List.foldlM]
   miden_swap; miden_dup
@@ -594,15 +615,15 @@ private lemma sha256_SB1_expand_W22
     (W19 W18 W17 W16 w4 w5 w6 w7 w8 w9 w10 w11 w12 w13 w14 w15 W20 W21 : Felt)
     (hW20 : W20.isU32 = true) (hw15 : w15.isU32 = true)
     (hw7 : w7.isU32 = true) (hw6 : w6.isU32 = true)
-    (rest : List Felt) (mem locs : Nat → Felt) (adv : List Felt) :
+    (rest : List Felt) (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt) :
     execWithEnv sha256ProcEnv 2126
         ⟨W21 :: W20 :: w15 :: W19 :: W18 :: W17 :: W16 ::
           w4 :: w5 :: w6 :: w7 :: w8 :: w9 :: w10 :: w11 :: w12 :: w13 :: w14 :: w15 :: rest,
-          mem, locs, adv⟩
+          mem, frames, adv⟩
         sha256SB1Expand_W22Ops =
     some ⟨sha256SB1W22 W20 w15 w7 w6 :: W21 :: W20 :: W19 :: W18 :: W17 :: W16 ::
           w4 :: w5 :: w6 :: w7 :: w8 :: w9 :: w10 :: w11 :: w12 :: w13 :: w14 :: w15 :: rest,
-          mem, locs, adv⟩ := by
+          mem, frames, adv⟩ := by
   simp only [sha256SB1Expand_W22Ops]
   unfold execWithEnv; simp only [List.foldlM]
   rw [stepMovup (hn := rfl) (hv := rfl)]; miden_bind
@@ -628,17 +649,17 @@ private lemma sha256_SB1_expand_W23_movupw
     (W19 W18 W17 W16 w4 w5 w6 w7 w8 w9 w10 w11 w12 w13 w14 w15 W20 W21 W22 : Felt)
     (hW21 : W21.isU32 = true) (hW16 : W16.isU32 = true)
     (hw8 : w8.isU32 = true) (hw7 : w7.isU32 = true)
-    (rest : List Felt) (mem locs : Nat → Felt) (adv : List Felt) :
+    (rest : List Felt) (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt) :
     execWithEnv sha256ProcEnv 2126
         ⟨W22 :: W21 :: W20 :: W19 :: W18 :: W17 :: W16 ::
           w4 :: w5 :: w6 :: w7 :: w8 :: w9 :: w10 :: w11 :: w12 :: w13 :: w14 :: w15 :: rest,
-          mem, locs, adv⟩
+          mem, frames, adv⟩
         sha256SB1Expand_W23_MovupwOps =
     some ⟨w4 :: w5 :: w6 :: w7 ::
           sha256SB1W23 W21 W16 w8 w7 :: W22 :: W21 :: W20 ::
           W19 :: W18 :: W17 :: W16 ::
           w8 :: w9 :: w10 :: w11 :: w12 :: w13 :: w14 :: w15 :: rest,
-          mem, locs, adv⟩ := by
+          mem, frames, adv⟩ := by
   simp only [sha256SB1Expand_W23_MovupwOps]
   unfold execWithEnv; simp only [List.foldlM]
   miden_dup; miden_dup; miden_dup; miden_dup
@@ -663,37 +684,37 @@ private lemma sha256_SB1_expand_bridge
     (hw4 : w4.isU32 = true) (hw5 : w5.isU32 = true) (hw6 : w6.isU32 = true)
     (hw7 : w7.isU32 = true) (hw8 : w8.isU32 = true)
     (hw13 : w13.isU32 = true) (hw14 : w14.isU32 = true) (hw15 : w15.isU32 = true)
-    (rest : List Felt) (mem locs : Nat → Felt) (adv : List Felt) :
+    (rest : List Felt) (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt) :
     let W20 := sha256SB1W20 W18 w13 w5 w4
     let W21 := sha256SB1W21 W19 w14 w6 w5
     let W22 := sha256SB1W22 W20 w15 w7 w6
     let W23 := sha256SB1W23 W21 W16 w8 w7
     execWithEnv sha256ProcEnv 2126
         ⟨W19::W18::W17::W16::w4::w5::w6::w7::w8::w9::w10::w11::w12::w13::w14::w15::rest,
-          mem, locs, adv⟩
+          mem, frames, adv⟩
         sha256SB1ExpandOps =
     some ⟨w4 :: w5 :: w6 :: w7 :: W23 :: W22 :: W21 :: W20 ::
           W19 :: W18 :: W17 :: W16 ::
           w8 :: w9 :: w10 :: w11 :: w12 :: w13 :: w14 :: w15 :: rest,
-          mem, locs, adv⟩ := by
+          mem, frames, adv⟩ := by
   rw [sha256SB1ExpandOps_split]
   rw [List.append_assoc, List.append_assoc, execWithEnv_append]
   rw [sha256_SB1_expand_W20 W19 W18 W17 W16 w4 w5 w6 w7 w8 w9 w10 w11 w12 w13 w14 w15
-      hW18 hw13 hw5 hw4 rest mem locs adv]
+      hW18 hw13 hw5 hw4 rest mem frames adv]
   simp only [bind, Bind.bind, Option.bind]
   rw [execWithEnv_append]
   rw [sha256_SB1_expand_W21 W19 W18 W17 W16 w4 w5 w6 w7 w8 w9 w10 w11 w12 w13 w14 w15
-      (sha256SB1W20 W18 w13 w5 w4) hW19 hw14 hw6 hw5 rest mem locs adv]
+      (sha256SB1W20 W18 w13 w5 w4) hW19 hw14 hw6 hw5 rest mem frames adv]
   simp only [bind, Bind.bind, Option.bind]
   rw [execWithEnv_append]
   rw [sha256_SB1_expand_W22 W19 W18 W17 W16 w4 w5 w6 w7 w8 w9 w10 w11 w12 w13 w14 w15
       (sha256SB1W20 W18 w13 w5 w4) (sha256SB1W21 W19 w14 w6 w5)
-      (u32_mod_isU32 _) hw15 hw7 hw6 rest mem locs adv]
+      (u32_mod_isU32 _) hw15 hw7 hw6 rest mem frames adv]
   simp only [bind, Bind.bind, Option.bind]
   rw [sha256_SB1_expand_W23_movupw W19 W18 W17 W16 w4 w5 w6 w7 w8 w9 w10 w11 w12 w13 w14 w15
       (sha256SB1W20 W18 w13 w5 w4) (sha256SB1W21 W19 w14 w6 w5)
       (sha256SB1W22 (sha256SB1W20 W18 w13 w5 w4) w15 w7 w6)
-      (u32_mod_isU32 _) hW16 hw8 hw7 rest mem locs adv]
+      (u32_mod_isU32 _) hW16 hw8 hw7 rest mem frames adv]
 
 -- ============================================================================
 -- SB1 consume bridge
@@ -711,84 +732,91 @@ private lemma sha256_SB1_consume_bridge
     (hw7 : w7.isU32 = true)
     (ha : a.isU32 = true) (hb : b.isU32 = true) (hc : c.isU32 = true) (hd : d.isU32 = true)
     (he : e.isU32 = true) (hf : f.isU32 = true) (hg : g.isU32 = true) (hh : h.isU32 = true)
-    (rest : List Felt) (mem locs : Nat → Felt) (adv : List Felt)
-    (base : Nat → Felt)
-    (hlocs : locs = sha256WorkingLocs a b c d e f g h H0 H1 H2 H3 H4 H5 H6 H7 base) :
+    (rest : List Felt) (mem : Nat → Felt) (adv : List Felt)
+    (frame : LocalFrame) (frames_rest : List LocalFrame)
+    (hframe_locals : frame.numLocals = 16)
+    (hframe_aligned : frame.alignedNumLocals = 16)
+    (h3  : mem (frame.localAddr 3)  = a) (h2  : mem (frame.localAddr 2)  = b)
+    (h1  : mem (frame.localAddr 1)  = c) (h0  : mem (frame.localAddr 0)  = d)
+    (h7  : mem (frame.localAddr 7)  = e) (h6  : mem (frame.localAddr 6)  = f)
+    (h5  : mem (frame.localAddr 5)  = g) (h4  : mem (frame.localAddr 4)  = h)
+    (h11 : mem (frame.localAddr 11) = H0) (h10 : mem (frame.localAddr 10) = H1)
+    (h9  : mem (frame.localAddr 9)  = H2) (h8  : mem (frame.localAddr 8)  = H3)
+    (h15 : mem (frame.localAddr 15) = H4) (h14 : mem (frame.localAddr 14) = H5)
+    (h13 : mem (frame.localAddr 13) = H6) (h12 : mem (frame.localAddr 12) = H7) :
     let (na, nb, nc, nd, ne, nf, ng, nh) := sha256SB1Compress a b c d e f g h w4 w5 w6 w7
+    let b0 := frame.localAddr 0
+    let b4 := frame.localAddr 4
     execWithEnv sha256ProcEnv 2126
         ⟨w4 :: w5 :: w6 :: w7 :: W23 :: W22 :: W21 :: W20 ::
           W19 :: W18 :: W17 :: W16 ::
           w8 :: w9 :: w10 :: w11 :: w12 :: w13 :: w14 :: w15 :: rest,
-          mem, locs, adv⟩
+          mem, frame :: frames_rest, adv⟩
         sha256SB1ConsumeOps =
     some ⟨W23 :: W22 :: W21 :: W20 :: W19 :: W18 :: W17 :: W16 ::
           w8 :: w9 :: w10 :: w11 :: w12 :: w13 :: w14 :: w15 :: rest,
-          mem,
-          sha256WorkingLocs na nb nc nd ne nf ng nh H0 H1 H2 H3 H4 H5 H6 H7 base,
-          adv⟩ := by
-  subst hlocs
+          fun i =>
+            if i = b4 + 3 then ne else if i = b4 + 2 then nf else
+            if i = b4 + 1 then ng else if i = b4 then nh else
+            if i = b0 + 3 then na else if i = b0 + 2 then nb else
+            if i = b0 + 1 then nc else if i = b0 then nd else
+            mem i,
+          frame :: frames_rest, adv⟩ := by
   simp only [sha256SB1ConsumeOps]
   unfold execWithEnv; simp only [List.foldlM]
-  -- push K4, padw, locLoadwBe 4, padw, locLoadwBe 0
   rw [stepPush]; miden_bind
   rw [stepPadw]; miden_bind
-  rw [stepLocLoadwBe 4 e f g h
-      (h0 := by simp [sha256WorkingLocs]) (h1 := by simp [sha256WorkingLocs])
-      (h2 := by simp [sha256WorkingLocs]) (h3 := by simp [sha256WorkingLocs])]; miden_bind
+  rw [stepLocLoadwBe (idx := 4) (frame := frame) (frames_rest := frames_rest)
+      (halign := by decide) (hbound := by omega)]; miden_bind
+  simp only [show frame.localAddr 4 + 3 = frame.localAddr 7 from by
+      simp [LocalFrame.localAddr],
+    show frame.localAddr 4 + 2 = frame.localAddr 6 from by
+      simp [LocalFrame.localAddr],
+    show frame.localAddr 4 + 1 = frame.localAddr 5 from by
+      simp [LocalFrame.localAddr]]
+  rw [h7, h6, h5, h4]
   rw [stepPadw]; miden_bind
-  rw [stepLocLoadwBe 0 a b c d
-      (h0 := by simp [sha256WorkingLocs]) (h1 := by simp [sha256WorkingLocs])
-      (h2 := by simp [sha256WorkingLocs]) (h3 := by simp [sha256WorkingLocs])]; miden_bind
-  -- consume round 0 (K4=961987163, W=w4)
+  rw [stepLocLoadwBe (idx := 0) (frame := frame) (frames_rest := frames_rest)
+      (halign := by decide) (hbound := by omega)]; miden_bind
+  simp only [show frame.localAddr 0 + 3 = frame.localAddr 3 from by
+      simp [LocalFrame.localAddr],
+    show frame.localAddr 0 + 2 = frame.localAddr 2 from by
+      simp [LocalFrame.localAddr],
+    show frame.localAddr 0 + 1 = frame.localAddr 1 from by
+      simp [LocalFrame.localAddr]]
+  rw [h3, h2, h1, h0]
   simp only [show sha256ProcEnv "consume_message_word" =
       some Miden.Core.Sha256.consume_message_word from rfl]
   rw [consume_message_word_at_2125 a b c d e f g h (Felt.ofNat 961987163) w4
       _ _ rfl ha hb hc hd he hf hg hh (felt_ofNat_isU32_of_lt _ (by norm_num)) hw4]
   simp only [MidenState.withStack]
-  -- push K5, movdn 8, consume round 1
   rw [stepPush]; miden_bind
   rw [stepMovdn (hn := rfl)]; miden_bind
   rw [consume_message_word_at_2125 _ _ _ _ _ _ _ _ (Felt.ofNat 1508970993) w5
       _ _ rfl (u32_mod_isU32 _) ha hb hc (u32_mod_isU32 _) he hf hg
       (felt_ofNat_isU32_of_lt _ (by norm_num)) hw5]
   simp only [MidenState.withStack]
-  -- push K6, movdn 8, consume round 2
   rw [stepPush]; miden_bind
   rw [stepMovdn (hn := rfl)]; miden_bind
   rw [consume_message_word_at_2125 _ _ _ _ _ _ _ _ (Felt.ofNat 2453635748) w6
       _ _ rfl (u32_mod_isU32 _) (u32_mod_isU32 _) ha hb (u32_mod_isU32 _) (u32_mod_isU32 _)
       he hf (felt_ofNat_isU32_of_lt _ (by norm_num)) hw6]
   simp only [MidenState.withStack]
-  -- push K7, movdn 8, consume round 3
   rw [stepPush]; miden_bind
   rw [stepMovdn (hn := rfl)]; miden_bind
   rw [consume_message_word_at_2125 _ _ _ _ _ _ _ _ (Felt.ofNat 2870763221) w7
       _ _ rfl (u32_mod_isU32 _) (u32_mod_isU32 _) (u32_mod_isU32 _) ha (u32_mod_isU32 _)
       (u32_mod_isU32 _) (u32_mod_isU32 _) he (felt_ofNat_isU32_of_lt _ (by norm_num)) hw7]
   simp only [MidenState.withStack]
-  -- locStorewBe 0, dropw, locStorewBe 4, dropw
-  rw [stepLocStorewBe]; miden_bind
+  rw [stepLocStorewBe (idx := 0) (frame := frame) (frames_rest := frames_rest)
+      (halign := by decide) (hbound := by omega)]; miden_bind
   rw [stepDropw]; miden_bind
-  rw [stepLocStorewBe]; miden_bind
+  rw [stepLocStorewBe (idx := 4) (frame := frame) (frames_rest := frames_rest)
+      (halign := by decide) (hbound := by omega)]; miden_bind
   rw [stepDropw]; miden_bind
   dsimp only [pure, Pure.pure]
   simp only [sha256SB1Compress, consumeResult]
-  have : ∀ (f g : Nat → Felt), f = g → ∀ (stk : List Felt) (mem : Nat → Felt) (adv : List Felt),
-      (some ⟨stk, mem, f, adv⟩ : Option MidenState) = some ⟨stk, mem, g, adv⟩ := by
-    intros f g h; subst h; intros; rfl
-  apply this
-  funext i
-  simp only [sha256WorkingLocs]
-  rcases Nat.lt_or_ge i 16 with hi | hi
-  · interval_cases i <;> simp
-  · simp only [if_neg (show i ≠ 15 from by omega), if_neg (show i ≠ 14 from by omega),
-               if_neg (show i ≠ 13 from by omega), if_neg (show i ≠ 12 from by omega),
-               if_neg (show i ≠ 11 from by omega), if_neg (show i ≠ 10 from by omega),
-               if_neg (show i ≠ 9 from by omega), if_neg (show i ≠ 8 from by omega),
-               if_neg (show i ≠ 7 from by omega), if_neg (show i ≠ 6 from by omega),
-               if_neg (show i ≠ 5 from by omega), if_neg (show i ≠ 4 from by omega),
-               if_neg (show i ≠ 3 from by omega), if_neg (show i ≠ 2 from by omega),
-               if_neg (show i ≠ 1 from by omega), if_neg (show i ≠ 0 from by omega)]
+  rfl
 
 -- ============================================================================
 -- SB1 bridge: chains expand and consume
@@ -812,26 +840,41 @@ lemma sha256_SB1_bridge
     (_hH0 : H0.isU32 = true) (_hH1 : H1.isU32 = true) (_hH2 : H2.isU32 = true)
     (_hH3 : H3.isU32 = true) (_hH4 : H4.isU32 = true) (_hH5 : H5.isU32 = true)
     (_hH6 : H6.isU32 = true) (_hH7 : H7.isU32 = true)
-    (rest : List Felt) (mem locs : Nat → Felt) (adv : List Felt)
-    (base : Nat → Felt)
-    (hlocs : locs = sha256WorkingLocs a b c d e f g h H0 H1 H2 H3 H4 H5 H6 H7 base) :
+    (rest : List Felt) (mem : Nat → Felt) (adv : List Felt)
+    (frame : LocalFrame) (frames_rest : List LocalFrame)
+    (hframe_locals : frame.numLocals = 16)
+    (hframe_aligned : frame.alignedNumLocals = 16)
+    (h3  : mem (frame.localAddr 3)  = a) (h2  : mem (frame.localAddr 2)  = b)
+    (h1  : mem (frame.localAddr 1)  = c) (h0  : mem (frame.localAddr 0)  = d)
+    (h7  : mem (frame.localAddr 7)  = e) (h6  : mem (frame.localAddr 6)  = f)
+    (h5  : mem (frame.localAddr 5)  = g) (h4  : mem (frame.localAddr 4)  = h)
+    (h11 : mem (frame.localAddr 11) = H0) (h10 : mem (frame.localAddr 10) = H1)
+    (h9  : mem (frame.localAddr 9)  = H2) (h8  : mem (frame.localAddr 8)  = H3)
+    (h15 : mem (frame.localAddr 15) = H4) (h14 : mem (frame.localAddr 14) = H5)
+    (h13 : mem (frame.localAddr 13) = H6) (h12 : mem (frame.localAddr 12) = H7) :
     let W20 := sha256SB1W20 W18 w13 w5 w4
     let W21 := sha256SB1W21 W19 w14 w6 w5
     let W22 := sha256SB1W22 W20 w15 w7 w6
     let W23 := sha256SB1W23 W21 W16 w8 w7
     let (na, nb, nc, nd, ne, nf, ng, nh) := sha256SB1Compress a b c d e f g h w4 w5 w6 w7
+    let b0 := frame.localAddr 0
+    let b4 := frame.localAddr 4
     execWithEnv sha256ProcEnv 2126
         ⟨W19::W18::W17::W16::w4::w5::w6::w7::w8::w9::w10::w11::w12::w13::w14::w15::rest,
-          mem, locs, adv⟩
+          mem, frame :: frames_rest, adv⟩
         sha256SB1Ops =
     some ⟨W23 :: W22 :: W21 :: W20 :: W19 :: W18 :: W17 :: W16 ::
           w8 :: w9 :: w10 :: w11 :: w12 :: w13 :: w14 :: w15 :: rest,
-          mem,
-          sha256WorkingLocs na nb nc nd ne nf ng nh H0 H1 H2 H3 H4 H5 H6 H7 base,
-          adv⟩ := by
+          fun i =>
+            if i = b4 + 3 then ne else if i = b4 + 2 then nf else
+            if i = b4 + 1 then ng else if i = b4 then nh else
+            if i = b0 + 3 then na else if i = b0 + 2 then nb else
+            if i = b0 + 1 then nc else if i = b0 then nd else
+            mem i,
+          frame :: frames_rest, adv⟩ := by
   rw [sha256SB1Ops_split, execWithEnv_append]
   rw [sha256_SB1_expand_bridge W19 W18 W17 W16 w4 w5 w6 w7 w8 w9 w10 w11 w12 w13 w14 w15
-      hW18 hW19 hW16 hw4 hw5 hw6 hw7 hw8 hw13 hw14 hw15 rest mem locs adv]
+      hW18 hW19 hW16 hw4 hw5 hw6 hw7 hw8 hw13 hw14 hw15 rest mem (frame :: frames_rest) adv]
   simp only [bind, Bind.bind, Option.bind]
   rw [sha256_SB1_consume_bridge w4 w5 w6 w7
       (sha256SB1W20 W18 w13 w5 w4) (sha256SB1W21 W19 w14 w6 w5)
@@ -841,7 +884,8 @@ lemma sha256_SB1_bridge
       w8 w9 w10 w11 w12 w13 w14 w15
       a b c d e f g h H0 H1 H2 H3 H4 H5 H6 H7
       hw4 hw5 hw6 hw7 ha hb hc hd he hf hg hh
-      rest mem locs adv base hlocs]
+      rest mem adv frame frames_rest hframe_locals hframe_aligned
+      h3 h2 h1 h0 h7 h6 h5 h4 h11 h10 h9 h8 h15 h14 h13 h12]
   dsimp only [sha256SB1Compress, consumeResult, sha256SB1W20, sha256SB1W21, sha256SB1W22, sha256SB1W23]
 
 -- ============================================================================
@@ -965,14 +1009,14 @@ private lemma sha256_SB2_expand_W24
     (W23 W22 W21 W20 W19 W18 W17 W16 w8 w9 w10 w11 w12 w13 w14 w15 : Felt)
     (hW22 : W22.isU32 = true) (hW17 : W17.isU32 = true)
     (hw9 : w9.isU32 = true) (hw8 : w8.isU32 = true)
-    (rest : List Felt) (mem locs : Nat → Felt) (adv : List Felt) :
+    (rest : List Felt) (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt) :
     execWithEnv sha256ProcEnv 2126
         ⟨W23::W22::W21::W20::W19::W18::W17::W16::w8::w9::w10::w11::w12::w13::w14::w15::rest,
-          mem, locs, adv⟩
+          mem, frames, adv⟩
         sha256SB2Expand_W24Ops =
     some ⟨sha256SB2W24 W22 W17 w9 w8 :: W23 :: W22 :: W21 :: W20 :: W19 :: W18 :: W17 :: W16 ::
           w8 :: w9 :: w10 :: w11 :: w12 :: w13 :: w14 :: w15 :: rest,
-          mem, locs, adv⟩ := by
+          mem, frames, adv⟩ := by
   simp only [sha256SB2Expand_W24Ops]
   unfold execWithEnv; simp only [List.foldlM]
   miden_dup; miden_dup
@@ -995,15 +1039,15 @@ private lemma sha256_SB2_expand_W25
     (W23 W22 W21 W20 W19 W18 W17 W16 w8 w9 w10 w11 w12 w13 w14 w15 W24 : Felt)
     (hW23 : W23.isU32 = true) (hW18 : W18.isU32 = true)
     (hw10 : w10.isU32 = true) (hw9 : w9.isU32 = true)
-    (rest : List Felt) (mem locs : Nat → Felt) (adv : List Felt) :
+    (rest : List Felt) (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt) :
     execWithEnv sha256ProcEnv 2126
         ⟨W24 :: W23 :: W22 :: W21 :: W20 :: W19 :: W18 :: W17 :: W16 ::
           w8 :: w9 :: w10 :: w11 :: w12 :: w13 :: w14 :: w15 :: rest,
-          mem, locs, adv⟩
+          mem, frames, adv⟩
         sha256SB2Expand_W25Ops =
     some ⟨sha256SB2W25 W23 W18 w10 w9 :: W24 :: W23 :: W22 :: W21 :: W20 :: W19 :: W18 :: W17 :: W16 ::
           w8 :: w9 :: w10 :: w11 :: w12 :: w13 :: w14 :: w15 :: rest,
-          mem, locs, adv⟩ := by
+          mem, frames, adv⟩ := by
   simp only [sha256SB2Expand_W25Ops]
   unfold execWithEnv; simp only [List.foldlM]
   miden_dup; miden_dup
@@ -1024,15 +1068,15 @@ private lemma sha256_SB2_expand_W26
     (W23 W22 W21 W20 W19 W18 W17 W16 w8 w9 w10 w11 w12 w13 w14 w15 W24 W25 : Felt)
     (hW24 : W24.isU32 = true) (hW19 : W19.isU32 = true)
     (hw11 : w11.isU32 = true) (hw10 : w10.isU32 = true)
-    (rest : List Felt) (mem locs : Nat → Felt) (adv : List Felt) :
+    (rest : List Felt) (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt) :
     execWithEnv sha256ProcEnv 2126
         ⟨W25 :: W24 :: W23 :: W22 :: W21 :: W20 :: W19 :: W18 :: W17 :: W16 ::
           w8 :: w9 :: w10 :: w11 :: w12 :: w13 :: w14 :: w15 :: rest,
-          mem, locs, adv⟩
+          mem, frames, adv⟩
         sha256SB2Expand_W26Ops =
     some ⟨sha256SB2W26 W24 W19 w11 w10 :: W25 :: W24 :: W23 :: W22 :: W21 :: W20 :: W19 :: W18 :: W17 :: W16 ::
           w8 :: w9 :: w10 :: w11 :: w12 :: w13 :: w14 :: w15 :: rest,
-          mem, locs, adv⟩ := by
+          mem, frames, adv⟩ := by
   simp only [sha256SB2Expand_W26Ops]
   unfold execWithEnv; simp only [List.foldlM]
   miden_dup; miden_dup
@@ -1056,17 +1100,17 @@ private lemma sha256_SB2_expand_W27_movupw
     (W23 W22 W21 W20 W19 W18 W17 W16 w8 w9 w10 w11 w12 w13 w14 w15 W24 W25 W26 : Felt)
     (hW25 : W25.isU32 = true) (hW20 : W20.isU32 = true)
     (hw12 : w12.isU32 = true) (hw11 : w11.isU32 = true)
-    (rest : List Felt) (mem locs : Nat → Felt) (adv : List Felt) :
+    (rest : List Felt) (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt) :
     execWithEnv sha256ProcEnv 2126
         ⟨W26 :: W25 :: W24 :: W23 :: W22 :: W21 :: W20 :: W19 :: W18 :: W17 :: W16 ::
           w8 :: w9 :: w10 :: w11 :: w12 :: w13 :: w14 :: w15 :: rest,
-          mem, locs, adv⟩
+          mem, frames, adv⟩
         sha256SB2Expand_W27_MovupwOps =
     some ⟨w8 :: w9 :: w10 :: w11 ::
           sha256SB2W27 W25 W20 w12 w11 :: W26 :: W25 :: W24 ::
           W23 :: W22 :: W21 :: W20 :: W19 :: W18 :: W17 :: W16 ::
           w12 :: w13 :: w14 :: w15 :: rest,
-          mem, locs, adv⟩ := by
+          mem, frames, adv⟩ := by
   simp only [sha256SB2Expand_W27_MovupwOps]
   unfold execWithEnv; simp only [List.foldlM]
   miden_dup; miden_dup; miden_swap; miden_dup; miden_dup
@@ -1090,37 +1134,37 @@ private lemma sha256_SB2_expand_bridge
     (hW17 : W17.isU32 = true) (hW20 : W20.isU32 = true)
     (hw8 : w8.isU32 = true) (hw9 : w9.isU32 = true)
     (hw10 : w10.isU32 = true) (hw11 : w11.isU32 = true) (hw12 : w12.isU32 = true)
-    (rest : List Felt) (mem locs : Nat → Felt) (adv : List Felt) :
+    (rest : List Felt) (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt) :
     let W24 := sha256SB2W24 W22 W17 w9 w8
     let W25 := sha256SB2W25 W23 W18 w10 w9
     let W26 := sha256SB2W26 W24 W19 w11 w10
     let W27 := sha256SB2W27 W25 W20 w12 w11
     execWithEnv sha256ProcEnv 2126
         ⟨W23::W22::W21::W20::W19::W18::W17::W16::w8::w9::w10::w11::w12::w13::w14::w15::rest,
-          mem, locs, adv⟩
+          mem, frames, adv⟩
         sha256SB2ExpandOps =
     some ⟨w8 :: w9 :: w10 :: w11 :: W27 :: W26 :: W25 :: W24 ::
           W23 :: W22 :: W21 :: W20 :: W19 :: W18 :: W17 :: W16 ::
           w12 :: w13 :: w14 :: w15 :: rest,
-          mem, locs, adv⟩ := by
+          mem, frames, adv⟩ := by
   rw [sha256SB2ExpandOps_split]
   rw [List.append_assoc, List.append_assoc, execWithEnv_append]
   rw [sha256_SB2_expand_W24 W23 W22 W21 W20 W19 W18 W17 W16 w8 w9 w10 w11 w12 w13 w14 w15
-      hW22 hW17 hw9 hw8 rest mem locs adv]
+      hW22 hW17 hw9 hw8 rest mem frames adv]
   simp only [bind, Bind.bind, Option.bind]
   rw [execWithEnv_append]
   rw [sha256_SB2_expand_W25 W23 W22 W21 W20 W19 W18 W17 W16 w8 w9 w10 w11 w12 w13 w14 w15
-      (sha256SB2W24 W22 W17 w9 w8) hW23 hW18 hw10 hw9 rest mem locs adv]
+      (sha256SB2W24 W22 W17 w9 w8) hW23 hW18 hw10 hw9 rest mem frames adv]
   simp only [bind, Bind.bind, Option.bind]
   rw [execWithEnv_append]
   rw [sha256_SB2_expand_W26 W23 W22 W21 W20 W19 W18 W17 W16 w8 w9 w10 w11 w12 w13 w14 w15
       (sha256SB2W24 W22 W17 w9 w8) (sha256SB2W25 W23 W18 w10 w9)
-      (u32_mod_isU32 _) hW19 hw11 hw10 rest mem locs adv]
+      (u32_mod_isU32 _) hW19 hw11 hw10 rest mem frames adv]
   simp only [bind, Bind.bind, Option.bind]
   rw [sha256_SB2_expand_W27_movupw W23 W22 W21 W20 W19 W18 W17 W16 w8 w9 w10 w11 w12 w13 w14 w15
       (sha256SB2W24 W22 W17 w9 w8) (sha256SB2W25 W23 W18 w10 w9)
       (sha256SB2W26 (sha256SB2W24 W22 W17 w9 w8) W19 w11 w10)
-      (u32_mod_isU32 _) hW20 hw12 hw11 rest mem locs adv]
+      (u32_mod_isU32 _) hW20 hw12 hw11 rest mem frames adv]
 
 -- ============================================================================
 -- SB2 consume bridge
@@ -1138,33 +1182,57 @@ private lemma sha256_SB2_consume_bridge
     (hw11 : w11.isU32 = true)
     (ha : a.isU32 = true) (hb : b.isU32 = true) (hc : c.isU32 = true) (hd : d.isU32 = true)
     (he : e.isU32 = true) (hf : f.isU32 = true) (hg : g.isU32 = true) (hh : h.isU32 = true)
-    (rest : List Felt) (mem locs : Nat → Felt) (adv : List Felt)
-    (base : Nat → Felt)
-    (hlocs : locs = sha256WorkingLocs a b c d e f g h H0 H1 H2 H3 H4 H5 H6 H7 base) :
+    (rest : List Felt) (mem : Nat → Felt) (adv : List Felt)
+    (frame : LocalFrame) (frames_rest : List LocalFrame)
+    (hframe_locals : frame.numLocals = 16)
+    (hframe_aligned : frame.alignedNumLocals = 16)
+    (h3  : mem (frame.localAddr 3)  = a) (h2  : mem (frame.localAddr 2)  = b)
+    (h1  : mem (frame.localAddr 1)  = c) (h0  : mem (frame.localAddr 0)  = d)
+    (h7  : mem (frame.localAddr 7)  = e) (h6  : mem (frame.localAddr 6)  = f)
+    (h5  : mem (frame.localAddr 5)  = g) (h4  : mem (frame.localAddr 4)  = h)
+    (h11 : mem (frame.localAddr 11) = H0) (h10 : mem (frame.localAddr 10) = H1)
+    (h9  : mem (frame.localAddr 9)  = H2) (h8  : mem (frame.localAddr 8)  = H3)
+    (h15 : mem (frame.localAddr 15) = H4) (h14 : mem (frame.localAddr 14) = H5)
+    (h13 : mem (frame.localAddr 13) = H6) (h12 : mem (frame.localAddr 12) = H7) :
     let (na, nb, nc, nd, ne, nf, ng, nh) := sha256SB2Compress a b c d e f g h w8 w9 w10 w11
     execWithEnv sha256ProcEnv 2126
         ⟨w8 :: w9 :: w10 :: w11 :: W27 :: W26 :: W25 :: W24 ::
           W23 :: W22 :: W21 :: W20 :: W19 :: W18 :: W17 :: W16 ::
           w12 :: w13 :: w14 :: w15 :: rest,
-          mem, locs, adv⟩
+          mem, frame :: frames_rest, adv⟩
         sha256SB2ConsumeOps =
     some ⟨W27 :: W26 :: W25 :: W24 :: W23 :: W22 :: W21 :: W20 ::
           W19 :: W18 :: W17 :: W16 :: w12 :: w13 :: w14 :: w15 :: rest,
-          mem,
-          sha256WorkingLocs na nb nc nd ne nf ng nh H0 H1 H2 H3 H4 H5 H6 H7 base,
-          adv⟩ := by
-  subst hlocs
+          fun i =>
+            if i = frame.localAddr 4 + 3 then ne else if i = frame.localAddr 4 + 2 then nf else
+            if i = frame.localAddr 4 + 1 then ng else if i = frame.localAddr 4 then nh else
+            if i = frame.localAddr 0 + 3 then na else if i = frame.localAddr 0 + 2 then nb else
+            if i = frame.localAddr 0 + 1 then nc else if i = frame.localAddr 0 then nd else
+            mem i,
+          frame :: frames_rest, adv⟩ := by
   simp only [sha256SB2ConsumeOps]
   unfold execWithEnv; simp only [List.foldlM]
   rw [stepPush]; miden_bind
   rw [stepPadw]; miden_bind
-  rw [stepLocLoadwBe 4 e f g h
-      (h0 := by simp [sha256WorkingLocs]) (h1 := by simp [sha256WorkingLocs])
-      (h2 := by simp [sha256WorkingLocs]) (h3 := by simp [sha256WorkingLocs])]; miden_bind
+  rw [stepLocLoadwBe (idx := 4) (frame := frame) (frames_rest := frames_rest)
+      (halign := by decide) (hbound := by omega)]; miden_bind
+  simp only [show frame.localAddr 4 + 3 = frame.localAddr 7 from by
+      simp [LocalFrame.localAddr],
+    show frame.localAddr 4 + 2 = frame.localAddr 6 from by
+      simp [LocalFrame.localAddr],
+    show frame.localAddr 4 + 1 = frame.localAddr 5 from by
+      simp [LocalFrame.localAddr]]
+  rw [h7, h6, h5, h4]
   rw [stepPadw]; miden_bind
-  rw [stepLocLoadwBe 0 a b c d
-      (h0 := by simp [sha256WorkingLocs]) (h1 := by simp [sha256WorkingLocs])
-      (h2 := by simp [sha256WorkingLocs]) (h3 := by simp [sha256WorkingLocs])]; miden_bind
+  rw [stepLocLoadwBe (idx := 0) (frame := frame) (frames_rest := frames_rest)
+      (halign := by decide) (hbound := by omega)]; miden_bind
+  simp only [show frame.localAddr 0 + 3 = frame.localAddr 3 from by
+      simp [LocalFrame.localAddr],
+    show frame.localAddr 0 + 2 = frame.localAddr 2 from by
+      simp [LocalFrame.localAddr],
+    show frame.localAddr 0 + 1 = frame.localAddr 1 from by
+      simp [LocalFrame.localAddr]]
+  rw [h3, h2, h1, h0]
   simp only [show sha256ProcEnv "consume_message_word" =
       some Miden.Core.Sha256.consume_message_word from rfl]
   rw [consume_message_word_at_2125 a b c d e f g h (Felt.ofNat 3624381080) w8
@@ -1188,28 +1256,16 @@ private lemma sha256_SB2_consume_bridge
       _ _ rfl (u32_mod_isU32 _) (u32_mod_isU32 _) (u32_mod_isU32 _) ha (u32_mod_isU32 _)
       (u32_mod_isU32 _) (u32_mod_isU32 _) he (felt_ofNat_isU32_of_lt _ (by norm_num)) hw11]
   simp only [MidenState.withStack]
-  rw [stepLocStorewBe]; miden_bind
+  rw [stepLocStorewBe (idx := 0) (frame := frame) (frames_rest := frames_rest)
+      (halign := by decide) (hbound := by omega)]; miden_bind
   rw [stepDropw]; miden_bind
-  rw [stepLocStorewBe]; miden_bind
+  rw [stepLocStorewBe (idx := 4) (frame := frame) (frames_rest := frames_rest)
+      (halign := by decide) (hbound := by omega)]; miden_bind
   rw [stepDropw]; miden_bind
   dsimp only [pure, Pure.pure]
   simp only [sha256SB2Compress, consumeResult]
-  have : ∀ (f g : Nat → Felt), f = g → ∀ (stk : List Felt) (mem : Nat → Felt) (adv : List Felt),
-      (some ⟨stk, mem, f, adv⟩ : Option MidenState) = some ⟨stk, mem, g, adv⟩ := by
-    intros f g h; subst h; intros; rfl
-  apply this
-  funext i
-  simp only [sha256WorkingLocs]
-  rcases Nat.lt_or_ge i 16 with hi | hi
-  · interval_cases i <;> simp
-  · simp only [if_neg (show i ≠ 15 from by omega), if_neg (show i ≠ 14 from by omega),
-               if_neg (show i ≠ 13 from by omega), if_neg (show i ≠ 12 from by omega),
-               if_neg (show i ≠ 11 from by omega), if_neg (show i ≠ 10 from by omega),
-               if_neg (show i ≠ 9 from by omega), if_neg (show i ≠ 8 from by omega),
-               if_neg (show i ≠ 7 from by omega), if_neg (show i ≠ 6 from by omega),
-               if_neg (show i ≠ 5 from by omega), if_neg (show i ≠ 4 from by omega),
-               if_neg (show i ≠ 3 from by omega), if_neg (show i ≠ 2 from by omega),
-               if_neg (show i ≠ 1 from by omega), if_neg (show i ≠ 0 from by omega)]
+  rfl
+
 
 -- ============================================================================
 -- SB2 bridge: chains expand and consume
@@ -1233,9 +1289,18 @@ lemma sha256_SB2_bridge
     (_hH0 : H0.isU32 = true) (_hH1 : H1.isU32 = true) (_hH2 : H2.isU32 = true)
     (_hH3 : H3.isU32 = true) (_hH4 : H4.isU32 = true) (_hH5 : H5.isU32 = true)
     (_hH6 : H6.isU32 = true) (_hH7 : H7.isU32 = true)
-    (rest : List Felt) (mem locs : Nat → Felt) (adv : List Felt)
-    (base : Nat → Felt)
-    (hlocs : locs = sha256WorkingLocs a b c d e f g h H0 H1 H2 H3 H4 H5 H6 H7 base) :
+    (rest : List Felt) (mem : Nat → Felt) (adv : List Felt)
+    (frame : LocalFrame) (frames_rest : List LocalFrame)
+    (hframe_locals : frame.numLocals = 16)
+    (hframe_aligned : frame.alignedNumLocals = 16)
+    (h3  : mem (frame.localAddr 3)  = a) (h2  : mem (frame.localAddr 2)  = b)
+    (h1  : mem (frame.localAddr 1)  = c) (h0  : mem (frame.localAddr 0)  = d)
+    (h7  : mem (frame.localAddr 7)  = e) (h6  : mem (frame.localAddr 6)  = f)
+    (h5  : mem (frame.localAddr 5)  = g) (h4  : mem (frame.localAddr 4)  = h)
+    (h11 : mem (frame.localAddr 11) = H0) (h10 : mem (frame.localAddr 10) = H1)
+    (h9  : mem (frame.localAddr 9)  = H2) (h8  : mem (frame.localAddr 8)  = H3)
+    (h15 : mem (frame.localAddr 15) = H4) (h14 : mem (frame.localAddr 14) = H5)
+    (h13 : mem (frame.localAddr 13) = H6) (h12 : mem (frame.localAddr 12) = H7) :
     let W24 := sha256SB2W24 W22 W17 w9 w8
     let W25 := sha256SB2W25 W23 W18 w10 w9
     let W26 := sha256SB2W26 W24 W19 w11 w10
@@ -1243,16 +1308,20 @@ lemma sha256_SB2_bridge
     let (na, nb, nc, nd, ne, nf, ng, nh) := sha256SB2Compress a b c d e f g h w8 w9 w10 w11
     execWithEnv sha256ProcEnv 2126
         ⟨W23::W22::W21::W20::W19::W18::W17::W16::w8::w9::w10::w11::w12::w13::w14::w15::rest,
-          mem, locs, adv⟩
+          mem, frame :: frames_rest, adv⟩
         sha256SB2Ops =
     some ⟨W27 :: W26 :: W25 :: W24 :: W23 :: W22 :: W21 :: W20 ::
           W19 :: W18 :: W17 :: W16 :: w12 :: w13 :: w14 :: w15 :: rest,
-          mem,
-          sha256WorkingLocs na nb nc nd ne nf ng nh H0 H1 H2 H3 H4 H5 H6 H7 base,
-          adv⟩ := by
+          fun i =>
+            if i = frame.localAddr 4 + 3 then ne else if i = frame.localAddr 4 + 2 then nf else
+            if i = frame.localAddr 4 + 1 then ng else if i = frame.localAddr 4 then nh else
+            if i = frame.localAddr 0 + 3 then na else if i = frame.localAddr 0 + 2 then nb else
+            if i = frame.localAddr 0 + 1 then nc else if i = frame.localAddr 0 then nd else
+            mem i,
+          frame :: frames_rest, adv⟩ := by
   rw [sha256SB2Ops_split, execWithEnv_append]
   rw [sha256_SB2_expand_bridge W23 W22 W21 W20 W19 W18 W17 W16 w8 w9 w10 w11 w12 w13 w14 w15
-      hW22 hW23 hW19 hW18 hW17 hW20 hw8 hw9 hw10 hw11 hw12 rest mem locs adv]
+      hW22 hW23 hW19 hW18 hW17 hW20 hw8 hw9 hw10 hw11 hw12 rest mem (frame :: frames_rest) adv]
   simp only [bind, Bind.bind, Option.bind]
   rw [sha256_SB2_consume_bridge w8 w9 w10 w11
       (sha256SB2W24 W22 W17 w9 w8) (sha256SB2W25 W23 W18 w10 w9)
@@ -1262,7 +1331,8 @@ lemma sha256_SB2_bridge
       w12 w13 w14 w15
       a b c d e f g h H0 H1 H2 H3 H4 H5 H6 H7
       hw8 hw9 hw10 hw11 ha hb hc hd he hf hg hh
-      rest mem locs adv base hlocs]
+      rest mem adv frame frames_rest hframe_locals hframe_aligned
+      h3 h2 h1 h0 h7 h6 h5 h4 h11 h10 h9 h8 h15 h14 h13 h12]
   dsimp only [sha256SB2Compress, consumeResult, sha256SB2W24, sha256SB2W25, sha256SB2W26, sha256SB2W27]
 
 -- ============================================================================
@@ -1389,13 +1459,13 @@ private lemma sha256SB3ExpandOps_split :
 set_option maxHeartbeats 800000 in
 private lemma sha256_SB3_pre_bridge
     (W27 W26 W25 W24 W23 W22 W21 W20 W19 W18 W17 W16 w12 w13 w14 w15 : Felt)
-    (rest : List Felt) (mem locs : Nat → Felt) (adv : List Felt) :
+    (rest : List Felt) (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt) :
     execWithEnv sha256ProcEnv 2126
         ⟨W27::W26::W25::W24::W23::W22::W21::W20::W19::W18::W17::W16::w12::w13::w14::w15::rest,
-          mem, locs, adv⟩
+          mem, frames, adv⟩
         sha256SB3PreOps =
     some ⟨W19::W18::W17::W16::w12::w13::w14::w15::W27::W26::W25::W24::W23::W22::W21::W20::rest,
-          mem, locs, adv⟩ := by
+          mem, frames, adv⟩ := by
   simp only [sha256SB3PreOps]
   unfold execWithEnv; simp only [List.foldlM]
   rw [stepMovupw3]; miden_bind
@@ -1419,14 +1489,14 @@ private lemma sha256_SB3_expand_W28
     (W19 W18 W17 W16 w12 w13 w14 w15 W27 W26 W25 W24 W23 W22 W21 W20 : Felt)
     (hW26 : W26.isU32 = true) (hW21 : W21.isU32 = true)
     (hw13 : w13.isU32 = true) (hw12 : w12.isU32 = true)
-    (rest : List Felt) (mem locs : Nat → Felt) (adv : List Felt) :
+    (rest : List Felt) (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt) :
     execWithEnv sha256ProcEnv 2126
         ⟨W19::W18::W17::W16::w12::w13::w14::w15::W27::W26::W25::W24::W23::W22::W21::W20::rest,
-          mem, locs, adv⟩
+          mem, frames, adv⟩
         sha256SB3Expand_W28Ops =
     some ⟨sha256SB3W28 W26 W21 w13 w12 :: W19 :: W18 :: W17 :: W16 ::
           w12 :: w13 :: w14 :: w15 :: W27 :: W26 :: W25 :: W24 :: W23 :: W22 :: W21 :: W20 :: rest,
-          mem, locs, adv⟩ := by
+          mem, frames, adv⟩ := by
   simp only [sha256SB3Expand_W28Ops]
   unfold execWithEnv; simp only [List.foldlM]
   miden_dup; miden_dup
@@ -1456,15 +1526,15 @@ private lemma sha256_SB3_expand_W29
     (W19 W18 W17 W16 w12 w13 w14 w15 W27 W26 W25 W24 W23 W22 W21 W20 W28 : Felt)
     (hW27 : W27.isU32 = true) (hW22 : W22.isU32 = true)
     (hw14 : w14.isU32 = true) (hw13 : w13.isU32 = true)
-    (rest : List Felt) (mem locs : Nat → Felt) (adv : List Felt) :
+    (rest : List Felt) (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt) :
     execWithEnv sha256ProcEnv 2126
         ⟨W28 :: W19 :: W18 :: W17 :: W16 ::
           w12 :: w13 :: w14 :: w15 :: W27 :: W26 :: W25 :: W24 :: W23 :: W22 :: W21 :: W20 :: rest,
-          mem, locs, adv⟩
+          mem, frames, adv⟩
         sha256SB3Expand_W29Ops =
     some ⟨sha256SB3W29 W27 W22 w14 w13 :: W28 :: W19 :: W18 :: W17 :: W16 ::
           w12 :: w13 :: w14 :: w15 :: W27 :: W26 :: W25 :: W24 :: W23 :: W22 :: W21 :: W20 :: rest,
-          mem, locs, adv⟩ := by
+          mem, frames, adv⟩ := by
   simp only [sha256SB3Expand_W29Ops]
   unfold execWithEnv; simp only [List.foldlM]
   miden_dup; miden_dup
@@ -1492,15 +1562,15 @@ private lemma sha256_SB3_expand_W30
     (W19 W18 W17 W16 w12 w13 w14 w15 W27 W26 W25 W24 W23 W22 W21 W20 W28 W29 : Felt)
     (hW28 : W28.isU32 = true) (hW23 : W23.isU32 = true)
     (hw15 : w15.isU32 = true) (hw14 : w14.isU32 = true)
-    (rest : List Felt) (mem locs : Nat → Felt) (adv : List Felt) :
+    (rest : List Felt) (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt) :
     execWithEnv sha256ProcEnv 2126
         ⟨W29 :: W28 :: W19 :: W18 :: W17 :: W16 ::
           w12 :: w13 :: w14 :: w15 :: W27 :: W26 :: W25 :: W24 :: W23 :: W22 :: W21 :: W20 :: rest,
-          mem, locs, adv⟩
+          mem, frames, adv⟩
         sha256SB3Expand_W30Ops =
     some ⟨sha256SB3W30 W28 W23 w15 w14 :: W29 :: W28 :: W19 :: W18 :: W17 :: W16 ::
           w12 :: w13 :: w14 :: w15 :: W27 :: W26 :: W25 :: W24 :: W23 :: W22 :: W21 :: W20 :: rest,
-          mem, locs, adv⟩ := by
+          mem, frames, adv⟩ := by
   simp only [sha256SB3Expand_W30Ops]
   unfold execWithEnv; simp only [List.foldlM]
   miden_dup; miden_dup
@@ -1529,17 +1599,17 @@ private lemma sha256_SB3_expand_W31_movupw
     (W19 W18 W17 W16 w12 w13 w14 w15 W27 W26 W25 W24 W23 W22 W21 W20 W28 W29 W30 : Felt)
     (hW29 : W29.isU32 = true) (hW24 : W24.isU32 = true)
     (hW16 : W16.isU32 = true) (hw15 : w15.isU32 = true)
-    (rest : List Felt) (mem locs : Nat → Felt) (adv : List Felt) :
+    (rest : List Felt) (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt) :
     execWithEnv sha256ProcEnv 2126
         ⟨W30 :: W29 :: W28 :: W19 :: W18 :: W17 :: W16 ::
           w12 :: w13 :: w14 :: w15 :: W27 :: W26 :: W25 :: W24 :: W23 :: W22 :: W21 :: W20 :: rest,
-          mem, locs, adv⟩
+          mem, frames, adv⟩
         sha256SB3Expand_W31_MovupwOps =
     some ⟨w12 :: w13 :: w14 :: w15 ::
           sha256SB3W31 W29 W24 W16 w15 :: W30 :: W29 :: W28 ::
           W19 :: W18 :: W17 :: W16 ::
           W27 :: W26 :: W25 :: W24 :: W23 :: W22 :: W21 :: W20 :: rest,
-          mem, locs, adv⟩ := by
+          mem, frames, adv⟩ := by
   simp only [sha256SB3Expand_W31_MovupwOps]
   unfold execWithEnv; simp only [List.foldlM]
   miden_dup; miden_dup; miden_dup; miden_dup
@@ -1565,37 +1635,37 @@ private lemma sha256_SB3_expand_bridge
     (hW16 : W16.isU32 = true)
     (hw12 : w12.isU32 = true) (hw13 : w13.isU32 = true)
     (hw14 : w14.isU32 = true) (hw15 : w15.isU32 = true)
-    (rest : List Felt) (mem locs : Nat → Felt) (adv : List Felt) :
+    (rest : List Felt) (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt) :
     let W28 := sha256SB3W28 W26 W21 w13 w12
     let W29 := sha256SB3W29 W27 W22 w14 w13
     let W30 := sha256SB3W30 W28 W23 w15 w14
     let W31 := sha256SB3W31 W29 W24 W16 w15
     execWithEnv sha256ProcEnv 2126
         ⟨W19::W18::W17::W16::w12::w13::w14::w15::W27::W26::W25::W24::W23::W22::W21::W20::rest,
-          mem, locs, adv⟩
+          mem, frames, adv⟩
         sha256SB3ExpandOps =
     some ⟨w12 :: w13 :: w14 :: w15 :: W31 :: W30 :: W29 :: W28 ::
           W19 :: W18 :: W17 :: W16 ::
           W27 :: W26 :: W25 :: W24 :: W23 :: W22 :: W21 :: W20 :: rest,
-          mem, locs, adv⟩ := by
+          mem, frames, adv⟩ := by
   rw [sha256SB3ExpandOps_split]
   rw [List.append_assoc, List.append_assoc, execWithEnv_append]
   rw [sha256_SB3_expand_W28 W19 W18 W17 W16 w12 w13 w14 w15 W27 W26 W25 W24 W23 W22 W21 W20
-      hW26 hW21 hw13 hw12 rest mem locs adv]
+      hW26 hW21 hw13 hw12 rest mem frames adv]
   simp only [bind, Bind.bind, Option.bind]
   rw [execWithEnv_append]
   rw [sha256_SB3_expand_W29 W19 W18 W17 W16 w12 w13 w14 w15 W27 W26 W25 W24 W23 W22 W21 W20
-      (sha256SB3W28 W26 W21 w13 w12) hW27 hW22 hw14 hw13 rest mem locs adv]
+      (sha256SB3W28 W26 W21 w13 w12) hW27 hW22 hw14 hw13 rest mem frames adv]
   simp only [bind, Bind.bind, Option.bind]
   rw [execWithEnv_append]
   rw [sha256_SB3_expand_W30 W19 W18 W17 W16 w12 w13 w14 w15 W27 W26 W25 W24 W23 W22 W21 W20
       (sha256SB3W28 W26 W21 w13 w12) (sha256SB3W29 W27 W22 w14 w13)
-      (u32_mod_isU32 _) hW23 hw15 hw14 rest mem locs adv]
+      (u32_mod_isU32 _) hW23 hw15 hw14 rest mem frames adv]
   simp only [bind, Bind.bind, Option.bind]
   rw [sha256_SB3_expand_W31_movupw W19 W18 W17 W16 w12 w13 w14 w15 W27 W26 W25 W24 W23 W22 W21 W20
       (sha256SB3W28 W26 W21 w13 w12) (sha256SB3W29 W27 W22 w14 w13)
       (sha256SB3W30 (sha256SB3W28 W26 W21 w13 w12) W23 w15 w14)
-      (u32_mod_isU32 _) hW24 hW16 hw15 rest mem locs adv]
+      (u32_mod_isU32 _) hW24 hW16 hw15 rest mem frames adv]
 
 -- ============================================================================
 -- SB3 consume bridge
@@ -1613,33 +1683,57 @@ private lemma sha256_SB3_consume_bridge
     (hw15 : w15.isU32 = true)
     (ha : a.isU32 = true) (hb : b.isU32 = true) (hc : c.isU32 = true) (hd : d.isU32 = true)
     (he : e.isU32 = true) (hf : f.isU32 = true) (hg : g.isU32 = true) (hh : h.isU32 = true)
-    (rest : List Felt) (mem locs : Nat → Felt) (adv : List Felt)
-    (base : Nat → Felt)
-    (hlocs : locs = sha256WorkingLocs a b c d e f g h H0 H1 H2 H3 H4 H5 H6 H7 base) :
+    (rest : List Felt) (mem : Nat → Felt) (adv : List Felt)
+    (frame : LocalFrame) (frames_rest : List LocalFrame)
+    (hframe_locals : frame.numLocals = 16)
+    (hframe_aligned : frame.alignedNumLocals = 16)
+    (h3  : mem (frame.localAddr 3)  = a) (h2  : mem (frame.localAddr 2)  = b)
+    (h1  : mem (frame.localAddr 1)  = c) (h0  : mem (frame.localAddr 0)  = d)
+    (h7  : mem (frame.localAddr 7)  = e) (h6  : mem (frame.localAddr 6)  = f)
+    (h5  : mem (frame.localAddr 5)  = g) (h4  : mem (frame.localAddr 4)  = h)
+    (h11 : mem (frame.localAddr 11) = H0) (h10 : mem (frame.localAddr 10) = H1)
+    (h9  : mem (frame.localAddr 9)  = H2) (h8  : mem (frame.localAddr 8)  = H3)
+    (h15 : mem (frame.localAddr 15) = H4) (h14 : mem (frame.localAddr 14) = H5)
+    (h13 : mem (frame.localAddr 13) = H6) (h12 : mem (frame.localAddr 12) = H7) :
     let (na, nb, nc, nd, ne, nf, ng, nh) := sha256SB3Compress a b c d e f g h w12 w13 w14 w15
     execWithEnv sha256ProcEnv 2126
         ⟨w12 :: w13 :: w14 :: w15 :: W31 :: W30 :: W29 :: W28 ::
           W19 :: W18 :: W17 :: W16 ::
           W27 :: W26 :: W25 :: W24 :: W23 :: W22 :: W21 :: W20 :: rest,
-          mem, locs, adv⟩
+          mem, frame :: frames_rest, adv⟩
         sha256SB3ConsumeOps =
     some ⟨W31 :: W30 :: W29 :: W28 :: W19 :: W18 :: W17 :: W16 ::
           W27 :: W26 :: W25 :: W24 :: W23 :: W22 :: W21 :: W20 :: rest,
-          mem,
-          sha256WorkingLocs na nb nc nd ne nf ng nh H0 H1 H2 H3 H4 H5 H6 H7 base,
-          adv⟩ := by
-  subst hlocs
+          fun i =>
+            if i = frame.localAddr 4 + 3 then ne else if i = frame.localAddr 4 + 2 then nf else
+            if i = frame.localAddr 4 + 1 then ng else if i = frame.localAddr 4 then nh else
+            if i = frame.localAddr 0 + 3 then na else if i = frame.localAddr 0 + 2 then nb else
+            if i = frame.localAddr 0 + 1 then nc else if i = frame.localAddr 0 then nd else
+            mem i,
+          frame :: frames_rest, adv⟩ := by
   simp only [sha256SB3ConsumeOps]
   unfold execWithEnv; simp only [List.foldlM]
   rw [stepPush]; miden_bind
   rw [stepPadw]; miden_bind
-  rw [stepLocLoadwBe 4 e f g h
-      (h0 := by simp [sha256WorkingLocs]) (h1 := by simp [sha256WorkingLocs])
-      (h2 := by simp [sha256WorkingLocs]) (h3 := by simp [sha256WorkingLocs])]; miden_bind
+  rw [stepLocLoadwBe (idx := 4) (frame := frame) (frames_rest := frames_rest)
+      (halign := by decide) (hbound := by omega)]; miden_bind
+  simp only [show frame.localAddr 4 + 3 = frame.localAddr 7 from by
+      simp [LocalFrame.localAddr],
+    show frame.localAddr 4 + 2 = frame.localAddr 6 from by
+      simp [LocalFrame.localAddr],
+    show frame.localAddr 4 + 1 = frame.localAddr 5 from by
+      simp [LocalFrame.localAddr]]
+  rw [h7, h6, h5, h4]
   rw [stepPadw]; miden_bind
-  rw [stepLocLoadwBe 0 a b c d
-      (h0 := by simp [sha256WorkingLocs]) (h1 := by simp [sha256WorkingLocs])
-      (h2 := by simp [sha256WorkingLocs]) (h3 := by simp [sha256WorkingLocs])]; miden_bind
+  rw [stepLocLoadwBe (idx := 0) (frame := frame) (frames_rest := frames_rest)
+      (halign := by decide) (hbound := by omega)]; miden_bind
+  simp only [show frame.localAddr 0 + 3 = frame.localAddr 3 from by
+      simp [LocalFrame.localAddr],
+    show frame.localAddr 0 + 2 = frame.localAddr 2 from by
+      simp [LocalFrame.localAddr],
+    show frame.localAddr 0 + 1 = frame.localAddr 1 from by
+      simp [LocalFrame.localAddr]]
+  rw [h3, h2, h1, h0]
   simp only [show sha256ProcEnv "consume_message_word" =
       some Miden.Core.Sha256.consume_message_word from rfl]
   rw [consume_message_word_at_2125 a b c d e f g h (Felt.ofNat 1925078388) w12
@@ -1663,28 +1757,16 @@ private lemma sha256_SB3_consume_bridge
       _ _ rfl (u32_mod_isU32 _) (u32_mod_isU32 _) (u32_mod_isU32 _) ha (u32_mod_isU32 _)
       (u32_mod_isU32 _) (u32_mod_isU32 _) he (felt_ofNat_isU32_of_lt _ (by norm_num)) hw15]
   simp only [MidenState.withStack]
-  rw [stepLocStorewBe]; miden_bind
+  rw [stepLocStorewBe (idx := 0) (frame := frame) (frames_rest := frames_rest)
+      (halign := by decide) (hbound := by omega)]; miden_bind
   rw [stepDropw]; miden_bind
-  rw [stepLocStorewBe]; miden_bind
+  rw [stepLocStorewBe (idx := 4) (frame := frame) (frames_rest := frames_rest)
+      (halign := by decide) (hbound := by omega)]; miden_bind
   rw [stepDropw]; miden_bind
   dsimp only [pure, Pure.pure]
   simp only [sha256SB3Compress, consumeResult]
-  have : ∀ (f g : Nat → Felt), f = g → ∀ (stk : List Felt) (mem : Nat → Felt) (adv : List Felt),
-      (some ⟨stk, mem, f, adv⟩ : Option MidenState) = some ⟨stk, mem, g, adv⟩ := by
-    intros f g h; subst h; intros; rfl
-  apply this
-  funext i
-  simp only [sha256WorkingLocs]
-  rcases Nat.lt_or_ge i 16 with hi | hi
-  · interval_cases i <;> simp
-  · simp only [if_neg (show i ≠ 15 from by omega), if_neg (show i ≠ 14 from by omega),
-               if_neg (show i ≠ 13 from by omega), if_neg (show i ≠ 12 from by omega),
-               if_neg (show i ≠ 11 from by omega), if_neg (show i ≠ 10 from by omega),
-               if_neg (show i ≠ 9 from by omega), if_neg (show i ≠ 8 from by omega),
-               if_neg (show i ≠ 7 from by omega), if_neg (show i ≠ 6 from by omega),
-               if_neg (show i ≠ 5 from by omega), if_neg (show i ≠ 4 from by omega),
-               if_neg (show i ≠ 3 from by omega), if_neg (show i ≠ 2 from by omega),
-               if_neg (show i ≠ 1 from by omega), if_neg (show i ≠ 0 from by omega)]
+  rfl
+
 
 -- ============================================================================
 -- SB3 bridge: chains pre + expand + consume
@@ -1708,9 +1790,18 @@ lemma sha256_SB3_bridge
     (_hH0 : H0.isU32 = true) (_hH1 : H1.isU32 = true) (_hH2 : H2.isU32 = true)
     (_hH3 : H3.isU32 = true) (_hH4 : H4.isU32 = true) (_hH5 : H5.isU32 = true)
     (_hH6 : H6.isU32 = true) (_hH7 : H7.isU32 = true)
-    (rest : List Felt) (mem locs : Nat → Felt) (adv : List Felt)
-    (base : Nat → Felt)
-    (hlocs : locs = sha256WorkingLocs a b c d e f g h H0 H1 H2 H3 H4 H5 H6 H7 base) :
+    (rest : List Felt) (mem : Nat → Felt) (adv : List Felt)
+    (frame : LocalFrame) (frames_rest : List LocalFrame)
+    (hframe_locals : frame.numLocals = 16)
+    (hframe_aligned : frame.alignedNumLocals = 16)
+    (h3  : mem (frame.localAddr 3)  = a) (h2  : mem (frame.localAddr 2)  = b)
+    (h1  : mem (frame.localAddr 1)  = c) (h0  : mem (frame.localAddr 0)  = d)
+    (h7  : mem (frame.localAddr 7)  = e) (h6  : mem (frame.localAddr 6)  = f)
+    (h5  : mem (frame.localAddr 5)  = g) (h4  : mem (frame.localAddr 4)  = h)
+    (h11 : mem (frame.localAddr 11) = H0) (h10 : mem (frame.localAddr 10) = H1)
+    (h9  : mem (frame.localAddr 9)  = H2) (h8  : mem (frame.localAddr 8)  = H3)
+    (h15 : mem (frame.localAddr 15) = H4) (h14 : mem (frame.localAddr 14) = H5)
+    (h13 : mem (frame.localAddr 13) = H6) (h12 : mem (frame.localAddr 12) = H7) :
     let W28 := sha256SB3W28 W26 W21 w13 w12
     let W29 := sha256SB3W29 W27 W22 w14 w13
     let W30 := sha256SB3W30 W28 W23 w15 w14
@@ -1718,20 +1809,24 @@ lemma sha256_SB3_bridge
     let (na, nb, nc, nd, ne, nf, ng, nh) := sha256SB3Compress a b c d e f g h w12 w13 w14 w15
     execWithEnv sha256ProcEnv 2126
         ⟨W27::W26::W25::W24::W23::W22::W21::W20::W19::W18::W17::W16::w12::w13::w14::w15::rest,
-          mem, locs, adv⟩
+          mem, frame :: frames_rest, adv⟩
         sha256SB3Ops =
     some ⟨W31 :: W30 :: W29 :: W28 :: W19 :: W18 :: W17 :: W16 ::
           W27 :: W26 :: W25 :: W24 :: W23 :: W22 :: W21 :: W20 :: rest,
-          mem,
-          sha256WorkingLocs na nb nc nd ne nf ng nh H0 H1 H2 H3 H4 H5 H6 H7 base,
-          adv⟩ := by
+          fun i =>
+            if i = frame.localAddr 4 + 3 then ne else if i = frame.localAddr 4 + 2 then nf else
+            if i = frame.localAddr 4 + 1 then ng else if i = frame.localAddr 4 then nh else
+            if i = frame.localAddr 0 + 3 then na else if i = frame.localAddr 0 + 2 then nb else
+            if i = frame.localAddr 0 + 1 then nc else if i = frame.localAddr 0 then nd else
+            mem i,
+          frame :: frames_rest, adv⟩ := by
   rw [sha256SB3Ops_split, List.append_assoc, execWithEnv_append]
   rw [sha256_SB3_pre_bridge W27 W26 W25 W24 W23 W22 W21 W20 W19 W18 W17 W16 w12 w13 w14 w15
-      rest mem locs adv]
+      rest mem (frame :: frames_rest) adv]
   simp only [bind, Bind.bind, Option.bind]
   rw [execWithEnv_append]
   rw [sha256_SB3_expand_bridge W19 W18 W17 W16 w12 w13 w14 w15 W27 W26 W25 W24 W23 W22 W21 W20
-      hW26 hW27 hW23 hW22 hW21 hW24 hW16 hw12 hw13 hw14 hw15 rest mem locs adv]
+      hW26 hW27 hW23 hW22 hW21 hW24 hW16 hw12 hw13 hw14 hw15 rest mem (frame :: frames_rest) adv]
   simp only [bind, Bind.bind, Option.bind]
   rw [sha256_SB3_consume_bridge w12 w13 w14 w15
       (sha256SB3W28 W26 W21 w13 w12) (sha256SB3W29 W27 W22 w14 w13)
@@ -1741,7 +1836,8 @@ lemma sha256_SB3_bridge
       W27 W26 W25 W24 W23 W22 W21 W20
       a b c d e f g h H0 H1 H2 H3 H4 H5 H6 H7
       hw12 hw13 hw14 hw15 ha hb hc hd he hf hg hh
-      rest mem locs adv base hlocs]
+      rest mem adv frame frames_rest hframe_locals hframe_aligned
+      h3 h2 h1 h0 h7 h6 h5 h4 h11 h10 h9 h8 h15 h14 h13 h12]
   dsimp only [sha256SB3Compress, consumeResult, sha256SB3W28, sha256SB3W29, sha256SB3W30, sha256SB3W31]
 
 
@@ -1853,14 +1949,14 @@ private lemma sha256_regular_expand_W1
     (d0 d1 d2 d3 a0 a1 a2 a3 b0 b1 b2 b3 c0 c1 c2 c3 : Felt)
     (ha1 : a1.isU32 = true) (hc2 : c2.isU32 = true)
     (hb2 : b2.isU32 = true) (hb3 : b3.isU32 = true)
-    (rest : List Felt) (mem locs : Nat → Felt) (adv : List Felt) :
+    (rest : List Felt) (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt) :
     execWithEnv sha256ProcEnv 2126
         ⟨d0::d1::d2::d3::a0::a1::a2::a3::b0::b1::b2::b3::c0::c1::c2::c3::rest,
-          mem, locs, adv⟩
+          mem, frames, adv⟩
         sha256RegularExpand_W1Ops =
     some ⟨sha256W a1 c2 b2 b3 :: d0 :: d1 :: d2 :: d3 :: a0 :: a1 :: a2 :: a3 ::
           b0 :: b1 :: b2 :: b3 :: c0 :: c1 :: c2 :: c3 :: rest,
-          mem, locs, adv⟩ := by
+          mem, frames, adv⟩ := by
   simp only [sha256RegularExpand_W1Ops]
   unfold execWithEnv; simp only [List.foldlM]
   miden_dup; miden_dup; miden_dup; miden_dup; miden_movdn; miden_movdn
@@ -1879,15 +1975,15 @@ private lemma sha256_regular_expand_W2
     (d0 d1 d2 d3 a0 a1 a2 a3 b0 b1 b2 b3 c0 c1 c2 c3 new1 : Felt)
     (ha0 : a0.isU32 = true) (hc1 : c1.isU32 = true)
     (hb1 : b1.isU32 = true) (hb2 : b2.isU32 = true)
-    (rest : List Felt) (mem locs : Nat → Felt) (adv : List Felt) :
+    (rest : List Felt) (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt) :
     execWithEnv sha256ProcEnv 2126
         ⟨new1 :: d0 :: d1 :: d2 :: d3 :: a0 :: a1 :: a2 :: a3 ::
           b0 :: b1 :: b2 :: b3 :: c0 :: c1 :: c2 :: c3 :: rest,
-          mem, locs, adv⟩
+          mem, frames, adv⟩
         sha256RegularExpand_W2Ops =
     some ⟨sha256W a0 c1 b1 b2 :: new1 :: d0 :: d1 :: d2 :: d3 :: a0 :: a1 :: a2 :: a3 ::
           b0 :: b1 :: b2 :: b3 :: c0 :: c1 :: c2 :: c3 :: rest,
-          mem, locs, adv⟩ := by
+          mem, frames, adv⟩ := by
   simp only [sha256RegularExpand_W2Ops]
   unfold execWithEnv; simp only [List.foldlM]
   miden_dup; miden_dup; miden_dup; miden_dup; miden_movdn; miden_movdn
@@ -1907,15 +2003,15 @@ private lemma sha256_regular_expand_W3
     (d0 d1 d2 d3 a0 a1 a2 a3 b0 b1 b2 b3 c0 c1 c2 c3 new1 new2 : Felt)
     (hnew1 : new1.isU32 = true) (hc0 : c0.isU32 = true)
     (hb0 : b0.isU32 = true) (hb1 : b1.isU32 = true)
-    (rest : List Felt) (mem locs : Nat → Felt) (adv : List Felt) :
+    (rest : List Felt) (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt) :
     execWithEnv sha256ProcEnv 2126
         ⟨new2 :: new1 :: d0 :: d1 :: d2 :: d3 :: a0 :: a1 :: a2 :: a3 ::
           b0 :: b1 :: b2 :: b3 :: c0 :: c1 :: c2 :: c3 :: rest,
-          mem, locs, adv⟩
+          mem, frames, adv⟩
         sha256RegularExpand_W3Ops =
     some ⟨sha256W new1 c0 b0 b1 :: new2 :: new1 :: d0 :: d1 :: d2 :: d3 ::
           a0 :: a1 :: a2 :: a3 :: b0 :: b1 :: b2 :: b3 :: c0 :: c1 :: c2 :: c3 :: rest,
-          mem, locs, adv⟩ := by
+          mem, frames, adv⟩ := by
   simp only [sha256RegularExpand_W3Ops]
   unfold execWithEnv; simp only [List.foldlM]
   miden_dup; miden_dup; miden_dup; miden_dup; miden_movdn; miden_movdn
@@ -1936,16 +2032,16 @@ private lemma sha256_regular_expand_W4A_rev
     (d0 d1 d2 d3 a0 a1 a2 a3 b0 b1 b2 b3 c0 c1 c2 c3 new1 new2 new3 : Felt)
     (hnew2 : new2.isU32 = true) (ha3 : a3.isU32 = true)
     (hd3 : d3.isU32 = true) (hb0 : b0.isU32 = true)
-    (rest : List Felt) (mem locs : Nat → Felt) (adv : List Felt) :
+    (rest : List Felt) (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt) :
     execWithEnv sha256ProcEnv 2126
         ⟨new3 :: new2 :: new1 :: d0 :: d1 :: d2 :: d3 :: a0 :: a1 :: a2 :: a3 ::
           b0 :: b1 :: b2 :: b3 :: c0 :: c1 :: c2 :: c3 :: rest,
-          mem, locs, adv⟩
+          mem, frames, adv⟩
         sha256RegularExpand_W4A_RevOps =
     some ⟨b3 :: b2 :: b1 :: b0 ::
           sha256W new2 a3 d3 b0 :: new3 :: new2 :: new1 ::
           d0 :: d1 :: d2 :: d3 :: a0 :: a1 :: a2 :: a3 :: c0 :: c1 :: c2 :: c3 :: rest,
-          mem, locs, adv⟩ := by
+          mem, frames, adv⟩ := by
   simp only [sha256RegularExpand_W4A_RevOps]
   unfold execWithEnv; simp only [List.foldlM]
   miden_dup; miden_dup; miden_dup; miden_dup; miden_movdn
@@ -1968,16 +2064,16 @@ private lemma sha256_SB6_expand_W4B_rev
     (d0 d1 d2 d3 a0 a1 a2 a3 b0 b1 b2 b3 c0 c1 c2 c3 new1 new2 new3 : Felt)
     (hnew2 : new2.isU32 = true) (ha3 : a3.isU32 = true)
     (hd3 : d3.isU32 = true) (hb0 : b0.isU32 = true)
-    (rest : List Felt) (mem locs : Nat → Felt) (adv : List Felt) :
+    (rest : List Felt) (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt) :
     execWithEnv sha256ProcEnv 2126
         ⟨new3 :: new2 :: new1 :: d0 :: d1 :: d2 :: d3 :: a0 :: a1 :: a2 :: a3 ::
           b0 :: b1 :: b2 :: b3 :: c0 :: c1 :: c2 :: c3 :: rest,
-          mem, locs, adv⟩
+          mem, frames, adv⟩
         sha256SB6Expand_W4B_RevOps =
     some ⟨b3 :: b2 :: b1 :: b0 ::
           sha256W new2 a3 d3 b0 :: new3 :: new2 :: new1 ::
           d0 :: d1 :: d2 :: d3 :: a0 :: a1 :: a2 :: a3 :: c0 :: c1 :: c2 :: c3 :: rest,
-          mem, locs, adv⟩ := by
+          mem, frames, adv⟩ := by
   simp only [sha256SB6Expand_W4B_RevOps]
   unfold execWithEnv; simp only [List.foldlM]
   miden_dup; miden_dup; miden_dup; miden_dup; miden_movdn; miden_movdn
@@ -2009,18 +2105,18 @@ lemma sha256_regular_expand_bridge
     (hb0 : b0.isU32 = true) (hb1 : b1.isU32 = true) (hb2 : b2.isU32 = true) (hb3 : b3.isU32 = true)
     (hc0 : c0.isU32 = true) (hc1 : c1.isU32 = true) (hc2 : c2.isU32 = true)
     (hd3 : d3.isU32 = true)
-    (rest : List Felt) (mem locs : Nat → Felt) (adv : List Felt) :
+    (rest : List Felt) (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt) :
     let new1 := sha256W a1 c2 b2 b3
     let new2 := sha256W a0 c1 b1 b2
     let new3 := sha256W new1 c0 b0 b1
     let new4 := sha256W new2 a3 d3 b0
     execWithEnv sha256ProcEnv 2126
         ⟨a0::a1::a2::a3::b0::b1::b2::b3::c0::c1::c2::c3::d0::d1::d2::d3::rest,
-          mem, locs, adv⟩
+          mem, frames, adv⟩
         sha256RegularExpandOps =
     some ⟨b3 :: b2 :: b1 :: b0 :: new4 :: new3 :: new2 :: new1 ::
           d0 :: d1 :: d2 :: d3 :: a0 :: a1 :: a2 :: a3 :: c0 :: c1 :: c2 :: c3 :: rest,
-          mem, locs, adv⟩ := by
+          mem, frames, adv⟩ := by
   rw [sha256RegularExpandOps_split]
   rw [List.append_assoc, List.append_assoc, List.append_assoc, execWithEnv_append]
   -- movupw 3
@@ -2029,24 +2125,24 @@ lemma sha256_regular_expand_bridge
   -- W1
   rw [execWithEnv_append]
   rw [sha256_regular_expand_W1 d0 d1 d2 d3 a0 a1 a2 a3 b0 b1 b2 b3 c0 c1 c2 c3
-      ha1 hc2 hb2 hb3 rest mem locs adv]
+      ha1 hc2 hb2 hb3 rest mem frames adv]
   simp only [bind, Bind.bind, Option.bind]
   -- W2
   rw [execWithEnv_append]
   rw [sha256_regular_expand_W2 d0 d1 d2 d3 a0 a1 a2 a3 b0 b1 b2 b3 c0 c1 c2 c3
-      (sha256W a1 c2 b2 b3) ha0 hc1 hb1 hb2 rest mem locs adv]
+      (sha256W a1 c2 b2 b3) ha0 hc1 hb1 hb2 rest mem frames adv]
   simp only [bind, Bind.bind, Option.bind]
   -- W3
   rw [execWithEnv_append]
   rw [sha256_regular_expand_W3 d0 d1 d2 d3 a0 a1 a2 a3 b0 b1 b2 b3 c0 c1 c2 c3
       (sha256W a1 c2 b2 b3) (sha256W a0 c1 b1 b2)
-      (u32_mod_isU32 _) hc0 hb0 hb1 rest mem locs adv]
+      (u32_mod_isU32 _) hc0 hb0 hb1 rest mem frames adv]
   simp only [bind, Bind.bind, Option.bind]
   -- W4A + rev
   rw [sha256_regular_expand_W4A_rev d0 d1 d2 d3 a0 a1 a2 a3 b0 b1 b2 b3 c0 c1 c2 c3
       (sha256W a1 c2 b2 b3) (sha256W a0 c1 b1 b2)
       (sha256W (sha256W a1 c2 b2 b3) c0 b0 b1)
-      (u32_mod_isU32 _) ha3 hd3 hb0 rest mem locs adv]
+      (u32_mod_isU32 _) ha3 hd3 hb0 rest mem frames adv]
 
 -- ============================================================================
 -- SB6 expand bridge (Type B)
@@ -2059,18 +2155,18 @@ lemma sha256_SB6_expand_bridge
     (hb0 : b0.isU32 = true) (hb1 : b1.isU32 = true) (hb2 : b2.isU32 = true) (hb3 : b3.isU32 = true)
     (hc0 : c0.isU32 = true) (hc1 : c1.isU32 = true) (hc2 : c2.isU32 = true)
     (hd3 : d3.isU32 = true)
-    (rest : List Felt) (mem locs : Nat → Felt) (adv : List Felt) :
+    (rest : List Felt) (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt) :
     let new1 := sha256W a1 c2 b2 b3
     let new2 := sha256W a0 c1 b1 b2
     let new3 := sha256W new1 c0 b0 b1
     let new4 := sha256W new2 a3 d3 b0
     execWithEnv sha256ProcEnv 2126
         ⟨a0::a1::a2::a3::b0::b1::b2::b3::c0::c1::c2::c3::d0::d1::d2::d3::rest,
-          mem, locs, adv⟩
+          mem, frames, adv⟩
         sha256SB6ExpandOps =
     some ⟨b3 :: b2 :: b1 :: b0 :: new4 :: new3 :: new2 :: new1 ::
           d0 :: d1 :: d2 :: d3 :: a0 :: a1 :: a2 :: a3 :: c0 :: c1 :: c2 :: c3 :: rest,
-          mem, locs, adv⟩ := by
+          mem, frames, adv⟩ := by
   rw [sha256SB6ExpandOps_split]
   rw [List.append_assoc, List.append_assoc, List.append_assoc, execWithEnv_append]
   -- movupw 3
@@ -2079,24 +2175,24 @@ lemma sha256_SB6_expand_bridge
   -- W1
   rw [execWithEnv_append]
   rw [sha256_regular_expand_W1 d0 d1 d2 d3 a0 a1 a2 a3 b0 b1 b2 b3 c0 c1 c2 c3
-      ha1 hc2 hb2 hb3 rest mem locs adv]
+      ha1 hc2 hb2 hb3 rest mem frames adv]
   simp only [bind, Bind.bind, Option.bind]
   -- W2
   rw [execWithEnv_append]
   rw [sha256_regular_expand_W2 d0 d1 d2 d3 a0 a1 a2 a3 b0 b1 b2 b3 c0 c1 c2 c3
-      (sha256W a1 c2 b2 b3) ha0 hc1 hb1 hb2 rest mem locs adv]
+      (sha256W a1 c2 b2 b3) ha0 hc1 hb1 hb2 rest mem frames adv]
   simp only [bind, Bind.bind, Option.bind]
   -- W3
   rw [execWithEnv_append]
   rw [sha256_regular_expand_W3 d0 d1 d2 d3 a0 a1 a2 a3 b0 b1 b2 b3 c0 c1 c2 c3
       (sha256W a1 c2 b2 b3) (sha256W a0 c1 b1 b2)
-      (u32_mod_isU32 _) hc0 hb0 hb1 rest mem locs adv]
+      (u32_mod_isU32 _) hc0 hb0 hb1 rest mem frames adv]
   simp only [bind, Bind.bind, Option.bind]
   -- W4B + rev (SB6 variant)
   rw [sha256_SB6_expand_W4B_rev d0 d1 d2 d3 a0 a1 a2 a3 b0 b1 b2 b3 c0 c1 c2 c3
       (sha256W a1 c2 b2 b3) (sha256W a0 c1 b1 b2)
       (sha256W (sha256W a1 c2 b2 b3) c0 b0 b1)
-      (u32_mod_isU32 _) ha3 hd3 hb0 rest mem locs adv]
+      (u32_mod_isU32 _) ha3 hd3 hb0 rest mem frames adv]
 
 -- ============================================================================
 -- Regular consume bridge (parameterized by K constants)
@@ -2118,32 +2214,56 @@ lemma sha256_regular_consume_bridge
     (hw3 : w3.isU32 = true)
     (ha : a.isU32 = true) (hb : b.isU32 = true) (hc : c.isU32 = true) (hd : d.isU32 = true)
     (he : e.isU32 = true) (hf : f.isU32 = true) (hg : g.isU32 = true) (hh : h.isU32 = true)
-    (rest : List Felt) (mem locs : Nat → Felt) (adv : List Felt)
-    (base : Nat → Felt)
-    (hlocs : locs = sha256WorkingLocs a b c d e f g h H0 H1 H2 H3 H4 H5 H6 H7 base) :
+    (rest : List Felt) (mem : Nat → Felt) (adv : List Felt)
+    (frame : LocalFrame) (frames_rest : List LocalFrame)
+    (hframe_locals : frame.numLocals = 16)
+    (hframe_aligned : frame.alignedNumLocals = 16)
+    (h3  : mem (frame.localAddr 3)  = a) (h2  : mem (frame.localAddr 2)  = b)
+    (h1  : mem (frame.localAddr 1)  = c) (h0  : mem (frame.localAddr 0)  = d)
+    (h7  : mem (frame.localAddr 7)  = e) (h6  : mem (frame.localAddr 6)  = f)
+    (h5  : mem (frame.localAddr 5)  = g) (h4  : mem (frame.localAddr 4)  = h)
+    (h11 : mem (frame.localAddr 11) = H0) (h10 : mem (frame.localAddr 10) = H1)
+    (h9  : mem (frame.localAddr 9)  = H2) (h8  : mem (frame.localAddr 8)  = H3)
+    (h15 : mem (frame.localAddr 15) = H4) (h14 : mem (frame.localAddr 14) = H5)
+    (h13 : mem (frame.localAddr 13) = H6) (h12 : mem (frame.localAddr 12) = H7) :
     let (na, nb, nc, nd, ne, nf, ng, nh) := sha256Compress4 a b c d e f g h w0 w1 w2 w3 k0 k1 k2 k3
     execWithEnv sha256ProcEnv 2126
         ⟨w0 :: w1 :: w2 :: w3 :: r4 :: r5 :: r6 :: r7 ::
           r8 :: r9 :: r10 :: r11 :: r12 :: r13 :: r14 :: r15 :: rest,
-          mem, locs, adv⟩
+          mem, frames, adv⟩
         (sha256RegularConsumeOps k0 k1 k2 k3) =
     some ⟨r4 :: r5 :: r6 :: r7 :: r8 :: r9 :: r10 :: r11 ::
           r12 :: r13 :: r14 :: r15 :: rest,
-          mem,
-          sha256WorkingLocs na nb nc nd ne nf ng nh H0 H1 H2 H3 H4 H5 H6 H7 base,
-          adv⟩ := by
-  subst hlocs
+          fun i =>
+            if i = frame.localAddr 4 + 3 then ne else if i = frame.localAddr 4 + 2 then nf else
+            if i = frame.localAddr 4 + 1 then ng else if i = frame.localAddr 4 then nh else
+            if i = frame.localAddr 0 + 3 then na else if i = frame.localAddr 0 + 2 then nb else
+            if i = frame.localAddr 0 + 1 then nc else if i = frame.localAddr 0 then nd else
+            mem i,
+          frame :: frames_rest, adv⟩ := by
   simp only [sha256RegularConsumeOps]
   unfold execWithEnv; simp only [List.foldlM]
   rw [stepPush]; miden_bind
   rw [stepPadw]; miden_bind
-  rw [stepLocLoadwBe 4 e f g h
-      (h0 := by simp [sha256WorkingLocs]) (h1 := by simp [sha256WorkingLocs])
-      (h2 := by simp [sha256WorkingLocs]) (h3 := by simp [sha256WorkingLocs])]; miden_bind
+  rw [stepLocLoadwBe (idx := 4) (frame := frame) (frames_rest := frames_rest)
+      (halign := by decide) (hbound := by omega)]; miden_bind
+  simp only [show frame.localAddr 4 + 3 = frame.localAddr 7 from by
+      simp [LocalFrame.localAddr],
+    show frame.localAddr 4 + 2 = frame.localAddr 6 from by
+      simp [LocalFrame.localAddr],
+    show frame.localAddr 4 + 1 = frame.localAddr 5 from by
+      simp [LocalFrame.localAddr]]
+  rw [h7, h6, h5, h4]
   rw [stepPadw]; miden_bind
-  rw [stepLocLoadwBe 0 a b c d
-      (h0 := by simp [sha256WorkingLocs]) (h1 := by simp [sha256WorkingLocs])
-      (h2 := by simp [sha256WorkingLocs]) (h3 := by simp [sha256WorkingLocs])]; miden_bind
+  rw [stepLocLoadwBe (idx := 0) (frame := frame) (frames_rest := frames_rest)
+      (halign := by decide) (hbound := by omega)]; miden_bind
+  simp only [show frame.localAddr 0 + 3 = frame.localAddr 3 from by
+      simp [LocalFrame.localAddr],
+    show frame.localAddr 0 + 2 = frame.localAddr 2 from by
+      simp [LocalFrame.localAddr],
+    show frame.localAddr 0 + 1 = frame.localAddr 1 from by
+      simp [LocalFrame.localAddr]]
+  rw [h3, h2, h1, h0]
   simp only [show sha256ProcEnv "consume_message_word" =
       some Miden.Core.Sha256.consume_message_word from rfl]
   rw [consume_message_word_at_2125 a b c d e f g h (Felt.ofNat k0) w0
@@ -2167,28 +2287,15 @@ lemma sha256_regular_consume_bridge
       _ _ rfl (u32_mod_isU32 _) (u32_mod_isU32 _) (u32_mod_isU32 _) ha (u32_mod_isU32 _)
       (u32_mod_isU32 _) (u32_mod_isU32 _) he (felt_ofNat_isU32_of_lt _ hk3) hw3]
   simp only [MidenState.withStack]
-  rw [stepLocStorewBe]; miden_bind
+  rw [stepLocStorewBe (idx := 0) (frame := frame) (frames_rest := frames_rest)
+      (halign := by decide) (hbound := by omega)]; miden_bind
   rw [stepDropw]; miden_bind
-  rw [stepLocStorewBe]; miden_bind
+  rw [stepLocStorewBe (idx := 4) (frame := frame) (frames_rest := frames_rest)
+      (halign := by decide) (hbound := by omega)]; miden_bind
   rw [stepDropw]; miden_bind
   dsimp only [pure, Pure.pure]
   simp only [sha256Compress4, consumeResult]
-  have : ∀ (f g : Nat → Felt), f = g → ∀ (stk : List Felt) (mem : Nat → Felt) (adv : List Felt),
-      (some ⟨stk, mem, f, adv⟩ : Option MidenState) = some ⟨stk, mem, g, adv⟩ := by
-    intros f g h; subst h; intros; rfl
-  apply this
-  funext i
-  simp only [sha256WorkingLocs]
-  rcases Nat.lt_or_ge i 16 with hi | hi
-  · interval_cases i <;> simp
-  · simp only [if_neg (show i ≠ 15 from by omega), if_neg (show i ≠ 14 from by omega),
-               if_neg (show i ≠ 13 from by omega), if_neg (show i ≠ 12 from by omega),
-               if_neg (show i ≠ 11 from by omega), if_neg (show i ≠ 10 from by omega),
-               if_neg (show i ≠ 9 from by omega), if_neg (show i ≠ 8 from by omega),
-               if_neg (show i ≠ 7 from by omega), if_neg (show i ≠ 6 from by omega),
-               if_neg (show i ≠ 5 from by omega), if_neg (show i ≠ 4 from by omega),
-               if_neg (show i ≠ 3 from by omega), if_neg (show i ≠ 2 from by omega),
-
+  rfl
 
 -- ============================================================================
 -- SB4–SB11 bridge lemmas
@@ -2225,9 +2332,18 @@ lemma sha256_SB4_bridge
     (_hH0 : H0.isU32 = true) (_hH1 : H1.isU32 = true) (_hH2 : H2.isU32 = true)
     (_hH3 : H3.isU32 = true) (_hH4 : H4.isU32 = true) (_hH5 : H5.isU32 = true)
     (_hH6 : H6.isU32 = true) (_hH7 : H7.isU32 = true)
-    (rest : List Felt) (mem locs : Nat → Felt) (adv : List Felt)
-    (base : Nat → Felt)
-    (hlocs : locs = sha256WorkingLocs a b c d e f g h H0 H1 H2 H3 H4 H5 H6 H7 base) :
+    (rest : List Felt) (mem : Nat → Felt) (adv : List Felt)
+    (frame : LocalFrame) (frames_rest : List LocalFrame)
+    (hframe_locals : frame.numLocals = 16)
+    (hframe_aligned : frame.alignedNumLocals = 16)
+    (h3  : mem (frame.localAddr 3)  = a) (h2  : mem (frame.localAddr 2)  = b)
+    (h1  : mem (frame.localAddr 1)  = c) (h0  : mem (frame.localAddr 0)  = d)
+    (h7  : mem (frame.localAddr 7)  = e) (h6  : mem (frame.localAddr 6)  = f)
+    (h5  : mem (frame.localAddr 5)  = g) (h4  : mem (frame.localAddr 4)  = h)
+    (h11 : mem (frame.localAddr 11) = H0) (h10 : mem (frame.localAddr 10) = H1)
+    (h9  : mem (frame.localAddr 9)  = H2) (h8  : mem (frame.localAddr 8)  = H3)
+    (h15 : mem (frame.localAddr 15) = H4) (h14 : mem (frame.localAddr 14) = H5)
+    (h13 : mem (frame.localAddr 13) = H6) (h12 : mem (frame.localAddr 12) = H7) :
     let W32 := sha256W W30 W25 W17 W16
     let W33 := sha256W W31 W26 W18 W17
     let W34 := sha256W W32 W27 W19 W18
@@ -2235,16 +2351,20 @@ lemma sha256_SB4_bridge
     let (na, nb, nc, nd, ne, nf, ng, nh) := sha256Compress4 a b c d e f g h W16 W17 W18 W19 3835390401 4022224774 264347078 604807628
     execWithEnv sha256ProcEnv 2126
         ⟨W31::W30::W29::W28::W19::W18::W17::W16::W27::W26::W25::W24::W23::W22::W21::W20::rest,
-          mem, locs, adv⟩
+          mem, frame :: frames_rest, adv⟩
         sha256SB4Ops =
     some ⟨W35 :: W34 :: W33 :: W32 :: W23 :: W22 :: W21 :: W20 ::
           W31 :: W30 :: W29 :: W28 :: W27 :: W26 :: W25 :: W24 :: rest,
-          mem,
-          sha256WorkingLocs na nb nc nd ne nf ng nh H0 H1 H2 H3 H4 H5 H6 H7 base,
-          adv⟩ := by
+          fun i =>
+            if i = frame.localAddr 4 + 3 then ne else if i = frame.localAddr 4 + 2 then nf else
+            if i = frame.localAddr 4 + 1 then ng else if i = frame.localAddr 4 then nh else
+            if i = frame.localAddr 0 + 3 then na else if i = frame.localAddr 0 + 2 then nb else
+            if i = frame.localAddr 0 + 1 then nc else if i = frame.localAddr 0 then nd else
+            mem i,
+          frame :: frames_rest, adv⟩ := by
   rw [sha256SB4Ops_split, execWithEnv_append]
   rw [sha256_regular_expand_bridge W31 W30 W29 W28 W19 W18 W17 W16 W27 W26 W25 W24 W23 W22 W21 W20
-      hW31 hW30 hW28 hW19 hW18 hW17 hW16 hW27 hW26 hW25 hW20 rest mem locs adv]
+      hW31 hW30 hW28 hW19 hW18 hW17 hW16 hW27 hW26 hW25 hW20 rest mem (frame :: frames_rest) adv]
   simp only [bind, Bind.bind, Option.bind]
   rw [sha256_regular_consume_bridge W16 W17 W18 W19
       (sha256W (sha256W W31 W26 W18 W17) W28 W20 W19)
@@ -2255,7 +2375,8 @@ lemma sha256_SB4_bridge
       3835390401 4022224774 264347078 604807628
       (by norm_num) (by norm_num) (by norm_num) (by norm_num)
       hW16 hW17 hW18 hW19 ha hb hc hd he hf hg hh
-      rest mem locs adv base hlocs]
+      rest mem adv frame frames_rest hframe_locals hframe_aligned
+      h3 h2 h1 h0 h7 h6 h5 h4 h11 h10 h9 h8 h15 h14 h13 h12]
   dsimp only [sha256Compress4, consumeResult, sha256W]
 
 -- SB5: Input = SB4 output = [W35,W34,W33,W32, W23,W22,W21,W20, W31,W30,W29,W28, W27,W26,W25,W24]
@@ -2285,9 +2406,18 @@ lemma sha256_SB5_bridge
     (_hH0 : H0.isU32 = true) (_hH1 : H1.isU32 = true) (_hH2 : H2.isU32 = true)
     (_hH3 : H3.isU32 = true) (_hH4 : H4.isU32 = true) (_hH5 : H5.isU32 = true)
     (_hH6 : H6.isU32 = true) (_hH7 : H7.isU32 = true)
-    (rest : List Felt) (mem locs : Nat → Felt) (adv : List Felt)
-    (base : Nat → Felt)
-    (hlocs : locs = sha256WorkingLocs a b c d e f g h H0 H1 H2 H3 H4 H5 H6 H7 base) :
+    (rest : List Felt) (mem : Nat → Felt) (adv : List Felt)
+    (frame : LocalFrame) (frames_rest : List LocalFrame)
+    (hframe_locals : frame.numLocals = 16)
+    (hframe_aligned : frame.alignedNumLocals = 16)
+    (h3  : mem (frame.localAddr 3)  = a) (h2  : mem (frame.localAddr 2)  = b)
+    (h1  : mem (frame.localAddr 1)  = c) (h0  : mem (frame.localAddr 0)  = d)
+    (h7  : mem (frame.localAddr 7)  = e) (h6  : mem (frame.localAddr 6)  = f)
+    (h5  : mem (frame.localAddr 5)  = g) (h4  : mem (frame.localAddr 4)  = h)
+    (h11 : mem (frame.localAddr 11) = H0) (h10 : mem (frame.localAddr 10) = H1)
+    (h9  : mem (frame.localAddr 9)  = H2) (h8  : mem (frame.localAddr 8)  = H3)
+    (h15 : mem (frame.localAddr 15) = H4) (h14 : mem (frame.localAddr 14) = H5)
+    (h13 : mem (frame.localAddr 13) = H6) (h12 : mem (frame.localAddr 12) = H7) :
     let W36 := sha256W W34 W29 W21 W20
     let W37 := sha256W W35 W30 W22 W21
     let W38 := sha256W W36 W31 W23 W22
@@ -2295,16 +2425,20 @@ lemma sha256_SB5_bridge
     let (na, nb, nc, nd, ne, nf, ng, nh) := sha256Compress4 a b c d e f g h W20 W21 W22 W23 770255983 1249150122 1555081692 1996064986
     execWithEnv sha256ProcEnv 2126
         ⟨W35::W34::W33::W32::W23::W22::W21::W20::W31::W30::W29::W28::W27::W26::W25::W24::rest,
-          mem, locs, adv⟩
+          mem, frame :: frames_rest, adv⟩
         sha256SB5Ops =
     some ⟨W39 :: W38 :: W37 :: W36 :: W27 :: W26 :: W25 :: W24 ::
           W35 :: W34 :: W33 :: W32 :: W31 :: W30 :: W29 :: W28 :: rest,
-          mem,
-          sha256WorkingLocs na nb nc nd ne nf ng nh H0 H1 H2 H3 H4 H5 H6 H7 base,
-          adv⟩ := by
+          fun i =>
+            if i = frame.localAddr 4 + 3 then ne else if i = frame.localAddr 4 + 2 then nf else
+            if i = frame.localAddr 4 + 1 then ng else if i = frame.localAddr 4 then nh else
+            if i = frame.localAddr 0 + 3 then na else if i = frame.localAddr 0 + 2 then nb else
+            if i = frame.localAddr 0 + 1 then nc else if i = frame.localAddr 0 then nd else
+            mem i,
+          frame :: frames_rest, adv⟩ := by
   rw [sha256SB5Ops_split, execWithEnv_append]
   rw [sha256_regular_expand_bridge W35 W34 W33 W32 W23 W22 W21 W20 W31 W30 W29 W28 W27 W26 W25 W24
-      hW35 hW34 hW32 hW23 hW22 hW21 hW20 hW31 hW30 hW29 hW24 rest mem locs adv]
+      hW35 hW34 hW32 hW23 hW22 hW21 hW20 hW31 hW30 hW29 hW24 rest mem (frame :: frames_rest) adv]
   simp only [bind, Bind.bind, Option.bind]
   rw [sha256_regular_consume_bridge W20 W21 W22 W23
       (sha256W (sha256W W35 W30 W22 W21) W32 W24 W23)
@@ -2315,7 +2449,8 @@ lemma sha256_SB5_bridge
       770255983 1249150122 1555081692 1996064986
       (by norm_num) (by norm_num) (by norm_num) (by norm_num)
       hW20 hW21 hW22 hW23 ha hb hc hd he hf hg hh
-      rest mem locs adv base hlocs]
+      rest mem adv frame frames_rest hframe_locals hframe_aligned
+      h3 h2 h1 h0 h7 h6 h5 h4 h11 h10 h9 h8 h15 h14 h13 h12]
   dsimp only [sha256Compress4, consumeResult, sha256W]
 
 -- SB6: Input = SB5 output = [W39,W38,W37,W36, W27,W26,W25,W24, W35,W34,W33,W32, W31,W30,W29,W28]
@@ -2345,9 +2480,18 @@ lemma sha256_SB6_bridge
     (_hH0 : H0.isU32 = true) (_hH1 : H1.isU32 = true) (_hH2 : H2.isU32 = true)
     (_hH3 : H3.isU32 = true) (_hH4 : H4.isU32 = true) (_hH5 : H5.isU32 = true)
     (_hH6 : H6.isU32 = true) (_hH7 : H7.isU32 = true)
-    (rest : List Felt) (mem locs : Nat → Felt) (adv : List Felt)
-    (base : Nat → Felt)
-    (hlocs : locs = sha256WorkingLocs a b c d e f g h H0 H1 H2 H3 H4 H5 H6 H7 base) :
+    (rest : List Felt) (mem : Nat → Felt) (adv : List Felt)
+    (frame : LocalFrame) (frames_rest : List LocalFrame)
+    (hframe_locals : frame.numLocals = 16)
+    (hframe_aligned : frame.alignedNumLocals = 16)
+    (h3  : mem (frame.localAddr 3)  = a) (h2  : mem (frame.localAddr 2)  = b)
+    (h1  : mem (frame.localAddr 1)  = c) (h0  : mem (frame.localAddr 0)  = d)
+    (h7  : mem (frame.localAddr 7)  = e) (h6  : mem (frame.localAddr 6)  = f)
+    (h5  : mem (frame.localAddr 5)  = g) (h4  : mem (frame.localAddr 4)  = h)
+    (h11 : mem (frame.localAddr 11) = H0) (h10 : mem (frame.localAddr 10) = H1)
+    (h9  : mem (frame.localAddr 9)  = H2) (h8  : mem (frame.localAddr 8)  = H3)
+    (h15 : mem (frame.localAddr 15) = H4) (h14 : mem (frame.localAddr 14) = H5)
+    (h13 : mem (frame.localAddr 13) = H6) (h12 : mem (frame.localAddr 12) = H7) :
     let W40 := sha256W W38 W33 W25 W24
     let W41 := sha256W W39 W34 W26 W25
     let W42 := sha256W W40 W35 W27 W26
@@ -2355,16 +2499,20 @@ lemma sha256_SB6_bridge
     let (na, nb, nc, nd, ne, nf, ng, nh) := sha256Compress4 a b c d e f g h W24 W25 W26 W27 2554220882 2821834349 2952996808 3210313671
     execWithEnv sha256ProcEnv 2126
         ⟨W39::W38::W37::W36::W27::W26::W25::W24::W35::W34::W33::W32::W31::W30::W29::W28::rest,
-          mem, locs, adv⟩
+          mem, frame :: frames_rest, adv⟩
         sha256SB6Ops =
     some ⟨W43 :: W42 :: W41 :: W40 :: W31 :: W30 :: W29 :: W28 ::
           W39 :: W38 :: W37 :: W36 :: W35 :: W34 :: W33 :: W32 :: rest,
-          mem,
-          sha256WorkingLocs na nb nc nd ne nf ng nh H0 H1 H2 H3 H4 H5 H6 H7 base,
-          adv⟩ := by
+          fun i =>
+            if i = frame.localAddr 4 + 3 then ne else if i = frame.localAddr 4 + 2 then nf else
+            if i = frame.localAddr 4 + 1 then ng else if i = frame.localAddr 4 then nh else
+            if i = frame.localAddr 0 + 3 then na else if i = frame.localAddr 0 + 2 then nb else
+            if i = frame.localAddr 0 + 1 then nc else if i = frame.localAddr 0 then nd else
+            mem i,
+          frame :: frames_rest, adv⟩ := by
   rw [sha256SB6Ops_split, execWithEnv_append]
   rw [sha256_SB6_expand_bridge W39 W38 W37 W36 W27 W26 W25 W24 W35 W34 W33 W32 W31 W30 W29 W28
-      hW39 hW38 hW36 hW27 hW26 hW25 hW24 hW35 hW34 hW33 hW28 rest mem locs adv]
+      hW39 hW38 hW36 hW27 hW26 hW25 hW24 hW35 hW34 hW33 hW28 rest mem (frame :: frames_rest) adv]
   simp only [bind, Bind.bind, Option.bind]
   rw [sha256_regular_consume_bridge W24 W25 W26 W27
       (sha256W (sha256W W39 W34 W26 W25) W36 W28 W27)
@@ -2375,7 +2523,8 @@ lemma sha256_SB6_bridge
       2554220882 2821834349 2952996808 3210313671
       (by norm_num) (by norm_num) (by norm_num) (by norm_num)
       hW24 hW25 hW26 hW27 ha hb hc hd he hf hg hh
-      rest mem locs adv base hlocs]
+      rest mem adv frame frames_rest hframe_locals hframe_aligned
+      h3 h2 h1 h0 h7 h6 h5 h4 h11 h10 h9 h8 h15 h14 h13 h12]
   dsimp only [sha256Compress4, consumeResult, sha256W]
 
 -- SB7: Input = SB6 output = [W43,W42,W41,W40, W31,W30,W29,W28, W39,W38,W37,W36, W35,W34,W33,W32]
@@ -2405,9 +2554,18 @@ lemma sha256_SB7_bridge
     (_hH0 : H0.isU32 = true) (_hH1 : H1.isU32 = true) (_hH2 : H2.isU32 = true)
     (_hH3 : H3.isU32 = true) (_hH4 : H4.isU32 = true) (_hH5 : H5.isU32 = true)
     (_hH6 : H6.isU32 = true) (_hH7 : H7.isU32 = true)
-    (rest : List Felt) (mem locs : Nat → Felt) (adv : List Felt)
-    (base : Nat → Felt)
-    (hlocs : locs = sha256WorkingLocs a b c d e f g h H0 H1 H2 H3 H4 H5 H6 H7 base) :
+    (rest : List Felt) (mem : Nat → Felt) (adv : List Felt)
+    (frame : LocalFrame) (frames_rest : List LocalFrame)
+    (hframe_locals : frame.numLocals = 16)
+    (hframe_aligned : frame.alignedNumLocals = 16)
+    (h3  : mem (frame.localAddr 3)  = a) (h2  : mem (frame.localAddr 2)  = b)
+    (h1  : mem (frame.localAddr 1)  = c) (h0  : mem (frame.localAddr 0)  = d)
+    (h7  : mem (frame.localAddr 7)  = e) (h6  : mem (frame.localAddr 6)  = f)
+    (h5  : mem (frame.localAddr 5)  = g) (h4  : mem (frame.localAddr 4)  = h)
+    (h11 : mem (frame.localAddr 11) = H0) (h10 : mem (frame.localAddr 10) = H1)
+    (h9  : mem (frame.localAddr 9)  = H2) (h8  : mem (frame.localAddr 8)  = H3)
+    (h15 : mem (frame.localAddr 15) = H4) (h14 : mem (frame.localAddr 14) = H5)
+    (h13 : mem (frame.localAddr 13) = H6) (h12 : mem (frame.localAddr 12) = H7) :
     let W44 := sha256W W42 W37 W29 W28
     let W45 := sha256W W43 W38 W30 W29
     let W46 := sha256W W44 W39 W31 W30
@@ -2415,16 +2573,20 @@ lemma sha256_SB7_bridge
     let (na, nb, nc, nd, ne, nf, ng, nh) := sha256Compress4 a b c d e f g h W28 W29 W30 W31 3336571891 3584528711 113926993 338241895
     execWithEnv sha256ProcEnv 2126
         ⟨W43::W42::W41::W40::W31::W30::W29::W28::W39::W38::W37::W36::W35::W34::W33::W32::rest,
-          mem, locs, adv⟩
+          mem, frame :: frames_rest, adv⟩
         sha256SB7Ops =
     some ⟨W47 :: W46 :: W45 :: W44 :: W35 :: W34 :: W33 :: W32 ::
           W43 :: W42 :: W41 :: W40 :: W39 :: W38 :: W37 :: W36 :: rest,
-          mem,
-          sha256WorkingLocs na nb nc nd ne nf ng nh H0 H1 H2 H3 H4 H5 H6 H7 base,
-          adv⟩ := by
+          fun i =>
+            if i = frame.localAddr 4 + 3 then ne else if i = frame.localAddr 4 + 2 then nf else
+            if i = frame.localAddr 4 + 1 then ng else if i = frame.localAddr 4 then nh else
+            if i = frame.localAddr 0 + 3 then na else if i = frame.localAddr 0 + 2 then nb else
+            if i = frame.localAddr 0 + 1 then nc else if i = frame.localAddr 0 then nd else
+            mem i,
+          frame :: frames_rest, adv⟩ := by
   rw [sha256SB7Ops_split, execWithEnv_append]
   rw [sha256_regular_expand_bridge W43 W42 W41 W40 W31 W30 W29 W28 W39 W38 W37 W36 W35 W34 W33 W32
-      hW43 hW42 hW40 hW31 hW30 hW29 hW28 hW39 hW38 hW37 hW32 rest mem locs adv]
+      hW43 hW42 hW40 hW31 hW30 hW29 hW28 hW39 hW38 hW37 hW32 rest mem (frame :: frames_rest) adv]
   simp only [bind, Bind.bind, Option.bind]
   rw [sha256_regular_consume_bridge W28 W29 W30 W31
       (sha256W (sha256W W43 W38 W30 W29) W40 W32 W31)
@@ -2435,7 +2597,8 @@ lemma sha256_SB7_bridge
       3336571891 3584528711 113926993 338241895
       (by norm_num) (by norm_num) (by norm_num) (by norm_num)
       hW28 hW29 hW30 hW31 ha hb hc hd he hf hg hh
-      rest mem locs adv base hlocs]
+      rest mem adv frame frames_rest hframe_locals hframe_aligned
+      h3 h2 h1 h0 h7 h6 h5 h4 h11 h10 h9 h8 h15 h14 h13 h12]
   dsimp only [sha256Compress4, consumeResult, sha256W]
 
 end MidenLean.Proofs.Sha256
