@@ -188,8 +188,8 @@ private lemma consume_chunkA
     (h8 : x8.isU32 = true) (h9 : x9.isU32 = true) :
     execWithEnv sha256ProcEnv 94
         ⟨x0 :: x1 :: x2 :: x3 :: x4 :: x5 :: x6 :: x7 :: x8 :: x9 :: rest, mem, frames, adv⟩
-        [.inst (.dup 6), .inst (.dup 6), .inst (.dup 6), .inst (.exec "ch"),
-         .inst (.movup 9), .inst (.movup 10), .inst (.u32WrappingAdd3)] =
+        [Op.inst (.dup 6), Op.inst (.dup 6), Op.inst (.dup 6), Op.inst (.exec "ch"),
+         Op.inst (.movup 9), Op.inst (.movup 10), Op.inst (.u32WrappingAdd3)] =
     some ⟨Felt.ofNat ((((x5.val &&& x4.val) ^^^ ((u32Max - 1 - x4.val) &&& x6.val)) +
                        x8.val + x9.val) % 2^32) ::
           x0 :: x1 :: x2 :: x3 :: x4 :: x5 :: x6 :: x7 :: rest, mem, frames, adv⟩ := by
@@ -226,8 +226,8 @@ private lemma consume_chunkB
     (ht1p : t1p < 2^32) (h4 : x4.isU32 = true) (h7 : x7.isU32 = true) :
     execWithEnv sha256ProcEnv 94
         ⟨Felt.ofNat t1p :: x0 :: x1 :: x2 :: x3 :: x4 :: x5 :: x6 :: x7 :: rest, mem, frames, adv⟩
-        [.inst (.dup 5), .inst (.exec "cap_sigma_1"),
-         .inst (.movup 9), .inst (.u32WrappingAdd3)] =
+        [Op.inst (.dup 5), Op.inst (.exec "cap_sigma_1"),
+         Op.inst (.movup 9), Op.inst (.u32WrappingAdd3)] =
     some ⟨Felt.ofNat ((t1p +
               (u32RotateRight x4.val 6 ^^^
                (u32RotateRight x4.val 11 ^^^ u32RotateRight x4.val 25)) +
@@ -269,7 +269,7 @@ private lemma consume_chunkC
     (h0 : x0.isU32 = true) (h1 : x1.isU32 = true) (h2 : x2.isU32 = true) :
     execWithEnv sha256ProcEnv 94
         ⟨Felt.ofNat T1 :: x0 :: x1 :: x2 :: x3 :: x4 :: x5 :: x6 :: rest, mem, frames, adv⟩
-        [.inst (.dup 3), .inst (.dup 3), .inst (.dup 3), .inst (.exec "maj")] =
+        [Op.inst (.dup 3), Op.inst (.dup 3), Op.inst (.dup 3), Op.inst (.exec "maj")] =
     some ⟨Felt.ofNat ((x1.val &&& x0.val) ^^^
               ((x0.val &&& x2.val) ^^^ (x1.val &&& x2.val))) ::
           Felt.ofNat T1 :: x0 :: x1 :: x2 :: x3 :: x4 :: x5 :: x6 :: rest,
@@ -294,9 +294,9 @@ private lemma consume_chunkD
     execWithEnv sha256ProcEnv 94
         ⟨Felt.ofNat maj_v :: Felt.ofNat T1 :: x0 :: x1 :: x2 :: x3 :: x4 :: x5 :: x6 :: rest,
          mem, frames, adv⟩
-        [.inst (.dup 2), .inst (.exec "cap_sigma_0"), .inst (.u32WrappingAdd),
-         .inst (.movup 5), .inst (.dup 2), .inst (.u32WrappingAdd),
-         .inst (.movdn 5), .inst (.u32WrappingAdd)] =
+        [Op.inst (.dup 2), Op.inst (.exec "cap_sigma_0"), Op.inst (.u32WrappingAdd),
+         Op.inst (.movup 5), Op.inst (.dup 2), Op.inst (.u32WrappingAdd),
+         Op.inst (.movdn 5), Op.inst (.u32WrappingAdd)] =
     some ⟨Felt.ofNat ((T1 + (maj_v + (u32RotateRight x0.val 2 ^^^
               (u32RotateRight x0.val 13 ^^^ u32RotateRight x0.val 22))) % 2^32) % 2^32) ::
           x0 :: x1 :: x2 ::
@@ -387,15 +387,16 @@ theorem sha256_consume_message_word_correct
         (Nat.bitwise_lt_two_pow (by simpa [Felt.isU32] using h0) (by simpa [Felt.isU32] using h2))
         (Nat.bitwise_lt_two_pow (by simpa [Felt.isU32] using h1) (by simpa [Felt.isU32] using h2)))
   -- Split consume_message_word into 4 chunks (right-associative for sequential splitting)
-  rw [show Miden.Core.Sha256.consume_message_word =
-      [.inst (.dup 6), .inst (.dup 6), .inst (.dup 6), .inst (.exec "ch"),
-       .inst (.movup 9), .inst (.movup 10), .inst (.u32WrappingAdd3)] ++
-      ([.inst (.dup 5), .inst (.exec "cap_sigma_1"),
-        .inst (.movup 9), .inst (.u32WrappingAdd3)] ++
-       ([.inst (.dup 3), .inst (.dup 3), .inst (.dup 3), .inst (.exec "maj")] ++
-        [.inst (.dup 2), .inst (.exec "cap_sigma_0"), .inst (.u32WrappingAdd),
-         .inst (.movup 5), .inst (.dup 2), .inst (.u32WrappingAdd),
-         .inst (.movdn 5), .inst (.u32WrappingAdd)])) from rfl]
+  rw [execWithEnv_body_eq (h := rfl) (h0 := rfl),
+      show Miden.Core.Sha256.consume_message_word.body =
+        [Op.inst (.dup 6), Op.inst (.dup 6), Op.inst (.dup 6), Op.inst (.exec "ch"),
+         Op.inst (.movup 9), Op.inst (.movup 10), Op.inst (.u32WrappingAdd3)] ++
+        ([Op.inst (.dup 5), Op.inst (.exec "cap_sigma_1"),
+          Op.inst (.movup 9), Op.inst (.u32WrappingAdd3)] ++
+         ([Op.inst (.dup 3), Op.inst (.dup 3), Op.inst (.dup 3), Op.inst (.exec "maj")] ++
+          [Op.inst (.dup 2), Op.inst (.exec "cap_sigma_0"), Op.inst (.u32WrappingAdd),
+           Op.inst (.movup 5), Op.inst (.dup 2), Op.inst (.u32WrappingAdd),
+           Op.inst (.movdn 5), Op.inst (.u32WrappingAdd)])) from rfl]
   -- Apply chunks sequentially
   rw [execWithEnv_append]
   rw [consume_chunkA (h4 := h4) (h5 := h5) (h6 := h6) (h8 := h8) (h9 := h9)]
