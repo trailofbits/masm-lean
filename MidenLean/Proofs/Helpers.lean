@@ -125,6 +125,164 @@ theorem execWithEnv_body_eq_withLocals (env : ProcEnv) (fuel : Nat) (s : MidenSt
     rfl
 
 -- ============================================================================
+-- Fuel monotonicity for numLocals = 0 procedures
+-- ============================================================================
+
+-- We prove execWithEnv_fuel_mono by induction on fuel n.
+-- The key IHs for doRepeat and doWhile are proved inline.
+-- For doWhile, the critical observation is that both fuel arguments increase
+-- together: doWhile env n n → doWhile env (n+m') (n+m').
+
+/-- `foldlM` over `Option` is monotone: if `f` implies `g` pointwise, a successful
+    fold under `f` is also successful under `g` with the same result. -/
+private lemma foldlM_Option_mono {α β : Type}
+    {f g : β → α → Option β}
+    (hmono : ∀ (b : β) (a : α) (c : β), f b a = some c → g b a = some c)
+    (l : List α) (init : β) (result : β)
+    (h : l.foldlM f init = some result) :
+    l.foldlM g init = some result := by
+  induction l generalizing init with
+  | nil => simpa using h
+  | cons x xs ih =>
+    simp only [List.foldlM] at h ⊢
+    match hx : f init x with
+    | none => simp [hx] at h
+    | some mid =>
+      simp only [bind, Bind.bind, Option.bind, hmono _ _ _ hx]
+      exact ih mid (by simp [hx, bind, Bind.bind, Option.bind] at h; exact h)
+
+-- Forward declaration: execWithEnv mono implies doRepeat mono (induction on count)
+private lemma execWithEnv.doRepeat_mono {env : ProcEnv} {n m : Nat}
+    (hexec : ∀ {s t : MidenState} {p : Procedure},
+        p.numLocals = 0 → execWithEnv env n s p = some t →
+        execWithEnv env m s p = some t)
+    (cnt : Nat) (body : List Op) {s t : MidenState}
+    (h : execWithEnv.doRepeat env n cnt body s = some t) :
+    execWithEnv.doRepeat env m cnt body s = some t := by
+  induction cnt generalizing s with
+  | zero => unfold execWithEnv.doRepeat at h ⊢; exact h
+  | succ k ihk =>
+    unfold execWithEnv.doRepeat at h ⊢
+    match hb : execWithEnv env n s (Procedure.ofOps body) with
+    | none => simp [hb] at h
+    | some mid =>
+      rw [hb] at h
+      rw [hexec rfl hb]
+      exact ihk h
+
+-- doWhile mono: exec-fuel n → m and loop-counter f → g (with f ≤ g)
+private lemma execWithEnv.doWhile_mono {env : ProcEnv} {n m : Nat}
+    (hexec : ∀ {s t : MidenState} {p : Procedure},
+        p.numLocals = 0 → execWithEnv env n s p = some t →
+        execWithEnv env m s p = some t)
+    (body : List Op) (f : Nat) : ∀ (g : Nat), f ≤ g → ∀ {s t : MidenState},
+        execWithEnv.doWhile env n f body s = some t →
+        execWithEnv.doWhile env m g body s = some t := by
+  induction f with
+  | zero =>
+    intro g _hfg s t h
+    unfold execWithEnv.doWhile at h
+    exact absurd h (by simp)
+  | succ k ihk =>
+    intro g hfg s t h
+    obtain ⟨g', rfl⟩ := Nat.exists_eq_add_of_le hfg
+    -- rewrite k+1+g' = (k+g')+1 so unfold works on the goal
+    have hg_eq : k + 1 + g' = (k + g') + 1 := by omega
+    rw [hg_eq]
+    unfold execWithEnv.doWhile at h ⊢
+    match hstk : s.stack with
+    | [] => simp only [hstk] at h ⊢; exact h
+    | cond :: rest =>
+      simp only [hstk] at h ⊢
+      by_cases hc1 : (ZMod.val cond == 1) = true
+      · simp only [hc1, ↓reduceIte] at h ⊢
+        match hb : execWithEnv env n (s.withStack rest) (Procedure.ofOps body) with
+        | none => simp [hb] at h
+        | some mid =>
+          rw [hb] at h
+          rw [hexec rfl hb]
+          exact ihk (k + g') (Nat.le_add_right k g') h
+      · simp only [hc1, Bool.false_eq_true, ↓reduceIte] at h ⊢
+        by_cases hc2 : (ZMod.val cond == 0) = true
+        · simp only [hc2, ↓reduceIte] at h ⊢; exact h
+        · simp only [hc2, Bool.false_eq_true, ↓reduceIte] at h ⊢; exact h
+
+-- The main monotonicity lemma, proved by induction on n.
+-- We use foldlM_Option_mono to lift the foldlM over the body.
+private lemma execWithEnv_fuel_mono_aux (env : ProcEnv)
+    (henv : ∀ (name : String) (proc : Procedure), env name = some proc → proc.numLocals = 0)
+    (n m' : Nat)
+    {s t : MidenState} {proc : Procedure} (hlocals : proc.numLocals = 0)
+    (hrun : execWithEnv env n s proc = some t) :
+    execWithEnv env (n + m') s proc = some t := by
+  induction n generalizing m' s t proc with
+  | zero =>
+    unfold execWithEnv at hrun
+    exact absurd hrun (by split <;> simp_all)
+  | succ n ih =>
+    obtain ⟨pname, pnumLocals, pbody⟩ := proc
+    simp only at hlocals; subst hlocals
+    simp only [execWithEnv] at hrun
+    have hfuel : n + 1 + m' = (n + m') + 1 := by omega
+    rw [hfuel]; simp only [execWithEnv]
+    -- IH for execWithEnv at fuel n → fuel n+m'
+    have IHexec : ∀ {s' t' : MidenState} {p : Procedure},
+        p.numLocals = 0 → execWithEnv env n s' p = some t' →
+        execWithEnv env (n + m') s' p = some t' :=
+      fun hl hr => ih m' hl hr
+    -- The step function changes only by replacing fuel n with n+m'.
+    -- We prove pointwise monotonicity, then apply foldlM_Option_mono.
+    apply foldlM_Option_mono _ pbody s t hrun
+    intro state op mid hstep
+    -- We need: if step_n state op = some mid then step_(n+m') state op = some mid.
+    -- For .inst i (non-exec), execInstruction is fuel-independent.
+    -- For .inst (.exec target), .ifElse, .repeat, .whileTrue, use IHexec/doRepeat_mono/doWhile_mono.
+    match op with
+    | .inst i =>
+      cases i with
+      | exec target =>
+        simp only at hstep ⊢
+        match htgt : env target with
+        | none => simp only [htgt] at hstep ⊢; exact absurd hstep (by simp)
+        | some callee =>
+          simp only [htgt] at hstep ⊢
+          exact IHexec (henv _ _ htgt) hstep
+      | _ => exact hstep  -- execInstruction is fuel-independent
+    | .repeat cnt body =>
+      simp only at hstep ⊢
+      exact execWithEnv.doRepeat_mono IHexec cnt body hstep
+    | .whileTrue body =>
+      simp only at hstep ⊢
+      exact execWithEnv.doWhile_mono IHexec body n (n + m') (Nat.le_add_right n m') hstep
+    | .ifElse thenBlk elseBlk =>
+      simp only at hstep ⊢
+      match hstk : state.stack with
+      | [] => simp only [hstk] at hstep ⊢; exact absurd hstep (by simp)
+      | cond :: rest =>
+        simp only [hstk] at hstep ⊢
+        by_cases hc1 : (ZMod.val cond == 1) = true
+        · simp only [hc1, ↓reduceIte] at hstep ⊢
+          exact IHexec (p := Procedure.ofOps thenBlk) rfl hstep
+        · simp only [hc1, Bool.false_eq_true, ↓reduceIte] at hstep ⊢
+          by_cases hc2 : (ZMod.val cond == 0) = true
+          · simp only [hc2, ↓reduceIte] at hstep ⊢
+            exact IHexec (p := Procedure.ofOps elseBlk) rfl hstep
+          · simp only [hc2, Bool.false_eq_true, ↓reduceIte] at hstep ⊢
+            exact absurd hstep (by simp)
+
+/-- If all callees in the environment also have `numLocals = 0`, then
+    `execWithEnv` is monotone in fuel for `numLocals = 0` procedures:
+    adding more fuel to a successful execution does not change the result. -/
+lemma execWithEnv_fuel_mono (env : ProcEnv)
+    (henv : ∀ (name : String) (proc : Procedure), env name = some proc → proc.numLocals = 0)
+    {n m : Nat} (hnm : n ≤ m)
+    {s t : MidenState} {proc : Procedure} (hlocals : proc.numLocals = 0)
+    (hrun : execWithEnv env n s proc = some t) :
+    execWithEnv env m s proc = some t :=
+  let ⟨m', hm⟩ := Nat.exists_eq_add_of_le hnm
+  hm ▸ execWithEnv_fuel_mono_aux env henv n m' hlocals hrun
+
+-- ============================================================================
 -- Felt value lemmas
 -- ============================================================================
 
