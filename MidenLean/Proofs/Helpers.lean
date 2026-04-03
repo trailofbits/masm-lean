@@ -323,4 +323,33 @@ theorem felt_mul_beq_zero (a b : Felt) (h : a.val * b.val = 0)
   have hzero : (0 : Felt).val = 0 := Felt.val_zero'
   exact_mod_cast Fin.val_injective (by omega : (a * b).val = (0 : Felt).val)
 
+theorem felt_ofNat_val_of_u32 (n : Nat) (h : n < 2^32) : (Felt.ofNat n).val = n :=
+  felt_ofNat_val_lt n (u32_val_lt_prime n h)
+
+@[miden_bound] theorem u32Xor_isU32 (a b : Felt)
+    (ha : a.isU32 = true) (hb : b.isU32 = true) :
+    (Felt.ofNat (a.val ^^^ b.val)).isU32 = true := by
+  apply felt_ofNat_isU32_of_lt
+  apply Nat.bitwise_lt_two_pow
+  · simp only [Felt.isU32, decide_eq_true_eq] at ha; exact ha
+  · simp only [Felt.isU32, decide_eq_true_eq] at hb; exact hb
+
+@[miden_bound] theorem u32RotateRight_lt (a n : Nat) (ha : a < 2^32) :
+    u32RotateRight a n < 2^32 := by
+  unfold u32RotateRight u32Max
+  apply Nat.bitwise_lt_two_pow
+  · exact Nat.lt_of_le_of_lt (Nat.div_le_self _ _) ha
+  · exact Nat.mod_lt _ (by norm_num)
+
+@[miden_bound] theorem u32RotateRight_isU32 (a : Felt) (ha : a.isU32 = true) (n : Nat) :
+    (Felt.ofNat (u32RotateRight a.val n)).isU32 = true := by
+  apply felt_ofNat_isU32_of_lt
+  exact u32RotateRight_lt a.val n (by simpa [Felt.isU32] using ha)
+
+@[miden_bound] theorem u32Shr_isU32 (a : Felt) (ha : a.isU32 = true) (n : Nat) :
+    (Felt.ofNat (a.val / 2^n)).isU32 = true := by
+  apply felt_ofNat_isU32_of_lt
+  simp only [Felt.isU32, decide_eq_true_eq] at ha
+  exact Nat.lt_of_le_of_lt (Nat.div_le_self _ _) ha
+
 end MidenLean

@@ -427,6 +427,24 @@ set_option maxHeartbeats 4000000 in
   simp [ha, hb, hc, MidenState.withStack]
 
 set_option maxHeartbeats 4000000 in
+@[miden_dispatch] theorem stepU32WrappingAdd (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
+    (a b : Felt) (rest : List Felt)
+    (ha : a.isU32 = true) (hb : b.isU32 = true) :
+    execInstruction ⟨b :: a :: rest, mem, frames, adv⟩ .u32WrappingAdd =
+    some ⟨Felt.ofNat ((a.val + b.val) % 2^32) :: rest, mem, frames, adv⟩ := by
+  unfold execInstruction execU32WrappingAdd u32WAdd u32Max
+  simp [ha, hb, MidenState.withStack]
+
+set_option maxHeartbeats 4000000 in
+@[miden_dispatch] theorem stepU32WrappingAdd3 (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
+    (a b c : Felt) (rest : List Felt)
+    (ha : a.isU32 = true) (hb : b.isU32 = true) (hc : c.isU32 = true) :
+    execInstruction ⟨c :: b :: a :: rest, mem, frames, adv⟩ .u32WrappingAdd3 =
+    some ⟨Felt.ofNat ((a.val + b.val + c.val) % 2^32) :: rest, mem, frames, adv⟩ := by
+  unfold execInstruction execU32WrappingAdd3 u32Max
+  simp [ha, hb, hc, MidenState.withStack]
+
+set_option maxHeartbeats 4000000 in
 @[miden_dispatch] theorem stepU32OverflowSub (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (a b : Felt) (rest : List Felt)
     (ha : a.isU32 = true) (hb : b.isU32 = true) :
@@ -505,6 +523,24 @@ set_option maxHeartbeats 4000000 in
     some ⟨Felt.ofNat (u32Max - 1 - a.val) :: rest, mem, frames, adv⟩ := by
   unfold execInstruction execU32Not u32Max
   simp [ha, MidenState.withStack]
+
+set_option maxHeartbeats 4000000 in
+@[miden_dispatch] theorem stepU32RotrImm (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
+    (a : Felt) (n : Nat) (rest : List Felt)
+    (ha : a.isU32 = true) (hn : n ≤ 31) :
+    execInstruction ⟨a :: rest, mem, frames, adv⟩ (.u32RotrImm n) =
+    some ⟨Felt.ofNat (u32RotateRight a.val n) :: rest, mem, frames, adv⟩ := by
+  unfold execInstruction execU32RotrImm
+  simp [ha, hn, MidenState.withStack]
+
+set_option maxHeartbeats 4000000 in
+@[miden_dispatch] theorem stepU32ShrImm (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
+    (a : Felt) (n : Nat) (rest : List Felt)
+    (ha : a.isU32 = true) (hn : n ≤ 31) :
+    execInstruction ⟨a :: rest, mem, frames, adv⟩ (.u32ShrImm n) =
+    some ⟨Felt.ofNat (a.val / 2^n) :: rest, mem, frames, adv⟩ := by
+  unfold execInstruction execU32ShrImm
+  simp [ha, hn, MidenState.withStack]
 
 -- ============================================================================
 -- U32 comparison (require isU32 preconditions)
@@ -776,5 +812,65 @@ set_option maxHeartbeats 800000 in
     some ⟨Felt.ofNat (frame.localAddr idx) :: stk, mem, frame :: frames_rest, adv⟩ := by
   unfold execInstruction execLocAddr
   simp [MidenState.localAddr?, hidx, MidenState.withStack]
+
+-- ============================================================================
+-- Word-group rearrangement (movupw, movdnw)
+-- ============================================================================
+
+set_option maxHeartbeats 400000 in
+/-- movupw 2: moves the word at stack positions 8–11 to positions 0–3,
+    shifting the original top 8 elements down by 4. -/
+theorem stepMovupw2 (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
+    (a0 a1 a2 a3 b0 b1 b2 b3 c0 c1 c2 c3 : Felt) (rest : List Felt) :
+    execInstruction
+      ⟨a0 :: a1 :: a2 :: a3 :: b0 :: b1 :: b2 :: b3 :: c0 :: c1 :: c2 :: c3 :: rest,
+       mem, frames, adv⟩ (.movupw 2) =
+    some ⟨c0 :: c1 :: c2 :: c3 :: a0 :: a1 :: a2 :: a3 :: b0 :: b1 :: b2 :: b3 :: rest,
+          mem, frames, adv⟩ := by
+  unfold execInstruction execMovupw MidenState.withStack
+  simp
+
+set_option maxHeartbeats 400000 in
+/-- movupw 3: moves the word at stack positions 12–15 to positions 0–3,
+    shifting the original top 12 elements down by 4. -/
+theorem stepMovupw3 (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
+    (a0 a1 a2 a3 b0 b1 b2 b3 c0 c1 c2 c3 d0 d1 d2 d3 : Felt) (rest : List Felt) :
+    execInstruction
+      ⟨a0 :: a1 :: a2 :: a3 :: b0 :: b1 :: b2 :: b3 ::
+       c0 :: c1 :: c2 :: c3 :: d0 :: d1 :: d2 :: d3 :: rest,
+       mem, frames, adv⟩ (.movupw 3) =
+    some ⟨d0 :: d1 :: d2 :: d3 :: a0 :: a1 :: a2 :: a3 ::
+          b0 :: b1 :: b2 :: b3 :: c0 :: c1 :: c2 :: c3 :: rest,
+          mem, frames, adv⟩ := by
+  unfold execInstruction execMovupw MidenState.withStack
+  simp
+
+set_option maxHeartbeats 400000 in
+/-- movdnw 2: moves the top word (positions 0–3) to positions 8–11,
+    shifting the original positions 4–11 up by 4. -/
+theorem stepMovdnw2 (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
+    (a0 a1 a2 a3 b0 b1 b2 b3 c0 c1 c2 c3 : Felt) (rest : List Felt) :
+    execInstruction
+      ⟨a0 :: a1 :: a2 :: a3 :: b0 :: b1 :: b2 :: b3 :: c0 :: c1 :: c2 :: c3 :: rest,
+       mem, frames, adv⟩ (.movdnw 2) =
+    some ⟨b0 :: b1 :: b2 :: b3 :: c0 :: c1 :: c2 :: c3 :: a0 :: a1 :: a2 :: a3 :: rest,
+          mem, frames, adv⟩ := by
+  unfold execInstruction execMovdnw MidenState.withStack
+  simp
+
+set_option maxHeartbeats 400000 in
+/-- movdnw 3: moves the top word (positions 0–3) to positions 12–15,
+    shifting the original positions 4–15 up by 4. -/
+theorem stepMovdnw3 (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
+    (a0 a1 a2 a3 b0 b1 b2 b3 c0 c1 c2 c3 d0 d1 d2 d3 : Felt) (rest : List Felt) :
+    execInstruction
+      ⟨a0 :: a1 :: a2 :: a3 :: b0 :: b1 :: b2 :: b3 ::
+       c0 :: c1 :: c2 :: c3 :: d0 :: d1 :: d2 :: d3 :: rest,
+       mem, frames, adv⟩ (.movdnw 3) =
+    some ⟨b0 :: b1 :: b2 :: b3 :: c0 :: c1 :: c2 :: c3 ::
+          d0 :: d1 :: d2 :: d3 :: a0 :: a1 :: a2 :: a3 :: rest,
+          mem, frames, adv⟩ := by
+  unfold execInstruction execMovdnw MidenState.withStack
+  simp
 
 end MidenLean.StepLemmas
