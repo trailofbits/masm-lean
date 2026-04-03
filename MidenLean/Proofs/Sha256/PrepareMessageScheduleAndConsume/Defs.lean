@@ -13,6 +13,22 @@ open MidenLean.Tactics
 -- (inner fuel when outer prepare_message_schedule_and_consume runs at fuel 2126)
 -- ============================================================================
 
+/-- Every procedure in `sha256ProcEnv` has `numLocals = 0`. -/
+lemma sha256ProcEnv_numLocals_zero (name : String) (proc : Procedure)
+    (h : sha256ProcEnv name = some proc) : proc.numLocals = 0 := by
+  simp only [sha256ProcEnv] at h
+  split at h <;>
+  first
+  | (simp only [Option.some.injEq,
+       Miden.Core.Sha256.small_sigma_0, Miden.Core.Sha256.small_sigma_1,
+       Miden.Core.Sha256.cap_sigma_0, Miden.Core.Sha256.cap_sigma_1,
+       Miden.Core.Sha256.ch, Miden.Core.Sha256.maj,
+       Miden.Core.Sha256.rev_element_order,
+       Miden.Core.Sha256.compute_message_schedule_word,
+       Miden.Core.Sha256.consume_message_word,
+       Procedure.ofOps] at h; subst h; rfl)
+  | simp at h
+
 /-- `compute_message_schedule_word` at the inner fuel 2125 available inside
     `prepare_message_schedule_and_consume`.  Follows directly from the fuel-40
     proof via `execWithEnv_fuel_mono`. -/
@@ -26,7 +42,8 @@ lemma compute_message_schedule_word_at_2125
       let sig1 := u32RotateRight a.val 17 ^^^ (u32RotateRight a.val 19 ^^^ a.val / 2^10)
       let sig0 := u32RotateRight c.val 7 ^^^ (u32RotateRight c.val 18 ^^^ c.val / 2^3)
       Felt.ofNat ((d.val + (b.val + sig1 + sig0) % 2^32) % 2^32) :: rest)) :=
-  execWithEnv_fuel_mono sha256ProcEnv (by norm_num)
+  execWithEnv_fuel_mono sha256ProcEnv sha256ProcEnv_numLocals_zero (by norm_num)
+    (by simp [Miden.Core.Sha256.compute_message_schedule_word])
     (sha256_compute_message_schedule_word_correct a b c d rest s hs ha hb hc hd)
 
 /-- `consume_message_word` at the inner fuel 2125 available inside
@@ -53,7 +70,8 @@ lemma consume_message_word_at_2125
       let T2    := (maj_v + sig0) % 2^32
       Felt.ofNat ((T1 + T2) % 2^32) :: x0 :: x1 :: x2 ::
         Felt.ofNat ((x3.val + T1) % 2^32) :: x4 :: x5 :: x6 :: rest)) :=
-  execWithEnv_fuel_mono sha256ProcEnv (by norm_num)
+  execWithEnv_fuel_mono sha256ProcEnv sha256ProcEnv_numLocals_zero (by norm_num)
+    (by simp [Miden.Core.Sha256.consume_message_word])
     (sha256_consume_message_word_correct x0 x1 x2 x3 x4 x5 x6 x7 x8 x9 rest s hs
       h0 h1 h2 h3 h4 h5 h6 h7 h8 h9)
 
@@ -65,10 +83,10 @@ lemma consume_message_word_at_2125
 
 lemma rev_element_order_at_2125
     (a b c d : Felt) (rest : List Felt)
-    (mem locs : Nat → Felt) (adv : List Felt) :
-    execWithEnv sha256ProcEnv 2125 ⟨a :: b :: c :: d :: rest, mem, locs, adv⟩
+    (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt) :
+    execWithEnv sha256ProcEnv 2125 ⟨a :: b :: c :: d :: rest, mem, frames, adv⟩
       Miden.Core.Sha256.rev_element_order =
-    some ⟨d :: c :: b :: a :: rest, mem, locs, adv⟩ := by
+    some ⟨d :: c :: b :: a :: rest, mem, frames, adv⟩ := by
   unfold execWithEnv Miden.Core.Sha256.rev_element_order
   simp only [List.foldlM]
   rw [stepSwap (hn := by decide) (htop := rfl) (hnth := rfl)]; miden_bind
