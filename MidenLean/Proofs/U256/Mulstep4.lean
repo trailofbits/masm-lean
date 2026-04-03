@@ -26,6 +26,16 @@ noncomputable def mulstepLo (a b c d : Felt) : Felt :=
   Felt.ofNat (((c.val * b.val + a.val) % 2 ^ 32 + d.val) % 2 ^ 32)
 
 -- ============================================================================
+-- Commutativity lemmas (swap b and c positions)
+-- ============================================================================
+
+theorem mulstepLo_comm (a b c d : Felt) : mulstepLo a b c d = mulstepLo a c b d := by
+  unfold mulstepLo; rw [Nat.mul_comm c.val b.val]
+
+theorem mulstepCarry_comm (a b c d : Felt) : mulstepCarry a b c d = mulstepCarry a c b d := by
+  unfold mulstepCarry; rw [Nat.mul_comm c.val b.val]
+
+-- ============================================================================
 -- Helper lemmas for carry isU32
 -- ============================================================================
 

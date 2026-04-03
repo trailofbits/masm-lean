@@ -947,7 +947,6 @@ private theorem divmodCol2c_run
     (ha2_eq :
       a2 = Felt.ofNat (u128DivmodCol2 q0.val q1.val q2.val b0.val b1.val b2.val r0.val r1.val r2.val % 2 ^ 32)) :
     let base := 2 ^ 32
-    let _carry1 := u128DivmodCol1 q0.val q1.val b0.val b1.val r0.val r1.val / base
     let lo0 := (b0.val * q2.val + c1Lo.val) % base
     let hi0 := (b0.val * q2.val + c1Lo.val) / base
     let lo1 := (b1.val * q1.val + lo0) % base
@@ -1460,7 +1459,6 @@ private theorem divmodCol3c_run
         2 ^ 32 =
       0) :
     let base := 2 ^ 32
-    let _carry2 := u128DivmodCol2 q0.val q1.val q2.val b0.val b1.val b2.val r0.val r1.val r2.val / base
     let lo0 := (b0.val * q3.val + c2Lo.val) % base
     let hi0 := (b0.val * q3.val + c2Lo.val) / base
     let lo1 := (b1.val * q2.val + lo0) % base
@@ -1469,10 +1467,6 @@ private theorem divmodCol3c_run
     let madd2Lo := (b2.val * q1.val + lo1) % base
     let madd2Hi := (b2.val * q1.val + lo1) / base
     let sumHi' := sumHi + madd2Hi
-    let madd3Lo := (b3.val * q0.val + madd2Lo) % base
-    let _madd3Hi := (b3.val * q0.val + madd2Lo) / base
-    let _addLo := (madd3Lo + r3.val) % base
-    let _addHi := (madd3Lo + r3.val) / base
     exec 163
       ⟨Felt.ofNat madd2Lo :: Felt.ofNat sumHi' ::
         q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 ::
@@ -1638,7 +1632,6 @@ private theorem divmodCol3c_none_a3
               r0.val r1.val r2.val r3.val %
             2 ^ 32)) :
     let base := 2 ^ 32
-    let _carry2 := u128DivmodCol2 q0.val q1.val q2.val b0.val b1.val b2.val r0.val r1.val r2.val / base
     let lo0 := (b0.val * q3.val + c2Lo.val) % base
     let hi0 := (b0.val * q3.val + c2Lo.val) / base
     let lo1 := (b1.val * q2.val + lo0) % base
@@ -1802,7 +1795,6 @@ private theorem divmodCol3c_none_carry
         2 ^ 32 ≠
       0) :
     let base := 2 ^ 32
-    let _carry2 := u128DivmodCol2 q0.val q1.val q2.val b0.val b1.val b2.val r0.val r1.val r2.val / base
     let lo0 := (b0.val * q3.val + c2Lo.val) % base
     let hi0 := (b0.val * q3.val + c2Lo.val) / base
     let lo1 := (b1.val * q2.val + lo0) % base

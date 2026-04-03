@@ -110,13 +110,13 @@ The current checked manual proofs cover 92 procedures: 31 in `u64`, 36 in `u128`
 | `u256::and` | `u256_and_correct` | `u256::and` computes bitwise AND of two 256-bit values. | `MidenLean/Proofs/U256/And.lean` |
 | `u256::eq` | `u256_eq_correct` | `u256::eq` tests equality of two 256-bit values. | `MidenLean/Proofs/U256/Eq.lean` |
 | `u256::eqz` | `u256_eqz_correct` | `u256::eqz` tests whether a u256 value equals zero. | `MidenLean/Proofs/U256/Eqz.lean` |
-| `u256::overflowing_add` | `u256_overflowing_add_correct` | `u256::overflowing_add` computes `a + b` with overflow flag for two 256-bit values. | `MidenLean/Proofs/U256/OverflowingAdd.lean` |
 | `u256::mulstep` | `u256_mulstep_correct` | `mulstep` computes one step of schoolbook long multiplication: given multiplier `a`, limb `b`, carry `c`, and accumulator `d` (all u32), produces `[new_carry, new_lo]` | `MidenLean/Proofs/U256/Mulstep.lean` |
 | `u256::mulstep4` | `u256_mulstep4_correct` | `mulstep4` performs four sequential `mulstep` calls, threading carry through. | `MidenLean/Proofs/U256/Mulstep4.lean` |
 | `u256::or` | `u256_or_correct` | `u256::or` computes bitwise OR of two 256-bit values. | `MidenLean/Proofs/U256/Or.lean` |
+| `u256::overflowing_add` | `u256_overflowing_add_correct` | `u256::overflowing_add` computes `a + b` with overflow flag for two 256-bit values. | `MidenLean/Proofs/U256/OverflowingAdd.lean` |
 | `u256::u256_le_to_be` | `u256_u256_le_to_be_correct` | `u256::u256_le_to_be` reverses the order of eight stack elements. | `MidenLean/Proofs/U256/U256LeToBe.lean` |
 | `u256::u256_le_to_be_pair` | `u256_u256_le_to_be_pair_correct` | `u256::u256_le_to_be_pair` reverses each of the two 8-element groups on the stack. | `MidenLean/Proofs/U256/U256LeToBePair.lean` |
-| `u256::widening_add` | `u256_widening_add_correct` | `u256::widening_add` computes `a + b` with carry-out for two 256-bit values. | `MidenLean/Proofs/U256/WideningAdd.lean` |
+| `u256::widening_add` | `u256_widening_add_correct` | `u256::widening_add` computes `a + b` with carry for two 256-bit values. | `MidenLean/Proofs/U256/WideningAdd.lean` |
 | `u256::wrapping_add` | `u256_wrapping_add_correct` | `u256::wrapping_add` computes `(a + b) mod 2^256` for two 256-bit values. | `MidenLean/Proofs/U256/WrappingAdd.lean` |
 | `u256::wrapping_mul` | `u256_wrapping_mul_correct` | `u256::wrapping_mul` computes `(a * b) mod 2^256` for two 256-bit values. | `MidenLean/Proofs/U256/WrappingMul.lean` |
 | `u256::xor` | `u256_xor_correct` | `u256::xor` computes bitwise XOR of two 256-bit values. | `MidenLean/Proofs/U256/Xor.lean` |
