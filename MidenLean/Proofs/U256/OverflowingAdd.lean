@@ -10,24 +10,6 @@ open MidenLean.StepLemmas
 open MidenLean.Tactics
 
 -- ============================================================================
--- Helper step lemmas
--- ============================================================================
-
-private theorem stepMovdn8 (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
-    (a0 a1 a2 a3 a4 a5 a6 a7 a8 : Felt) (rest : List Felt) :
-    execInstruction ⟨a0 :: a1 :: a2 :: a3 :: a4 :: a5 :: a6 :: a7 :: a8 :: rest, mem, frames, adv⟩
-      (.movdn 8) =
-    some ⟨a1 :: a2 :: a3 :: a4 :: a5 :: a6 :: a7 :: a8 :: a0 :: rest, mem, frames, adv⟩ := by
-  unfold execInstruction execMovdn; simp [MidenState.withStack]; rfl
-
-private theorem stepMovup8 (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
-    (a0 a1 a2 a3 a4 a5 a6 a7 a8 : Felt) (rest : List Felt) :
-    execInstruction ⟨a0 :: a1 :: a2 :: a3 :: a4 :: a5 :: a6 :: a7 :: a8 :: rest, mem, frames, adv⟩
-      (.movup 8) =
-    some ⟨a8 :: a0 :: a1 :: a2 :: a3 :: a4 :: a5 :: a6 :: a7 :: rest, mem, frames, adv⟩ := by
-  unfold execInstruction execMovup removeNth; simp [MidenState.withStack]
-
--- ============================================================================
 -- Main theorem
 -- ============================================================================
 

@@ -98,6 +98,24 @@ set_option maxHeartbeats 800000 in
   unfold execInstruction execSwapw
   simp [MidenState.withStack]
 
+set_option maxHeartbeats 800000 in
+@[miden_dispatch] theorem stepSwapw2 (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
+    (a0 a1 a2 a3 b0 b1 b2 b3 c0 c1 c2 c3 : Felt) (rest : List Felt) :
+    execInstruction ⟨a0 :: a1 :: a2 :: a3 :: b0 :: b1 :: b2 :: b3 ::
+        c0 :: c1 :: c2 :: c3 :: rest, mem, frames, adv⟩ (.swapw 2) =
+      some ⟨c0 :: c1 :: c2 :: c3 :: b0 :: b1 :: b2 :: b3 ::
+        a0 :: a1 :: a2 :: a3 :: rest, mem, frames, adv⟩ := by
+  unfold execInstruction execSwapw; simp [MidenState.withStack]
+
+set_option maxHeartbeats 800000 in
+@[miden_dispatch] theorem stepSwapw3 (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
+    (a0 a1 a2 a3 b0 b1 b2 b3 c0 c1 c2 c3 d0 d1 d2 d3 : Felt) (rest : List Felt) :
+    execInstruction ⟨a0 :: a1 :: a2 :: a3 :: b0 :: b1 :: b2 :: b3 ::
+        c0 :: c1 :: c2 :: c3 :: d0 :: d1 :: d2 :: d3 :: rest, mem, frames, adv⟩ (.swapw 3) =
+      some ⟨d0 :: d1 :: d2 :: d3 :: b0 :: b1 :: b2 :: b3 ::
+        c0 :: c1 :: c2 :: c3 :: a0 :: a1 :: a2 :: a3 :: rest, mem, frames, adv⟩ := by
+  unfold execInstruction execSwapw; simp [MidenState.withStack]
+
 set_option maxHeartbeats 1600000 in
 /-- movdnw 2: move the top word down by 2 word positions.
     Stack: [a0..a3, b0..b3, c0..c3, rest] → [b0..b3, c0..c3, a0..a3, rest] -/
@@ -133,6 +151,26 @@ set_option maxHeartbeats 800000 in
           a0 :: a1 :: a2 :: a3 :: b0 :: b1 :: b2 :: b3 :: rest, mem, frames, adv⟩ := by
   unfold execInstruction execSwapdw
   simp [MidenState.withStack]
+
+set_option maxHeartbeats 800000 in
+/-- movdn 8: move the top element down by 8 positions.
+    Stack: [a0, a1..a8, rest] → [a1..a8, a0, rest] -/
+@[miden_dispatch] theorem stepMovdn8 (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
+    (a0 a1 a2 a3 a4 a5 a6 a7 a8 : Felt) (rest : List Felt) :
+    execInstruction ⟨a0 :: a1 :: a2 :: a3 :: a4 :: a5 :: a6 :: a7 :: a8 :: rest, mem, frames, adv⟩
+      (.movdn 8) =
+    some ⟨a1 :: a2 :: a3 :: a4 :: a5 :: a6 :: a7 :: a8 :: a0 :: rest, mem, frames, adv⟩ := by
+  unfold execInstruction execMovdn; simp [MidenState.withStack]; rfl
+
+set_option maxHeartbeats 800000 in
+/-- movup 8: move element at position 8 to the top.
+    Stack: [a0..a7, a8, rest] → [a8, a0..a7, rest] -/
+@[miden_dispatch] theorem stepMovup8 (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
+    (a0 a1 a2 a3 a4 a5 a6 a7 a8 : Felt) (rest : List Felt) :
+    execInstruction ⟨a0 :: a1 :: a2 :: a3 :: a4 :: a5 :: a6 :: a7 :: a8 :: rest, mem, frames, adv⟩
+      (.movup 8) =
+    some ⟨a8 :: a0 :: a1 :: a2 :: a3 :: a4 :: a5 :: a6 :: a7 :: rest, mem, frames, adv⟩ := by
+  unfold execInstruction execMovup; simp [MidenState.withStack]; rfl
 
 -- ============================================================================
 -- Assertions
@@ -241,6 +279,23 @@ set_option maxHeartbeats 400000 in
     execInstruction ⟨b :: a :: rest, mem, frames, adv⟩ .neq =
     some ⟨(if a != b then (1 : Felt) else 0) :: rest, mem, frames, adv⟩ := by
   unfold execInstruction execNeq; rfl
+
+set_option maxHeartbeats 400000 in
+@[miden_dispatch] theorem stepNeqImm (v : Felt) (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
+    (a : Felt) (rest : List Felt) :
+    execInstruction ⟨a :: rest, mem, frames, adv⟩ (.neqImm v) =
+    some ⟨(if a != v then (1 : Felt) else 0) :: rest, mem, frames, adv⟩ := by
+  unfold execInstruction execNeqImm; rfl
+
+set_option maxHeartbeats 800000 in
+/-- eqw: compare two words element-wise, push 1 if all equal, 0 otherwise.
+    Stack: [b0..b3, a0..a3, rest] → [result, b0..b3, a0..a3, rest] -/
+@[miden_dispatch] theorem stepEqw (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
+    (b0 b1 b2 b3 a0 a1 a2 a3 : Felt) (rest : List Felt) :
+    execInstruction ⟨b0 :: b1 :: b2 :: b3 :: a0 :: a1 :: a2 :: a3 :: rest, mem, frames, adv⟩ .eqw =
+      some ⟨(if (a0 == b0) && (a1 == b1) && (a2 == b2) && (a3 == b3) then (1 : Felt) else 0) ::
+        b0 :: b1 :: b2 :: b3 :: a0 :: a1 :: a2 :: a3 :: rest, mem, frames, adv⟩ := by
+  unfold execInstruction execEqw; simp [MidenState.withStack]
 
 set_option maxHeartbeats 400000 in
 @[miden_dispatch] theorem stepLt (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)

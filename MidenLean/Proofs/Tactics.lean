@@ -1,8 +1,19 @@
 import MidenLean.Proofs.StepLemmas
+import MidenLean.Proofs.ArithLemmas
 
 namespace MidenLean.Tactics
 
 open MidenLean.StepLemmas
+open Lean Elab Tactic in
+
+-- ============================================================================
+-- Heartbeat reset combinator
+-- ============================================================================
+
+/-- Reset the heartbeat counter before running a tactic, preventing
+    heartbeat accumulation across long instruction sequences. -/
+elab "with_reset_heartbeats " t:tactic : tactic =>
+  Lean.Core.withCurrHeartbeats (evalTactic t)
 
 -- ============================================================================
 -- Core bind normalization
@@ -66,6 +77,10 @@ macro_rules
       | miden_movup
       | miden_movdn
       | rw [stepReversew]; miden_bind
+      | rw [stepSwapw2]; miden_bind
+      | rw [stepSwapw3]; miden_bind
+      | rw [stepMovdn8]; miden_bind
+      | rw [stepMovup8]; miden_bind
       | rw [stepDupw0]; miden_bind
       | rw [stepPush]; miden_bind
       | rw [stepPadw]; miden_bind
@@ -73,6 +88,8 @@ macro_rules
       | rw [stepEqImm]; miden_bind
       | rw [stepEq]; miden_bind
       | rw [stepNeq]; miden_bind
+      | rw [stepNeqImm]; miden_bind
+      | rw [stepEqw]; miden_bind
       | rw [stepLt]; miden_bind
       | rw [stepGt]; miden_bind
       | rw [stepLte]; miden_bind
@@ -147,7 +164,7 @@ macro_rules
 syntax "miden_steps" : tactic
 macro_rules
   | `(tactic| miden_steps) =>
-    `(tactic| repeat (first | miden_step | dsimp only [pure, Pure.pure]))
+    `(tactic| repeat (first | with_reset_heartbeats miden_step | dsimp only [pure, Pure.pure]))
 
 -- ============================================================================
 -- miden_setup: automate the proof preamble
@@ -245,5 +262,24 @@ macro_rules
       | rw [MidenLean.felt_ofNat_val_lt _ (MidenLean.sum_div_2_32_lt_prime _ _)]
       | rw [MidenLean.felt_ofNat_val_lt _ (MidenLean.u32_prod_div_lt_prime _ _ (by assumption) (by assumption))]
       | rw [MidenLean.felt_ofNat_val_lt _ (MidenLean.u32_overflow_sub_fst_lt _ _)])
+
+-- ============================================================================
+-- miden_arith: close arithmetic side conditions
+-- ============================================================================
+
+/-- Close arithmetic side conditions: isU32, Felt.ofNat value recovery,
+    and bounds relative to 2^32 and GOLDILOCKS_PRIME.
+    Tries: assumption, simp (with context hypotheses) + omega/decide, omega, decide.
+    The `*` in the simp call includes context hypotheses so that conditional simp lemmas
+    (e.g. `u32Or_isU32` requiring `ha : a.isU32 = true`) can discharge their preconditions. -/
+syntax "miden_arith" : tactic
+macro_rules
+  | `(tactic| miden_arith) =>
+    `(tactic| first
+      | assumption
+      | simp only [miden_u32, miden_val, miden_bound, *]; omega
+      | simp only [miden_u32, miden_val, miden_bound, *]
+      | omega
+      | decide)
 
 end MidenLean.Tactics

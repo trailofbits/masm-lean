@@ -16,13 +16,6 @@ theorem execWithEnv_append (env : ProcEnv) (fuel : Nat) (s : MidenState) (xs ys 
   unfold execWithEnv
   cases fuel <;> simp [List.foldlM_append]
 
-@[miden_dispatch] theorem stepNeqImm (v : Felt) (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
-    (a : Felt) (rest : List Felt) :
-    execInstruction ⟨a :: rest, mem, frames, adv⟩ (.neqImm v) =
-    some ⟨(if a != v then (1 : Felt) else 0) :: rest, mem, frames, adv⟩ := by
-  unfold execInstruction execNeqImm
-  rfl
-
 def u128MulC0 (a0 b0 : Felt) : Felt := Felt.ofNat ((b0.val * a0.val) % 2 ^ 32)
 def u128MulO0 (a0 b0 : Felt) : Felt := Felt.ofNat ((b0.val * a0.val) / 2 ^ 32)
 

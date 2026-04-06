@@ -21,3 +21,9 @@ register_simp_attr miden_bound
 
 /-- Simp set for Miden instruction dispatch: step lemmas for each instruction. -/
 register_simp_attr miden_dispatch
+
+/-- Simp set for isU32 propagation: closing `_.isU32 = true` goals from known bounds. -/
+register_simp_attr miden_u32
+
+/-- Simp set for Felt.ofNat value recovery: reducing `(Felt.ofNat expr).val` to `expr`. -/
+register_simp_attr miden_val
