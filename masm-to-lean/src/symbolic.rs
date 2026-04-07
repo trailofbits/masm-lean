@@ -22,6 +22,20 @@ const STACK_TRACE_OFFSET: usize = 30;
 const DECODER_TRACE_OFFSET: usize = 6;
 const USER_OP_HELPERS_OFFSET: usize = 10;
 
+// Global column indices for the decoder "extra" columns (degree-reduction composites).
+// These are pre-computed products of op bits that exist in the trace for degree reduction,
+// but the canonical Lean AIR model works with the raw op-bit products directly.
+// We inline-expand them during extraction so bridge proofs don't need conditional hypotheses.
+//
+// e0 = b6 * (1 - b5) * b4   (col 13 * (1 - col 12) * col 11)
+// e1 = b6 * b5               (col 13 * col 12)
+const E0_GLOBAL_COL: usize = 28; // DECODER_TRACE_OFFSET + OP_BITS_EXTRA_COLS_OFFSET = 6 + 22
+const E1_GLOBAL_COL: usize = 29; // E0_GLOBAL_COL + 1
+// Op bits used in the expansion (global column indices):
+const B4_GLOBAL_COL: usize = 11; // DECODER_TRACE_OFFSET + OP_BITS_OFFSET + 4 = 6 + 1 + 4
+const B5_GLOBAL_COL: usize = 12; // DECODER_TRACE_OFFSET + OP_BITS_OFFSET + 5
+const B6_GLOBAL_COL: usize = 13; // DECODER_TRACE_OFFSET + OP_BITS_OFFSET + 6
+
 fn make_layout() -> AirLayout {
     AirLayout {
         preprocessed_width: 0,
@@ -343,6 +357,28 @@ fn sym_var_to_lean(var: &SymbolicVariable<Felt>) -> String {
     {
         let i = col - DECODER_TRACE_OFFSET - USER_OP_HELPERS_OFFSET;
         if is_next { format!("f.h' {}", i) } else { format!("f.h {}", i) }
+    } else if col == E0_GLOBAL_COL {
+        // e0 = b6 * (1 - b5) * b4, expanded to raw op-bit products
+        let (b4, b5, b6) = if is_next {
+            (format!("f.colNext {}", B4_GLOBAL_COL),
+             format!("f.colNext {}", B5_GLOBAL_COL),
+             format!("f.colNext {}", B6_GLOBAL_COL))
+        } else {
+            (format!("f.colCurr {}", B4_GLOBAL_COL),
+             format!("f.colCurr {}", B5_GLOBAL_COL),
+             format!("f.colCurr {}", B6_GLOBAL_COL))
+        };
+        format!("({} * (1 - {}) * {})", b6, b5, b4)
+    } else if col == E1_GLOBAL_COL {
+        // e1 = b6 * b5, expanded to raw op-bit products
+        let (b5, b6) = if is_next {
+            (format!("f.colNext {}", B5_GLOBAL_COL),
+             format!("f.colNext {}", B6_GLOBAL_COL))
+        } else {
+            (format!("f.colCurr {}", B5_GLOBAL_COL),
+             format!("f.colCurr {}", B6_GLOBAL_COL))
+        };
+        format!("({} * {})", b6, b5)
     } else if col == 0 {
         if is_next { "f.clk'".into() } else { "f.clk".into() }
     } else if col == 1 {
