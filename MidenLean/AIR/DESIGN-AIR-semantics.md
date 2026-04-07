@@ -1,22 +1,48 @@
 # Design: Canonical AIR Semantics
 
-This note describes the AIR redesign that should make the AIR side of
-`masm-lean` look structurally like the code side.
+This note describes the AIR redesign that introduced the canonical AIR
+semantics layer under `MidenLean/AIR/Semantics/` and tracks the remaining work
+needed to close the gap to a fully canonical AIR story.
 
-Today the AIR folder has two strong ingredients:
+Today the AIR folder has three strong ingredients:
 
 - a proof-friendly local checker built around `Frame`,
+- a canonical AIR semantics layer under `Semantics/`,
 - and a symbolic extraction of the Rust AIR built by `symbolic.rs`.
 
-What it does **not** yet have is a single canonical Lean AIR semantics layer
-that plays the same role for AIR that `Semantics.lean` plays for MASM code.
+What it does **not** yet have is a fully closed canonical AIR pipeline across
+every subsystem refinement, whole-VM composition, and verifier-boundary
+theorem.
 
-The goal of this document is to define that missing layer and to break the
-implementation into small linear steps that a human can follow one at a time.
+The goal of this document is to preserve the original implementation plan as
+historical reference while marking current status explicitly.
 The redesign should track the structure Miden itself documents for the
 [VM execution trace], [stack], [decoder overview], [range checker],
 [chiplets overview], and [lookup buses], rather than inventing a separate
 proof-only decomposition.
+
+## Status Snapshot
+
+- Steps 1-9: `DONE`.
+- Step 10: `PARTIALLY DONE`. `Expr.lean` already provides `QExpr.evalExt` and
+  the `QuadFelt.toExtFelt` compatibility theorem; `Polynomial.lean` provides
+  base-field polynomial denotation and evaluation compatibility; an
+  extension-expression polynomial denotation is still pending.
+- Step 11: `MOSTLY DONE`. All 15/15 canonical subsystem files exist under
+  `Semantics/Subsystems/`, and 15/15 matching subsystem-level bridge files
+  exist under `Semantics/Refinement/SymbolicToCanonical/`. The extra helper
+  file `StackGeneralCore.lean` also exists. There are currently 63 executable
+  `sorry`s under `Semantics/`, concentrated in `ChipletHasher.lean`,
+  `Decoder.lean`, `StackOps.lean`, and `StackOverflow.lean` (64 total under
+  `MidenLean/AIR` including the legacy `BitwiseChiplet.lean` one).
+- Step 12: `NOT STARTED`. `AIR/Semantics/WholeVM.lean` does not exist yet.
+- Step 13: `NOT STARTED`. The existing AIR proof surface has not been migrated
+  wholesale to the canonical layer.
+- Step 14: `NOT STARTED`. `ReducedAux` has not yet been reclassified as
+  canonical-AIR versus sibling verifier semantics.
+
+The implementation plan below is kept as the original roadmap, with status
+annotations added for the current repository snapshot.
 
 ## 0.1 Spec/Implementation Split Rule
 
@@ -37,6 +63,11 @@ spec.
 
 ## 1. Problem Statement
 
+> Historical context (2026-04-07): the specific “missing canonical semantics
+> layer” part of this problem statement has now been addressed by the
+> `Semantics/` tree. The remaining gap is closing refinements, whole-VM
+> composition, and proof migration on top of that layer.
+
 The current AIR story is split:
 
 - `Constraints/Symbolic/*` is the closest Lean artifact to the Rust AIR.
@@ -45,7 +76,7 @@ The current AIR story is split:
 
 That split is useful, but it leaves a conceptual hole:
 
-- there is no single `AIRSemantics.lean`-style specification,
+- historically, there was no single `AIRSemantics.lean`-style specification,
 - the local proof kernels are not uniformly derived from the symbolic AIR,
 - and small theorems like `air_add_sound` are often only unpacking lemmas over
   manually chosen local constraints, not theorems about a canonical AIR model.
@@ -394,35 +425,61 @@ So the design is:
 
 ## 6. Proposed Module Layout
 
-The new files should live under a new sub-tree and be introduced gradually.
-The layout mirrors the documented split by [VM components], with chiplet-heavy
-parts matching the [chiplets module trace] and lookup-heavy parts matching the
-structure of [lookup buses].
-
-Suggested layout:
+The canonical files now live under a dedicated sub-tree.
+The layout currently is:
 
 ```text
 MidenLean/AIR/Semantics/
   Core.lean
-  Expr.lean         -- includes executable and proof-facing ext expression semantics
+  Expr.lean
   Builder.lean
   Check.lean
   Polynomial.lean
-  WholeVM.lean
-  Subsystems/
+  Tactics.lean
+  Gaps/
     StackArith.lean
+  Proofs/
+    StackArith.lean
+  Spec/
+    StackArith.lean
+  Subsystems/
+    System.lean
+    Range.lean
+    Decoder.lean
+    StackGeneral.lean
+    StackOverflow.lean
     StackOps.lean
-    ...
+    StackArith.lean
+    StackCrypto.lean
+    ChipletSelectors.lean
+    ChipletBitwise.lean
+    ChipletHasher.lean
+    ChipletKernelRom.lean
+    ChipletMemory.lean
+    ChipletAce.lean
+    PublicInputs.lean
   Refinement/
     SymbolicToCanonical/
-      StackArith.lean
+      System.lean
+      Range.lean
+      Decoder.lean
+      StackGeneral.lean
+      StackGeneralCore.lean
+      StackOverflow.lean
       StackOps.lean
-      ...
-  Tests/
-    Core.lean
-    StackArith.lean
-    ...
+      StackArith.lean
+      StackCrypto.lean
+      ChipletSelectors.lean
+      ChipletBitwise.lean
+      ChipletHasher.lean
+      ChipletKernelRom.lean
+      ChipletMemory.lean
+      ChipletAce.lean
+      PublicInputs.lean
 ```
+
+`WholeVM.lean` and the sketched `Tests/` subtree from the original plan are not
+present yet, which matches the current Step 12+ status.
 
 The existing files can stay where they are during migration:
 
@@ -434,22 +491,22 @@ The existing files can stay where they are during migration:
 
 The intended long-term role of the current AIR files should be:
 
-- [Frame.lean](/Users/marcilunga/Documents/ToB/audits/miden/masm-lean/MidenLean/AIR/Frame.lean):
+- [Frame.lean](./Frame.lean):
   legacy local proof kernel layer, eventually derivable from the canonical AIR
   semantics or replaced by canonical local projections.
-- [Constraints/StackArith.lean](/Users/marcilunga/Documents/ToB/audits/miden/masm-lean/MidenLean/AIR/Constraints/StackArith.lean)
+- [Constraints/StackArith.lean](./Constraints/StackArith.lean)
   and similar files:
   hand-written local kernels to be either retired or justified as projections
   from the canonical semantics.
-- [Constraints/Symbolic/*](/Users/marcilunga/Documents/ToB/audits/miden/masm-lean/MidenLean/AIR/Constraints/Symbolic):
+- [Constraints/Symbolic/*](./Constraints/Symbolic):
   extracted Rust AIR source of truth to be bridged into the canonical semantics.
-- [Soundness/VM.lean](/Users/marcilunga/Documents/ToB/audits/miden/masm-lean/MidenLean/AIR/Soundness/VM.lean):
+- [Soundness/VM.lean](./Soundness/VM.lean):
   current whole-VM symbolic boundary, eventually restated in terms of the
   canonical AIR semantics.
-- [ReducedAux.lean](/Users/marcilunga/Documents/ToB/audits/miden/masm-lean/MidenLean/AIR/ReducedAux.lean):
+- [ReducedAux.lean](./ReducedAux.lean):
   verifier-side algebra that may remain outside the core AIR semantics or may
   become a sibling `VerifierSemantics` layer.
-- [ExtField.lean](/Users/marcilunga/Documents/ToB/audits/miden/masm-lean/MidenLean/AIR/ExtField.lean):
+- [ExtField.lean](./ExtField.lean):
   should stop being described as a fully active proof layer today and instead
   become the explicit proof-facing extension denotation used by `QExpr.evalExt`,
   compatibility lemmas, and later lookup/bus proofs.
@@ -477,6 +534,8 @@ Global warning for every step:
   spelling of an older one.
 
 ### Step 1. Core AIR State
+
+> Status (2026-04-07): `DONE`.
 
 Create:
 
@@ -511,6 +570,8 @@ Warning:
 
 ### Step 2. Expression AST
 
+> Status (2026-04-07): `DONE`.
+
 Create:
 
 - `AIR/Semantics/Expr.lean`
@@ -540,6 +601,8 @@ Warning:
 
 ### Step 3. Runnable Evaluation
 
+> Status (2026-04-07): `DONE`.
+
 Extend:
 
 - `AIR/Semantics/Expr.lean`
@@ -565,6 +628,8 @@ Warning:
   will be added later as an additional layer, not as a replacement.
 
 ### Step 4. Builder DSL
+
+> Status (2026-04-07): `DONE`.
 
 Create:
 
@@ -600,6 +665,8 @@ Warning:
 
 ### Step 5. Constraint Satisfaction
 
+> Status (2026-04-07): `DONE`.
+
 Create:
 
 - `AIR/Semantics/Check.lean`
@@ -624,6 +691,8 @@ Warning:
   should both reflect the same zero-checking meaning.
 
 ### Step 6. First Tiny Canonical Subsystem: `StackArith.add`
+
+> Status (2026-04-07): `DONE`.
 
 Create:
 
@@ -653,6 +722,8 @@ Warning:
   target.
 
 ### Step 7. First Semantic Consequence
+
+> Status (2026-04-07): `DONE`.
 
 Create:
 
@@ -688,6 +759,8 @@ Warning:
 
 ### Step 8. First Extracted-to-Canonical Bridge
 
+> Status (2026-04-07): `DONE`.
+
 Create:
 
 - `AIR/Semantics/Refinement/SymbolicToCanonical/StackArith.lean`
@@ -712,6 +785,8 @@ Warning:
   temporary assumptions.
 
 ### Step 9. Close `StackArith` Completely
+
+> Status (2026-04-07): `DONE`.
 
 This step should no longer be treated as a flat opcode checklist.
 The work should now proceed **schema-first**, so later operations are mostly
@@ -809,6 +884,12 @@ Warning:
 
 ### Step 10. Add `ExtFelt` Denotation And Polynomial Denotation
 
+> Status (2026-04-07): `PARTIALLY DONE`.
+> 10.1 `QExpr.evalExt`: done in `AIR/Semantics/Expr.lean`.
+> 10.2 `QuadFelt.toExtFelt` compatibility: done in `QExpr.evalExt_compat`.
+> 10.3 Base-field polynomial denotation and evaluation compatibility: done in `AIR/Semantics/Polynomial.lean`.
+> 10.4 Extension-expression polynomial denotation: pending.
+
 Create:
 
 - `AIR/Semantics/Polynomial.lean`
@@ -847,6 +928,14 @@ Warning:
   checking on the concrete side.
 
 ### Step 11. Add More Subsystems One By One
+
+> Status (2026-04-07): `MOSTLY DONE`.
+> The tree now contains all 15/15 canonical subsystem files and 15/15 matching
+> subsystem-level bridge files, plus the extra helper
+> `AIR/Semantics/Refinement/SymbolicToCanonical/StackGeneralCore.lean`.
+> There are currently 63 executable `sorry`s under `AIR/Semantics/`,
+> concentrated in `ChipletHasher.lean`, `Decoder.lean`,
+> `StackOps.lean`, and `StackOverflow.lean`.
 
 Recommended order:
 
@@ -891,6 +980,9 @@ Warning:
 
 ### Step 12. Whole-VM Canonical AIR
 
+> Status (2026-04-07): `NOT STARTED`.
+> `AIR/Semantics/WholeVM.lean` does not exist yet.
+
 Create:
 
 - `AIR/Semantics/WholeVM.lean`
@@ -926,6 +1018,8 @@ Warning:
 
 ### Step 13. Migrate Existing Proofs
 
+> Status (2026-04-07): `NOT STARTED`.
+
 Once enough subsystems are in place:
 
 - port local soundness proofs to the canonical semantics,
@@ -944,6 +1038,8 @@ Warning:
   the entrypoint used by new proofs.
 
 ### Step 14. Revisit `ReducedAux`
+
+> Status (2026-04-07): `NOT STARTED`.
 
 Decide whether:
 
@@ -1020,6 +1116,9 @@ If a step needs the entire VM to prove a tiny arithmetic fact, the layering is
 probably wrong.
 
 ## 10. Immediate Next Step
+
+> Status (2026-04-07): historical note only. This section reflects the original
+> starting point before `AIR/Semantics/Core.lean` was added.
 
 The next concrete implementation target should be:
 
