@@ -1,5 +1,4 @@
 import MidenLean.AIR.SymbolicFrame
-set_option maxHeartbeats 8000000
 /-! StackOps AIR constraints: 88 base + 0 ext. Auto-extracted. -/
 
 namespace MidenLean.AIR.Constraints.Symbolic.StackOps

@@ -1,5 +1,4 @@
 import MidenLean.AIR.SymbolicFrame
-set_option maxHeartbeats 8000000
 /-! ChipletMemory AIR constraints: 21 base + 0 ext. Auto-extracted. -/
 
 namespace MidenLean.AIR.Constraints.Symbolic.ChipletMemory

@@ -1,5 +1,4 @@
 import MidenLean.AIR.SymbolicFrame
-set_option maxHeartbeats 8000000
 /-! ChipletKernelRom AIR constraints: 6 base + 0 ext. Auto-extracted. -/
 
 namespace MidenLean.AIR.Constraints.Symbolic.ChipletKernelRom
