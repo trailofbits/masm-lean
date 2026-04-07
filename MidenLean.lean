@@ -105,5 +105,12 @@ import MidenLean.Proofs.Word.Gt
 import MidenLean.Proofs.Word.Lt
 import MidenLean.Proofs.Word.Lte
 import MidenLean.Proofs.Word.Gte
+import MidenLean.Symbolic.Expr
+import MidenLean.Symbolic.State
+import MidenLean.Symbolic.Exec
+import MidenLean.Symbolic.Helpers
+import MidenLean.Symbolic.Soundness
+import MidenLean.Symbolic.Reflect
+import MidenLean.Symbolic.Tactic
 import MidenLean.Tests.Semantics
 import MidenLean.Tests.Procedures
