@@ -2,7 +2,7 @@ import MidenLean.Symbolic.Soundness
 import MidenLean.Generated.U64
 
 /-!
-# Symbolic Reflection (Phase 2)
+# Symbolic Reflection
 
 Demonstrates end-to-end use of the symbolic block executor to prove
 correctness of real MASM procedures. The key components:

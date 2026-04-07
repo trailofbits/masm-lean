@@ -32,11 +32,7 @@ theorem u64_wrapping_add_raw
   unfold Miden.Core.U64.wrapping_add execWithEnv
   simp only [List.foldlM, u64ProcEnv]
   dsimp only [bind, Bind.bind, Option.bind]
-  rw [u64_overflowing_add_run u64ProcEnv 8 a_lo a_hi b_lo b_hi rest mem frames adv
-        ha_lo ha_hi hb_lo hb_hi]
-  miden_bind
-  rw [stepDrop]
-  dsimp only [bind, Bind.bind, Option.bind, pure, Pure.pure]
+  miden_exec u64_overflowing_add_run
 
 /-- `u64::wrapping_add` computes `(a + b) mod 2^64`.
     Input stack:  [b.lo, b.hi, a.lo, a.hi] ++ rest

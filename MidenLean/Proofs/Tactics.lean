@@ -1,5 +1,6 @@
 import MidenLean.Proofs.StepLemmas
 import MidenLean.Proofs.ArithLemmas
+import MidenLean.Proofs.Fuel
 
 namespace MidenLean.Tactics
 
@@ -230,6 +231,23 @@ macro_rules
       (dsimp only [bind, Bind.bind, Option.bind]
        unfold $proc execWithEnv
        simp only [List.foldlM, Procedure.ofOps]))
+
+/-- Compositional procedure call: rewrite with a callee's `_run` theorem
+    instead of unfolding the callee body. The `_run` theorem is applied via
+    `rw`, then the bind is normalized. Fuel mismatches are handled by
+    `execWithEnv_fuel_mono` (from Fuel.lean).
+
+    Usage:
+      miden_exec u64_overflowing_add_run
+
+    Preconditions from the `_run` theorem (e.g., isU32 hypotheses) are left
+    as subgoals, which can be closed by `assumption` or `miden_arith`. -/
+syntax "miden_exec" ident : tactic
+macro_rules
+  | `(tactic| miden_exec $thm) =>
+    `(tactic|
+      (rw [$thm:ident]
+       <;> first | rfl | assumption | omega))
 
 -- ============================================================================
 -- miden_loop: unfold one repeat iteration

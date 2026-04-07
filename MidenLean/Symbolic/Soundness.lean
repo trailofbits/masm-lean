@@ -1,5 +1,6 @@
 import MidenLean.Symbolic.Exec
 import MidenLean.Symbolic.Helpers
+import MidenLean.Proofs.Fuel
 
 /-!
 # Symbolic Execution Soundness
@@ -734,7 +735,7 @@ theorem execBlock_sound
 /-- The Op-level closure from execWithEnv agrees with execInstruction
     on Op.inst i when env returns none for all targets. -/
 private theorem exec_closure_inst
-    (env : ProcEnv) (fuel : Nat) (s : MidenState) (i : Instruction)
+    (env : MidenLean.ProcEnv) (fuel : Nat) (s : MidenState) (i : Instruction)
     (henv : ∀ t, env t = none) :
     (match (Op.inst i : Op) with
      | .inst (.exec target) =>
@@ -791,5 +792,230 @@ theorem exec_basic_block
   simp only
   exact foldlM_map_inst _ (fun s i =>
     exec_closure_inst _ n s i (fun _ => rfl)) insts s
+
+-- ============================================================================
+-- Call-site soundness: Spec.sound, execOp_sound, execOps_sound
+-- ============================================================================
+
+/-- A Spec is sound w.r.t. a concrete procedure at a given minimum fuel level:
+    whenever the symbolic spec succeeds and its preconditions hold, the concrete
+    execution also succeeds and models the symbolic result for any fuel ≥ minFuel. -/
+def Spec.sound (spec : Spec) (env : MidenLean.ProcEnv) (minFuel : Nat)
+    (callee : Procedure) : Prop :=
+  ∀ ss cs σ rest result fuel,
+    fuel ≥ minFuel →
+    spec.transform ss = some result →
+    ss.models cs σ rest →
+    (∀ p ∈ result.preconditions, p.holds σ) →
+    ∃ cs', MidenLean.execWithEnv env fuel cs callee = some cs'
+      ∧ result.state.models cs' σ rest
+
+/-- For a non-exec instruction, execOp delegates to the symbolic execInstruction. -/
+private theorem execOp_inst_non_exec
+    (senv : ProcEnv) (acc : BlockResult) (i : Instruction)
+    (hi : ∀ t, i ≠ .exec t) :
+    execOp senv acc (.inst i) =
+      (execInstruction acc.state i).bind fun ⟨s', preconds⟩ =>
+        some { state := s', preconditions := acc.preconditions ++ preconds } := by
+  unfold execOp
+  cases i with
+  | exec t => exact absurd rfl (hi t)
+  | _ => rfl
+
+/-- If execOp succeeds, the output accumulates all input preconditions. -/
+private theorem execOp_preconds_prefix
+    (senv : ProcEnv) (acc acc' : BlockResult) (op : Op)
+    (h : execOp senv acc op = some acc')
+    (p : Precondition) (hp : p ∈ acc.preconditions) :
+    p ∈ acc'.preconditions := by
+  match op with
+  | .inst (.exec target) =>
+    simp only [execOp] at h
+    match hsenv : senv target with
+    | some spec =>
+      simp only [hsenv] at h
+      match htrans : spec.transform acc.state with
+      | some result =>
+        simp only [htrans] at h
+        rw [← Option.some.inj h]; exact List.mem_append_left _ hp
+      | none => simp [htrans] at h
+    | none => simp [hsenv] at h
+  | .inst i =>
+    by_cases hi : ∃ t, i = .exec t
+    · obtain ⟨t, rfl⟩ := hi
+      simp only [execOp] at h
+      match hsenv : senv t with
+      | some spec =>
+        simp only [hsenv] at h
+        match htrans : spec.transform acc.state with
+        | some result =>
+          simp only [htrans] at h
+          rw [← Option.some.inj h]; exact List.mem_append_left _ hp
+        | none => simp [htrans] at h
+      | none => simp [hsenv] at h
+    · push_neg at hi
+      rw [execOp_inst_non_exec senv acc i hi] at h
+      match hexec : execInstruction acc.state i with
+      | some (s', preconds) =>
+        simp only [hexec] at h
+        rw [← Option.some.inj h]; exact List.mem_append_left _ hp
+      | none => simp [hexec] at h
+  | .ifElse _ _ | .repeat _ _ | .whileTrue _ => simp [execOp] at h
+
+/-- Helper: preconditions from the final result of foldlM over execOp include
+    all preconditions from any intermediate accumulator. -/
+private theorem foldlM_execOp_preconds_subset
+    (senv : ProcEnv) (ops : List Op) (acc result : BlockResult)
+    (hfold : ops.foldlM (execOp senv) acc = some result)
+    (p : Precondition) (hp : p ∈ acc.preconditions) : p ∈ result.preconditions := by
+  induction ops generalizing acc with
+  | nil =>
+    simp [List.foldlM] at hfold; rw [← hfold]; exact hp
+  | cons op rest ih =>
+    simp only [List.foldlM, bind, Bind.bind, Option.bind] at hfold
+    match hstep : execOp senv acc op with
+    | none => simp [hstep] at hfold
+    | some acc' =>
+      simp only [hstep] at hfold
+      exact ih acc' hfold (execOp_preconds_prefix senv acc acc' op hstep p hp)
+
+/-- Per-op soundness: if execOp succeeds symbolically, all callees are sound
+    (and every symbolic callee has a concrete counterpart), and the accumulator
+    models the concrete state, then the concrete op-step also succeeds and the
+    result models the new concrete state. -/
+private theorem execOp_sound
+    (senv : ProcEnv) (env : MidenLean.ProcEnv) (minFuel : Nat)
+    (op : Op) (acc acc' : BlockResult) (cs : MidenState)
+    (σ : Assignment) (rest : List Felt)
+    (hmodels : acc.state.models cs σ rest)
+    (hstep : execOp senv acc op = some acc')
+    (hpreconds : ∀ p ∈ acc'.preconditions, p.holds σ)
+    (hcallees : ∀ name (spec : Spec),
+      senv name = some spec →
+      ∃ callee, env name = some callee ∧ spec.sound env minFuel callee) :
+    ∃ cs', MidenLean.opStep env minFuel cs op = some cs'
+      ∧ acc'.state.models cs' σ rest := by
+  match op with
+  | .inst (.exec target) =>
+    -- exec case: use Spec.sound via hcallees
+    simp only [execOp] at hstep
+    match hsenv : senv target with
+    | some spec =>
+      simp only [hsenv] at hstep
+      match htrans : spec.transform acc.state with
+      | some result =>
+        simp only [htrans] at hstep
+        have heq := Option.some.inj hstep
+        obtain ⟨callee, henv, hsound⟩ := hcallees target spec hsenv
+        have hresult_preconds : ∀ p ∈ result.preconditions, p.holds σ := fun p hp => by
+          rw [← heq] at hpreconds; exact hpreconds p (List.mem_append_right _ hp)
+        obtain ⟨cs', hconc, hmod⟩ := hsound acc.state cs σ rest result minFuel
+          (Nat.le_refl _) htrans hmodels hresult_preconds
+        exact ⟨cs', by unfold MidenLean.opStep; simp only [henv]; exact hconc,
+          by rw [← heq]; exact hmod⟩
+      | none => simp [htrans] at hstep
+    | none => simp [hsenv] at hstep
+  | .inst i =>
+    -- Non-exec instruction case: check if i is .exec (overlap with first case)
+    by_cases hi : ∃ t, i = .exec t
+    · -- i = .exec t: same as exec case above
+      obtain ⟨t, rfl⟩ := hi
+      simp only [execOp] at hstep
+      match hsenv : senv t with
+      | some spec =>
+        simp only [hsenv] at hstep
+        match htrans : spec.transform acc.state with
+        | some result =>
+          simp only [htrans] at hstep
+          have heq := Option.some.inj hstep
+          obtain ⟨callee, henv, hsound⟩ := hcallees t spec hsenv
+          have hresult_preconds : ∀ p ∈ result.preconditions, p.holds σ := fun p hp => by
+            rw [← heq] at hpreconds; exact hpreconds p (List.mem_append_right _ hp)
+          obtain ⟨cs', hconc, hmod⟩ := hsound acc.state cs σ rest result minFuel
+            (Nat.le_refl _) htrans hmodels hresult_preconds
+          exact ⟨cs', by unfold MidenLean.opStep; simp only [henv]; exact hconc,
+            by rw [← heq]; exact hmod⟩
+        | none => simp [htrans] at hstep
+      | none => simp [hsenv] at hstep
+    · -- i is not .exec: execOp delegates to execInstruction
+      push_neg at hi
+      rw [execOp_inst_non_exec senv acc i hi] at hstep
+      match hexec : execInstruction acc.state i with
+      | some (s', preconds) =>
+        simp only [hexec] at hstep
+        have heq := Option.some.inj hstep
+        have hpreconds' : ∀ p ∈ preconds, p.holds σ := fun p hp => by
+          rw [← heq] at hpreconds; exact hpreconds p (List.mem_append_right _ hp)
+        obtain ⟨cs', hconc, hmod⟩ :=
+          execInstruction_sound i acc.state cs σ rest s' preconds hmodels hexec hpreconds'
+        refine ⟨cs', ?_, by rw [← heq]; exact hmod⟩
+        unfold MidenLean.opStep
+        cases i with
+        | exec t => exact absurd rfl (hi t)
+        | _ => exact hconc
+      | none => simp [hexec] at hstep
+  | .ifElse _ _ | .repeat _ _ | .whileTrue _ =>
+    simp [execOp] at hstep
+
+/-- Generalized fold soundness: if foldlM of execOp over ops starting from acc
+    produces result, and all preconditions hold, then the concrete foldlM of
+    opStep also succeeds. -/
+private theorem foldlM_execOp_sound
+    (senv : ProcEnv) (env : MidenLean.ProcEnv) (minFuel : Nat)
+    (ops : List Op) (acc result : BlockResult)
+    (cs : MidenState) (σ : Assignment) (rest : List Felt)
+    (hmodels : acc.state.models cs σ rest)
+    (hfold : ops.foldlM (execOp senv) acc = some result)
+    (hpreconds : ∀ p ∈ result.preconditions, p.holds σ)
+    (hcallees : ∀ name (spec : Spec),
+      senv name = some spec →
+      ∃ callee, env name = some callee ∧ spec.sound env minFuel callee) :
+    ∃ cs', ops.foldlM (MidenLean.opStep env minFuel) cs = some cs'
+      ∧ result.state.models cs' σ rest := by
+  induction ops generalizing acc cs with
+  | nil =>
+    simp [List.foldlM] at hfold
+    exact ⟨cs, rfl, hfold ▸ hmodels⟩
+  | cons op rest_ops ih =>
+    simp only [List.foldlM, bind, Bind.bind, Option.bind] at hfold ⊢
+    match hstep : execOp senv acc op with
+    | none => simp [hstep] at hfold
+    | some acc_mid =>
+      simp only [hstep] at hfold
+      have hpc_mid : ∀ p ∈ acc_mid.preconditions, p.holds σ := fun p hp =>
+        hpreconds p (foldlM_execOp_preconds_subset senv rest_ops acc_mid result hfold p hp)
+      obtain ⟨cs_mid, hconc_mid, hmod_mid⟩ :=
+        execOp_sound senv env minFuel op acc acc_mid cs σ rest
+          hmodels hstep hpc_mid hcallees
+      rw [hconc_mid]
+      exact ih acc_mid cs_mid hmod_mid hfold
+
+/-- Extended soundness: if all callees in the symbolic ProcEnv are sound
+    (and every symbolic callee has a concrete counterpart),
+    then execOps is sound. The conclusion is stated in terms of execWithEnv
+    applied to the op list wrapped as a procedure with numLocals = 0. -/
+theorem execOps_sound
+    (senv : ProcEnv) (env : MidenLean.ProcEnv) (minFuel : Nat)
+    (ops : List Op) (ss : State) (cs : MidenState)
+    (σ : Assignment) (rest : List Felt) (result : BlockResult)
+    (hmodels : ss.models cs σ rest)
+    (hresult : execOps senv ops ss = some result)
+    (hpreconds : ∀ p ∈ result.preconditions, p.holds σ)
+    (hcallees : ∀ name (spec : Spec),
+      senv name = some spec →
+      ∃ callee, env name = some callee ∧ spec.sound env minFuel callee) :
+    ∃ cs', MidenLean.execWithEnv env (minFuel + 1) cs (Procedure.ofOps ops) = some cs'
+      ∧ result.state.models cs' σ rest := by
+  -- execOps unfolds to foldlM (execOp senv) over the initial accumulator
+  unfold execOps at hresult
+  -- execWithEnv at fuel (minFuel + 1) with Procedure.ofOps (numLocals = 0)
+  -- unfolds to foldlM (opStep env minFuel)
+  have hunfold : MidenLean.execWithEnv env (minFuel + 1) cs (Procedure.ofOps ops)
+      = ops.foldlM (MidenLean.opStep env minFuel) cs := by
+    unfold Procedure.ofOps MidenLean.execWithEnv; rfl
+  rw [hunfold]
+  exact foldlM_execOp_sound senv env minFuel ops
+    { state := ss, preconditions := [] } result cs σ rest
+    hmodels hresult hpreconds hcallees
 
 end MidenLean.Symbolic

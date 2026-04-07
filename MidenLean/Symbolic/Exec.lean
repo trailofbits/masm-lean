@@ -493,4 +493,40 @@ def concreteExecBlock (insts : List Instruction) (cs : MidenState) :
     Option MidenState :=
   insts.foldlM (fun s i => MidenLean.execInstruction s i) cs
 
+-- ============================================================================
+-- Compositional calls: symbolic procedure environment
+-- ============================================================================
+
+/-- A symbolic specification of a procedure: given an input symbolic state,
+    produce the output state and any required preconditions. -/
+structure Spec where
+  transform : State → Option BlockResult
+
+/-- Symbolic procedure environment mapping procedure names to symbolic specs. -/
+abbrev ProcEnv := String → Option Spec
+
+/-- Execute a single op with a symbolic procedure environment.
+    Handles `Op.inst (.exec target)` by looking up the target in the ProcEnv,
+    `Op.inst i` by delegating to execInstruction, and returns none for
+    control-flow ops (ifElse, repeat, whileTrue). -/
+def execOp (senv : ProcEnv) (acc : BlockResult) (op : Op) :
+    Option BlockResult :=
+  match op with
+  | .inst (.exec target) =>
+    match senv target with
+    | some spec => do
+      let result ← spec.transform acc.state
+      return { state := result.state,
+               preconditions := acc.preconditions ++ result.preconditions }
+    | none => none
+  | .inst i => do
+    let (s', preconds) ← execInstruction acc.state i
+    return { state := s', preconditions := acc.preconditions ++ preconds }
+  | _ => none  -- control flow handled by Phase 4
+
+/-- Execute a sequence of ops with a symbolic procedure environment. -/
+def execOps (senv : ProcEnv) (ops : List Op) (s : State) :
+    Option BlockResult :=
+  ops.foldlM (execOp senv) { state := s, preconditions := [] }
+
 end MidenLean.Symbolic
