@@ -56,12 +56,25 @@ def expr : ExtConstraint → QExpr
 /-- Evaluate an extension-field constraint on one AIR row pair. -/
 def eval (c : ExtConstraint) (r : AirRow) : QuadFelt := c.expr.eval r
 
+/-- Evaluate an extension-field constraint into `ExtFelt`. -/
+noncomputable def evalExt (c : ExtConstraint) (r : AirRow) : ExtFelt := c.expr.evalExt r
+
 @[simp]
 theorem expr_zeroAssert (e : QExpr) : (ExtConstraint.zeroAssert e).expr = e := rfl
 
 @[simp]
 theorem eval_zeroAssert (e : QExpr) (r : AirRow) :
     (ExtConstraint.zeroAssert e).eval r = e.eval r := rfl
+
+@[simp]
+theorem evalExt_zeroAssert (e : QExpr) (r : AirRow) :
+    (ExtConstraint.zeroAssert e).evalExt r = e.evalExt r := rfl
+
+theorem evalExt_compat (c : ExtConstraint) (r : AirRow) :
+    QuadFelt.toExtFelt (c.eval r) = c.evalExt r := by
+  cases c with
+  | zeroAssert e =>
+      exact QExpr.evalExt_compat e r
 
 end ExtConstraint
 

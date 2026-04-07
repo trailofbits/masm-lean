@@ -115,6 +115,50 @@ def eval : QExpr → AirRow → QuadFelt
   | .sub a b, r => a.eval r - b.eval r
   | .mul a b, r => a.eval r * b.eval r
 
+/-- Evaluate a canonical extension-field expression into the abstract quotient
+    ring `ExtFelt = GF(p)[X]/(X² - 7)`. -/
+noncomputable def evalExt : QExpr → AirRow → ExtFelt
+  | .const c, _ => QuadFelt.toExtFelt c
+  | .aux phase i, r => QuadFelt.toExtFelt (r.auxAt phase i)
+  | .challenge i, r => QuadFelt.toExtFelt (r.challengeAt i)
+  | .permFinal i, r => QuadFelt.toExtFelt (r.permFinalAt i)
+  | .ofBase e, r => QuadFelt.toExtFelt (QuadFelt.ofFelt (e.eval r))
+  | .add a b, r => a.evalExt r + b.evalExt r
+  | .sub a b, r => a.evalExt r - b.evalExt r
+  | .mul a b, r => a.evalExt r * b.evalExt r
+
+@[simp]
+theorem evalExt_add (a b : QExpr) (r : AirRow) :
+    (QExpr.add a b).evalExt r = a.evalExt r + b.evalExt r := rfl
+
+@[simp]
+theorem evalExt_sub (a b : QExpr) (r : AirRow) :
+    (QExpr.sub a b).evalExt r = a.evalExt r - b.evalExt r := rfl
+
+@[simp]
+theorem evalExt_mul (a b : QExpr) (r : AirRow) :
+    (QExpr.mul a b).evalExt r = a.evalExt r * b.evalExt r := rfl
+
+theorem evalExt_compat (q : QExpr) (r : AirRow) :
+    QuadFelt.toExtFelt (q.eval r) = q.evalExt r := by
+  induction q with
+  | const c =>
+      rfl
+  | aux phase i =>
+      rfl
+  | challenge i =>
+      rfl
+  | permFinal i =>
+      rfl
+  | ofBase e =>
+      rfl
+  | add a b ihA ihB =>
+      simp [QExpr.eval, QExpr.evalExt, ihA, ihB]
+  | sub a b ihA ihB =>
+      simp [QExpr.eval, QExpr.evalExt, ihA, ihB]
+  | mul a b ihA ihB =>
+      simp [QExpr.eval, QExpr.evalExt, ihA, ihB]
+
 @[simp]
 theorem eval_add (a b : QExpr) (r : AirRow) :
     (QExpr.add a b).eval r = a.eval r + b.eval r := rfl

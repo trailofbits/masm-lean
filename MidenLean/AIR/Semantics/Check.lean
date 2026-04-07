@@ -40,6 +40,11 @@ def checkBase (r : AirRow) (cs : BaseConstraintSet) : Bool :=
 def satisfiesExt (r : AirRow) (cs : ExtConstraintSet) : Prop :=
   ∀ c ∈ cs, c.eval r = 0
 
+/-- A row satisfies the extension-field constraints when each evaluates to zero
+    after transport into `ExtFelt`. -/
+def satisfiesExtExt (r : AirRow) (cs : ExtConstraintSet) : Prop :=
+  ∀ c ∈ cs, c.evalExt r = 0
+
 /-- Boolean check for extension-field constraints. -/
 def checkExt (r : AirRow) (cs : ExtConstraintSet) : Bool :=
   cs.all fun c => QuadFelt.check_zero (c.eval r)
@@ -67,6 +72,15 @@ theorem checkExt_sound (r : AirRow) (cs : ExtConstraintSet) :
 theorem checkExt_complete (r : AirRow) (cs : ExtConstraintSet) :
     satisfiesExt r cs → checkExt r cs = true :=
   checkExt_eq_true_iff_satisfiesExt r cs |>.mpr
+
+theorem satisfiesExt_iff_satisfiesExtExt (r : AirRow) (cs : ExtConstraintSet) :
+    satisfiesExt r cs ↔ satisfiesExtExt r cs := by
+  constructor
+  · intro h c hc
+    simpa [ExtConstraint.evalExt_compat] using congrArg QuadFelt.toExtFelt (h c hc)
+  · intro h c hc
+    exact QuadFelt.toExtFelt_injective (by
+      simpa [ExtConstraint.evalExt_compat] using h c hc)
 
 private def smokeRow : AirRow := {}
 

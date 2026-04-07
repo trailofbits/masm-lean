@@ -3,6 +3,9 @@ import Mathlib.RingTheory.AdjoinRoot
 import Mathlib.Algebra.Polynomial.Degree.Domain
 import Mathlib.Algebra.Polynomial.Degree.SmallDegree
 import Mathlib.Algebra.Polynomial.Monic
+import Mathlib.FieldTheory.KummerPolynomial
+import Mathlib.NumberTheory.LegendreSymbol.Basic
+import Mathlib.Tactic.NormNum.LegendreSymbol
 
 /-!
 # Quadratic Extension of the Goldilocks Field
@@ -374,5 +377,42 @@ noncomputable def toExtFeltRingHom : QuadFelt →+* ExtFelt where
   return s!"-(2,3) + (2,3) = ({r.re.val}, {r.im.val}) -- OK (zero)"
 
 end QuadFelt
+
+-- ============================================================================
+-- Irreducibility of X² - 7 and Field instance for ExtFelt
+-- ============================================================================
+
+/-- The Legendre symbol `(7 / p)` equals `-1`, confirming 7 is a quadratic non-residue
+    modulo the Goldilocks prime `p = 2^64 - 2^32 + 1`. -/
+theorem legendre_residue_eq_neg_one : legendreSym GOLDILOCKS_PRIME 7 = -1 := by
+  norm_num [GOLDILOCKS_PRIME]
+
+/-- 7 (cast from `ℤ`) is not a square in `ZMod GOLDILOCKS_PRIME`. -/
+private theorem residue_not_isSquare : ¬ IsSquare ((7 : ℤ) : ZMod GOLDILOCKS_PRIME) := by
+  rw [← legendreSym.eq_neg_one_iff]
+  exact legendre_residue_eq_neg_one
+
+/-- No element of the Goldilocks field squares to the residue 7. -/
+private theorem no_sqrt_of_residue : ∀ (b : Felt), b ^ 2 ≠ QuadFelt.RESIDUE := by
+  intro b hb
+  apply residue_not_isSquare
+  refine ⟨b, ?_⟩
+  simp only [QuadFelt.RESIDUE, sq] at hb
+  exact hb.symm
+
+/-- The polynomial `X² - 7` is irreducible over the Goldilocks field.
+    This follows from 7 being a quadratic non-residue modulo `p`, proved
+    via the Legendre symbol computation `(7/p) = -1` using quadratic reciprocity. -/
+theorem extPoly_irreducible : Irreducible extPoly :=
+  X_pow_sub_C_irreducible_of_prime Nat.prime_two no_sqrt_of_residue
+
+/-- Irreducibility packaged as a `Fact` for Mathlib's `AdjoinRoot.instField`. -/
+noncomputable instance extPoly_irreducible_fact : Fact (Irreducible extPoly) :=
+  ⟨extPoly_irreducible⟩
+
+/-- The quotient `GF(p)[X]/(X² - 7)` is a field, since `X² - 7` is irreducible
+    over the Goldilocks field. This is the quadratic extension field used by Miden VM
+    for RPO and other cryptographic operations. -/
+noncomputable instance : Field ExtFelt := AdjoinRoot.instField
 
 end MidenLean
