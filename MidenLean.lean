@@ -13,6 +13,7 @@ import MidenLean.Proofs.Tactics
 import MidenLean.Proofs.U32.Common
 import MidenLean.Proofs.ArithLemmas
 import MidenLean.Proofs.Fuel
+import MidenLean.Proofs.ControlFlow
 import MidenLean.Proofs.U64.Common
 import MidenLean.Proofs.U64.Eq
 import MidenLean.Proofs.U64.WrappingSub
@@ -114,6 +115,7 @@ import MidenLean.Symbolic.Soundness
 import MidenLean.Symbolic.Reflect
 import MidenLean.Symbolic.ValidateTest
 import MidenLean.Symbolic.Tactic
+import MidenLean.Symbolic.ControlFlowTest
 import MidenLean.Symbolic.SpikeTest
 import MidenLean.Symbolic.TacticTest
 import MidenLean.Tests.Semantics

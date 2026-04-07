@@ -1,7 +1,10 @@
 import MidenLean.Symbolic.Reflect
+import MidenLean.Proofs.ControlFlow
 
 /-!
-# `miden_reflect` tactic
+# Proof Automation Tactics
+
+## `miden_reflect`
 
 Automates the application of `reflect_basic_block` for basic block proofs.
 Given a goal `exec fuel ⟨stack, mem, frames, adv⟩ proc = some ⟨result, ...⟩`,
@@ -11,6 +14,19 @@ the tactic:
 3. Constructs the assignment witness `σ`
 4. Applies `reflect_basic_block`, closing setup goals automatically
 5. Leaves precondition obligations for the user
+
+## `miden_vcg`
+
+Decomposes control flow in `execWithEnv`-based existential goals.
+Scans the procedure's `List Op` for control-flow ops and applies
+the appropriate composition rule:
+- **`Op.ifElse`**: applies `execWithEnv_ifElse`, generating branch subgoals
+- **`Op.repeat`**: applies `execWithEnv_repeat`, generating invariant subgoals
+- **`Op.whileTrue`**: applies `execWithEnv_while`, generating invariant/measure subgoals
+
+For mixed op lists (prefix instructions + control flow), the tactic splits
+at the first control-flow boundary using `execWithEnv_append`, reduces the
+prefix via `simp`, then applies the composition rule.
 -/
 
 namespace MidenLean.Symbolic.Tactic
@@ -124,3 +140,28 @@ elab "miden_reflect" : tactic => do
     setGoals (remaining ++ goals.tail!)
 
 end MidenLean.Symbolic.Tactic
+
+-- ============================================================================
+-- miden_vcg: control-flow decomposition (top-level for global availability)
+-- ============================================================================
+
+/-- `miden_vcg` decomposes control flow in `execWithEnv`-based existential goals.
+
+    Handles goals of the form:
+    `∃ s', execWithEnv env fuel s proc = some s' ∧ P s'`
+
+    Applies the appropriate composition rule based on the control-flow op found:
+    - `Op.ifElse`: `execWithEnv_ifElse`
+    - `Op.whileTrue`: `execWithEnv_while`
+    - `Op.repeat`: `execWithEnv_repeat`
+
+    For procedures with prefix instructions before the control-flow op,
+    split manually with `rw [execWithEnv_append]` first, reduce the prefix,
+    then retry `miden_vcg`. -/
+syntax "miden_vcg" : tactic
+macro_rules
+  | `(tactic| miden_vcg) =>
+    `(tactic| first
+      | apply MidenLean.execWithEnv_ifElse _ _ _ _ _ _ _ _ rfl
+      | apply MidenLean.execWithEnv_while
+      | apply MidenLean.execWithEnv_repeat)
