@@ -1170,6 +1170,141 @@ theorem execBlock_sound
     exact foldlM_sound insts ss cs σ rest [] final_ss final_preconds hmodels
       hfold (fun p hp => hpreconds p (hpc ▸ List.mem_reverse.mpr hp))
 
+-- ============================================================================
+-- Bridge: execWithEnv → concreteExecBlock (generalized)
+-- ============================================================================
+
+/-- Boolean predicate: is this instruction an `exec` call? -/
+def isExecInst : Instruction → Bool
+  | .exec _ => true
+  | _ => false
+
+/-- For a non-exec instruction, opStep at any env and fuel equals execInstruction. -/
+private theorem opStep_inst_non_exec
+    (env : MidenLean.ProcEnv) (fuel : Nat) (s : MidenState) (i : Instruction)
+    (hi : isExecInst i = false) :
+    MidenLean.opStep env fuel s (.inst i) = MidenLean.execInstruction s i := by
+  unfold MidenLean.opStep
+  cases i with
+  | exec _ => simp [isExecInst] at hi
+  | _ => rfl
+
+/-- foldlM of opStep over (insts.map Op.inst) equals concreteExecBlock
+    when no instruction is an exec call. -/
+private theorem foldlM_opStep_eq_concreteExecBlock
+    (env : MidenLean.ProcEnv) (fuel : Nat)
+    (insts : List Instruction) (s : MidenState)
+    (hnoexec : insts.all (fun i => !isExecInst i) = true) :
+    (insts.map Op.inst).foldlM (MidenLean.opStep env fuel) s =
+    concreteExecBlock insts s := by
+  induction insts generalizing s with
+  | nil => rfl
+  | cons i rest ih =>
+    simp [List.all_cons] at hnoexec
+    obtain ⟨hi, hrest⟩ := hnoexec
+    simp only [List.map_cons, List.foldlM, bind, Bind.bind, Option.bind,
+               concreteExecBlock]
+    rw [opStep_inst_non_exec env fuel s i hi]
+    match MidenLean.execInstruction s i with
+    | none => rfl
+    | some s' =>
+      apply ih s'
+      simp [List.all_eq_true]
+      exact hrest
+
+/-- For a basic block with numLocals = 0,
+    execWithEnv reduces to concreteExecBlock. -/
+theorem execWithEnv_basic_block_zero
+    (env : MidenLean.ProcEnv) (fuel : Nat) (s : MidenState)
+    (insts : List Instruction) (name : String) (ops : List Op)
+    (hops : ops = insts.map Op.inst)
+    (hfuel : fuel > 0)
+    (hnoexec : insts.all (fun i => !isExecInst i) = true) :
+    MidenLean.execWithEnv env fuel s ⟨name, 0, ops⟩ =
+    concreteExecBlock insts s := by
+  obtain ⟨n, rfl⟩ : ∃ n, fuel = n + 1 := ⟨fuel - 1, by omega⟩
+  rw [MidenLean.execWithEnv_succ_zero]
+  rw [hops]
+  exact foldlM_opStep_eq_concreteExecBlock env n insts s hnoexec
+
+/-- For a basic block with numLocals > 0,
+    execWithEnv reduces to frame-push + concreteExecBlock + frame-pop. -/
+theorem execWithEnv_basic_block_locals
+    (env : MidenLean.ProcEnv) (fuel : Nat) (s : MidenState)
+    (insts : List Instruction) (name : String) (k : Nat) (ops : List Op)
+    (hops : ops = insts.map Op.inst)
+    (hfuel : fuel > 0)
+    (hnoexec : insts.all (fun i => !isExecInst i) = true) :
+    MidenLean.execWithEnv env fuel s ⟨name, k + 1, ops⟩ =
+    let aligned := MidenLean.alignLocals (k + 1)
+    let base := match s.frames with
+      | [] => 0
+      | f :: _ => f.base + f.alignedNumLocals
+    let frame : MidenLean.LocalFrame := { base, numLocals := k + 1,
+                                           alignedNumLocals := aligned }
+    let s' := { s with frames := frame :: s.frames }
+    match concreteExecBlock insts s' with
+    | some r => some { r with frames := s.frames }
+    | none => none := by
+  obtain ⟨n, rfl⟩ : ∃ n, fuel = n + 1 := ⟨fuel - 1, by omega⟩
+  show MidenLean.execWithEnv env (n + 1) s ⟨name, k + 1, ops⟩ = _
+  rw [MidenLean.execWithEnv_succ_locals]
+  simp only []
+  rw [hops]
+  rw [foldlM_opStep_eq_concreteExecBlock env n insts _ hnoexec]
+  rfl
+
+set_option maxHeartbeats 6400000 in
+set_option linter.unusedTactic false in
+/-- Symbolic execInstruction never modifies the frames field. -/
+private theorem execInstruction_preserves_frames
+    (ss : State) (i : Instruction) (ss' : State) (pc : List Precondition)
+    (h : execInstruction ss i = some (ss', pc)) :
+    ss'.frames = ss.frames := by
+  unfold execInstruction at h
+  cases i <;> simp only [] at h <;>
+    (try split at h) <;> (try split at h) <;> (try split at h) <;>
+    (try split at h) <;> (try split at h) <;>
+    simp_all (config := { decide := false }) <;>
+    first
+    | (obtain ⟨_, rfl, _⟩ := h; rfl)
+    | (obtain ⟨rfl, _⟩ := h; rfl)
+
+/-- foldlM of execBlockStep preserves frames. -/
+private theorem foldlM_execBlockStep_preserves_frames
+    (insts : List Instruction) (s : State) (acc : List Precondition)
+    (fs : State) (fp : List Precondition)
+    (hf : insts.foldlM execBlockStep (s, acc) = some (fs, fp)) :
+    fs.frames = s.frames := by
+  induction insts generalizing s acc fs fp with
+  | nil =>
+    simp only [List.foldlM] at hf
+    exact (congrArg (fun p => p.1.frames) (Option.some.inj hf)).symm
+  | cons i rest ih =>
+    simp only [List.foldlM, bind, Bind.bind, Option.bind, execBlockStep] at hf
+    match hstep : execInstruction s i with
+    | none => simp [hstep] at hf
+    | some (s1, pc1) =>
+      simp only [hstep] at hf
+      have hfr := execInstruction_preserves_frames s i s1 pc1 hstep
+      have := ih s1 (pc1.reverse ++ acc) fs fp hf
+      rw [this, hfr]
+
+/-- Symbolic execBlock never modifies the frames field. -/
+theorem execBlock_preserves_frames
+    (insts : List Instruction) (ss : State)
+    (result : BlockResult)
+    (h : execBlock insts ss = some result) :
+    result.state.frames = ss.frames := by
+  unfold execBlock at h
+  match hfold : insts.foldlM execBlockStep (ss, []) with
+  | none => simp [hfold] at h
+  | some (final_ss, final_preconds) =>
+    simp only [hfold, Option.some.injEq] at h
+    have hstate : result.state = final_ss := (congrArg BlockResult.state h).symm
+    rw [hstate]
+    exact foldlM_execBlockStep_preserves_frames insts ss [] final_ss final_preconds hfold
+
 -- Bridge: exec → concreteExecBlock
 
 /-- The Op-level closure from execWithEnv agrees with execInstruction

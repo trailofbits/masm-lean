@@ -40,13 +40,13 @@ noncomputable def opStep (env : ProcEnv) (fuel : Nat)
 
 -- Unfold lemmas: execWithEnv at succ fuel reduces to foldlM of opStep
 
-private theorem execWithEnv_succ_zero (env : ProcEnv) (n : Nat)
+theorem execWithEnv_succ_zero (env : ProcEnv) (n : Nat)
     (s : MidenState) (name : String) (ops : List Op) :
     execWithEnv env (n + 1) s ⟨name, 0, ops⟩ =
     ops.foldlM (opStep env n) s := by
   unfold execWithEnv; rfl
 
-private theorem execWithEnv_succ_locals (env : ProcEnv) (n : Nat)
+theorem execWithEnv_succ_locals (env : ProcEnv) (n : Nat)
     (s : MidenState) (name : String) (k : Nat) (ops : List Op) :
     execWithEnv env (n + 1) s ⟨name, k + 1, ops⟩ =
     let aligned := alignLocals (k + 1)
@@ -207,8 +207,8 @@ private theorem fuel_mono_core (env : ProcEnv) :
           rw [hres] at h
           simp at h
     refine ⟨execE, ?_, ?_⟩
-        -- (R) doRepeat at fuel n + 1
-        · intro m count body st st' hm h
+    -- (R) doRepeat at fuel n + 1
+    · intro m count body st st' hm h
       induction count generalizing st with
       | zero =>
         simp only [execWithEnv.doRepeat] at h ⊢; exact h
@@ -220,8 +220,8 @@ private theorem fuel_mono_core (env : ProcEnv) :
           simp [this]
           exact ihCount st'' h
         · simp at h
-        -- (W) doWhile at fuel n + 1
-        · intro m fn fm body st st' hm hfn h
+    -- (W) doWhile at fuel n + 1
+    · intro m fn fm body st st' hm hfn h
       induction fn generalizing st fm with
       | zero => simp [execWithEnv.doWhile] at h
       | succ fn' ihFn =>
