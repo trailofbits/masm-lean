@@ -92,6 +92,9 @@ inductive Expr where
   | u32WSub (a b : Expr)
   -- Word comparison (for eqw)
   | eqw4 (a0 a1 a2 a3 b0 b1 b2 b3 : Expr)
+  -- U32 type test
+  | u32IsU32 (a : Expr)
+  | u32IsU32W (a b c d : Expr)
   -- Conditionals
   | ite (cond a b : Expr)
   deriving Repr, BEq, Inhabited
@@ -202,6 +205,10 @@ def Expr.eval (σ : Assignment) : Expr → Felt
   | .eqw4 a0 a1 a2 a3 b0 b1 b2 b3 =>
       if a0.eval σ == b0.eval σ && a1.eval σ == b1.eval σ &&
          a2.eval σ == b2.eval σ && a3.eval σ == b3.eval σ
+      then (1 : Felt) else 0
+  | .u32IsU32 a => if (a.eval σ).isU32 then (1 : Felt) else 0
+  | .u32IsU32W a b c d =>
+      if (a.eval σ).isU32 && (b.eval σ).isU32 && (c.eval σ).isU32 && (d.eval σ).isU32
       then (1 : Felt) else 0
   | .ite c a b =>
       if (c.eval σ).val == 1 then a.eval σ else b.eval σ
