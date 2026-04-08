@@ -2299,4 +2299,219 @@ theorem execInstruction_sound_movdnw
       simp only [Bool.and_eq_false_iff, decide_eq_false_iff_not]; omega
     simp [hfalse] at hexec
 
+-- Conditional swap/drop ops (isBool precondition)
+
+theorem execInstruction_sound_cswap
+    (ss : State) (cs : MidenState)
+    (σ : Assignment) (rest : List Felt)
+    (ss' : State) (preconds : List Precondition)
+    (hmodels : ss.models cs σ rest)
+    (hexec : execInstruction ss .cswap = some (ss', preconds))
+    (hpreconds : ∀ p ∈ preconds, p.holds σ) :
+    ∃ cs', MidenLean.execInstruction cs .cswap = some cs' ∧ ss'.models cs' σ rest := by
+  obtain ⟨hstack, hmem, hframes, hadv⟩ := hmodels
+  simp only [execInstruction] at hexec
+  -- Use split on the inner match (ss.stack) in hexec
+  split at hexec
+  · -- Matching case: c :: b :: a :: rest
+    rename_i c b a tail heq_stk
+    obtain ⟨rfl, rfl⟩ := Prod.mk.inj (Option.some.inj hexec)
+    rw [heq_stk, List.map_cons, List.map_cons, List.map_cons] at hstack
+    have hbool : (c.eval σ) = 0 ∨ (c.eval σ) = 1 :=
+      hpreconds (.isBool c) (by simp)
+    rcases hbool with hc0 | hc1
+    · -- c.eval σ = 0: concrete takes the "c.val == 0" branch, symbolic ite takes else
+      refine ⟨cs.withStack (b.eval σ :: a.eval σ :: tail.map (Expr.eval σ) ++ rest), ?_, ?_⟩
+      · change execCswap cs = _
+        unfold execCswap
+        rw [hstack, hc0]
+        simp [ZMod.val_zero, ZMod.val_one, MidenState.withStack]
+      · refine ⟨?_, hmem, hframes, hadv⟩
+        simp [MidenState.withStack, Expr.eval, hc0]
+    · -- c.eval σ = 1: concrete takes the "c.val == 1" branch, symbolic ite takes then
+      refine ⟨cs.withStack (a.eval σ :: b.eval σ :: tail.map (Expr.eval σ) ++ rest), ?_, ?_⟩
+      · change execCswap cs = _
+        unfold execCswap
+        rw [hstack, hc1]
+        simp [ZMod.val_one, MidenState.withStack]
+      · refine ⟨?_, hmem, hframes, hadv⟩
+        simp [MidenState.withStack, Expr.eval, hc1, ZMod.val_one]
+  · -- Wildcard case: hexec : none = some ... is contradictory
+    exact absurd hexec (by simp)
+
+theorem execInstruction_sound_cdrop
+    (ss : State) (cs : MidenState)
+    (σ : Assignment) (rest : List Felt)
+    (ss' : State) (preconds : List Precondition)
+    (hmodels : ss.models cs σ rest)
+    (hexec : execInstruction ss .cdrop = some (ss', preconds))
+    (hpreconds : ∀ p ∈ preconds, p.holds σ) :
+    ∃ cs', MidenLean.execInstruction cs .cdrop = some cs' ∧ ss'.models cs' σ rest := by
+  obtain ⟨hstack, hmem, hframes, hadv⟩ := hmodels
+  simp only [execInstruction] at hexec
+  split at hexec
+  · -- Matching case: c :: b :: a :: rest
+    rename_i c b a tail heq_stk
+    obtain ⟨rfl, rfl⟩ := Prod.mk.inj (Option.some.inj hexec)
+    rw [heq_stk, List.map_cons, List.map_cons, List.map_cons] at hstack
+    have hbool : (c.eval σ) = 0 ∨ (c.eval σ) = 1 :=
+      hpreconds (.isBool c) (by simp)
+    rcases hbool with hc0 | hc1
+    · -- c.eval σ = 0: concrete drops b, keeps a; symbolic ite c b a → a (else branch)
+      refine ⟨cs.withStack (a.eval σ :: tail.map (Expr.eval σ) ++ rest), ?_, ?_⟩
+      · change execCdrop cs = _
+        unfold execCdrop
+        rw [hstack, hc0]
+        simp [ZMod.val_zero, ZMod.val_one, MidenState.withStack]
+      · refine ⟨?_, hmem, hframes, hadv⟩
+        simp [MidenState.withStack, Expr.eval, hc0]
+    · -- c.eval σ = 1: concrete drops a, keeps b; symbolic ite c b a → b (then branch)
+      refine ⟨cs.withStack (b.eval σ :: tail.map (Expr.eval σ) ++ rest), ?_, ?_⟩
+      · change execCdrop cs = _
+        unfold execCdrop
+        rw [hstack, hc1]
+        simp [ZMod.val_one, MidenState.withStack]
+      · refine ⟨?_, hmem, hframes, hadv⟩
+        simp [MidenState.withStack, Expr.eval, hc1, ZMod.val_one]
+  · -- Wildcard case
+    exact absurd hexec (by simp)
+
+set_option maxHeartbeats 800000 in
+theorem execInstruction_sound_cswapw
+    (ss : State) (cs : MidenState)
+    (σ : Assignment) (rest : List Felt)
+    (ss' : State) (preconds : List Precondition)
+    (hmodels : ss.models cs σ rest)
+    (hexec : execInstruction ss .cswapw = some (ss', preconds))
+    (hpreconds : ∀ p ∈ preconds, p.holds σ) :
+    ∃ cs', MidenLean.execInstruction cs .cswapw = some cs' ∧ ss'.models cs' σ rest := by
+  obtain ⟨hstack, hmem, hframes, hadv⟩ := hmodels
+  simp only [execInstruction] at hexec
+  -- The symbolic exec for cswapw has a let binding; use split to handle the inner match
+  split at hexec
+  swap
+  · -- Wildcard case: hexec : none = some ... is contradictory
+    exact absurd hexec (by simp)
+  · -- Matching case: 9-element pattern
+    rename_i c b0 b1 b2 b3 a0 a1 a2 a3 tail heq_stk
+    obtain ⟨rfl, rfl⟩ := Prod.mk.inj (Option.some.inj hexec)
+    rw [heq_stk, List.map_cons, List.map_cons, List.map_cons, List.map_cons, List.map_cons,
+        List.map_cons, List.map_cons, List.map_cons, List.map_cons] at hstack
+    have hbool : (c.eval σ) = 0 ∨ (c.eval σ) = 1 :=
+      hpreconds (.isBool c) (by simp)
+    rcases hbool with hc0 | hc1
+    · -- c.eval σ = 0: concrete keeps b0..b3 :: a0..a3, symbolic ite takes else
+      refine ⟨cs.withStack (b0.eval σ :: b1.eval σ :: b2.eval σ :: b3.eval σ ::
+                             a0.eval σ :: a1.eval σ :: a2.eval σ :: a3.eval σ ::
+                             tail.map (Expr.eval σ) ++ rest), ?_, ?_⟩
+      · change execCswapw cs = _
+        unfold execCswapw
+        rw [hstack, hc0]
+        simp [ZMod.val_zero, ZMod.val_one, MidenState.withStack]
+      · refine ⟨?_, hmem, hframes, hadv⟩
+        simp [MidenState.withStack, Expr.eval, hc0]
+    · -- c.eval σ = 1: concrete swaps to a0..a3 :: b0..b3, symbolic ite takes then
+      refine ⟨cs.withStack (a0.eval σ :: a1.eval σ :: a2.eval σ :: a3.eval σ ::
+                             b0.eval σ :: b1.eval σ :: b2.eval σ :: b3.eval σ ::
+                             tail.map (Expr.eval σ) ++ rest), ?_, ?_⟩
+      · change execCswapw cs = _
+        unfold execCswapw
+        rw [hstack, hc1]
+        simp [ZMod.val_one, MidenState.withStack]
+      · refine ⟨?_, hmem, hframes, hadv⟩
+        simp [MidenState.withStack, Expr.eval, hc1, ZMod.val_one]
+
+set_option maxHeartbeats 800000 in
+theorem execInstruction_sound_cdropw
+    (ss : State) (cs : MidenState)
+    (σ : Assignment) (rest : List Felt)
+    (ss' : State) (preconds : List Precondition)
+    (hmodels : ss.models cs σ rest)
+    (hexec : execInstruction ss .cdropw = some (ss', preconds))
+    (hpreconds : ∀ p ∈ preconds, p.holds σ) :
+    ∃ cs', MidenLean.execInstruction cs .cdropw = some cs' ∧ ss'.models cs' σ rest := by
+  obtain ⟨hstack, hmem, hframes, hadv⟩ := hmodels
+  simp only [execInstruction] at hexec
+  -- The symbolic exec for cdropw has a let binding; use split to handle the inner match
+  split at hexec
+  swap
+  · -- Wildcard case: hexec : none = some ... is contradictory
+    exact absurd hexec (by simp)
+  · -- Matching case: 9-element pattern
+    rename_i c b0 b1 b2 b3 a0 a1 a2 a3 tail heq_stk
+    obtain ⟨rfl, rfl⟩ := Prod.mk.inj (Option.some.inj hexec)
+    rw [heq_stk, List.map_cons, List.map_cons, List.map_cons, List.map_cons, List.map_cons,
+        List.map_cons, List.map_cons, List.map_cons, List.map_cons] at hstack
+    have hbool : (c.eval σ) = 0 ∨ (c.eval σ) = 1 :=
+      hpreconds (.isBool c) (by simp)
+    rcases hbool with hc0 | hc1
+    · -- c.eval σ = 0: concrete keeps a0..a3, symbolic ite takes else
+      refine ⟨cs.withStack (a0.eval σ :: a1.eval σ :: a2.eval σ :: a3.eval σ ::
+                             tail.map (Expr.eval σ) ++ rest), ?_, ?_⟩
+      · change execCdropw cs = _
+        unfold execCdropw
+        rw [hstack, hc0]
+        simp [ZMod.val_zero, ZMod.val_one, MidenState.withStack]
+      · refine ⟨?_, hmem, hframes, hadv⟩
+        simp [MidenState.withStack, Expr.eval, hc0]
+    · -- c.eval σ = 1: concrete keeps b0..b3, symbolic ite takes then
+      refine ⟨cs.withStack (b0.eval σ :: b1.eval σ :: b2.eval σ :: b3.eval σ ::
+                             tail.map (Expr.eval σ) ++ rest), ?_, ?_⟩
+      · change execCdropw cs = _
+        unfold execCdropw
+        rw [hstack, hc1]
+        simp [ZMod.val_one, MidenState.withStack]
+      · refine ⟨?_, hmem, hframes, hadv⟩
+        simp [MidenState.withStack, Expr.eval, hc1, ZMod.val_one]
+
+-- U32 test ops (no preconditions)
+
+theorem execInstruction_sound_u32Test
+    (ss : State) (cs : MidenState)
+    (σ : Assignment) (rest : List Felt)
+    (ss' : State) (preconds : List Precondition)
+    (hmodels : ss.models cs σ rest)
+    (hexec : execInstruction ss .u32Test = some (ss', preconds))
+    (hpreconds : ∀ p ∈ preconds, p.holds σ) :
+    ∃ cs', MidenLean.execInstruction cs .u32Test = some cs' ∧ ss'.models cs' σ rest := by
+  obtain ⟨hstack, hmem, hframes, hadv⟩ := hmodels
+  simp only [execInstruction] at hexec
+  split at hexec
+  · -- Matching case: a :: tail
+    rename_i a tail heq_stk
+    obtain ⟨rfl, rfl⟩ := Prod.mk.inj (Option.some.inj hexec)
+    rw [heq_stk, List.map_cons] at hstack
+    refine ⟨cs.withStack ((if (a.eval σ).isU32 then (1 : Felt) else 0) :: a.eval σ :: tail.map (Expr.eval σ) ++ rest), ?_, ?_⟩
+    · change execU32Test cs = _
+      unfold execU32Test
+      rw [hstack]; simp [MidenState.withStack]
+    · exact ⟨by simp only [MidenState.withStack, List.map_cons, Expr.eval], hmem, hframes, hadv⟩
+  · exact absurd hexec (by simp)
+
+theorem execInstruction_sound_u32TestW
+    (ss : State) (cs : MidenState)
+    (σ : Assignment) (rest : List Felt)
+    (ss' : State) (preconds : List Precondition)
+    (hmodels : ss.models cs σ rest)
+    (hexec : execInstruction ss .u32TestW = some (ss', preconds))
+    (hpreconds : ∀ p ∈ preconds, p.holds σ) :
+    ∃ cs', MidenLean.execInstruction cs .u32TestW = some cs' ∧ ss'.models cs' σ rest := by
+  obtain ⟨hstack, hmem, hframes, hadv⟩ := hmodels
+  simp only [execInstruction] at hexec
+  split at hexec
+  · -- Matching case: a :: b :: c :: d :: tail
+    rename_i a b c d tail heq_stk
+    obtain ⟨rfl, rfl⟩ := Prod.mk.inj (Option.some.inj hexec)
+    rw [heq_stk, List.map_cons, List.map_cons, List.map_cons, List.map_cons] at hstack
+    -- Concrete u32TestW prepends result to s.stack (= cs.stack), symbolic prepends to a::b::c::d::tail
+    refine ⟨cs.withStack ((if (a.eval σ).isU32 && (b.eval σ).isU32 && (c.eval σ).isU32 && (d.eval σ).isU32
+                            then (1 : Felt) else 0) :: cs.stack), ?_, ?_⟩
+    · change execU32TestW cs = _
+      unfold execU32TestW
+      rw [hstack]
+      rfl
+    · refine ⟨?_, hmem, hframes, hadv⟩
+      simp only [MidenState.withStack, List.map_cons, Expr.eval, hstack, List.cons_append]
+  · exact absurd hexec (by simp)
+
 end MidenLean.Symbolic
