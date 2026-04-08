@@ -50,7 +50,7 @@ theorem isBool_guard (x : Felt) (h : x = 0 ∨ x = 1) : x.isBool = true := by
 
 theorem bne_if_eq_if {α : Type} {β : Type} [BEq α] (a b : α) (x y : β) :
     (if !(a == b) then x else y) = (if a == b then y else x) := by
-  cases h : a == b <;> simp [h]
+  by_cases h : a == b <;> simp [h]
 
 theorem map_lit_map_eval (σ : Assignment) (vs : List Felt) :
     (vs.map Expr.lit).map (Expr.eval σ) = vs := by
@@ -68,7 +68,8 @@ theorem eqZero_val_guard (x : Felt) (h : x = 0) : ((x.val == 0) = true) := by
 
 -- Helper: a = b → (a == b) = true for Felt
 theorem feltEq_beq_guard (a b : Felt) (h : a = b) : ((a == b) = true) := by
-  subst h; simp [BEq.beq, DecidableEq]
+  subst h
+  simp
 
 theorem valLeq_to_not_gt (x : Felt) (h : x.val ≤ 63) : ¬(x.val > 63) := by omega
 
@@ -193,12 +194,12 @@ theorem execInstruction_sound_swapdw
     rw [hstk] at hstack
     simp only [List.map_cons, List.cons_append] at hstack
     exact ⟨cs.withStack (c0.eval σ::c1.eval σ::c2.eval σ::c3.eval σ::
-                          d0.eval σ::d1.eval σ::d2.eval σ::d3.eval σ::
-                          a0.eval σ::a1.eval σ::a2.eval σ::a3.eval σ::
-                          b0.eval σ::b1.eval σ::b2.eval σ::b3.eval σ::
-                          tail.map (Expr.eval σ) ++ rest),
+                        d0.eval σ::d1.eval σ::d2.eval σ::d3.eval σ::
+                        a0.eval σ::a1.eval σ::a2.eval σ::a3.eval σ::
+                        b0.eval σ::b1.eval σ::b2.eval σ::b3.eval σ::
+                        tail.map (Expr.eval σ) ++ rest),
       by simp only [MidenLean.execInstruction, execSwapdw, hstack, MidenState.withStack]; rfl,
-      ⟨by simp only [MidenState.withStack, List.map_cons, Expr.eval], hmem, hframes, hadv⟩⟩
+      ⟨by simp only [MidenState.withStack, List.map_cons], hmem, hframes, hadv⟩⟩
   | _ =>
     split at hexec
     · -- overlap: the 16+ element pattern matched both arms; proceed like the main case
@@ -212,7 +213,7 @@ theorem execInstruction_sound_swapdw
                             b0.eval σ::b1.eval σ::b2.eval σ::b3.eval σ::
                             tail.map (Expr.eval σ) ++ rest),
         by simp only [MidenLean.execInstruction, execSwapdw, hstack, MidenState.withStack]; rfl,
-        ⟨by simp only [MidenState.withStack, List.map_cons, Expr.eval], hmem, hframes, hadv⟩⟩
+        ⟨by simp only [MidenState.withStack, List.map_cons], hmem, hframes, hadv⟩⟩
     · simp at hexec
 
 theorem execInstruction_sound_reversew
@@ -234,7 +235,7 @@ theorem execInstruction_sound_reversew
     exact ⟨cs.withStack (d.eval σ :: c.eval σ :: b.eval σ :: a.eval σ ::
                           tail.map (Expr.eval σ) ++ rest),
       by simp only [MidenLean.execInstruction, execReversew, hstack]; rfl,
-      ⟨by simp only [MidenState.withStack, List.map_cons, Expr.eval], hmem, hframes, hadv⟩⟩
+      ⟨by simp only [MidenState.withStack, List.map_cons], hmem, hframes, hadv⟩⟩
 
 theorem execInstruction_sound_addImm
     (v : Felt) (ss : State) (cs : MidenState)
@@ -1789,7 +1790,7 @@ theorem execInstruction_sound_u32ShlImm
   obtain ⟨hstack, hmem, hframes, hadv⟩ := hmodels
   simp only [execInstruction] at hexec
   by_cases hn : n ≤ 31
-  · simp only [hn, ite_true, decide_true] at hexec
+  · simp only [hn, ite_true] at hexec
     match hstk : ss.stack with
     | [] => simp [hstk] at hexec
     | a :: tail =>
@@ -1820,7 +1821,7 @@ theorem execInstruction_sound_u32ShrImm
   obtain ⟨hstack, hmem, hframes, hadv⟩ := hmodels
   simp only [execInstruction] at hexec
   by_cases hn : n ≤ 31
-  · simp only [hn, ite_true, decide_true] at hexec
+  · simp only [hn, ite_true] at hexec
     match hstk : ss.stack with
     | [] => simp [hstk] at hexec
     | a :: tail =>
@@ -1851,7 +1852,7 @@ theorem execInstruction_sound_u32RotlImm
   obtain ⟨hstack, hmem, hframes, hadv⟩ := hmodels
   simp only [execInstruction] at hexec
   by_cases hn : n ≤ 31
-  · simp only [hn, ite_true, decide_true] at hexec
+  · simp only [hn, ite_true] at hexec
     match hstk : ss.stack with
     | [] => simp [hstk] at hexec
     | a :: tail =>
@@ -1882,7 +1883,7 @@ theorem execInstruction_sound_u32RotrImm
   obtain ⟨hstack, hmem, hframes, hadv⟩ := hmodels
   simp only [execInstruction] at hexec
   by_cases hn : n ≤ 31
-  · simp only [hn, ite_true, decide_true] at hexec
+  · simp only [hn, ite_true] at hexec
     match hstk : ss.stack with
     | [] => simp [hstk] at hexec
     | a :: tail =>
@@ -2100,7 +2101,7 @@ theorem execInstruction_sound_dupw
     have hvc : ss.stack[base + 2] = c := getElem_of_getElem?_some _ _ _ hgc
     have hvd : ss.stack[base + 3] = d := getElem_of_getElem?_some _ _ _ hgd
     refine ⟨cs.withStack (a.eval σ :: b.eval σ :: c.eval σ :: d.eval σ :: cs.stack), ?_, ?_⟩
-    · simp only [MidenLean.execInstruction, execDupw, hbase_def, hstack]
+    · simp only [MidenLean.execInstruction, execDupw, hstack]
       rw [getElem?_map_append_left (Expr.eval σ) ss.stack rest base hna,
           getElem?_map_append_left (Expr.eval σ) ss.stack rest (base + 1) hnb,
           getElem?_map_append_left (Expr.eval σ) ss.stack rest (base + 2) hnc,
@@ -2233,14 +2234,14 @@ theorem execInstruction_sound_movupw
                               (ss.stack.map (Expr.eval σ)).drop (base + 4) ++ rest), ?_, ?_⟩
       · change execMovupw n cs = _
         unfold execMovupw
-        have : ¬(n < 2) := by omega
-        have : ¬(n > 3) := by omega
-        simp only [show (n < 2 || n > 3) = false by simp_all [Bool.or_eq_true, decide_eq_true_eq],
-                    ite_false]
+        have hnlt2 : ¬(n < 2) := by omega
+        have hngt3 : ¬(n > 3) := by omega
+        have hguard : (n < 2 || n > 3) = false := by
+          simp [hnlt2, hngt3]
+        simp only [hguard]
         rw [hstack]
         have hle' : base + 4 ≤ (ss.stack.map (Expr.eval σ) ++ rest).length := by simp; omega
         simp only [MidenState.withStack]
-        congr 1
         rw [List.take_append_of_le_length (by simp; omega),
             List.drop_append_of_le_length (by simp; omega)]
         rw [List.take_append_of_le_length (by simp [List.length_drop]; omega),
@@ -2279,14 +2280,14 @@ theorem execInstruction_sound_movdnw
                               ((ss.stack.map (Expr.eval σ)).drop 4).drop (n * 4) ++ rest), ?_, ?_⟩
       · change execMovdnw n cs = _
         unfold execMovdnw
-        have : ¬(n < 2) := by omega
-        have : ¬(n > 3) := by omega
-        simp only [show (n < 2 || n > 3) = false by simp_all [Bool.or_eq_true, decide_eq_true_eq],
-                    ite_false]
+        have hnlt2 : ¬(n < 2) := by omega
+        have hngt3 : ¬(n > 3) := by omega
+        have hguard : (n < 2 || n > 3) = false := by
+          simp [hnlt2, hngt3]
+        simp only [hguard]
         rw [hstack]
         have hle' : (n + 1) * 4 ≤ (ss.stack.map (Expr.eval σ) ++ rest).length := by simp; omega
         simp only [MidenState.withStack]
-        congr 1
         rw [List.take_append_of_le_length (by simp; omega),
             List.drop_append_of_le_length (by simp; omega)]
         rw [List.take_append_of_le_length (by simp [List.length_drop]; omega),
@@ -2325,7 +2326,7 @@ theorem execInstruction_sound_cswap
       · change execCswap cs = _
         unfold execCswap
         rw [hstack, hc0]
-        simp [ZMod.val_zero, ZMod.val_one, MidenState.withStack]
+        simp [ZMod.val_zero, MidenState.withStack]
       · refine ⟨?_, hmem, hframes, hadv⟩
         simp [MidenState.withStack, Expr.eval, hc0]
     · -- c.eval σ = 1: concrete takes the "c.val == 1" branch, symbolic ite takes then
@@ -2362,7 +2363,7 @@ theorem execInstruction_sound_cdrop
       · change execCdrop cs = _
         unfold execCdrop
         rw [hstack, hc0]
-        simp [ZMod.val_zero, ZMod.val_one, MidenState.withStack]
+        simp [ZMod.val_zero, MidenState.withStack]
       · refine ⟨?_, hmem, hframes, hadv⟩
         simp [MidenState.withStack, Expr.eval, hc0]
     · -- c.eval σ = 1: concrete drops a, keeps b; symbolic ite c b a → b (then branch)
@@ -2407,7 +2408,7 @@ theorem execInstruction_sound_cswapw
       · change execCswapw cs = _
         unfold execCswapw
         rw [hstack, hc0]
-        simp [ZMod.val_zero, ZMod.val_one, MidenState.withStack]
+        simp [ZMod.val_zero, MidenState.withStack]
       · refine ⟨?_, hmem, hframes, hadv⟩
         simp [MidenState.withStack, Expr.eval, hc0]
     · -- c.eval σ = 1: concrete swaps to a0..a3 :: b0..b3, symbolic ite takes then
@@ -2451,7 +2452,7 @@ theorem execInstruction_sound_cdropw
       · change execCdropw cs = _
         unfold execCdropw
         rw [hstack, hc0]
-        simp [ZMod.val_zero, ZMod.val_one, MidenState.withStack]
+        simp [ZMod.val_zero, MidenState.withStack]
       · refine ⟨?_, hmem, hframes, hadv⟩
         simp [MidenState.withStack, Expr.eval, hc0]
     · -- c.eval σ = 1: concrete keeps b0..b3, symbolic ite takes then
