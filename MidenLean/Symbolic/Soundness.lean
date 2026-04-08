@@ -1072,9 +1072,21 @@ theorem execInstruction_sound
     | [_, _, _], _ => simp [hstk] at hexec
     | _ :: _ :: _ :: _ :: _, [] =>
       simp [hstk, hfr, currentFrame, List.head?] at hexec
+  -- Conditional swap/drop
+  | .cswap =>
+    exact execInstruction_sound_cswap ss cs σ rest ss' preconds hmodels hexec hpreconds
+  | .cswapw =>
+    exact execInstruction_sound_cswapw ss cs σ rest ss' preconds hmodels hexec hpreconds
+  | .cdrop =>
+    exact execInstruction_sound_cdrop ss cs σ rest ss' preconds hmodels hexec hpreconds
+  | .cdropw =>
+    exact execInstruction_sound_cdropw ss cs σ rest ss' preconds hmodels hexec hpreconds
+  -- U32 type tests
+  | .u32Test =>
+    exact execInstruction_sound_u32Test ss cs σ rest ss' preconds hmodels hexec hpreconds
+  | .u32TestW =>
+    exact execInstruction_sound_u32TestW ss cs σ rest ss' preconds hmodels hexec hpreconds
   -- Instructions that return none in execInstruction (unsupported symbolically)
-  | .cswap | .cswapw | .cdrop | .cdropw
-  | .u32Test | .u32TestW
   | .memLoad | .memStore
   | .memLoadwBe | .memStorewBe
   | .memLoadwLe | .memStorewLe
