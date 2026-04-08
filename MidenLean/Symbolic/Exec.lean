@@ -153,11 +153,26 @@ def execInstruction (s : State) (i : Instruction) :
       some ({ s with stack := d :: c :: b :: a :: rest }, [])
     | _ => none
 
-  -- Stack: conditional (cswap/cdrop require concrete condition; return none)
-  | .cswap => none
-  | .cswapw => none
-  | .cdrop => none
-  | .cdropw => none
+  -- Stack: conditional swap/drop (require boolean condition)
+  | .cswap => match s.stack with
+    | c :: b :: a :: rest =>
+      some ({ s with stack := .ite c a b :: .ite c b a :: rest }, [.isBool c])
+    | _ => none
+  | .cswapw => match s.stack with
+    | c :: b0::b1::b2::b3 :: a0::a1::a2::a3 :: rest =>
+      let stk := Expr.ite c a0 b0 :: Expr.ite c a1 b1 :: Expr.ite c a2 b2 :: Expr.ite c a3 b3 ::
+        Expr.ite c b0 a0 :: Expr.ite c b1 a1 :: Expr.ite c b2 a2 :: Expr.ite c b3 a3 :: rest
+      some ({ s with stack := stk }, [.isBool c])
+    | _ => none
+  | .cdrop => match s.stack with
+    | c :: b :: a :: rest =>
+      some ({ s with stack := .ite c b a :: rest }, [.isBool c])
+    | _ => none
+  | .cdropw => match s.stack with
+    | c :: b0::b1::b2::b3 :: a0::a1::a2::a3 :: rest =>
+      let stk := Expr.ite c b0 a0 :: Expr.ite c b1 a1 :: Expr.ite c b2 a2 :: Expr.ite c b3 a3 :: rest
+      some ({ s with stack := stk }, [.isBool c])
+    | _ => none
 
   -- Constants
   | .push v =>
@@ -251,8 +266,14 @@ def execInstruction (s : State) (i : Instruction) :
     | _ => none
 
   -- U32 assertions / conversions
-  | .u32Test => none   -- result depends on concrete value; unsupported symbolically
-  | .u32TestW => none  -- result depends on concrete values; unsupported symbolically
+  | .u32Test => match s.stack with
+    | a :: rest =>
+      some ({ s with stack := .u32IsU32 a :: a :: rest }, [])
+    | _ => none
+  | .u32TestW => match s.stack with
+    | a :: b :: c :: d :: rest =>
+      some ({ s with stack := .u32IsU32W a b c d :: a :: b :: c :: d :: rest }, [])
+    | _ => none
   | .u32Assert => match s.stack with
     | a :: _ => some (s, [.isU32 a])
     | _ => none
