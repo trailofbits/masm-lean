@@ -26,60 +26,63 @@ private theorem execInstruction_sound_drop
     (ss : State) (cs : MidenState)
     (σ : Assignment) (rest : List Felt)
     (ss' : State) (preconds : List Precondition)
-    (hmodels : cs.stack = ss.stack.map (Expr.eval σ) ++ rest)
+    (hmodels : ss.models cs σ rest)
     (hexec : execInstruction ss .drop = some (ss', preconds))
     (hpreconds : ∀ p ∈ preconds, p.holds σ) :
     ∃ cs', MidenLean.execInstruction cs .drop = some cs' ∧ ss'.models cs' σ rest := by
+  obtain ⟨hstack, hmem, hframes, hadv⟩ := hmodels
   unfold execInstruction at hexec
   match hstk : ss.stack with
   | [] => simp [hstk] at hexec
   | x :: tail =>
     simp only [hstk] at hexec
     have heq := Option.some.inj hexec
-    have hss : ss' = { stack := tail } := (congrArg Prod.fst heq).symm
+    have hss : ss' = { ss with stack := tail } := (congrArg Prod.fst heq).symm
     have hpc : preconds = [] := (congrArg Prod.snd heq).symm
     subst hss; subst hpc
-    rw [hstk, List.map_cons] at hmodels
+    rw [hstk, List.map_cons] at hstack
     exact ⟨cs.withStack (tail.map (Expr.eval σ) ++ rest),
-      by simp only [MidenLean.execInstruction, execDrop, hmodels]; rfl,
-      by simp only [State.models, MidenState.withStack]⟩
+      by simp only [MidenLean.execInstruction, execDrop, hstack]; rfl,
+      ⟨by simp only [MidenState.withStack], hmem, hframes, hadv⟩⟩
 
 -- Helper: dup case
 private theorem execInstruction_sound_dup
     (n : Fin 16) (ss : State) (cs : MidenState)
     (σ : Assignment) (rest : List Felt)
     (ss' : State) (preconds : List Precondition)
-    (hmodels : cs.stack = ss.stack.map (Expr.eval σ) ++ rest)
+    (hmodels : ss.models cs σ rest)
     (hexec : execInstruction ss (.dup n) = some (ss', preconds))
     (hpreconds : ∀ p ∈ preconds, p.holds σ) :
     ∃ cs', MidenLean.execInstruction cs (.dup n) = some cs' ∧ ss'.models cs' σ rest := by
+  obtain ⟨hstack, hmem, hframes, hadv⟩ := hmodels
   unfold execInstruction at hexec
   match hget : ss.stack[n.val]? with
   | none => simp [hget] at hexec
   | some v =>
     simp only [hget] at hexec
     have heq := Option.some.inj hexec
-    have hss : ss' = { stack := v :: ss.stack } := (congrArg Prod.fst heq).symm
+    have hss : ss' = { ss with stack := v :: ss.stack } := (congrArg Prod.fst heq).symm
     have hpc : preconds = [] := (congrArg Prod.snd heq).symm
     subst hss; subst hpc
     have hn : n.val < ss.stack.length := getElem?_some_lt _ _ _ hget
     have hval : ss.stack[n.val] = v := getElem_of_getElem?_some _ _ _ hget
     refine ⟨cs.withStack (v.eval σ :: cs.stack), ?_, ?_⟩
-    · simp only [MidenLean.execInstruction, execDup, hmodels,
+    · simp only [MidenLean.execInstruction, execDup, hstack,
           getElem?_map_append_left _ _ _ _ hn]
       rw [hval]
-    · simp only [State.models, MidenState.withStack, List.map_cons, hmodels]
-      rfl
+    · exact ⟨by simp only [MidenState.withStack, List.map_cons, List.cons_append, hstack],
+             hmem, hframes, hadv⟩
 
 -- Helper: swap case
 private theorem execInstruction_sound_swap
     (n : Fin 16) (ss : State) (cs : MidenState)
     (σ : Assignment) (rest : List Felt)
     (ss' : State) (preconds : List Precondition)
-    (hmodels : cs.stack = ss.stack.map (Expr.eval σ) ++ rest)
+    (hmodels : ss.models cs σ rest)
     (hexec : execInstruction ss (.swap n) = some (ss', preconds))
     (hpreconds : ∀ p ∈ preconds, p.holds σ) :
     ∃ cs', MidenLean.execInstruction cs (.swap n) = some cs' ∧ ss'.models cs' σ rest := by
+  obtain ⟨hstack, hmem, hframes, hadv⟩ := hmodels
   unfold execInstruction at hexec
   by_cases h0 : n.val = 0
   · have hbeq : (n.val == 0) = true := by simp [h0]
@@ -90,14 +93,14 @@ private theorem execInstruction_sound_swap
     subst hss; subst hpc
     exact ⟨cs,
       by simp only [MidenLean.execInstruction, execSwap, hbeq, ite_true],
-      by simp only [State.models, hmodels]⟩
+      hstack, hmem, hframes, hadv⟩
   · have hne : (n.val == 0) = false := by simp [h0]
     simp only [hne] at hexec
     match hget0 : ss.stack[0]?, hgetn : ss.stack[n.val]? with
     | some top, some nth =>
       simp only [hget0, hgetn] at hexec
       have heq := Option.some.inj hexec
-      have hss : ss' = { stack := (ss.stack.set 0 nth).set n.val top } :=
+      have hss : ss' = { ss with stack := (ss.stack.set 0 nth).set n.val top } :=
         (congrArg Prod.fst heq).symm
       have hpc : preconds = [] := (congrArg Prod.snd heq).symm
       subst hss; subst hpc
@@ -107,16 +110,18 @@ private theorem execInstruction_sound_swap
       have hvaln : ss.stack[n.val] = nth := getElem_of_getElem?_some _ _ _ hgetn
       refine ⟨cs.withStack ((cs.stack.set 0 (nth.eval σ)).set n.val (top.eval σ)), ?_, ?_⟩
       · simp only [MidenLean.execInstruction, execSwap, hne]
-        rw [hmodels,
+        rw [hstack,
             getElem?_map_append_left _ _ _ 0 h0lt,
             getElem?_map_append_left _ _ _ n.val hnlt]
         rw [hval0, hvaln]
         rfl
-      · unfold State.models MidenState.withStack
-        rw [hmodels,
-            set_map_append_left (Expr.eval σ) (ss.stack.set 0 nth) rest n.val top
-              (by rw [List.length_set]; exact hnlt),
-            set_map_append_left (Expr.eval σ) ss.stack rest 0 nth h0lt]
+      · constructor
+        · simp only [MidenState.withStack]
+          rw [hstack,
+              set_map_append_left (Expr.eval σ) (ss.stack.set 0 nth) rest n.val top
+                (by rw [List.length_set]; exact hnlt),
+              set_map_append_left (Expr.eval σ) ss.stack rest 0 nth h0lt]
+        · exact ⟨hmem, hframes, hadv⟩
     | some _, none | none, some _ | none, none =>
       simp [hget0, hgetn] at hexec
 
@@ -125,90 +130,94 @@ private theorem execInstruction_sound_add
     (ss : State) (cs : MidenState)
     (σ : Assignment) (rest : List Felt)
     (ss' : State) (preconds : List Precondition)
-    (hmodels : cs.stack = ss.stack.map (Expr.eval σ) ++ rest)
+    (hmodels : ss.models cs σ rest)
     (hexec : execInstruction ss .add = some (ss', preconds))
     (hpreconds : ∀ p ∈ preconds, p.holds σ) :
     ∃ cs', MidenLean.execInstruction cs .add = some cs' ∧ ss'.models cs' σ rest := by
+  obtain ⟨hstack, hmem, hframes, hadv⟩ := hmodels
   unfold execInstruction at hexec
   match hstk : ss.stack with
   | [] | [_] => simp [hstk] at hexec
   | b :: a :: tail =>
     simp only [hstk] at hexec
     have heq := Option.some.inj hexec
-    have hss : ss' = { stack := .add a b :: tail } := (congrArg Prod.fst heq).symm
+    have hss : ss' = { ss with stack := .add a b :: tail } := (congrArg Prod.fst heq).symm
     have hpc : preconds = [] := (congrArg Prod.snd heq).symm
     subst hss; subst hpc
-    rw [hstk, List.map_cons, List.map_cons] at hmodels
+    rw [hstk, List.map_cons, List.map_cons] at hstack
     exact ⟨cs.withStack ((a.eval σ + b.eval σ) :: tail.map (Expr.eval σ) ++ rest),
-      by simp only [MidenLean.execInstruction, execAdd, hmodels]; rfl,
-      by simp only [State.models, MidenState.withStack, List.map_cons, Expr.eval]⟩
+      by simp only [MidenLean.execInstruction, execAdd, hstack]; rfl,
+      ⟨by simp only [MidenState.withStack, List.map_cons, Expr.eval], hmem, hframes, hadv⟩⟩
 
 -- Helper: sub case
 private theorem execInstruction_sound_sub
     (ss : State) (cs : MidenState)
     (σ : Assignment) (rest : List Felt)
     (ss' : State) (preconds : List Precondition)
-    (hmodels : cs.stack = ss.stack.map (Expr.eval σ) ++ rest)
+    (hmodels : ss.models cs σ rest)
     (hexec : execInstruction ss .sub = some (ss', preconds))
     (hpreconds : ∀ p ∈ preconds, p.holds σ) :
     ∃ cs', MidenLean.execInstruction cs .sub = some cs' ∧ ss'.models cs' σ rest := by
+  obtain ⟨hstack, hmem, hframes, hadv⟩ := hmodels
   unfold execInstruction at hexec
   match hstk : ss.stack with
   | [] | [_] => simp [hstk] at hexec
   | b :: a :: tail =>
     simp only [hstk] at hexec
     have heq := Option.some.inj hexec
-    have hss : ss' = { stack := .sub a b :: tail } := (congrArg Prod.fst heq).symm
+    have hss : ss' = { ss with stack := .sub a b :: tail } := (congrArg Prod.fst heq).symm
     have hpc : preconds = [] := (congrArg Prod.snd heq).symm
     subst hss; subst hpc
-    rw [hstk, List.map_cons, List.map_cons] at hmodels
+    rw [hstk, List.map_cons, List.map_cons] at hstack
     exact ⟨cs.withStack ((a.eval σ - b.eval σ) :: tail.map (Expr.eval σ) ++ rest),
-      by simp only [MidenLean.execInstruction, execSub, hmodels]; rfl,
-      by simp only [State.models, MidenState.withStack, List.map_cons, Expr.eval]⟩
+      by simp only [MidenLean.execInstruction, execSub, hstack]; rfl,
+      ⟨by simp only [MidenState.withStack, List.map_cons, Expr.eval], hmem, hframes, hadv⟩⟩
 
 -- Helper: mul case
 private theorem execInstruction_sound_mul
     (ss : State) (cs : MidenState)
     (σ : Assignment) (rest : List Felt)
     (ss' : State) (preconds : List Precondition)
-    (hmodels : cs.stack = ss.stack.map (Expr.eval σ) ++ rest)
+    (hmodels : ss.models cs σ rest)
     (hexec : execInstruction ss .mul = some (ss', preconds))
     (hpreconds : ∀ p ∈ preconds, p.holds σ) :
     ∃ cs', MidenLean.execInstruction cs .mul = some cs' ∧ ss'.models cs' σ rest := by
+  obtain ⟨hstack, hmem, hframes, hadv⟩ := hmodels
   unfold execInstruction at hexec
   match hstk : ss.stack with
   | [] | [_] => simp [hstk] at hexec
   | b :: a :: tail =>
     simp only [hstk] at hexec
     have heq := Option.some.inj hexec
-    have hss : ss' = { stack := .mul a b :: tail } := (congrArg Prod.fst heq).symm
+    have hss : ss' = { ss with stack := .mul a b :: tail } := (congrArg Prod.fst heq).symm
     have hpc : preconds = [] := (congrArg Prod.snd heq).symm
     subst hss; subst hpc
-    rw [hstk, List.map_cons, List.map_cons] at hmodels
+    rw [hstk, List.map_cons, List.map_cons] at hstack
     exact ⟨cs.withStack ((a.eval σ * b.eval σ) :: tail.map (Expr.eval σ) ++ rest),
-      by simp only [MidenLean.execInstruction, execMul, hmodels]; rfl,
-      by simp only [State.models, MidenState.withStack, List.map_cons, Expr.eval]⟩
+      by simp only [MidenLean.execInstruction, execMul, hstack]; rfl,
+      ⟨by simp only [MidenState.withStack, List.map_cons, Expr.eval], hmem, hframes, hadv⟩⟩
 
 -- Helper: u32WidenAdd case
 private theorem execInstruction_sound_u32WidenAdd
     (ss : State) (cs : MidenState)
     (σ : Assignment) (rest : List Felt)
     (ss' : State) (preconds : List Precondition)
-    (hmodels : cs.stack = ss.stack.map (Expr.eval σ) ++ rest)
+    (hmodels : ss.models cs σ rest)
     (hexec : execInstruction ss .u32WidenAdd = some (ss', preconds))
     (hpreconds : ∀ p ∈ preconds, p.holds σ) :
     ∃ cs', MidenLean.execInstruction cs .u32WidenAdd = some cs' ∧ ss'.models cs' σ rest := by
+  obtain ⟨hstack, hmem, hframes, hadv⟩ := hmodels
   unfold execInstruction at hexec
   match hstk : ss.stack with
   | [] | [_] => simp [hstk] at hexec
   | b :: a :: tail =>
     simp only [hstk] at hexec
     have heq := Option.some.inj hexec
-    have hss : ss' = { stack := .u32AddLo a b :: .u32AddHi a b :: tail } :=
+    have hss : ss' = { ss with stack := .u32AddLo a b :: .u32AddHi a b :: tail } :=
       (congrArg Prod.fst heq).symm
     have hpc : preconds = [.isU32 a, .isU32 b] := (congrArg Prod.snd heq).symm
     subst hss
-    rw [hstk, List.map_cons, List.map_cons, List.cons_append, List.cons_append] at hmodels
+    rw [hstk, List.map_cons, List.map_cons, List.cons_append, List.cons_append] at hstack
     have ha : (a.eval σ).isU32 = true :=
       hpreconds (.isU32 a) (by rw [hpc]; simp)
     have hb : (b.eval σ).isU32 = true :=
@@ -216,54 +225,56 @@ private theorem execInstruction_sound_u32WidenAdd
     refine ⟨cs.withStack (Felt.ofNat (((a.eval σ).val + (b.eval σ).val) % u32Max) ::
                           Felt.ofNat (((a.eval σ).val + (b.eval σ).val) / u32Max) ::
                           tail.map (Expr.eval σ) ++ rest), ?_, ?_⟩
-    · simp only [MidenLean.execInstruction, execU32WidenAdd, hmodels, ha, hb,
+    · simp only [MidenLean.execInstruction, execU32WidenAdd, hstack, ha, hb,
           Bool.not_true, Bool.false_or, u32WideAdd, MidenState.withStack]
       rfl
-    · simp only [State.models, MidenState.withStack, List.map_cons, Expr.eval,
-          List.cons_append]
+    · exact ⟨by simp only [MidenState.withStack, List.map_cons, Expr.eval, List.cons_append],
+             hmem, hframes, hadv⟩
 
 -- Helper: eq case
 private theorem execInstruction_sound_eq
     (ss : State) (cs : MidenState)
     (σ : Assignment) (rest : List Felt)
     (ss' : State) (preconds : List Precondition)
-    (hmodels : cs.stack = ss.stack.map (Expr.eval σ) ++ rest)
+    (hmodels : ss.models cs σ rest)
     (hexec : execInstruction ss .eq = some (ss', preconds))
     (hpreconds : ∀ p ∈ preconds, p.holds σ) :
     ∃ cs', MidenLean.execInstruction cs .eq = some cs' ∧ ss'.models cs' σ rest := by
+  obtain ⟨hstack, hmem, hframes, hadv⟩ := hmodels
   unfold execInstruction at hexec
   match hstk : ss.stack with
   | [] | [_] => simp [hstk] at hexec
   | b :: a :: tail =>
     simp only [hstk] at hexec
     have heq := Option.some.inj hexec
-    have hss : ss' = { stack := .feltEq a b :: tail } := (congrArg Prod.fst heq).symm
+    have hss : ss' = { ss with stack := .feltEq a b :: tail } := (congrArg Prod.fst heq).symm
     have hpc : preconds = [] := (congrArg Prod.snd heq).symm
     subst hss; subst hpc
-    rw [hstk, List.map_cons, List.map_cons] at hmodels
+    rw [hstk, List.map_cons, List.map_cons] at hstack
     exact ⟨cs.withStack ((if a.eval σ == b.eval σ then (1 : Felt) else 0) :: tail.map (Expr.eval σ) ++ rest),
-      by simp only [MidenLean.execInstruction, execEq, hmodels]; rfl,
-      by simp only [State.models, MidenState.withStack, List.map_cons, Expr.eval]⟩
+      by simp only [MidenLean.execInstruction, execEq, hstack]; rfl,
+      ⟨by simp only [MidenState.withStack, List.map_cons, Expr.eval], hmem, hframes, hadv⟩⟩
 
 -- Helper: and case
 private theorem execInstruction_sound_and
     (ss : State) (cs : MidenState)
     (σ : Assignment) (rest : List Felt)
     (ss' : State) (preconds : List Precondition)
-    (hmodels : cs.stack = ss.stack.map (Expr.eval σ) ++ rest)
+    (hmodels : ss.models cs σ rest)
     (hexec : execInstruction ss .and = some (ss', preconds))
     (hpreconds : ∀ p ∈ preconds, p.holds σ) :
     ∃ cs', MidenLean.execInstruction cs .and = some cs' ∧ ss'.models cs' σ rest := by
+  obtain ⟨hstack, hmem, hframes, hadv⟩ := hmodels
   unfold execInstruction at hexec
   match hstk : ss.stack with
   | [] | [_] => simp [hstk] at hexec
   | b :: a :: tail =>
     simp only [hstk] at hexec
     have heq := Option.some.inj hexec
-    have hss : ss' = { stack := .feltAnd a b :: tail } := (congrArg Prod.fst heq).symm
+    have hss : ss' = { ss with stack := .feltAnd a b :: tail } := (congrArg Prod.fst heq).symm
     have hpc : preconds = [.isBool a, .isBool b] := (congrArg Prod.snd heq).symm
     subst hss
-    rw [hstk, List.map_cons, List.map_cons] at hmodels
+    rw [hstk, List.map_cons, List.map_cons] at hstack
     have ha : (a.eval σ).isBool = true :=
       isBool_guard _ (hpreconds (.isBool a) (by rw [hpc]; simp))
     have hb : (b.eval σ).isBool = true :=
@@ -272,29 +283,30 @@ private theorem execInstruction_sound_and
     refine ⟨cs.withStack ((a.eval σ * b.eval σ) :: tail.map (Expr.eval σ) ++ rest), ?_, ?_⟩
     · change execAnd cs = _
       unfold execAnd
-      rw [hmodels]; simp [hguard, MidenState.withStack]
-    · simp only [State.models, MidenState.withStack, List.map_cons, Expr.eval]
+      rw [hstack]; simp [hguard, MidenState.withStack]
+    · exact ⟨by simp only [MidenState.withStack, List.map_cons, Expr.eval], hmem, hframes, hadv⟩
 
 -- Helper: u32WidenAdd3 case
 private theorem execInstruction_sound_u32WidenAdd3
     (ss : State) (cs : MidenState)
     (σ : Assignment) (rest : List Felt)
     (ss' : State) (preconds : List Precondition)
-    (hmodels : cs.stack = ss.stack.map (Expr.eval σ) ++ rest)
+    (hmodels : ss.models cs σ rest)
     (hexec : execInstruction ss .u32WidenAdd3 = some (ss', preconds))
     (hpreconds : ∀ p ∈ preconds, p.holds σ) :
     ∃ cs', MidenLean.execInstruction cs .u32WidenAdd3 = some cs' ∧ ss'.models cs' σ rest := by
+  obtain ⟨hstack, hmem, hframes, hadv⟩ := hmodels
   unfold execInstruction at hexec
   match hstk : ss.stack with
   | [] | [_] | [_, _] => simp [hstk] at hexec
   | c :: b :: a :: tail =>
     simp only [hstk] at hexec
     have heq := Option.some.inj hexec
-    have hss : ss' = { stack := .u32Add3Lo a b c :: .u32Add3Hi a b c :: tail } :=
+    have hss : ss' = { ss with stack := .u32Add3Lo a b c :: .u32Add3Hi a b c :: tail } :=
       (congrArg Prod.fst heq).symm
     have hpc : preconds = [.isU32 a, .isU32 b, .isU32 c] := (congrArg Prod.snd heq).symm
     subst hss
-    rw [hstk, List.map_cons, List.map_cons, List.map_cons] at hmodels
+    rw [hstk, List.map_cons, List.map_cons, List.map_cons] at hstack
     have ha : (a.eval σ).isU32 = true :=
       hpreconds (.isU32 a) (by rw [hpc]; simp)
     have hb : (b.eval σ).isU32 = true :=
@@ -306,30 +318,31 @@ private theorem execInstruction_sound_u32WidenAdd3
                           tail.map (Expr.eval σ) ++ rest), ?_, ?_⟩
     · change execU32WidenAdd3 cs = _
       unfold execU32WidenAdd3
-      rw [hmodels]; simp [ha, hb, hc, u32WideAdd3, MidenState.withStack]
-    · simp only [State.models, MidenState.withStack, List.map_cons, Expr.eval,
-          List.cons_append]
+      rw [hstack]; simp [ha, hb, hc, u32WideAdd3, MidenState.withStack]
+    · exact ⟨by simp only [MidenState.withStack, List.map_cons, Expr.eval, List.cons_append],
+             hmem, hframes, hadv⟩
 
 -- Helper: u32OverflowSub case
 private theorem execInstruction_sound_u32OverflowSub
     (ss : State) (cs : MidenState)
     (σ : Assignment) (rest : List Felt)
     (ss' : State) (preconds : List Precondition)
-    (hmodels : cs.stack = ss.stack.map (Expr.eval σ) ++ rest)
+    (hmodels : ss.models cs σ rest)
     (hexec : execInstruction ss .u32OverflowSub = some (ss', preconds))
     (hpreconds : ∀ p ∈ preconds, p.holds σ) :
     ∃ cs', MidenLean.execInstruction cs .u32OverflowSub = some cs' ∧ ss'.models cs' σ rest := by
+  obtain ⟨hstack, hmem, hframes, hadv⟩ := hmodels
   unfold execInstruction at hexec
   match hstk : ss.stack with
   | [] | [_] => simp [hstk] at hexec
   | b :: a :: tail =>
     simp only [hstk] at hexec
     have heq := Option.some.inj hexec
-    have hss : ss' = { stack := .u32SubBorrow a b :: .u32SubDiff a b :: tail } :=
+    have hss : ss' = { ss with stack := .u32SubBorrow a b :: .u32SubDiff a b :: tail } :=
       (congrArg Prod.fst heq).symm
     have hpc : preconds = [.isU32 a, .isU32 b] := (congrArg Prod.snd heq).symm
     subst hss
-    rw [hstk, List.map_cons, List.map_cons] at hmodels
+    rw [hstk, List.map_cons, List.map_cons] at hstack
     have ha : (a.eval σ).isU32 = true :=
       hpreconds (.isU32 a) (by rw [hpc]; simp)
     have hb : (b.eval σ).isU32 = true :=
@@ -339,19 +352,20 @@ private theorem execInstruction_sound_u32OverflowSub
                           tail.map (Expr.eval σ) ++ rest), ?_, ?_⟩
     · change execU32OverflowSub cs = _
       unfold execU32OverflowSub
-      rw [hmodels]; simp [ha, hb, MidenState.withStack]
-    · simp only [State.models, MidenState.withStack, List.map_cons, Expr.eval,
-          List.cons_append]
+      rw [hstack]; simp [ha, hb, MidenState.withStack]
+    · exact ⟨by simp only [MidenState.withStack, List.map_cons, Expr.eval, List.cons_append],
+             hmem, hframes, hadv⟩
 
 -- Helper: movup case
 private theorem execInstruction_sound_movup
     (n : Nat) (ss : State) (cs : MidenState)
     (σ : Assignment) (rest : List Felt)
     (ss' : State) (preconds : List Precondition)
-    (hmodels : cs.stack = ss.stack.map (Expr.eval σ) ++ rest)
+    (hmodels : ss.models cs σ rest)
     (hexec : execInstruction ss (.movup n) = some (ss', preconds))
     (hpreconds : ∀ p ∈ preconds, p.holds σ) :
     ∃ cs', MidenLean.execInstruction cs (.movup n) = some cs' ∧ ss'.models cs' σ rest := by
+  obtain ⟨hstack, hmem, hframes, hadv⟩ := hmodels
   -- Simplify hexec from the symbolic side
   simp only [execInstruction] at hexec
   by_cases hrange : 2 ≤ n ∧ n ≤ 15
@@ -363,7 +377,7 @@ private theorem execInstruction_sound_movup
     | some v =>
       simp only [hget] at hexec
       have heq := Option.some.inj hexec
-      have hss : ss' = { stack := v :: ss.stack.eraseIdx n } := (congrArg Prod.fst heq).symm
+      have hss : ss' = { ss with stack := v :: ss.stack.eraseIdx n } := (congrArg Prod.fst heq).symm
       have hpc : preconds = [] := (congrArg Prod.snd heq).symm
       subst hss; subst hpc
       have hn : n < ss.stack.length := getElem?_some_lt _ _ _ hget
@@ -375,7 +389,7 @@ private theorem execInstruction_sound_movup
         have : ¬(n > 15) := by omega
         simp_all [removeNth, getElem?_map_append_left _ _ _ _ hn,
             eraseIdx_map_append_left _ _ _ _ hn, MidenState.withStack]
-      · simp only [State.models, MidenState.withStack, List.map_cons]
+      · exact ⟨by simp only [MidenState.withStack, List.map_cons], hmem, hframes, hadv⟩
   · have hfalse : (decide (2 ≤ n) && decide (n ≤ 15)) = false := by
       simp only [Bool.and_eq_false_iff, decide_eq_false_iff_not]; omega
     simp [hfalse] at hexec
@@ -386,10 +400,11 @@ private theorem execInstruction_sound_movdn
     (n : Nat) (ss : State) (cs : MidenState)
     (σ : Assignment) (rest : List Felt)
     (ss' : State) (preconds : List Precondition)
-    (hmodels : cs.stack = ss.stack.map (Expr.eval σ) ++ rest)
+    (hmodels : ss.models cs σ rest)
     (hexec : execInstruction ss (.movdn n) = some (ss', preconds))
     (hpreconds : ∀ p ∈ preconds, p.holds σ) :
     ∃ cs', MidenLean.execInstruction cs (.movdn n) = some cs' ∧ ss'.models cs' σ rest := by
+  obtain ⟨hstack, hmem, hframes, hadv⟩ := hmodels
   simp only [execInstruction] at hexec
   by_cases hrange : 2 ≤ n ∧ n ≤ 15
   · have htrue : (decide (2 ≤ n) && decide (n ≤ 15)) = true := by
@@ -404,39 +419,41 @@ private theorem execInstruction_sound_movdn
       by_cases hlen : p.1.length == n
       · simp only [hlen, ite_true] at hexec
         have heq := Option.some.inj hexec
-        have hss : ss' = { stack := p.1 ++ [top] ++ p.2 } := (congrArg Prod.fst heq).symm
+        have hss : ss' = { ss with stack := p.1 ++ [top] ++ p.2 } := (congrArg Prod.fst heq).symm
         have hpc : preconds = [] := (congrArg Prod.snd heq).symm
         subst hss; subst hpc
         have hsplit := @List.splitAt_eq _ n srest
         rw [← hpsplit] at hsplit
         have hlen_eq : p.1.length = n := by
           have := beq_iff_eq.mp hlen; omega
-        have hmodels' : cs.stack = Expr.eval σ top :: srest.map (Expr.eval σ) ++ rest := by
-          rw [hmodels, hstk, List.map_cons]
+        have hstack' : cs.stack = Expr.eval σ top :: srest.map (Expr.eval σ) ++ rest := by
+          rw [hstack, hstk, List.map_cons]
         refine ⟨cs.withStack (insertAt (srest.map (Expr.eval σ) ++ rest) n (top.eval σ)), ?_, ?_⟩
         · change execMovdn n cs = _
           unfold execMovdn
           have : ¬(n < 2) := by omega
           have : ¬(n > 15) := by omega
           simp_all [insertAt, MidenState.withStack]
-        · simp only [State.models, MidenState.withStack]
-          unfold insertAt
-          simp only [List.map_append, List.map_cons, List.map_nil]
-          have hp1 : p.1 = List.take n srest := congrArg Prod.fst hsplit
-          have hp2 : p.2 = List.drop n srest := congrArg Prod.snd hsplit
-          rw [hp1, hp2, List.map_take, List.map_drop]
-          have hle : n ≤ srest.length := by
-            have h1 : (List.take n srest).length = n := by rw [← hp1]; omega
-            rw [List.length_take] at h1; omega
-          have hle' : n ≤ (srest.map (Expr.eval σ)).length := by simp [hle]
-          rw [List.take_append_of_le_length hle', List.drop_append_of_le_length hle']
-          simp [List.append_assoc]
+        · constructor
+          · simp only [MidenState.withStack]
+            unfold insertAt
+            simp only [List.map_append, List.map_cons, List.map_nil]
+            have hp1 : p.1 = List.take n srest := congrArg Prod.fst hsplit
+            have hp2 : p.2 = List.drop n srest := congrArg Prod.snd hsplit
+            rw [hp1, hp2, List.map_take, List.map_drop]
+            have hle : n ≤ srest.length := by
+              have h1 : (List.take n srest).length = n := by rw [← hp1]; omega
+              rw [List.length_take] at h1; omega
+            have hle' : n ≤ (srest.map (Expr.eval σ)).length := by simp [hle]
+            rw [List.take_append_of_le_length hle', List.drop_append_of_le_length hle']
+            simp [List.append_assoc]
+          · exact ⟨hmem, hframes, hadv⟩
       · simp [hlen] at hexec
   · have hfalse : (decide (2 ≤ n) && decide (n ≤ 15)) = false := by
       simp only [Bool.and_eq_false_iff, decide_eq_false_iff_not]; omega
     simp [hfalse] at hexec
 
-set_option maxHeartbeats 400000 in
+set_option maxHeartbeats 800000 in
 /-- Per-instruction soundness: if symbolic execution succeeds on instruction i
     with all preconditions satisfied, then concrete execution also succeeds
     and the resulting state models the symbolic result. -/
@@ -449,7 +466,6 @@ theorem execInstruction_sound
     (hpreconds : ∀ p ∈ preconds, p.holds σ) :
     ∃ cs', MidenLean.execInstruction cs i = some cs'
       ∧ ss'.models cs' σ rest := by
-  unfold State.models at hmodels
   match i with
   | .drop =>
     exact execInstruction_sound_drop ss cs σ rest ss' preconds hmodels hexec hpreconds
@@ -640,16 +656,428 @@ theorem execInstruction_sound
     exact execInstruction_sound_movupw n ss cs σ rest ss' preconds hmodels hexec hpreconds
   | .movdnw n =>
     exact execInstruction_sound_movdnw n ss cs σ rest ss' preconds hmodels hexec hpreconds
+  -- Batch 5: emitImm (trivial: always succeeds, state unchanged)
+  | .emitImm _ =>
+    obtain ⟨hstack, hmem, hframes, hadv⟩ := hmodels
+    simp only [execInstruction] at hexec
+    obtain ⟨rfl, rfl⟩ := Prod.mk.inj (Option.some.inj hexec)
+    exact ⟨cs, by simp only [MidenLean.execInstruction], hstack, hmem, hframes, hadv⟩
+  -- emit (requires ≥ 2 elements on stack for symbolic, state unchanged)
+  | .emit =>
+    obtain ⟨hstack, hmem, hframes, hadv⟩ := hmodels
+    simp only [execInstruction] at hexec
+    match hstk : ss.stack with
+    | [] => simp [hstk] at hexec
+    | a :: tail =>
+      simp only [hstk] at hexec
+      obtain ⟨rfl, rfl⟩ := Prod.mk.inj (Option.some.inj hexec)
+      refine ⟨cs, ?_, hstack, hmem, hframes, hadv⟩
+      simp only [MidenLean.execInstruction, execEmit]
+      rw [hstk, List.map_cons] at hstack; rw [hstack]; rfl
+  -- locLoad idx
+  | .locLoad idx =>
+    obtain ⟨hstack, hmem, hframes, hadv⟩ := hmodels
+    simp only [execInstruction] at hexec
+    match hfr : ss.frames with
+    | [] => simp [hfr] at hexec
+    | frame :: frest =>
+      simp only [hfr] at hexec
+      by_cases hidx : idx < frame.numLocals
+      · simp only [hidx, ite_true] at hexec
+        obtain ⟨rfl, rfl⟩ := Prod.mk.inj (Option.some.inj hexec)
+        refine ⟨cs.withStack (cs.memory (frame.localAddr idx) :: cs.stack), ?_, ?_⟩
+        · simp only [MidenLean.execInstruction, execLocLoad, MidenState.readLocal?,
+              MidenState.localAddr?, hframes, hfr, hidx, ite_true,
+              MidenState.withStack, hstack]; rfl
+        · unfold State.models
+          refine ⟨?_, hmem, ?_, hadv⟩
+          · simp only [MidenState.withStack, List.map_cons, List.cons_append, hstack]
+            rw [hmem (frame.localAddr idx)]
+          · simp only [MidenState.withStack, hframes, hfr]
+      · simp [hidx] at hexec
+  -- locStore idx
+  | .locStore idx =>
+    obtain ⟨hstack, hmem, hframes, hadv⟩ := hmodels
+    simp only [execInstruction] at hexec
+    match hstk : ss.stack, hfr : ss.frames with
+    | [], _ => simp [hstk] at hexec
+    | _, [] => simp [hfr] at hexec
+    | v :: tail, frame :: frest =>
+      simp only [hstk, hfr] at hexec
+      by_cases hidx : idx < frame.numLocals
+      · simp only [hidx, ite_true] at hexec
+        obtain ⟨rfl, rfl⟩ := Prod.mk.inj (Option.some.inj hexec)
+        let addr := frame.localAddr idx
+        refine ⟨(cs.writeMemory addr (v.eval σ)).withStack (tail.map (Expr.eval σ) ++ rest), ?_, ?_⟩
+        · simp only [MidenLean.execInstruction, execLocStore, MidenState.writeLocal?,
+              MidenState.localAddr?, hframes, hfr, hidx, ite_true,
+              MidenState.writeMemory, MidenState.withStack]
+          rw [hstk, List.map_cons] at hstack; rw [hstack]; rfl
+        · refine ⟨by simp only [MidenState.withStack], ?_, ?_, ?_⟩
+          · intro a; simp only [MidenState.withStack, MidenState.writeMemory]
+            split <;> [rfl; exact hmem a]
+          · simp only [MidenState.withStack, MidenState.writeMemory]; rw [hframes, hfr]
+          · simp only [MidenState.withStack, MidenState.writeMemory]; exact hadv
+      · simp [hidx] at hexec
+  -- locaddr idx
+  | .locaddr idx =>
+    obtain ⟨hstack, hmem, hframes, hadv⟩ := hmodels
+    simp only [execInstruction] at hexec
+    match hfr : ss.frames with
+    | [] => simp [hfr] at hexec
+    | frame :: frest =>
+      simp only [hfr] at hexec
+      by_cases hidx : idx < frame.numLocals
+      · simp only [hidx, ite_true] at hexec
+        obtain ⟨rfl, rfl⟩ := Prod.mk.inj (Option.some.inj hexec)
+        refine ⟨cs.withStack (Felt.ofNat (frame.localAddr idx) :: cs.stack), ?_, ?_⟩
+        · simp only [MidenLean.execInstruction, execLocAddr, MidenState.localAddr?,
+              hframes, hfr, hidx, ite_true, MidenState.withStack, hstack]; rfl
+        · unfold State.models
+          refine ⟨?_, hmem, ?_, hadv⟩
+          · simp only [MidenState.withStack, List.map_cons, Expr.eval, List.cons_append, hstack]
+          · simp only [MidenState.withStack, hframes, hfr]
+      · simp [hidx] at hexec
+  -- memLoadImm addr
+  | .memLoadImm addr =>
+    obtain ⟨hstack, hmem, hframes, hadv⟩ := hmodels
+    simp only [execInstruction] at hexec
+    by_cases haddr : addr ≥ u32Max
+    · simp [haddr] at hexec
+    · have hlt : ¬(addr ≥ u32Max) := haddr
+      simp only [hlt, ite_false] at hexec
+      obtain ⟨rfl, rfl⟩ := Prod.mk.inj (Option.some.inj hexec)
+      refine ⟨cs.withStack (cs.memory addr :: cs.stack), ?_, ?_⟩
+      · simp only [MidenLean.execInstruction, execMemLoadImm, hlt, ite_false,
+            MidenState.withStack, hstack]
+      · refine ⟨?_, hmem, hframes, hadv⟩
+        simp only [MidenState.withStack, List.map_cons, List.cons_append, hstack]
+        rw [hmem addr]
+  -- memStoreImm addr
+  | .memStoreImm addr =>
+    obtain ⟨hstack, hmem, hframes, hadv⟩ := hmodels
+    simp only [execInstruction] at hexec
+    match hstk : ss.stack with
+    | [] => simp [hstk] at hexec
+    | v :: tail =>
+      simp only [hstk] at hexec
+      by_cases haddr : addr ≥ u32Max
+      · simp [haddr] at hexec
+      · have hlt : ¬(addr ≥ u32Max) := haddr
+        simp only [hlt, ite_false] at hexec
+        obtain ⟨rfl, rfl⟩ := Prod.mk.inj (Option.some.inj hexec)
+        refine ⟨(cs.writeMemory addr (v.eval σ)).withStack (tail.map (Expr.eval σ) ++ rest), ?_, ?_⟩
+        · simp only [MidenLean.execInstruction, execMemStoreImm, MidenState.writeMemory,
+              MidenState.withStack]
+          rw [hstk, List.map_cons] at hstack; rw [hstack]; simp [hlt]
+        · refine ⟨by simp only [MidenState.withStack], ?_, ?_, ?_⟩
+          · intro a; simp only [MidenState.withStack, MidenState.writeMemory]
+            split <;> [rfl; exact hmem a]
+          · simp only [MidenState.withStack, MidenState.writeMemory, hframes]
+          · simp only [MidenState.withStack, MidenState.writeMemory, hadv]
+  -- advPush n
+  | .advPush n =>
+    obtain ⟨hstack, hmem, hframes, hadv⟩ := hmodels
+    simp only [execInstruction] at hexec
+    by_cases hlen : ss.advice.length < n
+    · simp [hlen] at hexec
+    · have hge : ¬(ss.advice.length < n) := hlen
+      simp only [hge, ite_false] at hexec
+      obtain ⟨rfl, rfl⟩ := Prod.mk.inj (Option.some.inj hexec)
+      refine ⟨(cs.withAdvice (cs.advice.drop n)).withStack
+               ((cs.advice.take n).reverse ++ cs.stack), ?_, ?_⟩
+      · simp only [MidenLean.execInstruction, execAdvPush]
+        rw [hadv]; simp only [List.length_map, hge, ite_false,
+            MidenState.withAdvice, MidenState.withStack, hstack]
+      · unfold State.models; refine ⟨?_, ?_, ?_, ?_⟩
+        · simp only [MidenState.withStack, MidenState.withAdvice,
+              List.map_reverse, List.map_append, List.map_take, hstack]
+          rw [hadv, List.append_assoc]
+        · intro a; simp only [MidenState.withStack, MidenState.withAdvice]; exact hmem a
+        · simp only [MidenState.withStack, MidenState.withAdvice, hframes]
+        · simp only [MidenState.withStack, MidenState.withAdvice]
+          rw [hadv, List.map_drop]
+  -- advLoadW
+  | .advLoadW =>
+    obtain ⟨hstack, hmem, hframes, hadv⟩ := hmodels
+    simp only [execInstruction] at hexec
+    match hstk : ss.stack with
+    | _ :: _ :: _ :: _ :: srest =>
+      simp only [hstk] at hexec
+      by_cases hlen : ss.advice.length < 4
+      · simp [hlen] at hexec
+      · have hge : ¬(ss.advice.length < 4) := hlen
+        simp only [hge, ite_false] at hexec
+        obtain ⟨rfl, rfl⟩ := Prod.mk.inj (Option.some.inj hexec)
+        refine ⟨(cs.withAdvice (cs.advice.drop 4)).withStack
+                 (cs.advice.take 4 ++ srest.map (Expr.eval σ) ++ rest), ?_, ?_⟩
+        · rw [hstk, List.map_cons, List.map_cons, List.map_cons, List.map_cons] at hstack
+          simp only [MidenLean.execInstruction, execAdvLoadW, hstack, hadv,
+              List.length_map, hge, ite_false, MidenState.withAdvice, MidenState.withStack,
+              List.cons_append, List.append_assoc]
+        · unfold State.models; refine ⟨?_, ?_, ?_, ?_⟩
+          · simp only [MidenState.withStack, MidenState.withAdvice,
+                List.map_append, List.map_take]
+            rw [hadv]
+          · intro a; simp only [MidenState.withStack, MidenState.withAdvice]; exact hmem a
+          · simp only [MidenState.withStack, MidenState.withAdvice, hframes]
+          · simp only [MidenState.withStack, MidenState.withAdvice]
+            rw [hadv, List.map_drop]
+    | [] | [_] | [_, _] | [_, _, _] => simp [hstk] at hexec
+  -- memLoadwBeImm addr (big-endian word load from static address)
+  | .memLoadwBeImm addr =>
+    obtain ⟨hstack, hmem, hframes, hadv⟩ := hmodels
+    simp only [execInstruction] at hexec
+    match hstk : ss.stack with
+    | _ :: _ :: _ :: _ :: srest =>
+      simp only [hstk] at hexec
+      by_cases haddr : addr ≥ u32Max ∨ addr % 4 ≠ 0
+      · rcases haddr with hge | hmod
+        · simp [hge] at hexec
+        · simp [hmod] at hexec
+      · push_neg at haddr
+        obtain ⟨hlt, hmod⟩ := haddr
+        simp [hlt, hmod] at hexec
+        obtain ⟨rfl, rfl⟩ := hexec
+        refine ⟨cs.withStack (cs.memory (addr + 3) :: cs.memory (addr + 2) ::
+          cs.memory (addr + 1) :: cs.memory addr :: srest.map (Expr.eval σ) ++ rest), ?_, ?_⟩
+        · rw [hstk, List.map_cons, List.map_cons, List.map_cons, List.map_cons] at hstack
+          simp only [MidenLean.execInstruction, execMemLoadwBeImm, hstack, MidenState.withStack]
+          simp [hlt, hmod]
+        · refine ⟨?_, hmem, hframes, hadv⟩
+          simp only [MidenState.withStack, List.map_cons, List.cons_append]
+          rw [hmem addr, hmem (addr + 1), hmem (addr + 2), hmem (addr + 3)]
+    | [] | [_] | [_, _] | [_, _, _] => simp [hstk] at hexec
+  -- memLoadwLeImm addr (little-endian word load from static address)
+  | .memLoadwLeImm addr =>
+    obtain ⟨hstack, hmem, hframes, hadv⟩ := hmodels
+    simp only [execInstruction] at hexec
+    match hstk : ss.stack with
+    | _ :: _ :: _ :: _ :: srest =>
+      simp only [hstk] at hexec
+      by_cases haddr : addr ≥ u32Max ∨ addr % 4 ≠ 0
+      · rcases haddr with hge | hmod
+        · simp [hge] at hexec
+        · simp [hmod] at hexec
+      · push_neg at haddr
+        obtain ⟨hlt, hmod⟩ := haddr
+        simp [hlt, hmod] at hexec
+        obtain ⟨rfl, rfl⟩ := hexec
+        refine ⟨cs.withStack (cs.memory addr :: cs.memory (addr + 1) ::
+          cs.memory (addr + 2) :: cs.memory (addr + 3) :: srest.map (Expr.eval σ) ++ rest), ?_, ?_⟩
+        · rw [hstk, List.map_cons, List.map_cons, List.map_cons, List.map_cons] at hstack
+          simp only [MidenLean.execInstruction, execMemLoadwLeImm, hstack, MidenState.withStack]
+          simp [hlt, hmod]
+        · refine ⟨?_, hmem, hframes, hadv⟩
+          simp only [MidenState.withStack, List.map_cons, List.cons_append]
+          rw [hmem addr, hmem (addr + 1), hmem (addr + 2), hmem (addr + 3)]
+    | [] | [_] | [_, _] | [_, _, _] => simp [hstk] at hexec
+  -- memStorewBeImm addr (big-endian word store to static address)
+  | .memStorewBeImm addr =>
+    obtain ⟨hstack, hmem, hframes, hadv⟩ := hmodels
+    simp only [execInstruction] at hexec
+    match hstk : ss.stack with
+    | e0 :: e1 :: e2 :: e3 :: srest =>
+      simp only [hstk] at hexec
+      by_cases haddr : addr ≥ u32Max ∨ addr % 4 ≠ 0
+      · rcases haddr with hge | hmod
+        · simp [hge] at hexec
+        · simp [hmod] at hexec
+      · push_neg at haddr
+        obtain ⟨hlt, hmod⟩ := haddr
+        simp [hlt, hmod] at hexec
+        obtain ⟨rfl, rfl⟩ := hexec
+        refine ⟨(((cs.writeMemory addr (e3.eval σ)).writeMemory (addr + 1) (e2.eval σ)).writeMemory
+          (addr + 2) (e1.eval σ) |>.writeMemory (addr + 3) (e0.eval σ)).withStack
+          (e0.eval σ :: e1.eval σ :: e2.eval σ :: e3.eval σ ::
+          srest.map (Expr.eval σ) ++ rest), ?_, ?_⟩
+        · rw [hstk, List.map_cons, List.map_cons, List.map_cons, List.map_cons] at hstack
+          simp only [MidenLean.execInstruction, execMemStorewBeImm, hstack,
+              MidenState.writeMemory, MidenState.withStack]
+          simp [hlt, hmod]
+        · refine ⟨by simp only [MidenState.withStack, List.map_cons, List.cons_append], ?_, ?_, ?_⟩
+          · intro a; simp only [MidenState.withStack, MidenState.writeMemory]
+            split_ifs <;> simp_all
+          · simp only [MidenState.withStack, MidenState.writeMemory, hframes]
+          · simp only [MidenState.withStack, MidenState.writeMemory, hadv]
+    | [] | [_] | [_, _] | [_, _, _] => simp [hstk] at hexec
+  -- memStorewLeImm addr (little-endian word store to static address)
+  | .memStorewLeImm addr =>
+    obtain ⟨hstack, hmem, hframes, hadv⟩ := hmodels
+    simp only [execInstruction] at hexec
+    match hstk : ss.stack with
+    | e0 :: e1 :: e2 :: e3 :: srest =>
+      simp only [hstk] at hexec
+      by_cases haddr : addr ≥ u32Max ∨ addr % 4 ≠ 0
+      · rcases haddr with hge | hmod
+        · simp [hge] at hexec
+        · simp [hmod] at hexec
+      · push_neg at haddr
+        obtain ⟨hlt, hmod⟩ := haddr
+        simp [hlt, hmod] at hexec
+        obtain ⟨rfl, rfl⟩ := hexec
+        refine ⟨(((cs.writeMemory addr (e0.eval σ)).writeMemory (addr + 1) (e1.eval σ)).writeMemory
+          (addr + 2) (e2.eval σ) |>.writeMemory (addr + 3) (e3.eval σ)).withStack
+          (e0.eval σ :: e1.eval σ :: e2.eval σ :: e3.eval σ ::
+          srest.map (Expr.eval σ) ++ rest), ?_, ?_⟩
+        · rw [hstk, List.map_cons, List.map_cons, List.map_cons, List.map_cons] at hstack
+          simp only [MidenLean.execInstruction, execMemStorewLeImm, hstack,
+              MidenState.writeMemory, MidenState.withStack]
+          simp [hlt, hmod]
+        · refine ⟨by simp only [MidenState.withStack, List.map_cons, List.cons_append], ?_, ?_, ?_⟩
+          · intro a; simp only [MidenState.withStack, MidenState.writeMemory]
+            split_ifs <;> simp_all
+          · simp only [MidenState.withStack, MidenState.writeMemory, hframes]
+          · simp only [MidenState.withStack, MidenState.writeMemory, hadv]
+    | [] | [_] | [_, _] | [_, _, _] => simp [hstk] at hexec
+  -- locLoadwBe idx (big-endian word load from local frame)
+  | .locLoadwBe idx =>
+    obtain ⟨hstack, hmem, hframes, hadv⟩ := hmodels
+    simp only [execInstruction] at hexec
+    match hstk : ss.stack, hfr : ss.frames with
+    | _ :: _ :: _ :: _ :: srest, frame :: frest =>
+      simp only [hstk, hfr, currentFrame, List.head?] at hexec
+      by_cases hguard : idx % 4 ≠ 0 ∨ idx + 4 > frame.numLocals
+      · rcases hguard with hmod | hgt
+        · simp [hmod] at hexec
+        · simp [hgt] at hexec
+      · push_neg at hguard
+        obtain ⟨hmod, hle⟩ := hguard
+        simp [hmod, hle] at hexec
+        obtain ⟨rfl, rfl⟩ := hexec
+        refine ⟨cs.withStack (cs.memory (frame.localAddr idx + 3) ::
+          cs.memory (frame.localAddr idx + 2) :: cs.memory (frame.localAddr idx + 1) ::
+          cs.memory (frame.localAddr idx) :: srest.map (Expr.eval σ) ++ rest), ?_, ?_⟩
+        · rw [hstk, List.map_cons, List.map_cons, List.map_cons, List.map_cons] at hstack
+          simp only [MidenLean.execInstruction, execLocLoadwBe, hstack, currentFrame,
+              hframes, hfr, List.head?, MidenState.withStack]
+          simp [hmod, hle]
+        · unfold State.models
+          refine ⟨?_, ?_, ?_, ?_⟩
+          · simp only [MidenState.withStack, List.map_cons, List.cons_append]
+            rw [hmem, hmem, hmem, hmem]
+          · intro a; exact hmem a
+          · simp only [MidenState.withStack]; rw [hframes, hfr]
+          · simp only [MidenState.withStack]; exact hadv
+    | [], _ => simp [hstk] at hexec
+    | [_], _ => simp [hstk] at hexec
+    | [_, _], _ => simp [hstk] at hexec
+    | [_, _, _], _ => simp [hstk] at hexec
+    | _ :: _ :: _ :: _ :: _, [] =>
+      simp [hstk, hfr, currentFrame, List.head?] at hexec
+  -- locLoadwLe idx (little-endian word load from local frame)
+  | .locLoadwLe idx =>
+    obtain ⟨hstack, hmem, hframes, hadv⟩ := hmodels
+    simp only [execInstruction] at hexec
+    match hstk : ss.stack, hfr : ss.frames with
+    | _ :: _ :: _ :: _ :: srest, frame :: frest =>
+      simp only [hstk, hfr, currentFrame, List.head?] at hexec
+      by_cases hguard : idx % 4 ≠ 0 ∨ idx + 4 > frame.numLocals
+      · rcases hguard with hmod | hgt
+        · simp [hmod] at hexec
+        · simp [hgt] at hexec
+      · push_neg at hguard
+        obtain ⟨hmod, hle⟩ := hguard
+        simp [hmod, hle] at hexec
+        obtain ⟨rfl, rfl⟩ := hexec
+        refine ⟨cs.withStack (cs.memory (frame.localAddr idx) ::
+          cs.memory (frame.localAddr idx + 1) :: cs.memory (frame.localAddr idx + 2) ::
+          cs.memory (frame.localAddr idx + 3) :: srest.map (Expr.eval σ) ++ rest), ?_, ?_⟩
+        · rw [hstk, List.map_cons, List.map_cons, List.map_cons, List.map_cons] at hstack
+          simp only [MidenLean.execInstruction, execLocLoadwLe, hstack, currentFrame,
+              hframes, hfr, List.head?, MidenState.withStack]
+          simp [hmod, hle]
+        · unfold State.models
+          refine ⟨?_, ?_, ?_, ?_⟩
+          · simp only [MidenState.withStack, List.map_cons, List.cons_append]
+            rw [hmem, hmem, hmem, hmem]
+          · intro a; exact hmem a
+          · simp only [MidenState.withStack]; rw [hframes, hfr]
+          · simp only [MidenState.withStack]; exact hadv
+    | [], _ => simp [hstk] at hexec
+    | [_], _ => simp [hstk] at hexec
+    | [_, _], _ => simp [hstk] at hexec
+    | [_, _, _], _ => simp [hstk] at hexec
+    | _ :: _ :: _ :: _ :: _, [] =>
+      simp [hstk, hfr, currentFrame, List.head?] at hexec
+  -- locStorewBe idx (big-endian word store to local frame)
+  | .locStorewBe idx =>
+    obtain ⟨hstack, hmem, hframes, hadv⟩ := hmodels
+    simp only [execInstruction] at hexec
+    match hstk : ss.stack, hfr : ss.frames with
+    | e0 :: e1 :: e2 :: e3 :: srest, frame :: frest =>
+      simp only [hstk, hfr, currentFrame, List.head?] at hexec
+      by_cases hguard : idx % 4 ≠ 0 ∨ idx + 4 > frame.numLocals
+      · rcases hguard with hmod | hgt
+        · simp [hmod] at hexec
+        · simp [hgt] at hexec
+      · push_neg at hguard
+        obtain ⟨hmod, hle⟩ := hguard
+        simp [hmod, hle] at hexec
+        obtain ⟨rfl, rfl⟩ := hexec
+        refine ⟨(((cs.writeMemory (frame.localAddr idx) (e3.eval σ)).writeMemory
+          (frame.localAddr idx + 1) (e2.eval σ)).writeMemory (frame.localAddr idx + 2) (e1.eval σ)
+          |>.writeMemory (frame.localAddr idx + 3) (e0.eval σ)).withStack
+          (e0.eval σ :: e1.eval σ :: e2.eval σ :: e3.eval σ ::
+          srest.map (Expr.eval σ) ++ rest), ?_, ?_⟩
+        · rw [hstk, List.map_cons, List.map_cons, List.map_cons, List.map_cons] at hstack
+          simp only [MidenLean.execInstruction, execLocStorewBe, hstack, currentFrame,
+              hframes, hfr, List.head?, MidenState.writeMemory, MidenState.withStack]
+          simp [hmod, hle]
+        · unfold State.models
+          refine ⟨by simp only [MidenState.withStack, List.map_cons, List.cons_append], ?_, ?_, ?_⟩
+          · intro a; simp only [MidenState.withStack, MidenState.writeMemory]
+            split_ifs <;> simp_all
+          · simp only [MidenState.withStack, MidenState.writeMemory]; rw [hframes, hfr]
+          · simp only [MidenState.withStack, MidenState.writeMemory]; exact hadv
+    | [], _ => simp [hstk] at hexec
+    | [_], _ => simp [hstk] at hexec
+    | [_, _], _ => simp [hstk] at hexec
+    | [_, _, _], _ => simp [hstk] at hexec
+    | _ :: _ :: _ :: _ :: _, [] =>
+      simp [hstk, hfr, currentFrame, List.head?] at hexec
+  -- locStorewLe idx (little-endian word store to local frame)
+  | .locStorewLe idx =>
+    obtain ⟨hstack, hmem, hframes, hadv⟩ := hmodels
+    simp only [execInstruction] at hexec
+    match hstk : ss.stack, hfr : ss.frames with
+    | e0 :: e1 :: e2 :: e3 :: srest, frame :: frest =>
+      simp only [hstk, hfr, currentFrame, List.head?] at hexec
+      by_cases hguard : idx % 4 ≠ 0 ∨ idx + 4 > frame.numLocals
+      · rcases hguard with hmod | hgt
+        · simp [hmod] at hexec
+        · simp [hgt] at hexec
+      · push_neg at hguard
+        obtain ⟨hmod, hle⟩ := hguard
+        simp [hmod, hle] at hexec
+        obtain ⟨rfl, rfl⟩ := hexec
+        refine ⟨(((cs.writeMemory (frame.localAddr idx) (e0.eval σ)).writeMemory
+          (frame.localAddr idx + 1) (e1.eval σ)).writeMemory (frame.localAddr idx + 2) (e2.eval σ)
+          |>.writeMemory (frame.localAddr idx + 3) (e3.eval σ)).withStack
+          (e0.eval σ :: e1.eval σ :: e2.eval σ :: e3.eval σ ::
+          srest.map (Expr.eval σ) ++ rest), ?_, ?_⟩
+        · rw [hstk, List.map_cons, List.map_cons, List.map_cons, List.map_cons] at hstack
+          simp only [MidenLean.execInstruction, execLocStorewLe, hstack, currentFrame,
+              hframes, hfr, List.head?, MidenState.writeMemory, MidenState.withStack]
+          simp [hmod, hle]
+        · unfold State.models
+          refine ⟨by simp only [MidenState.withStack, List.map_cons, List.cons_append], ?_, ?_, ?_⟩
+          · intro a; simp only [MidenState.withStack, MidenState.writeMemory]
+            split_ifs <;> simp_all
+          · simp only [MidenState.withStack, MidenState.writeMemory]; rw [hframes, hfr]
+          · simp only [MidenState.withStack, MidenState.writeMemory]; exact hadv
+    | [], _ => simp [hstk] at hexec
+    | [_], _ => simp [hstk] at hexec
+    | [_, _], _ => simp [hstk] at hexec
+    | [_, _, _], _ => simp [hstk] at hexec
+    | _ :: _ :: _ :: _ :: _, [] =>
+      simp [hstk, hfr, currentFrame, List.head?] at hexec
   -- Instructions that return none in execInstruction (unsupported symbolically)
   | .cswap | .cswapw | .cdrop | .cdropw
   | .u32Test | .u32TestW
-  | .memLoad | .memLoadImm _ | .memStore | .memStoreImm _
-  | .memLoadwBe | .memLoadwBeImm _ | .memStorewBe | .memStorewBeImm _
-  | .memLoadwLe | .memLoadwLeImm _ | .memStorewLe | .memStorewLeImm _
-  | .locLoad _ | .locStore _ | .locLoadwBe _ | .locLoadwLe _
-  | .locStorewBe _ | .locStorewLe _ | .locaddr _
-  | .advPush _ | .advLoadW
-  | .emit | .emitImm _
+  | .memLoad | .memStore
+  | .memLoadwBe | .memStorewBe
+  | .memLoadwLe | .memStorewLe
   | .exec _ =>
     simp [execInstruction] at hexec
 

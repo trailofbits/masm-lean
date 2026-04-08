@@ -12,9 +12,7 @@ Felt.ofNat value recovery lemmas under `@[miden_val]`.
 
 namespace MidenLean
 
--- ============================================================================
 -- Re-tag existing isU32 lemmas with @[miden_u32]
--- ============================================================================
 
 -- From Helpers.lean
 attribute [miden_u32] felt_ofNat_isU32_of_lt
@@ -35,9 +33,7 @@ attribute [miden_u32] Proofs.U32.boolFelt_isU32
 attribute [miden_u32] Proofs.U32.u32Shr_result_isU32
 attribute [miden_u32] Proofs.u32_madd_div_isU32
 
--- ============================================================================
 -- Re-tag existing value recovery lemmas with @[miden_val]
--- ============================================================================
 
 -- From Helpers.lean
 attribute [miden_val] felt_ofNat_val_lt
@@ -50,9 +46,7 @@ attribute [miden_val] Proofs.u32_add_div_val
 attribute [miden_val] Proofs.u32_add3_div_val
 attribute [miden_val] Proofs.u32_prod_mod_add_div_val
 
--- ============================================================================
 -- New isU32 propagation lemmas
--- ============================================================================
 
 /-- The carry from adding three u32 values is u32. -/
 @[miden_u32] theorem u32_add3_div_isU32 (a b c : Felt)
@@ -108,9 +102,7 @@ attribute [miden_val] Proofs.u32_prod_mod_add_div_val
   simp only [Felt.isU32, decide_eq_true_eq] at ha
   exact lt_of_le_of_lt (Nat.div_le_self _ _) ha
 
--- ============================================================================
 -- New value recovery lemmas
--- ============================================================================
 
 /-- u32OverflowingSub borrow round-trips through Felt.ofNat. -/
 @[miden_val] theorem u32OverflowingSub_fst_val (a b : Nat) :

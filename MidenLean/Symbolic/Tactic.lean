@@ -58,6 +58,18 @@ private partial def extractInsts (e : Lean.Expr) : MetaM (Option (Array Lean.Exp
   | List.nil _ => return some #[]
   | _ => return none
 
+/-- Check that every instruction in the array is stack-pure. Returns the index and
+    pretty-printed name of the first non-stack-pure instruction, or `none` if all pass. -/
+private def findNonStackPure (instExprs : Array Lean.Expr) : MetaM (Option (Nat × Format)) := do
+  for i in [:instExprs.size] do
+    let e := instExprs[i]!
+    let app := Lean.mkApp (Lean.mkConst ``MidenLean.Instruction.isStackPure) e
+    let reduced ← whnf app
+    unless reduced.isConstOf ``Bool.true do
+      let fmt ← Meta.ppExpr e
+      return some (i, fmt)
+  return none
+
 /-- Convert an internal `Lean.Expr` to surface `Syntax` via the pretty-printer. -/
 private def toTermSyntax (e : Lean.Expr) : MetaM (TSyntax `term) := do
   let stx ← delab e
@@ -100,6 +112,11 @@ elab "miden_reflect" : tactic => do
   let some instExprs ← extractInsts body
     | throwError "miden_reflect: procedure body contains non-instruction ops (only basic blocks supported)"
 
+  -- Verify all instructions are stack-pure
+  if let some (idx, instFmt) ← findNonStackPure instExprs then
+    throwError "miden_reflect: instruction {instFmt} at position {idx} is not stack-pure \
+      (memory, advice, or conditional). Use execBlock_sound directly for non-pure blocks."
+
   -- Step 5: Build syntax terms
   let fuelStx ← toTermSyntax fuel
   let memStx ← toTermSyntax memExpr
@@ -124,7 +141,7 @@ elab "miden_reflect" : tactic => do
       $instsStx $procStx $fuelStx
       _ $memStx $framesStx $advStx $nStx $restStx
       ($sigmaStx)
-      _ rfl rfl (by omega) ?_ rfl ?_))
+      _ rfl rfl (by omega) ?_ rfl ?_ (by decide)))
 
   -- Step 7: Close hstack goal
   let goals ← getGoals
@@ -140,10 +157,6 @@ elab "miden_reflect" : tactic => do
     setGoals (remaining ++ goals.tail!)
 
 end MidenLean.Symbolic.Tactic
-
--- ============================================================================
--- miden_vcg: control-flow decomposition (top-level for global availability)
--- ============================================================================
 
 /-- `miden_vcg` decomposes control flow in `execWithEnv`-based existential goals.
 

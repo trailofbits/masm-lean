@@ -5,9 +5,7 @@ namespace MidenLean
 
 open Instruction
 
--- ============================================================================
 -- Stack helpers
--- ============================================================================
 
 /-- Remove the nth element from a list, returning (element, remaining list). -/
 def removeNth {α : Type} (l : List α) (n : Nat) : Option (α × List α) :=
@@ -19,9 +17,7 @@ def removeNth {α : Type} (l : List α) (n : Nat) : Option (α × List α) :=
 def insertAt {α : Type} (l : List α) (n : Nat) (v : α) : List α :=
   (l.take n) ++ [v] ++ (l.drop n)
 
--- ============================================================================
 -- U32 arithmetic helpers (operating on natural numbers)
--- ============================================================================
 
 def u32Max : Nat := 2^32
 
@@ -101,9 +97,7 @@ def u32PopCount (n : Nat) : Nat :=
     | bits + 1 => go (v / 2) (count + v % 2) bits
   go n 0 32
 
--- ============================================================================
 -- Instruction execution handlers
--- ============================================================================
 
 -- Assertions
 
@@ -895,9 +889,7 @@ def alignLocals (n : Nat) : Nat :=
 def currentFrame (frames : List LocalFrame) : Option LocalFrame :=
   frames.head?
 
--- ============================================================================
 -- Procedure locals (frame-aware)
--- ============================================================================
 
 def execLocLoad (idx : Nat) (s : MidenState) : Option MidenState :=
   do
@@ -1009,9 +1001,7 @@ def execEmit (s : MidenState) : Option MidenState :=
   | _ :: _ => some s
   | _ => none
 
--- ============================================================================
 -- Single instruction dispatch
--- ============================================================================
 
 /-- Execute a single instruction by dispatching to the appropriate handler. -/
 def execInstruction (s : MidenState) (i : Instruction) : Option MidenState :=
@@ -1139,9 +1129,7 @@ def execInstruction (s : MidenState) (i : Instruction) : Option MidenState :=
   | .emitImm _ => some s  -- events are no-ops in semantics
   | .exec _ => none  -- handled at Op level
 
--- ============================================================================
 -- Op execution (with procedure environment)
--- ============================================================================
 
 /-- A procedure environment maps procedure names to their bodies. -/
 def ProcEnv := String → Option Procedure

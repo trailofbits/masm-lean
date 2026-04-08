@@ -1164,9 +1164,7 @@ theorem u128_overflowing_mul_raw
     u128_overflowing_mul_run (fun _ => none) 115 a0 a1 a2 a3 b0 b1 b2 b3 rest mem frames adv
       ha0 ha1 ha2 ha3 hb0 hb1 hb2 hb3
 
--- ============================================================================
 -- Multiplication limb bridge: u128MulC0..C3 = (a * b).a0..a3.val
--- ============================================================================
 
 /-- Helper: `(x + y % m) % m = (x + y) % m` (modular flattening). -/
 private theorem add_mod_mod (x y m : Nat) : (x + y % m) % m = (x + y) % m := by
@@ -1492,9 +1490,7 @@ private theorem u128MulC3_eq (a b : U128) :
     omega
   exact ⟨a1*b3 + a2*b2 + a3*b1 + (a2*b3 + a3*b2)*2^32 + a3*b3*2^64, by ring⟩
 
--- ============================================================================
 -- List bridge: raw limb list = (a * b) limb list
--- ============================================================================
 
 theorem u128MulResult_eq (a b : U128) (rest : List Felt) :
     u128MulC0 a.a0.val b.a0.val ::
@@ -1505,9 +1501,7 @@ theorem u128MulResult_eq (a b : U128) (rest : List Felt) :
     (a * b).a0.val :: (a * b).a1.val :: (a * b).a2.val :: (a * b).a3.val :: rest := by
   rw [u128MulC0_eq, u128MulC1_eq, u128MulC2_eq, u128MulC3_eq]
 
--- ============================================================================
 -- High-level correctness theorem
--- ============================================================================
 
 set_option maxHeartbeats 12000000 in
 /-- `u128::overflowing_mul` computes the low 128 bits of the product `a * b`

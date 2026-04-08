@@ -4,9 +4,7 @@ namespace MidenLean.StepLemmas
 
 open MidenLean
 
--- ============================================================================
 -- Stack manipulation
--- ============================================================================
 
 set_option maxHeartbeats 400000 in
 @[miden_dispatch] theorem stepDrop (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
@@ -172,9 +170,7 @@ set_option maxHeartbeats 800000 in
     some ⟨a8 :: a0 :: a1 :: a2 :: a3 :: a4 :: a5 :: a6 :: a7 :: rest, mem, frames, adv⟩ := by
   unfold execInstruction execMovup; simp [MidenState.withStack]; rfl
 
--- ============================================================================
 -- Assertions
--- ============================================================================
 
 set_option maxHeartbeats 400000 in
 /-- assert succeeds when top of stack is 1, pops it. -/
@@ -222,9 +218,7 @@ set_option maxHeartbeats 400000 in
   unfold execInstruction execAssertEq
   simp [MidenState.withStack]
 
--- ============================================================================
 -- Assertion failure lemmas (for forward-direction proofs)
--- ============================================================================
 
 set_option maxHeartbeats 400000 in
 /-- assertWithError returns none when the top value is not 1. -/
@@ -242,9 +236,7 @@ theorem stepAssertEqWithError_none (msg : String) (mem : Nat → Felt) (frames :
   unfold execInstruction execAssertEq
   simp [show ¬(a == b) = true from by simp [h]]
 
--- ============================================================================
 -- U32 assertions
--- ============================================================================
 
 set_option maxHeartbeats 4000000 in
 @[miden_dispatch] theorem stepU32Assert2 (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
@@ -255,9 +247,7 @@ set_option maxHeartbeats 4000000 in
   unfold execInstruction execU32Assert2
   simp [ha, hb]
 
--- ============================================================================
 -- Field comparison
--- ============================================================================
 
 set_option maxHeartbeats 400000 in
 @[miden_dispatch] theorem stepEqImm (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
@@ -325,9 +315,7 @@ set_option maxHeartbeats 400000 in
     some ⟨(if a.val ≥ b.val then (1 : Felt) else 0) :: rest, mem, frames, adv⟩ := by
   unfold execInstruction execGte; rfl
 
--- ============================================================================
 -- Field boolean
--- ============================================================================
 
 set_option maxHeartbeats 800000 in
 @[miden_dispatch] theorem stepAndIte (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
@@ -362,9 +350,7 @@ set_option maxHeartbeats 800000 in
   simp only [Felt.isBool_ite_bool, MidenState.withStack]
   cases p <;> simp
 
--- ============================================================================
 -- Conditional stack manipulation
--- ============================================================================
 
 set_option maxHeartbeats 800000 in
 /-- cswap on a boolean condition (as ite): if true, swap the two elements below. -/
@@ -410,9 +396,7 @@ set_option maxHeartbeats 800000 in
   simp only [MidenState.withStack]
   cases p <;> simp
 
--- ============================================================================
 -- Field arithmetic
--- ============================================================================
 
 set_option maxHeartbeats 400000 in
 @[miden_dispatch] theorem stepAdd (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
@@ -470,9 +454,7 @@ set_option maxHeartbeats 400000 in
     some ⟨(0 : Felt) :: 0 :: 0 :: 0 :: stk, mem, frames, adv⟩ := by
   unfold execInstruction execPadw; rfl
 
--- ============================================================================
 -- Pow2
--- ============================================================================
 
 set_option maxHeartbeats 400000 in
 @[miden_dispatch] theorem stepPow2 (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
@@ -483,9 +465,7 @@ set_option maxHeartbeats 400000 in
   unfold execInstruction execPow2
   simp [show ¬(a.val > 63) from by omega, MidenState.withStack]
 
--- ============================================================================
 -- U32 arithmetic
--- ============================================================================
 
 set_option maxHeartbeats 4000000 in
 @[miden_dispatch] theorem stepU32WidenAdd (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
@@ -557,9 +537,7 @@ set_option maxHeartbeats 4000000 in
   unfold execInstruction execU32WrappingMadd u32Max
   simp [ha, hb, hc, MidenState.withStack]
 
--- ============================================================================
 -- U32 bitwise (require isU32 preconditions)
--- ============================================================================
 
 set_option maxHeartbeats 4000000 in
 @[miden_dispatch] theorem stepU32And (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
@@ -597,9 +575,7 @@ set_option maxHeartbeats 4000000 in
   unfold execInstruction execU32Not u32Max
   simp [ha, MidenState.withStack]
 
--- ============================================================================
 -- U32 comparison (require isU32 preconditions)
--- ============================================================================
 
 set_option maxHeartbeats 4000000 in
 @[miden_dispatch] theorem stepU32Lt (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
@@ -637,9 +613,7 @@ set_option maxHeartbeats 4000000 in
   unfold execInstruction execU32Gte
   simp [ha, hb, MidenState.withStack]
 
--- ============================================================================
 -- U32 bit counting
--- ============================================================================
 
 set_option maxHeartbeats 4000000 in
 @[miden_dispatch] theorem stepU32Clz (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
@@ -681,9 +655,7 @@ set_option maxHeartbeats 4000000 in
   unfold execInstruction execU32Cto u32CountTrailingOnes
   simp [ha, MidenState.withStack]
 
--- ============================================================================
 -- U32 split
--- ============================================================================
 
 set_option maxHeartbeats 400000 in
 @[miden_dispatch] theorem stepU32Split (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
@@ -692,9 +664,7 @@ set_option maxHeartbeats 400000 in
     some ⟨a.lo32 :: a.hi32 :: rest, mem, frames, adv⟩ := by
   unfold execInstruction execU32Split; rfl
 
--- ============================================================================
 -- Field div (requires nonzero divisor)
--- ============================================================================
 
 set_option maxHeartbeats 400000 in
 @[miden_dispatch] theorem stepDiv (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
@@ -705,9 +675,7 @@ set_option maxHeartbeats 400000 in
   unfold execInstruction execDiv
   simp [hb, MidenState.withStack]
 
--- ============================================================================
 -- U32 divmod (requires isU32 and nonzero divisor)
--- ============================================================================
 
 set_option maxHeartbeats 4000000 in
 @[miden_dispatch] theorem stepU32DivMod (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
@@ -719,9 +687,7 @@ set_option maxHeartbeats 4000000 in
   unfold execInstruction execU32DivMod
   simp [ha, hb, hbnz, MidenState.withStack]
 
--- ============================================================================
 -- Emit (no-op)
--- ============================================================================
 
 set_option maxHeartbeats 400000 in
 @[miden_dispatch] theorem stepEmitImm (n : Nat) (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
@@ -730,9 +696,7 @@ set_option maxHeartbeats 400000 in
     some ⟨stk, mem, frames, adv⟩ := by
   unfold execInstruction; rfl
 
--- ============================================================================
 -- Advice stack
--- ============================================================================
 
 set_option maxHeartbeats 800000 in
 @[miden_dispatch] theorem stepAdvPush (n : Nat) (mem : Nat → Felt)
@@ -766,9 +730,7 @@ set_option maxHeartbeats 800000 in
   subst hadv
   simp [MidenState.withStack, MidenState.withAdvice]
 
--- ============================================================================
 -- Local memory (frame-aware)
--- ============================================================================
 
 set_option maxHeartbeats 800000 in
 /-- locLoad: push the value of local slot `idx` onto the stack. -/

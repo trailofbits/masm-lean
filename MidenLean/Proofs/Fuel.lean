@@ -11,9 +11,7 @@ together via a bundled induction on the fuel parameter.
 
 namespace MidenLean
 
--- ============================================================================
 -- Auxiliary: the per-op step function used inside execWithEnv's foldlM
--- ============================================================================
 
 /-- The per-op step function that `execWithEnv` folds over the op list.
     Factored out so that fuel-monotonicity of the fold reduces to
@@ -40,9 +38,7 @@ noncomputable def opStep (env : ProcEnv) (fuel : Nat)
   | Op.whileTrue body =>
     execWithEnv.doWhile env fuel fuel body state
 
--- ============================================================================
 -- Unfold lemmas: execWithEnv at succ fuel reduces to foldlM of opStep
--- ============================================================================
 
 private theorem execWithEnv_succ_zero (env : ProcEnv) (n : Nat)
     (s : MidenState) (name : String) (ops : List Op) :
@@ -62,9 +58,7 @@ private theorem execWithEnv_succ_locals (env : ProcEnv) (n : Nat)
     | none => none := by
   unfold execWithEnv; rfl
 
--- ============================================================================
 -- Generic foldlM monotonicity for the Option monad
--- ============================================================================
 
 private theorem foldlM_option_step_mono {α β : Type*}
     (f g : α → β → Option α) (init : α) (ops : List β)
@@ -81,9 +75,7 @@ private theorem foldlM_option_step_mono {α β : Type*}
       simp [hfop] at hf; simp [h init op s' hfop]
       exact ih s' hf
 
--- ============================================================================
 -- opStep pointwise monotonicity
--- ============================================================================
 
 /-- If every sub-call (execWithEnv, doRepeat, doWhile) is fuel-monotonic at
     fuel `n`, then `opStep` is pointwise monotonic from fuel `n` to `m`. -/
@@ -123,9 +115,7 @@ private theorem opStep_fuel_mono (env : ProcEnv) (n m : Nat) (hm : n ≤ m)
   | «repeat» count body => exact ihR m count body s s' hm h
   | whileTrue body => exact ihW m n m body s s' hm hm h
 
--- ============================================================================
 -- Main bundle: fuel monotonicity for all three functions simultaneously
--- ============================================================================
 
 /-- Bundled fuel-monotonicity for `execWithEnv`, `doRepeat`, and `doWhile`.
     Proved by induction on the fuel parameter `n`. -/
@@ -217,10 +207,8 @@ private theorem fuel_mono_core (env : ProcEnv) :
           rw [hres] at h
           simp at h
     refine ⟨execE, ?_, ?_⟩
-    -- ================================================================
-    -- (R) doRepeat at fuel n + 1
-    -- ================================================================
-    · intro m count body st st' hm h
+        -- (R) doRepeat at fuel n + 1
+        · intro m count body st st' hm h
       induction count generalizing st with
       | zero =>
         simp only [execWithEnv.doRepeat] at h ⊢; exact h
@@ -232,10 +220,8 @@ private theorem fuel_mono_core (env : ProcEnv) :
           simp [this]
           exact ihCount st'' h
         · simp at h
-    -- ================================================================
-    -- (W) doWhile at fuel n + 1
-    -- ================================================================
-    · intro m fn fm body st st' hm hfn h
+        -- (W) doWhile at fuel n + 1
+        · intro m fn fm body st st' hm hfn h
       induction fn generalizing st fm with
       | zero => simp [execWithEnv.doWhile] at h
       | succ fn' ihFn =>
@@ -268,9 +254,7 @@ private theorem fuel_mono_core (env : ProcEnv) :
             · simp at h
         · simp at h
 
--- ============================================================================
 -- Public API: individual monotonicity theorems
--- ============================================================================
 
 /-- If `execWithEnv env n s proc = some s'` and `n ≤ m`, then
     `execWithEnv env m s proc = some s'`. -/

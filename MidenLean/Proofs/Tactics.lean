@@ -7,18 +7,14 @@ namespace MidenLean.Tactics
 open MidenLean.StepLemmas
 open Lean Elab Tactic in
 
--- ============================================================================
 -- Heartbeat reset combinator
--- ============================================================================
 
 /-- Reset the heartbeat counter before running a tactic, preventing
     heartbeat accumulation across long instruction sequences. -/
 elab "with_reset_heartbeats " t:tactic : tactic =>
   Lean.Core.withCurrHeartbeats (evalTactic t)
 
--- ============================================================================
 -- Core bind normalization
--- ============================================================================
 
 /-- Simplify one Option.bind step after a rewrite.
     Also normalizes List.set (from stepSwap), List.eraseIdx (from stepMovup),
@@ -30,9 +26,7 @@ macro_rules
       List.set, List.eraseIdx, MidenLean.insertAt, List.take, List.drop,
       List.cons_append, List.nil_append, List.append_nil])
 
--- ============================================================================
 -- Individual instruction tactics
--- ============================================================================
 
 /-- Apply stepSwap with automatic argument resolution and normalize List.set. -/
 syntax "miden_swap" : tactic
@@ -59,9 +53,7 @@ macro_rules
   | `(tactic| miden_movdn) =>
     `(tactic| rw [stepMovdn (hn := rfl)]; miden_bind)
 
--- ============================================================================
 -- miden_step: try all step lemmas
--- ============================================================================
 
 /-- Try to apply a step lemma and simplify the bind.
     Covers hypothesis-free step lemmas and u32/conditional step lemmas whose
@@ -167,9 +159,7 @@ macro_rules
   | `(tactic| miden_steps) =>
     `(tactic| repeat (first | with_reset_heartbeats miden_step | dsimp only [pure, Pure.pure]))
 
--- ============================================================================
 -- miden_setup: automate the proof preamble
--- ============================================================================
 
 open Lean Elab Tactic Meta in
 /-- `miden_setup ProcName` automates the standard boilerplate for `exec`-based proofs.
@@ -207,9 +197,7 @@ elab "miden_setup_env " proc:term : tactic => do
   evalTactic (← `(tactic| unfold $procId execWithEnv))
   evalTactic (← `(tactic| simp only [List.foldlM, Procedure.ofOps]))
 
--- ============================================================================
 -- miden_call: resolve a procedure call
--- ============================================================================
 
 /-- Resolve a procedure call in the goal.
     After the `change` block introduces a `match env "proc_name" with ...`,
@@ -249,9 +237,7 @@ macro_rules
       (rw [$thm:ident]
        <;> first | rfl | assumption | omega))
 
--- ============================================================================
 -- miden_loop: unfold one repeat iteration
--- ============================================================================
 
 /-- Unfold one iteration of a `repeat` loop (via `doRepeat`).
     Unfolds doRepeat. In the recursive case (n > 0), also unfolds
@@ -264,9 +250,7 @@ macro_rules
       (unfold execWithEnv.doRepeat
        try (unfold execWithEnv; simp only [List.foldlM, Procedure.ofOps])))
 
--- ============================================================================
 -- miden_recover: Felt.ofNat value recovery
--- ============================================================================
 
 /-- Try to rewrite `(Felt.ofNat n).val` to `n` using `felt_ofNat_val_lt`.
     Attempts to prove `n < GOLDILOCKS_PRIME` using the miden bound lemmas and omega. -/
@@ -281,9 +265,7 @@ macro_rules
       | rw [MidenLean.felt_ofNat_val_lt _ (MidenLean.u32_prod_div_lt_prime _ _ (by assumption) (by assumption))]
       | rw [MidenLean.felt_ofNat_val_lt _ (MidenLean.u32_overflow_sub_fst_lt _ _)])
 
--- ============================================================================
 -- miden_arith: close arithmetic side conditions
--- ============================================================================
 
 /-- Close arithmetic side conditions: isU32, Felt.ofNat value recovery,
     and bounds relative to 2^32 and GOLDILOCKS_PRIME.

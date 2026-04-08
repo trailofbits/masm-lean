@@ -3,9 +3,7 @@ import MidenLean.Proofs.SimpAttrs
 
 namespace MidenLean
 
--- ============================================================================
 -- MidenState projection lemmas
--- ============================================================================
 
 @[simp, miden_simp] theorem MidenState.withStack_stack (s : MidenState) (stk : List Felt) :
     (s.withStack stk).stack = stk := rfl
@@ -45,9 +43,7 @@ theorem MidenState.writeMemory_comm (s : MidenState) (a b : Nat) (v w : Felt) (h
   simp [MidenState.writeMemory]
   funext k; by_cases hk : k = b <;> by_cases hk2 : k = a <;> simp_all
 
--- ============================================================================
 -- Execution decomposition lemmas
--- ============================================================================
 
 /-- Execute a concatenation of op lists in two phases under a procedure environment. -/
 theorem execWithEnv_append (env : ProcEnv) (fuel : Nat) (s : MidenState) (xs ys : List Op) :
@@ -124,18 +120,14 @@ theorem execWithEnv_body_eq_withLocals (env : ProcEnv) (fuel : Nat) (s : MidenSt
     simp only [execWithEnv, Procedure.ofOps, nextFrameBase, alignLocals, Nat.succ_eq_add_one]
     rfl
 
--- ============================================================================
 -- Felt value lemmas
--- ============================================================================
 
 @[simp, miden_simp] theorem Felt.val_zero' : (0 : Felt).val = 0 := rfl
 
 set_option maxHeartbeats 400000 in
 @[simp, miden_simp] theorem Felt.val_one' : (1 : Felt).val = 1 := by native_decide
 
--- ============================================================================
 -- Felt boolean lemmas
--- ============================================================================
 
 @[simp, miden_simp] theorem Felt.isBool_ite_bool (p : Bool) :
     Felt.isBool (if p then (1 : Felt) else 0) = true := by
@@ -146,9 +138,7 @@ set_option maxHeartbeats 400000 in
     if (p && q) then (1 : Felt) else 0 := by
   cases p <;> cases q <;> simp
 
--- ============================================================================
 -- u32OverflowingSub borrow lemma
--- ============================================================================
 
 /-- The borrow (first component) of u32OverflowingSub is a boolean:
     1 when a < b, 0 otherwise. -/
@@ -160,9 +150,7 @@ theorem u32OverflowingSub_borrow_ite (a b : Nat) :
   · simp [decide_eq_false (show ¬(a < b) by omega)]
   · simp [decide_eq_true (show a < b by omega)]
 
--- ============================================================================
 -- Felt.ofNat / value recovery lemmas
--- ============================================================================
 
 /-- Felt.ofNat n has val = n when n < GOLDILOCKS_PRIME. -/
 @[miden_bound] theorem felt_ofNat_val_lt (n : Nat) (h : n < GOLDILOCKS_PRIME) :
@@ -175,9 +163,7 @@ theorem u32OverflowingSub_borrow_ite (a b : Nat) :
 @[miden_bound] theorem felt_val_lt_prime (a : Felt) : a.val < GOLDILOCKS_PRIME :=
   ZMod.val_lt a
 
--- ============================================================================
 -- u32 bounds lemmas (all values < 2^32 are < GOLDILOCKS_PRIME)
--- ============================================================================
 
 @[miden_bound] theorem u32_val_lt_prime (n : Nat) (h : n < 2^32) : n < GOLDILOCKS_PRIME := by
   unfold GOLDILOCKS_PRIME; omega
@@ -204,9 +190,7 @@ theorem u32OverflowingSub_borrow_ite (a b : Nat) :
   · simp; omega
   · simp [u32Max, GOLDILOCKS_PRIME] at *; omega
 
--- ============================================================================
 -- isU32 lemmas for intermediate Felt.ofNat values
--- ============================================================================
 
 @[miden_bound] theorem felt_ofNat_isU32_of_lt (n : Nat) (h : n < 2^32) :
     (Felt.ofNat n).isU32 = true := by
@@ -256,9 +240,7 @@ theorem u32OverflowingSub_borrow_ite (a b : Nat) :
       ≤ (2^32 - 1) * (2^32 - 1) / 2^32 := Nat.div_le_div_right h3
     _ < GOLDILOCKS_PRIME := by unfold GOLDILOCKS_PRIME; native_decide
 
--- ============================================================================
 -- Felt arithmetic round-trip lemmas for bridging proofs
--- ============================================================================
 
 /-- Felt addition round-trips when the sum stays below the prime. -/
 @[miden_bound] theorem felt_add_val_no_wrap (a b : Felt)
@@ -323,9 +305,7 @@ theorem felt_mul_beq_zero (a b : Felt) (h : a.val * b.val = 0)
   have hzero : (0 : Felt).val = 0 := Felt.val_zero'
   exact_mod_cast Fin.val_injective (by omega : (a * b).val = (0 : Felt).val)
 
--- ============================================================================
 -- LocalFrame.localAddr comparison lemmas
--- ============================================================================
 -- These are critical for resolving memory reads through if-then-else chains
 -- produced by locStorewBe. Since localAddr idx = LOCAL_MEM_BASE + base + idx,
 -- address equality reduces to offset equality.
