@@ -992,3 +992,121 @@ theorem reflect_basic_block
   exact ⟨by rw [hstk_r, hstk_d], hmem_r, hframes_r, hadv_r⟩
 
 end MidenLean.Symbolic.Reflect
+
+-- New reflection theorems targeting execWithEnv directly
+namespace MidenLean.Symbolic.ReflectV2
+
+open MidenLean.Symbolic
+
+set_option linter.unusedVariables false in
+/-- Reflection for procedures with numLocals = 0.
+    Memory, frames, and advice pass through based on the symbolic execution result. -/
+theorem reflect_with_env_zero
+    (insts : List Instruction) (name : String) (ops : List MidenLean.Op)
+    (env : MidenLean.ProcEnv) (fuel : Nat)
+    (stack : List Felt) (mem : Nat → Felt)
+    (frames : List MidenLean.LocalFrame) (adv : List Felt)
+    (n : Nat) (rest : List Felt)
+    (σ : Assignment)
+    (initSS : State)
+    (result : BlockResult)
+    (hops : ops = insts.map MidenLean.Op.inst)
+    (hfuel : fuel > 0)
+    (hnoexec : insts.all (fun i => !isExecInst i) = true)
+    (hmodels : initSS.models ⟨stack, mem, frames, adv⟩ σ rest)
+    (hresult : execBlock insts initSS = some result)
+    (hpreconds : ∀ p ∈ result.preconditions, p.holds σ) :
+    MidenLean.execWithEnv env fuel ⟨stack, mem, frames, adv⟩ ⟨name, 0, ops⟩ =
+    some ⟨result.state.stack.map (Expr.eval σ) ++ rest,
+          fun addr => (result.state.memory addr).eval σ,
+          result.state.frames,
+          result.state.advice.map (Expr.eval σ)⟩ := by
+  -- Step 1: Rewrite LHS using bridge lemma
+  rw [execWithEnv_basic_block_zero env fuel ⟨stack, mem, frames, adv⟩ insts name ops
+      hops hfuel hnoexec]
+  -- Step 2: Apply soundness
+  obtain ⟨cs', hconc, hmod⟩ :=
+    execBlock_sound insts initSS ⟨stack, mem, frames, adv⟩ σ rest result
+      hmodels hresult hpreconds
+  -- Step 3: Rewrite with concrete result
+  rw [hconc]
+  -- Step 4: Extract models components
+  unfold State.models at hmod
+  obtain ⟨hstk, hmem, hfr, hadv⟩ := hmod
+  -- Step 5: Prove MidenState equality
+  congr 1
+  cases cs'
+  simp only [MidenLean.MidenState.mk.injEq] at hstk hmem hfr hadv ⊢
+  exact ⟨hstk, funext hmem, hfr, hadv⟩
+
+set_option linter.unusedVariables false in
+/-- Reflection for procedures with numLocals > 0.
+    Frame is pushed before execution and popped after. -/
+theorem reflect_with_env_locals
+    (insts : List Instruction) (name : String) (k : Nat) (ops : List MidenLean.Op)
+    (env : MidenLean.ProcEnv) (fuel : Nat)
+    (stack : List Felt) (mem : Nat → Felt)
+    (frames : List MidenLean.LocalFrame) (adv : List Felt)
+    (n : Nat) (rest : List Felt)
+    (σ : Assignment)
+    (initSS : State)
+    (result : BlockResult)
+    (hops : ops = insts.map MidenLean.Op.inst)
+    (hfuel : fuel > 0)
+    (hnoexec : insts.all (fun i => !isExecInst i) = true)
+    (hmodels : initSS.models
+      (let aligned := MidenLean.alignLocals (k + 1)
+       let base := match frames with | [] => 0 | f :: _ => f.base + f.alignedNumLocals
+       let frame : MidenLean.LocalFrame := { base, numLocals := k + 1, alignedNumLocals := aligned }
+       ⟨stack, mem, frame :: frames, adv⟩) σ rest)
+    (hresult : execBlock insts initSS = some result)
+    (hpreconds : ∀ p ∈ result.preconditions, p.holds σ) :
+    MidenLean.execWithEnv env fuel ⟨stack, mem, frames, adv⟩ ⟨name, k + 1, ops⟩ =
+    some ⟨result.state.stack.map (Expr.eval σ) ++ rest,
+          fun addr => (result.state.memory addr).eval σ,
+          frames,
+          result.state.advice.map (Expr.eval σ)⟩ := by
+  -- Case split on frames to eliminate the problematic `match frames with` in the bridge
+  cases frames with
+  | nil =>
+    -- Step 1: Rewrite LHS using bridge lemma for locals
+    rw [execWithEnv_basic_block_locals env fuel ⟨stack, mem, [], adv⟩ insts name k ops
+        hops hfuel hnoexec]
+    -- Simplify
+    dsimp only []
+    -- Step 2: Apply soundness
+    obtain ⟨cs', hconc, hmod⟩ :=
+      execBlock_sound insts initSS _ σ rest result
+        hmodels hresult hpreconds
+    -- Step 3: Rewrite match discriminant and reduce
+    rw [hconc]
+    -- Step 4: Extract models components
+    unfold State.models at hmod
+    obtain ⟨hstk, hmem, _, hadv⟩ := hmod
+    -- Step 5: Prove MidenState equality
+    cases cs' with | mk s m f a =>
+    simp only [] at hstk hmem hadv ⊢
+    subst hstk; subst hadv
+    exact congrArg some (by congr 1; exact funext hmem)
+  | cons f rest_frames =>
+    -- Step 1: Rewrite LHS using bridge lemma for locals
+    rw [execWithEnv_basic_block_locals env fuel ⟨stack, mem, f :: rest_frames, adv⟩ insts name k ops
+        hops hfuel hnoexec]
+    -- Simplify
+    dsimp only []
+    -- Step 2: Apply soundness
+    obtain ⟨cs', hconc, hmod⟩ :=
+      execBlock_sound insts initSS _ σ rest result
+        hmodels hresult hpreconds
+    -- Step 3: Rewrite match discriminant and reduce
+    rw [hconc]
+    -- Step 4: Extract models components
+    unfold State.models at hmod
+    obtain ⟨hstk, hmem, _, hadv⟩ := hmod
+    -- Step 5: Prove MidenState equality
+    cases cs' with | mk s m fr a =>
+    simp only [] at hstk hmem hadv ⊢
+    subst hstk; subst hadv
+    exact congrArg some (by congr 1; exact funext hmem)
+
+end MidenLean.Symbolic.ReflectV2
