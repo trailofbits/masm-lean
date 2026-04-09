@@ -1,5 +1,6 @@
 import MidenLean.Semantics
 import MidenLean.Proofs.SimpAttrs
+import MidenLean.Symbolic.SimpAttrs
 
 namespace MidenLean
 
@@ -17,6 +18,12 @@ namespace MidenLean
 @[simp, miden_simp] theorem MidenState.withStack_withStack (s : MidenState) (stk1 stk2 : List Felt) :
     (s.withStack stk1).withStack stk2 = s.withStack stk2 := rfl
 
+@[simp, miden_simp, miden_reflect_norm] theorem MidenState.ite_withStack
+    (p : Prop) [Decidable p] (s : MidenState) (stk1 stk2 : List Felt) :
+    (if p then s.withStack stk1 else s.withStack stk2) =
+      s.withStack (if p then stk1 else stk2) := by
+  by_cases hp : p <;> simp [hp]
+
 @[simp, miden_simp] theorem MidenState.withStack_frames (s : MidenState) (stk : List Felt) :
     (s.withStack stk).frames = s.frames := rfl
 
@@ -31,6 +38,11 @@ namespace MidenLean
 
 @[simp, miden_simp] theorem MidenState.writeMemory_advice (s : MidenState) (addr : Nat) (v : Felt) :
     (s.writeMemory addr v).advice = s.advice := rfl
+
+@[simp, miden_simp, miden_reflect_norm] theorem ite_some
+    {α : Type} (p : Prop) [Decidable p] (x y : α) :
+    (if p then some x else some y : Option α) = some (if p then x else y) := by
+  by_cases hp : p <;> simp [hp]
 
 -- writeMemory reasoning lemmas
 @[simp, miden_simp] theorem MidenState.writeMemory_overwrite (s : MidenState) (addr : Nat) (v w : Felt) :
@@ -57,6 +69,27 @@ theorem execWithEnv_append (env : ProcEnv) (fuel : Nat) (s : MidenState) (xs ys 
   | succ fuel' =>
       simp [execWithEnv, Procedure.ofOps]
 
+/-- Equality-oriented append decomposition for `execWithEnv`. -/
+theorem execWithEnv_append_eq
+    (env : ProcEnv) (fuel : Nat) (s : MidenState)
+    (xs ys : List Op) (s' s'' : MidenState)
+    (hexec₁ : execWithEnv env fuel s xs = some s')
+    (hexec₂ : execWithEnv env fuel s' ys = some s'') :
+    execWithEnv env fuel s (xs ++ ys) = some s'' := by
+  rw [execWithEnv_append, hexec₁]
+  simp [hexec₂]
+
+/-- Execute a singleton `.exec` op by jumping directly to the resolved callee.
+    This is the bridge used by theorem-backed call summaries in `miden_reflect`
+    and `miden_vcg`. -/
+theorem execWithEnv_singleton_exec_eq
+    (env : ProcEnv) (fuel : Nat) (s : MidenState)
+    (target : String) (callee : Procedure)
+    (hlookup : env target = some callee) :
+    execWithEnv env (fuel + 1) s [Op.inst (.exec target)] =
+      execWithEnv env fuel s callee := by
+  simp [execWithEnv, Procedure.ofOps, hlookup]
+
 /-- Execute a concatenation of op lists in two phases under a procedure environment. -/
 theorem execOpsWithEnv_append (env : ProcEnv) (fuel : Nat) (s : MidenState) (xs ys : List Op) :
     execOpsWithEnv env fuel s (xs ++ ys) = (do
@@ -70,6 +103,16 @@ theorem exec_append (fuel : Nat) (s : MidenState) (xs ys : List Op) :
       let s' ← exec fuel s xs
       exec fuel s' ys) := by
   simpa [exec] using execOpsWithEnv_append (env := fun _ => none) fuel s xs ys
+
+/-- Equality-oriented append decomposition for `exec`. -/
+theorem exec_append_eq
+    (fuel : Nat) (s : MidenState)
+    (xs ys : List Op) (s' s'' : MidenState)
+    (hexec₁ : exec fuel s xs = some s')
+    (hexec₂ : exec fuel s' ys = some s'') :
+    exec fuel s (xs ++ ys) = some s'' := by
+  simpa [exec] using
+    execWithEnv_append_eq (env := fun _ => none) fuel s xs ys s' s'' hexec₁ hexec₂
 
 /-- Rewrite `execWithEnv` on a Procedure whose body equals a given op list.
     Requires `numLocals = 0` so the RHS (via `List Op → Procedure` coercion) has
@@ -137,6 +180,26 @@ set_option maxHeartbeats 400000 in
     (if p then (1 : Felt) else 0) * (if q then (1 : Felt) else 0) =
     if (p && q) then (1 : Felt) else 0 := by
   cases p <;> cases q <;> simp
+
+@[simp, miden_simp, miden_reflect_norm] theorem Felt.ite_prop_eq_one_iff
+    (p : Prop) [Decidable p] :
+    (if p then (1 : Felt) else 0) = 1 ↔ p := by
+  by_cases hp : p <;> simp [hp]
+
+@[simp, miden_simp, miden_reflect_norm] theorem Felt.ite_prop_eq_zero_iff
+    (p : Prop) [Decidable p] :
+    (if p then (1 : Felt) else 0) = 0 ↔ ¬p := by
+  by_cases hp : p <;> simp [hp]
+
+@[simp, miden_simp, miden_reflect_norm] theorem Felt.val_ite_prop_eq_one_iff
+    (p : Prop) [Decidable p] :
+    (if p then (1 : Felt) else 0).val = 1 ↔ p := by
+  by_cases hp : p <;> simp [hp]
+
+@[simp, miden_simp, miden_reflect_norm] theorem Felt.val_ite_prop_eq_zero_iff
+    (p : Prop) [Decidable p] :
+    (if p then (1 : Felt) else 0).val = 0 ↔ ¬p := by
+  by_cases hp : p <;> simp [hp]
 
 -- u32OverflowingSub borrow lemma
 

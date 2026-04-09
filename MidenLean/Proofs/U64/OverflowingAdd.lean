@@ -1,5 +1,6 @@
 import MidenLean.Proofs.U64.Common
 import MidenLean.Proofs.Tactics
+import MidenLean.Symbolic.Tactic
 import MidenLean.Generated.U64
 
 namespace MidenLean.Proofs
@@ -41,6 +42,61 @@ theorem u64_overflowing_add_run
     felt_ofNat_val_lt _ (sum_div_2_32_lt_prime b_lo a_lo)
   rw [hcarry]
 
+theorem u64_overflowing_add_exec
+    (env : ProcEnv) (fuel : Nat)
+    (a_lo a_hi b_lo b_hi : Felt) (rest : List Felt) (s : MidenState)
+    (hs : s.stack = b_lo :: b_hi :: a_lo :: a_hi :: rest)
+    (ha_lo : a_lo.isU32 = true) (ha_hi : a_hi.isU32 = true)
+    (hb_lo : b_lo.isU32 = true) (hb_hi : b_hi.isU32 = true) :
+    execWithEnv env (fuel + 1) s Miden.Core.U64.overflowing_add =
+    some (s.withStack (
+      let lo_sum := b_lo.val + a_lo.val
+      let carry := lo_sum / 2 ^ 32
+      let hi_sum := a_hi.val + b_hi.val + carry
+      Felt.ofNat (hi_sum / 2 ^ 32) ::
+      Felt.ofNat (lo_sum % 2 ^ 32) ::
+      Felt.ofNat (hi_sum % 2 ^ 32) :: rest)) := by
+  obtain ⟨stk, mem, frames, adv⟩ := s
+  simp only [MidenState.withStack] at hs ⊢
+  subst hs
+  simpa using
+    u64_overflowing_add_run env fuel a_lo a_hi b_lo b_hi rest mem frames adv
+      ha_lo ha_hi hb_lo hb_hi
+
+private theorem u64_overflowing_add_call_exec
+    (fuel : Nat)
+    (a_lo a_hi b_lo b_hi : Felt) (rest : List Felt) (s : MidenState)
+    (hs : s.stack = b_lo :: b_hi :: a_lo :: a_hi :: rest)
+    (ha_lo : a_lo.isU32 = true) (ha_hi : a_hi.isU32 = true)
+    (hb_lo : b_lo.isU32 = true) (hb_hi : b_hi.isU32 = true) :
+    execWithEnv u64ProcEnv (fuel + 2) s [Op.inst (.exec "overflowing_add")] =
+    some (s.withStack (
+      Felt.ofNat ((a_hi.val + b_hi.val + (b_lo.val + a_lo.val) / 2 ^ 32) / 2 ^ 32) ::
+      Felt.ofNat ((b_lo.val + a_lo.val) % 2 ^ 32) ::
+      Felt.ofNat ((a_hi.val + b_hi.val + (b_lo.val + a_lo.val) / 2 ^ 32) % 2 ^ 32) ::
+      rest)) := by
+  miden_reflect
+  · repeat' constructor
+    · exact ha_lo
+    · exact ha_hi
+    · exact hb_lo
+    · exact hb_hi
+    · exact u32_div_2_32_isU32 b_lo a_lo hb_lo ha_lo
+  · have hcarry :
+        (Felt.ofNat ((b_lo.val + a_lo.val) / u32Max)).val =
+          (b_lo.val + a_lo.val) / u32Max := by
+      unfold u32Max
+      simpa using
+        (felt_ofNat_val_lt ((b_lo.val + a_lo.val) / 2 ^ 32)
+          (sum_div_2_32_lt_prime b_lo a_lo))
+    constructor
+    · simp [u32Max]
+    · constructor
+      · rw [hcarry]
+        simp [u32Max]
+      · rw [hcarry]
+        simp [u32Max]
+
 set_option maxHeartbeats 4000000 in
 /-- `u64::overflowing_add` computes addition of two u64 values with carry.
     Input stack:  [b_lo, b_hi, a_lo, a_hi] ++ rest
@@ -59,12 +115,9 @@ theorem u64_overflowing_add_raw
       Felt.ofNat (hi_sum / 2 ^ 32) ::
       Felt.ofNat (lo_sum % 2 ^ 32) ::
       Felt.ofNat (hi_sum % 2 ^ 32) :: rest)) := by
-  obtain ⟨stk, mem, frames, adv⟩ := s
-  simp only [MidenState.withStack] at hs ⊢
-  subst hs
   simpa [exec] using
-    u64_overflowing_add_run (fun _ => none) 9 a_lo a_hi b_lo b_hi rest mem frames adv
-      ha_lo ha_hi hb_lo hb_hi
+    u64_overflowing_add_exec (env := fun _ => none) (fuel := 9)
+      a_lo a_hi b_lo b_hi rest s hs ha_lo ha_hi hb_lo hb_hi
 
 /-- `u64::overflowing_add` computes `a + b` with overflow detection.
     Input stack:  [b.lo, b.hi, a.lo, a.hi] ++ rest

@@ -19,6 +19,7 @@ The project has two components:
 │   ├── Instruction.lean            Inductive type with ~130 MASM instructions
 │   ├── Op.lean                     Control flow and procedure call operations
 │   ├── Semantics.lean              Executable semantics for MASM instructions and procedures
+│   ├── Symbolic/                   Symbolic executor, soundness lemmas, and reflection tactics
 │   ├── Generated/                  Auto-generated MASM procedure definitions (do not edit)
 │   └── Proofs/
 │       ├── Helpers.lean            Reusable helper lemmas for state projections and boolean normalization
@@ -43,7 +44,7 @@ Defined in `State.lean` as a structure with four fields:
 | -------- | ------------ | ----------------------------------- |
 | `stack`  | `List Felt`  | Operand stack (head = top)          |
 | `memory` | `Nat → Felt` | Random-access memory, 0-initialized |
-| `locals` | `Nat → Felt` | Procedure-local memory slots        |
+| `frames` | `List LocalFrame` | Local-frame stack for procedure locals |
 | `advice` | `List Felt`  | Nondeterministic advice stack       |
 
 Memory is modeled as a total function `Nat → Felt` rather than a finite map. This is standard in machine code formalizations (LNSym, eth-isabelle, Cairo). Writes produce a new function via pointwise update; `simp` reduces reads-after-writes trivially. Out-of-bounds addresses (≥ 2^32) cause the semantics to return `none`.
@@ -52,13 +53,33 @@ Each MASM instruction is implemented by a dedicated handler function (e.g., `exe
 
 The VM executor (defined by `execInstruction` and `execWithEnv`) returns `Option MidenState`. Failure conditions (failed assertions, division by zero, stack underflow, out-of-bounds memory) produce `none`. A correctness theorem of the form `exec fuel s ops = some s'` proves both that the procedure terminates within the fuel budget and that the result state matches the specification. `execWithEnv` takes a `fuel` parameter that bounds recursion depth. This ensures structural termination without complex well-founded arguments.
 
-`ProcEnv` (`String → Option (List Op)`) maps procedure names to their bodies. `exec` uses an empty environment (no inter-procedure calls); `execWithProcs` resolves `exec` instructions via the environment. Currently all proven procedures are self-contained (no `exec` instructions), so the empty environment suffices.
+`ProcEnv` (`String → Option Procedure`) maps procedure names to procedures. `exec` uses an empty environment (no inter-procedure calls); `execWithProcs` resolves `exec` instructions via the environment. For manual proofs, per-module proof files typically define concrete environments such as `u64ProcEnv` or `u128ProcEnv` for call-bearing procedures.
 
 ## Proof Architecture
 
-A typical correctness proof follows this structure:
+The project now has two complementary proof styles:
 
-1. **Destructure** the state: `obtain ⟨stk, mem, locs, adv⟩ := s`
+1. **Manual step-by-step execution proofs** over `execWithEnv`, using step lemmas and chunk decomposition.
+2. **Symbolic-execution-based reflection proofs**, where a symbolic executor computes the effect of a straight-line block and a soundness theorem transports that symbolic result back to the concrete semantics.
+
+Both styles prove the same semantic object: an equation in the executable semantics. The symbolic path exists to scale proof generation across larger parts of the core library.
+
+### Theorem Layout
+
+The target theorem layout for each verified procedure is:
+
+- **`*_exec`**: a low-level, fuel-parameterized execution theorem over `execWithEnv` (or `exec` for empty environments). This theorem states the concrete before/after stack shape, and mentions memory or frame-relevant state only when the procedure externally changes them.
+- **`*_correct`**: a high-level semantic corollary derived from `*_exec`, stated in terms of the intended mathematical operation on the corresponding Lean model type (`U64`, `U128`, words, etc.).
+
+Historically many files use a `*_raw` name for the low-level theorem. Those theorems play the same role as `*_exec` and are being migrated incrementally toward the new naming/layout.
+
+The `_exec` layer is also the intended theorem-backed call-summary interface for proof automation: when a caller reaches a singleton `.exec "foo"` leaf, automation should prefer `foo_exec` over recomputing a large symbolic summary from the callee body.
+
+### Manual Proof Method
+
+A typical manual correctness proof follows this structure:
+
+1. **Destructure** the state: `obtain ⟨stk, mem, frames, adv⟩ := s`
 2. **Unfold** the procedure and execution machinery: `unfold exec ProcName execWithEnv`
 3. **Rewrite to monadic form**: `change (do let s' ← execInstruction ...; ...)`
 4. **Step through** instruction by instruction: `rw [stepFoo]; miden_bind` or use `miden_step`
@@ -77,11 +98,52 @@ Tactic macros automate the step-through pattern:
 
 These are useful for straightforward linear instruction sequences. Proofs involving branching, loops, or hypotheses (e.g., `isU32` preconditions for bitwise operations) still require manual intervention.
 
+### Symbolic Execution and Reflection
+
+The symbolic proof stack lives under `MidenLean/Symbolic/`:
+
+- `Expr.lean` defines symbolic expressions, boolean/connective combinators, and evaluation.
+- `State.lean` and `Exec.lean` define symbolic states, preconditions, and symbolic execution for instructions and straight-line op lists.
+- `Soundness.lean` proves that symbolic execution is sound with respect to `execWithEnv`.
+- `Reflect.lean` packages this into tactic-facing reflection theorems for fully concrete initial states.
+- `Tactic.lean` implements `miden_reflect` and `miden_vcg`.
+
+The reflection workflow is:
+
+1. Recognize a concrete `exec` / `execWithEnv` goal.
+2. Extract the relevant stack prefix and concrete state projections.
+3. Run symbolic execution on the procedure body.
+4. Use the soundness theorem to turn the symbolic result into a concrete execution equation.
+5. Normalize the reflected result back to the user-facing stack equation.
+
+`miden_reflect` is the leaf closer for straight-line bodies. It supports:
+
+- plain instruction-only blocks
+- call-bearing straight-line blocks via `ReflectEnv`
+- theorem-shaped goals over a concrete `s : MidenState`
+
+`miden_vcg` is the control-flow decomposer. It currently supports:
+
+- `ifElse`
+- concrete-count `repeat`
+
+and delegates straight-line leaves back to `miden_reflect`. `whileTrue` is intentionally still out of scope for automatic proofs.
+
+### Call Summaries
+
+There are two call-summary mechanisms:
+
+1. **Symbolic fallback**: `ReflectEnv.ofConcrete` builds a proof-carrying symbolic environment from a reducible concrete `ProcEnv`, and `procSpec` recursively summarizes callees symbolically.
+2. **Theorem-backed overrides**: for singleton `.exec` leaves, `miden_reflect` can bridge to a direct callee theorem named by convention as `<module>_<proc>_exec` (for example, `u128_wrapping_mul_exec`) and prefer that theorem over symbolic recomputation.
+
+The theorem-backed path is intended for expensive helpers such as multiplication kernels, where a previously proved `_exec` theorem is far cheaper and more stable than rebuilding the summary from the whole callee body inside every caller proof.
+
 ### Helper Lemmas (`Helpers.lean`)
 
 `@[simp]`-tagged lemmas for:
 
 - `MidenState.withStack` projections (stack, memory, locals, advice)
+- local-frame and read-after-write simplification
 - `Felt.isBool` on `if p then 1 else 0` expressions
 - `Felt.ite_mul_ite` for boolean AND reduction
 
@@ -99,7 +161,12 @@ Following Lean 4 / Mathlib style:
 | Namespaces        | UpperCamelCase | `MidenLean`, `MidenLean.StepLemmas`               |
 | Generated procs   | dot-separated  | `Miden.Core.Math.U64.eq`, `Miden.Core.Word.testz` |
 
-Procedure-level correctness theorems use `snake_case` with a `_correct` suffix to match the MASM procedure name (e.g., `u64_wrapping_sub_correct` for `u64::wrapping_sub`).
+Procedure-level theorem names use `snake_case` matching the MASM procedure name:
+
+- low-level execution theorems: `u64_wrapping_sub_exec`
+- high-level semantic theorems: `u64_wrapping_sub_correct`
+
+Legacy low-level theorems with `_raw` suffix remain in some files during the transition to the `_exec` layout.
 
 ## References
 

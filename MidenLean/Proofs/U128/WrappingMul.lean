@@ -204,6 +204,31 @@ theorem u128_wrapping_mul_run
     ha0 ha1 ha2 ha3 hb0 hb1 hb2 hb3]
 
 set_option maxHeartbeats 12000000 in
+/-- Low-level execution theorem for `u128::wrapping_mul`.
+    This is the preferred theorem-backed summary shape for reflective callers. -/
+theorem u128_wrapping_mul_exec
+    (env : ProcEnv) (fuel : Nat)
+    (a0 a1 a2 a3 b0 b1 b2 b3 : Felt) (rest : List Felt) (s : MidenState)
+    (hs : s.stack = b0 :: b1 :: b2 :: b3 :: a0 :: a1 :: a2 :: a3 :: rest)
+    (ha0 : a0.isU32 = true) (ha1 : a1.isU32 = true)
+    (ha2 : a2.isU32 = true) (ha3 : a3.isU32 = true)
+    (hb0 : b0.isU32 = true) (hb1 : b1.isU32 = true)
+    (hb2 : b2.isU32 = true) (hb3 : b3.isU32 = true) :
+    execWithEnv env (fuel + 1) s Miden.Core.U128.wrapping_mul =
+    some (s.withStack (
+      u128MulC0 a0 b0 ::
+      u128MulC1 a0 a1 b0 b1 ::
+      u128MulC2 a0 a1 a2 b0 b1 b2 ::
+      u128MulC3 a0 a1 a2 a3 b0 b1 b2 b3 ::
+      rest)) := by
+  obtain ⟨stk, mem, frames, adv⟩ := s
+  simp only [MidenState.withStack] at hs ⊢
+  subst hs
+  simpa using
+    u128_wrapping_mul_run env fuel a0 a1 a2 a3 b0 b1 b2 b3 rest mem frames adv
+      ha0 ha1 ha2 ha3 hb0 hb1 hb2 hb3
+
+set_option maxHeartbeats 12000000 in
 /-- `u128::wrapping_mul` computes the low 128 bits of the product of two 128-bit values (raw limb version).
     Input stack:  [b0, b1, b2, b3, a0, a1, a2, a3] ++ rest
     Output stack: [c0, c1, c2, c3] ++ rest
@@ -222,11 +247,9 @@ theorem u128_wrapping_mul_raw
       u128MulC2 a0 a1 a2 b0 b1 b2 ::
       u128MulC3 a0 a1 a2 a3 b0 b1 b2 b3 ::
       rest)) := by
-  obtain ⟨stk, mem, frames, adv⟩ := s
-  simp only [MidenState.withStack] at hs ⊢
-  subst hs
   simpa [exec] using
-    u128_wrapping_mul_run (fun _ => none) 64 a0 a1 a2 a3 b0 b1 b2 b3 rest mem frames adv
+    u128_wrapping_mul_exec (env := fun _ => none) (fuel := 64)
+      a0 a1 a2 a3 b0 b1 b2 b3 rest s hs
       ha0 ha1 ha2 ha3 hb0 hb1 hb2 hb3
 
 set_option maxHeartbeats 12000000 in
