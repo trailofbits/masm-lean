@@ -1,6 +1,7 @@
 import MidenLean.Proofs.U64.Common
 import MidenLean.Proofs.U64.OverflowingAdd
 import MidenLean.Proofs.Tactics
+import MidenLean.Symbolic.Tactic
 import MidenLean.Generated.U64
 
 namespace MidenLean.Proofs
@@ -26,13 +27,22 @@ theorem u64_wrapping_add_raw
       let hi_sum := a_hi.val + b_hi.val + carry
       Felt.ofNat (lo_sum % 2 ^ 32) ::
       Felt.ofNat (hi_sum % 2 ^ 32) :: rest)) := by
-  obtain ⟨stk, mem, frames, adv⟩ := s
-  simp only [MidenState.withStack] at hs ⊢
-  subst hs
-  unfold Miden.Core.U64.wrapping_add execWithEnv
-  simp only [List.foldlM, u64ProcEnv]
-  dsimp only [bind, Bind.bind, Option.bind]
-  miden_exec u64_overflowing_add_run
+  miden_reflect
+  repeat first
+  | assumption
+  | constructor
+  · exact u32_div_2_32_isU32 b_lo a_lo hb_lo ha_lo
+  · constructor
+    · simp [u32Max]
+    · have hcarry :
+        (Felt.ofNat ((b_lo.val + a_lo.val) / 2 ^ 32)).val =
+          (b_lo.val + a_lo.val) / 2 ^ 32 := by
+        exact felt_ofNat_val_lt _ (sum_div_2_32_lt_prime b_lo a_lo)
+      have hcarry' :
+          (Felt.ofNat ((b_lo.val + a_lo.val) / 4294967296)).val =
+            (b_lo.val + a_lo.val) / 4294967296 := by
+        simpa [u32Max] using hcarry
+      simp [u32Max, hcarry']
 
 /-- `u64::wrapping_add` computes `(a + b) mod 2^64`.
     Input stack:  [b.lo, b.hi, a.lo, a.hi] ++ rest

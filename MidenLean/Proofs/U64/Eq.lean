@@ -1,12 +1,11 @@
 import MidenLean.Proofs.U64.Common
 import MidenLean.Proofs.Tactics
+import MidenLean.Symbolic.Tactic
 import MidenLean.Generated.U64
 
 namespace MidenLean.Proofs
 
 open MidenLean
-open MidenLean.StepLemmas
-open MidenLean.Tactics
 
 set_option maxHeartbeats 4000000 in
 /-- `u64::eq` tests equality of two u64 values, limb by limb.
@@ -19,23 +18,10 @@ theorem u64_eq_raw (b_lo b_hi a_lo a_hi : Felt) (rest : List Felt) (s : MidenSta
     some (s.withStack (
       (if (b_lo == a_lo) && (b_hi == a_hi)
        then (1 : Felt) else 0) :: rest)) := by
-  obtain ⟨stk, mem, frames, adv⟩ := s
-  simp only [MidenState.withStack] at hs ⊢
-  subst hs
-  unfold exec Miden.Core.U64.eq execWithEnv
-  simp only [List.foldlM]
-  change (do
-    let s' ← execInstruction ⟨b_lo :: b_hi :: a_lo :: a_hi :: rest, mem, frames, adv⟩ (.movup 2)
-    let s' ← execInstruction s' (.eq)
-    let s' ← execInstruction s' (.swap 2)
-    let s' ← execInstruction s' (.eq)
-    let s' ← execInstruction s' Instruction.and
-    pure s') = _
-  miden_movup
-  rw [stepEq]; miden_bind
-  miden_swap
-  rw [stepEq]; miden_bind
-  rw [stepAndIte]; dsimp only [bind, Bind.bind, Option.bind, pure, Pure.pure]
+  miden_reflect
+  · constructor
+    · exact (Classical.em (b_lo = a_lo)).symm
+    · exact (Classical.em (b_hi = a_hi)).symm
 
 /-- `u64::eq` tests equality of two u64 values.
     Input stack:  [b.lo, b.hi, a.lo, a.hi] ++ rest

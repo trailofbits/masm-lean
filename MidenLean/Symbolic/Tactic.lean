@@ -6,10 +6,11 @@ import MidenLean.Proofs.ControlFlow
 
 ## `miden_reflect`
 
-Automates reflection for straight-line basic-block proofs.
+Automates reflection for straight-line procedure proofs.
 Supported goals are `exec` / `execWithEnv` equations whose procedure body is a
-list of `.inst` ops only. The tactic does not handle control flow, `.exec`, or
-dynamic-address memory instructions.
+straight-line `List Op`. Control flow is still rejected. Procedures with
+`.exec` calls are supported through `miden_reflect using Γ`, where `Γ` is a
+`ReflectEnv` carrying symbolic callee summaries and soundness proofs.
 
 Given a goal `exec fuel ⟨stack, mem, frames, adv⟩ proc = some ⟨result, ...⟩`
 or `execWithEnv env fuel ⟨stack, mem, frames, adv⟩ proc = some ⟨result, ...⟩`,
@@ -38,27 +39,24 @@ namespace MidenLean.Symbolic.Tactic
 
 open Lean Elab Tactic Meta PrettyPrinter
 
-private inductive ReflectPath where
-  | zero
-  | locals (k : Nat)
-
 /-- Goal data extracted from an `exec` / `execWithEnv` equation. -/
 private structure ReflectGoal where
   lhs : Lean.Expr
   rhs : Lean.Expr
   envExpr : Lean.Expr
   fuelExpr : Lean.Expr
+  stateExpr : Lean.Expr
+  procExpr : Lean.Expr
   stackExpr : Lean.Expr
   memExpr : Lean.Expr
   framesExpr : Lean.Expr
   advExpr : Lean.Expr
   stackElems : Array Lean.Expr
   restExpr : Lean.Expr
-  nameExpr : Lean.Expr
-  numLocalsExpr : Lean.Expr
   bodyExpr : Lean.Expr
-  instExprs : Array Lean.Expr
-  path : ReflectPath
+  opExprs : Array Lean.Expr
+  hasExec : Bool
+  useStateWrapper : Bool
 
 /-- Extract consecutive `List.cons` elements from a `Lean.Expr`.
     Returns the head elements and the tail (first non-cons subexpression). -/
@@ -70,33 +68,37 @@ private partial def extractCons (e : Lean.Expr) : MetaM (Array Lean.Expr × Lean
     return (#[hd] ++ rest, tail)
   | _ => return (#[], e)
 
-/-- Extract `Instruction` values from a `List Op` expression that consists entirely of
-    `Op.inst i` constructors. Returns `none` if any op is not `Op.inst`. -/
-private partial def extractInsts (e : Lean.Expr) : MetaM (Option (Array Lean.Expr)) := do
+/-- Extract `Op` values from a concrete `List Op` expression. -/
+private partial def extractOps (e : Lean.Expr) : MetaM (Option (Array Lean.Expr)) := do
   let e ← whnf e
   match_expr e with
   | List.cons _ hd tl =>
-    let hdW ← whnf hd
-    match_expr hdW with
-    | MidenLean.Op.inst inst =>
-      let some rest ← extractInsts tl | return none
-      return some (#[inst] ++ rest)
-    | _ => return none
+    let some rest ← extractOps tl | return none
+    return some (#[hd] ++ rest)
   | List.nil _ => return some #[]
   | _ => return none
 
-/-- Check that every instruction in the array is not an exec instruction.
-    Returns the index and pretty-printed name of the first exec instruction,
-    or `none` if all pass. -/
-private def findExecInst (instExprs : Array Lean.Expr) : MetaM (Option (Nat × Format)) := do
-  for i in [:instExprs.size] do
-    let e := instExprs[i]!
-    let app := Lean.mkApp (Lean.mkConst ``MidenLean.Symbolic.isExecInst) e
-    let reduced ← whnf app
-    if reduced.isConstOf ``Bool.true then
-      let fmt ← Meta.ppExpr e
-      return some (i, fmt)
-  return none
+/-- Check whether an op is an `exec` call. -/
+private def opHasExec (opExpr : Lean.Expr) : MetaM Bool := do
+  let opExpr ← whnf opExpr
+  match_expr opExpr with
+  | MidenLean.Op.inst inst =>
+      let inst ← whnf inst
+      match_expr inst with
+      | MidenLean.Instruction.exec _ => pure true
+      | _ => pure false
+  | _ => pure false
+
+/-- Extract the `.exec` target from an op, if any. -/
+private def execTargetExpr? (opExpr : Lean.Expr) : MetaM (Option Lean.Expr) := do
+  let opExpr ← whnf opExpr
+  match_expr opExpr with
+  | MidenLean.Op.inst inst =>
+      let inst ← whnf inst
+      match_expr inst with
+      | MidenLean.Instruction.exec target => pure (some target)
+      | _ => pure none
+  | _ => pure none
 
 /-- Build a concrete `List` expression from already elaborated elements. -/
 private def mkListExpr (elemTy : Lean.Expr) (xs : List Lean.Expr) : MetaM Lean.Expr := do
@@ -107,6 +109,27 @@ private def mkListExpr (elemTy : Lean.Expr) (xs : List Lean.Expr) : MetaM Lean.E
 /-- Check if a Lean `Expr` is a `Nat` literal equal to zero. -/
 private def isNatZero (e : Lean.Expr) : Bool :=
   e.numeral? == some 0 || e.isConstOf ``Nat.zero
+
+/-- Check whether an expression has type `List α` for the given element type. -/
+private def hasListTypeOf (e : Lean.Expr) (elemTyName : Lean.Name) : MetaM Bool := do
+  let ty ← whnf (← inferType e)
+  pure <|
+    ty.isAppOfArity ``List 1 &&
+    (ty.getArg! 0).isConstOf elemTyName
+
+/-- Find a local hypothesis that decomposes `state.stack`. -/
+private def findStackDecomposition (stateExpr : Lean.Expr) : TacticM (Array Lean.Expr × Lean.Expr) := do
+  let stackProj := Lean.mkProj ``MidenLean.MidenState 0 stateExpr
+  for localDecl in (← getLCtx) do
+    unless localDecl.isImplementationDetail do
+      match localDecl.type.eq? with
+      | some (_, lhs, rhs) =>
+          if ← isDefEq lhs stackProj then
+            return ← extractCons rhs
+          if ← isDefEq rhs stackProj then
+            return ← extractCons lhs
+      | none => pure ()
+  throwError "miden_reflect: could not find a stack decomposition hypothesis for `state.stack`"
 
 /-- Run a tactic against a single goal and return the remaining goals. -/
 private def runOnGoal (goal : MVarId) (stx : TSyntax `tactic) : TacticM (List MVarId) := do
@@ -133,6 +156,8 @@ private def cleanupGoals (goals : List MVarId) : TacticM (List MVarId) := do
       let rem ← runOnGoal goal (← `(tactic|
         try
           simp [miden_reflect_norm,
+                and_assoc, and_left_comm, and_comm,
+                MidenLean.MidenState.withStack,
                 MidenLean.Symbolic.Precondition.holds,
                 MidenLean.Symbolic.Expr.eval,
                 MidenLean.Symbolic.Reflect.concreteAssignment,
@@ -144,23 +169,33 @@ private def cleanupGoals (goals : List MVarId) : TacticM (List MVarId) := do
 
 /-- Close the bridge between the tactic's canonical reflected target and the user goal. -/
 private def closeBridgeGoal (goal : MVarId) : TacticM Unit := do
-  closeGoalWith goal "bridge goal" (← `(tactic|
-    first
-    | rfl
-    | simp [miden_reflect_norm,
-            MidenLean.Symbolic.Expr.eval,
-            MidenLean.Symbolic.Reflect.concreteAssignment,
-            MidenLean.Symbolic.Reflect.concreteState,
-            MidenLean.Symbolic.Reflect.concreteStateWithLocals,
-            MidenLean.LocalFrame.localAddr]
-    | apply congrArg some
-      ext addr <;>
-      simp [miden_reflect_norm,
-            MidenLean.Symbolic.Expr.eval,
-            MidenLean.Symbolic.Reflect.concreteAssignment,
-            MidenLean.Symbolic.Reflect.concreteState,
-            MidenLean.Symbolic.Reflect.concreteStateWithLocals,
-            MidenLean.LocalFrame.localAddr]))
+  unless ← goal.isAssigned do
+    let _ ←
+      try
+        runOnGoal goal (← `(tactic|
+          first
+          | rfl
+          | simp [miden_reflect_norm,
+                  and_assoc, and_left_comm, and_comm,
+                  MidenLean.MidenState.withStack,
+                  MidenLean.Symbolic.Expr.eval,
+                  MidenLean.Symbolic.Reflect.concreteAssignment,
+                  MidenLean.Symbolic.Reflect.concreteState,
+                  MidenLean.Symbolic.Reflect.concreteStateWithLocals,
+                  MidenLean.LocalFrame.localAddr]
+          | apply congrArg some
+            ext addr <;>
+            simp [miden_reflect_norm,
+                  and_assoc, and_left_comm, and_comm,
+                  MidenLean.MidenState.withStack,
+                  MidenLean.Symbolic.Expr.eval,
+                  MidenLean.Symbolic.Reflect.concreteAssignment,
+                  MidenLean.Symbolic.Reflect.concreteState,
+                  MidenLean.Symbolic.Reflect.concreteStateWithLocals,
+                  MidenLean.LocalFrame.localAddr]))
+      catch _ =>
+        pure [goal]
+    pure ()
 
 /-- Return a user-facing rejection reason for instructions outside the
     `miden_reflect` basic-block support boundary. -/
@@ -186,6 +221,32 @@ private def unsupportedInstReason? (instExpr : Lean.Expr) : MetaM (Option String
       pure <| some "dynamic-address memory instruction `memStorewLe` is unsupported. \
         Use manual chunking or extend the symbolic executor first."
   | _ => pure none
+
+/-- Return a user-facing rejection reason for ops outside the current
+    `miden_reflect` support boundary. -/
+private def unsupportedOpReason? (opExpr : Lean.Expr) : MetaM (Option String) := do
+  let opExpr ← whnf opExpr
+  match_expr opExpr with
+  | MidenLean.Op.inst inst =>
+      unsupportedInstReason? inst
+  | MidenLean.Op.ifElse _ _ =>
+      pure <| some "control-flow op `ifElse` is unsupported. Use `miden_vcg` or manual chunking."
+  | MidenLean.Op.repeat _ _ =>
+      pure <| some "control-flow op `repeat` is unsupported. Use `miden_vcg` or manual chunking."
+  | MidenLean.Op.whileTrue _ =>
+      pure <| some "control-flow op `whileTrue` is unsupported. Use `miden_vcg` or manual chunking."
+  | _ => pure none
+
+/-- If a direct `.exec` target definitely reduces to `none` in the concrete
+    environment, return that target for a user-facing error. -/
+private def firstMissingConcreteCall?
+    (envExpr : Lean.Expr) (opExprs : Array Lean.Expr) : MetaM (Option Lean.Expr) := do
+  for i in [:opExprs.size] do
+    if let some targetExpr ← execTargetExpr? opExprs[i]! then
+      let reduced ← whnf (Lean.mkApp envExpr targetExpr)
+      if reduced.isAppOfArity ``Option.none 1 then
+        return some targetExpr
+  return none
 
 /-- Parse the current goal as a supported `exec` / `execWithEnv` equation. -/
 private def parseReflectGoal : TacticM ReflectGoal := do
@@ -217,76 +278,97 @@ private def parseReflectGoal : TacticM ReflectGoal := do
   let procExpr := lhs.getArg! 3
 
   let stateWhnf ← whnf stateExpr
-  unless stateWhnf.getAppNumArgs == 4 do
-    throwError "miden_reflect: state should be ⟨stack, mem, frames, adv⟩"
-  let stackExpr := stateWhnf.getArg! 0
-  let memExpr := stateWhnf.getArg! 1
-  let framesExpr := stateWhnf.getArg! 2
-  let advExpr := stateWhnf.getArg! 3
-
-  let (stackElems, restExpr) ← extractCons stackExpr
+  let (stackExpr, memExpr, framesExpr, advExpr, stackElems, restExpr, useStateWrapper) ←
+    if stateWhnf.getAppNumArgs == 4 then
+      let stackExpr := stateWhnf.getArg! 0
+      let memExpr := stateWhnf.getArg! 1
+      let framesExpr := stateWhnf.getArg! 2
+      let advExpr := stateWhnf.getArg! 3
+      let (stackElems, restExpr) ← extractCons stackExpr
+      pure (stackExpr, memExpr, framesExpr, advExpr, stackElems, restExpr, false)
+    else
+      let stackExpr := Lean.mkProj ``MidenLean.MidenState 0 stateExpr
+      let memExpr := Lean.mkProj ``MidenLean.MidenState 1 stateExpr
+      let framesExpr := Lean.mkProj ``MidenLean.MidenState 2 stateExpr
+      let advExpr := Lean.mkProj ``MidenLean.MidenState 3 stateExpr
+      let (stackElems, restExpr) ← findStackDecomposition stateExpr
+      pure (stackExpr, memExpr, framesExpr, advExpr, stackElems, restExpr, true)
 
   let procWhnf ← whnf procExpr
   unless procWhnf.getAppNumArgs == 3 do
     throwError "miden_reflect: could not reduce procedure to ⟨name, numLocals, body⟩"
-  let nameExpr := procWhnf.getArg! 0
-  let numLocalsExpr := procWhnf.getArg! 1
   let bodyExpr := procWhnf.getArg! 2
-  let numLocalsWhnf ← whnf numLocalsExpr
-
-  let some instExprs ← extractInsts bodyExpr
-    | throwError "miden_reflect: procedure body contains non-instruction ops (only basic blocks supported)"
-
-  if let some (idx, instFmt) ← findExecInst instExprs then
-    throwError "miden_reflect: instruction {instFmt} at position {idx} is an exec call. \
-      Use `miden_vcg` or manual chunking for procedures with exec calls."
-
-  for i in [:instExprs.size] do
-    if let some reason ← unsupportedInstReason? instExprs[i]! then
-      let fmt ← Meta.ppExpr instExprs[i]!
-      throwError "miden_reflect: instruction {fmt} at position {i} is outside the supported \
-        basic-block fragment: {reason}"
-
-  let path ←
-    if isNatZero numLocalsWhnf then
-      pure ReflectPath.zero
-    else
-      match numLocalsWhnf.numeral? with
-      | some (Nat.succ k) => pure (.locals k)
-      | _ =>
-        throwError "miden_reflect: numLocals must reduce to a Nat literal"
+  let some opExprs ← extractOps bodyExpr
+    | throwError "miden_reflect: could not reduce procedure body to a concrete op list"
+  let mut hasExec := false
+  for i in [:opExprs.size] do
+    if let some reason ← unsupportedOpReason? opExprs[i]! then
+      let fmt ← Meta.ppExpr opExprs[i]!
+      throwError "miden_reflect: op {fmt} at position {i} is outside the supported \
+        straight-line fragment: {reason}"
+    if ← opHasExec opExprs[i]! then
+      hasExec := true
 
   pure {
-    lhs, rhs, envExpr, fuelExpr,
+    lhs, rhs, envExpr, fuelExpr, stateExpr, procExpr,
     stackExpr, memExpr, framesExpr, advExpr,
     stackElems, restExpr,
-    nameExpr, numLocalsExpr, bodyExpr, instExprs, path
+    bodyExpr, opExprs, hasExec, useStateWrapper
   }
 
 /-- Build the wrapper theorem application used by `miden_reflect`. -/
-private def buildReflectTheoremExpr (goal : ReflectGoal) : TacticM Lean.Expr := do
-  let instTy := Lean.mkConst ``MidenLean.Instruction
-  let instsExpr ← mkListExpr instTy goal.instExprs.toList
+private def buildReflectTheoremExpr
+    (goal : ReflectGoal) (gammaExpr? : Option Lean.Expr) : TacticM Lean.Expr := do
   let stackPrefixExpr ← mkListExpr (Lean.mkConst ``MidenLean.Felt) goal.stackElems.toList
   let resultExpr ← mkFreshExprMVar (Lean.mkConst ``MidenLean.Symbolic.BlockResult)
-  match goal.path with
-  | .zero =>
-    pure <|
-      Lean.mkAppN
-        (Lean.mkConst ``MidenLean.Symbolic.Reflect.reflect_with_env_zero_concrete)
-        #[instsExpr, goal.nameExpr, goal.bodyExpr, goal.envExpr, goal.fuelExpr,
-          stackPrefixExpr, goal.restExpr, goal.memExpr, goal.framesExpr, goal.advExpr, resultExpr]
-  | .locals k =>
-    pure <|
-      Lean.mkAppN
-        (Lean.mkConst ``MidenLean.Symbolic.Reflect.reflect_with_env_locals_concrete)
-        #[instsExpr, goal.nameExpr, Lean.mkRawNatLit k, goal.bodyExpr, goal.envExpr, goal.fuelExpr,
-          stackPrefixExpr, goal.restExpr, goal.memExpr, goal.framesExpr, goal.advExpr, resultExpr]
+  match gammaExpr?, goal.useStateWrapper with
+  | some gammaExpr, true =>
+      pure <| Lean.mkAppN
+        (Lean.mkConst ``MidenLean.Symbolic.Reflect.reflect_proc_state_using)
+        #[goal.procExpr, goal.envExpr, goal.fuelExpr, gammaExpr,
+          goal.stateExpr, stackPrefixExpr, goal.restExpr, resultExpr]
+  | some gammaExpr, false =>
+      pure <| Lean.mkAppN
+        (Lean.mkConst ``MidenLean.Symbolic.Reflect.reflect_proc_stack_using)
+        #[goal.procExpr, goal.envExpr, goal.fuelExpr, gammaExpr,
+          goal.stackExpr, stackPrefixExpr, goal.restExpr,
+          goal.memExpr, goal.framesExpr, goal.advExpr, resultExpr]
+  | none, true =>
+      pure <| Lean.mkAppN
+        (Lean.mkConst ``MidenLean.Symbolic.Reflect.reflect_proc_state)
+        #[goal.procExpr, goal.envExpr, goal.fuelExpr,
+          goal.stateExpr, stackPrefixExpr, goal.restExpr, resultExpr]
+  | none, false =>
+      pure <| Lean.mkAppN
+        (Lean.mkConst ``MidenLean.Symbolic.Reflect.reflect_proc_stack)
+        #[goal.procExpr, goal.envExpr, goal.fuelExpr,
+          goal.stackExpr, stackPrefixExpr, goal.restExpr,
+          goal.memExpr, goal.framesExpr, goal.advExpr, resultExpr]
 
-elab "miden_reflect" : tactic => do
+syntax "miden_reflect" (" using " term)? : tactic
+
+elab_rules : tactic
+  | `(tactic| miden_reflect $[using $gammaTerm]?) => do
+  let gammaExpr? ← match gammaTerm with
+    | some stx => some <$> Lean.Elab.Term.elabTerm stx none
+    | none => pure none
   let reflectGoal ← parseReflectGoal
+  let gammaExpr? ←
+    if let some gammaExpr := gammaExpr? then
+      pure (some gammaExpr)
+    else if reflectGoal.hasExec then
+      if let some targetExpr ← firstMissingConcreteCall? reflectGoal.envExpr reflectGoal.opExprs then
+        let fmt ← Meta.ppExpr targetExpr
+        throwError "miden_reflect: `.exec` target {fmt} is missing from the concrete `ProcEnv`. \
+          Use `execWithEnv` with a reducible environment or pass `using Γ`."
+      let minFuelExpr := Lean.mkAppN (Lean.mkConst ``Nat.sub) #[reflectGoal.fuelExpr, Lean.mkNatLit 1]
+      pure <| some <|
+        Lean.mkAppN (Lean.mkConst ``MidenLean.Symbolic.Reflect.ReflectEnv.ofConcrete)
+          #[reflectGoal.envExpr, minFuelExpr]
+    else
+      pure none
   let mainGoal ← getMainGoal
-  let theoremExpr ← buildReflectTheoremExpr reflectGoal
+  let theoremExpr ← buildReflectTheoremExpr reflectGoal gammaExpr?
 
   -- Insert a canonical middle term before theorem application.
   let targetTy ← inferType reflectGoal.lhs
@@ -296,8 +378,8 @@ elab "miden_reflect" : tactic => do
   let goals ←
     try
       mainGoal.apply eqTransExpr
-    catch e =>
-      throwError "miden_reflect: failed to insert canonical target:{indentD e.toMessageData}"
+    catch _ =>
+      throwError "miden_reflect: failed to insert canonical target"
   let mut eqGoals : List MVarId := []
   let mut auxGoals : List MVarId := []
   for goal in goals do
@@ -313,11 +395,10 @@ elab "miden_reflect" : tactic => do
   let theoremGoals ←
     try
       firstGoal.apply theoremExpr
-    catch e =>
-      throwError "miden_reflect: failed to apply reflection wrapper:{indentD e.toMessageData}"
-  let mut hopsGoal? : Option MVarId := none
+    catch _ =>
+      throwError "miden_reflect: failed to apply reflection wrapper"
+  let mut hstackGoal? : Option MVarId := none
   let mut hfuelGoal? : Option MVarId := none
-  let mut hnoexecGoal? : Option MVarId := none
   let mut hresultGoal? : Option MVarId := none
   let mut hprecondsGoal? : Option MVarId := none
   let mut auxTheoremGoals : List MVarId := []
@@ -327,12 +408,13 @@ elab "miden_reflect" : tactic => do
       if ← isProp ty then
         match ty.eq? with
         | some (_, lhs, rhs) =>
-          if lhs.isAppOf ``MidenLean.Symbolic.execBlock then
+          if (← hasListTypeOf lhs ``MidenLean.Felt) || (← hasListTypeOf rhs ``MidenLean.Felt) then
+            hstackGoal? := some goal
+          else if lhs.isAppOf ``MidenLean.Symbolic.Reflect.execProcedure
+              || rhs.isAppOf ``MidenLean.Symbolic.Reflect.execProcedure then
             hresultGoal? := some goal
-          else if rhs.isConstOf ``Bool.true || lhs.isConstOf ``Bool.true then
-            hnoexecGoal? := some goal
           else
-            hopsGoal? := some goal
+            auxTheoremGoals := auxTheoremGoals ++ [goal]
         | none =>
           if ty.isForall then
             hprecondsGoal? := some goal
@@ -340,19 +422,59 @@ elab "miden_reflect" : tactic => do
             hfuelGoal? := some goal
       else
         auxTheoremGoals := auxTheoremGoals ++ [goal]
-  let some hopsGoal := hopsGoal? | throwError "miden_reflect: missing `hops` goal"
   let some hfuelGoal := hfuelGoal? | throwError "miden_reflect: missing `hfuel` goal"
-  let some hnoexecGoal := hnoexecGoal? | throwError "miden_reflect: missing `hnoexec` goal"
   let some hresultGoal := hresultGoal? | throwError "miden_reflect: missing `hresult` goal"
   let some hprecondsGoal := hprecondsGoal? | throwError "miden_reflect: missing `hpreconds` goal"
 
-  closeGoalWith hopsGoal "`hops`" (← `(tactic| rfl))
+  if let some hstackGoal := hstackGoal? then
+    closeGoalWith hstackGoal "`hstack`" (← `(tactic|
+      first
+      | assumption
+      | symm; assumption
+      | rfl
+      | simp))
   closeGoalWith hfuelGoal "`hfuel`" (← `(tactic| omega))
-  closeGoalWith hnoexecGoal "`hnoexec`" (← `(tactic| decide))
-  closeGoalWith hresultGoal "`hresult`" (← `(tactic| rfl))
-  closeBridgeGoal bridgeGoal
+  closeGoalWith hresultGoal "`hresult`" (← `(tactic|
+    first
+    | rfl
+    | simp [MidenLean.Symbolic.Reflect.execProcedure,
+            MidenLean.Symbolic.Reflect.procSpec,
+            MidenLean.Symbolic.Reflect.ReflectEnv.ofConcrete,
+            MidenLean.Symbolic.Reflect.ReflectEnv.toSymbolic,
+            MidenLean.Symbolic.Reflect.ReflectEnv.empty,
+            MidenLean.Symbolic.Reflect.concreteState,
+            MidenLean.Symbolic.execOps,
+            MidenLean.Symbolic.execOp,
+            MidenLean.Symbolic.execInstruction,
+            bind, Bind.bind, Option.bind]))
+  let bridgeRemaining ←
+    try
+      runOnGoal bridgeGoal (← `(tactic|
+        first
+        | rfl
+        | simp [miden_reflect_norm,
+                and_assoc, and_left_comm, and_comm,
+                MidenLean.MidenState.withStack,
+                MidenLean.Symbolic.Expr.eval,
+                MidenLean.Symbolic.Reflect.concreteAssignment,
+                MidenLean.Symbolic.Reflect.concreteState,
+                MidenLean.Symbolic.Reflect.concreteStateWithLocals,
+                MidenLean.LocalFrame.localAddr]
+        | apply congrArg some
+          ext addr <;>
+          simp [miden_reflect_norm,
+                and_assoc, and_left_comm, and_comm,
+                MidenLean.MidenState.withStack,
+                MidenLean.Symbolic.Expr.eval,
+                MidenLean.Symbolic.Reflect.concreteAssignment,
+                MidenLean.Symbolic.Reflect.concreteState,
+                MidenLean.Symbolic.Reflect.concreteStateWithLocals,
+                MidenLean.LocalFrame.localAddr]))
+    catch _ =>
+      pure [bridgeGoal]
 
   let mut remainingSeeds := [hprecondsGoal]
+  remainingSeeds := remainingSeeds ++ bridgeRemaining
   for goal in auxTheoremGoals do
     unless ← goal.isAssigned do
       remainingSeeds := remainingSeeds ++ [goal]
@@ -361,6 +483,7 @@ elab "miden_reflect" : tactic => do
       remainingSeeds := remainingSeeds ++ [goal]
   let remaining ← cleanupGoals remainingSeeds
   setGoals remaining
+  Lean.Elab.Term.synthesizeSyntheticMVarsNoPostponing
 
 end MidenLean.Symbolic.Tactic
 

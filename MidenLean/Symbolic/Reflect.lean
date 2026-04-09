@@ -1,5 +1,7 @@
 import MidenLean.Symbolic.SimpAttrs
 import MidenLean.Symbolic.Soundness
+import MidenLean.Proofs.Helpers
+import MidenLean.Proofs.Fuel
 import MidenLean.Generated.U64
 
 /-!
@@ -49,9 +51,15 @@ private theorem map_eval_lit (xs : List Felt) :
   | nil => rfl
   | cons x xs ih => simp [Expr.eval, ih]
 
+@[simp, miden_reflect_norm] theorem map_eval_lit_comp_zero (xs : List Felt) :
+    List.map ((Expr.eval (fun _ => 0)) ∘ Expr.lit) xs = xs := by
+  simpa [Function.comp] using map_eval_lit xs
+
 @[simp, miden_reflect_norm] theorem map_eval_lit_concrete (xs : List Felt) :
     List.map (Expr.eval concreteAssignment) (xs.map Expr.lit) = xs := by
-  simpa [concreteAssignment, Function.comp] using map_eval_lit xs
+  induction xs with
+  | nil => rfl
+  | cons x xs ih => simp [Expr.eval, ih]
 
 @[simp, miden_reflect_norm] theorem eval_concreteState_memory
     (stackPrefix : List Felt) (mem : Nat → Felt)
@@ -83,8 +91,19 @@ private theorem map_eval_lit (xs : List Felt) :
     Expr.eval concreteAssignment (.ite (.lit 1) a b) = Expr.eval concreteAssignment a := by
   change (if (((1 : Felt).val == 1) = true) then Expr.eval concreteAssignment a
       else Expr.eval concreteAssignment b) = Expr.eval concreteAssignment a
-  have h : (((1 : Felt).val == 1) = true) = true := by native_decide
-  simp [h]
+  simp
+
+@[simp, miden_reflect_norm] theorem ite_then_ite_one_zero_and (p q : Prop)
+    [Decidable p] [Decidable q] :
+    (if p then (if q then (1 : Felt) else 0) else 0) =
+      if p ∧ q then (1 : Felt) else 0 := by
+  by_cases hp : p <;> by_cases hq : q <;> simp [hp, hq]
+
+@[simp, miden_reflect_norm] theorem ite_then_ite_one_zero_and_rev (p q : Prop)
+    [Decidable p] [Decidable q] :
+    (if q then (if p then (1 : Felt) else 0) else 0) =
+      if p ∧ q then (1 : Felt) else 0 := by
+  by_cases hp : p <;> by_cases hq : q <;> simp [hp, hq]
 
 @[simp] theorem concreteState_models
     (stackPrefix rest : List Felt) (mem : Nat → Felt)
@@ -92,10 +111,10 @@ private theorem map_eval_lit (xs : List Felt) :
     (concreteState stackPrefix mem frames adv).models
       ⟨stackPrefix ++ rest, mem, frames, adv⟩ (fun _ => 0) rest := by
   refine ⟨?_, ?_, rfl, ?_⟩
-  · simpa [concreteState] using (congrArg (fun ys => ys ++ rest) (map_eval_lit stackPrefix)).symm
+  · simp [concreteState]
   · intro addr
     simp [concreteState, Expr.eval]
-  · simpa [concreteState] using (map_eval_lit adv).symm
+  · simp [concreteState]
 
 @[simp] theorem concreteStateWithLocals_models
     (stackPrefix rest : List Felt) (mem : Nat → Felt)
@@ -109,11 +128,10 @@ private theorem map_eval_lit (xs : List Felt) :
        let frame : MidenLean.LocalFrame := { base, numLocals, alignedNumLocals := aligned }
        ⟨stackPrefix ++ rest, mem, frame :: frames, adv⟩) (fun _ => 0) rest := by
   refine ⟨?_, ?_, rfl, ?_⟩
-  · simpa [concreteStateWithLocals] using
-      (congrArg (fun ys => ys ++ rest) (map_eval_lit stackPrefix)).symm
+  · simp [concreteStateWithLocals]
   · intro addr
     simp [concreteStateWithLocals, Expr.eval]
-  · simpa [concreteStateWithLocals] using (map_eval_lit adv).symm
+  · simp [concreteStateWithLocals]
 
 set_option linter.unusedVariables false in
 /-- Reflection for procedures with numLocals = 0.
@@ -270,5 +288,516 @@ theorem reflect_with_env_locals_concrete
       hops hfuel hnoexec
       (concreteStateWithLocals_models stackPrefix rest mem frames adv (k + 1))
       hresult hpreconds
+
+/-- Proc-generic zero-locals reflection wrapper. This lets the tactic apply
+    reflection directly to named procedure constants rather than requiring the
+    goal to already expose `⟨name, 0, body⟩` syntactically. -/
+theorem reflect_proc_with_env_zero_concrete
+    (proc : Procedure) (insts : List Instruction) (ops : List MidenLean.Op)
+    (env : MidenLean.ProcEnv) (fuel : Nat)
+    (stackPrefix rest : List Felt) (mem : Nat → Felt)
+    (frames : List MidenLean.LocalFrame) (adv : List Felt)
+    (result : BlockResult)
+    (hbody : proc.body = ops)
+    (hlocals : proc.numLocals = 0)
+    (hops : ops = insts.map MidenLean.Op.inst)
+    (hfuel : fuel > 0)
+    (hnoexec : insts.all (fun i => !isExecInst i) = true)
+    (hresult : execBlock insts (concreteState stackPrefix mem frames adv) = some result)
+    (hpreconds : ∀ p ∈ result.preconditions, p.holds (fun _ => 0)) :
+    MidenLean.execWithEnv env fuel ⟨stackPrefix ++ rest, mem, frames, adv⟩ proc =
+    some ⟨result.state.stack.map (Expr.eval (fun _ => 0)) ++ rest,
+          fun addr => (result.state.memory addr).eval (fun _ => 0),
+          frames,
+          result.state.advice.map (Expr.eval (fun _ => 0))⟩ := by
+  cases proc with
+  | mk name numLocals body =>
+      simp only at hbody hlocals
+      subst body
+      subst numLocals
+      simpa using
+        reflect_with_env_zero_concrete insts name ops env fuel
+          stackPrefix rest mem frames adv result
+          hops hfuel hnoexec hresult hpreconds
+
+/-- Proc-generic positive-locals reflection wrapper. -/
+theorem reflect_proc_with_env_locals_concrete
+    (proc : Procedure) (insts : List Instruction) (ops : List MidenLean.Op)
+    (env : MidenLean.ProcEnv) (fuel : Nat)
+    (stackPrefix rest : List Felt) (mem : Nat → Felt)
+    (frames : List MidenLean.LocalFrame) (adv : List Felt)
+    (k : Nat) (result : BlockResult)
+    (hbody : proc.body = ops)
+    (hlocals : proc.numLocals = k + 1)
+    (hops : ops = insts.map MidenLean.Op.inst)
+    (hfuel : fuel > 0)
+    (hnoexec : insts.all (fun i => !isExecInst i) = true)
+    (hresult : execBlock insts (concreteStateWithLocals stackPrefix mem frames adv (k + 1)) = some result)
+    (hpreconds : ∀ p ∈ result.preconditions, p.holds (fun _ => 0)) :
+    MidenLean.execWithEnv env fuel ⟨stackPrefix ++ rest, mem, frames, adv⟩ proc =
+    some ⟨result.state.stack.map (Expr.eval (fun _ => 0)) ++ rest,
+          fun addr => (result.state.memory addr).eval (fun _ => 0),
+          frames,
+          result.state.advice.map (Expr.eval (fun _ => 0))⟩ := by
+  cases proc with
+  | mk name numLocals body =>
+      simp only at hbody hlocals
+      subst body
+      subst numLocals
+      simpa using
+        reflect_with_env_locals_concrete insts name k ops env fuel
+          stackPrefix rest mem frames adv result
+          (hops := hops) (hfuel := hfuel) (hnoexec := hnoexec)
+          (hresult := hresult) (hpreconds := hpreconds)
+
+/-- Proc-generic zero-locals wrapper that accepts an arbitrary concrete stack
+    expression together with the definitional decomposition used for reflection. -/
+theorem reflect_proc_with_env_zero_stack
+    (proc : Procedure) (insts : List Instruction) (ops : List MidenLean.Op)
+    (env : MidenLean.ProcEnv) (fuel : Nat)
+    (stack stackPrefix rest : List Felt) (mem : Nat → Felt)
+    (frames : List MidenLean.LocalFrame) (adv : List Felt)
+    (result : BlockResult)
+    (hstack : stack = stackPrefix ++ rest)
+    (hbody : proc.body = ops)
+    (hlocals : proc.numLocals = 0)
+    (hops : ops = insts.map MidenLean.Op.inst)
+    (hfuel : fuel > 0)
+    (hnoexec : insts.all (fun i => !isExecInst i) = true)
+    (hresult : execBlock insts (concreteState stackPrefix mem frames adv) = some result)
+    (hpreconds : ∀ p ∈ result.preconditions, p.holds (fun _ => 0)) :
+    MidenLean.execWithEnv env fuel ⟨stack, mem, frames, adv⟩ proc =
+    some ⟨result.state.stack.map (Expr.eval (fun _ => 0)) ++ rest,
+          fun addr => (result.state.memory addr).eval (fun _ => 0),
+          frames,
+          result.state.advice.map (Expr.eval (fun _ => 0))⟩ := by
+  subst hstack
+  exact reflect_proc_with_env_zero_concrete proc insts ops env fuel
+    stackPrefix rest mem frames adv result
+    hbody hlocals hops hfuel hnoexec hresult hpreconds
+
+/-- Proc-generic positive-locals wrapper with an explicit stack decomposition. -/
+theorem reflect_proc_with_env_locals_stack
+    (proc : Procedure) (insts : List Instruction) (ops : List MidenLean.Op)
+    (env : MidenLean.ProcEnv) (fuel : Nat)
+    (stack stackPrefix rest : List Felt) (mem : Nat → Felt)
+    (frames : List MidenLean.LocalFrame) (adv : List Felt)
+    (k : Nat) (result : BlockResult)
+    (hstack : stack = stackPrefix ++ rest)
+    (hbody : proc.body = ops)
+    (hlocals : proc.numLocals = k + 1)
+    (hops : ops = insts.map MidenLean.Op.inst)
+    (hfuel : fuel > 0)
+    (hnoexec : insts.all (fun i => !isExecInst i) = true)
+    (hresult : execBlock insts (concreteStateWithLocals stackPrefix mem frames adv (k + 1)) = some result)
+    (hpreconds : ∀ p ∈ result.preconditions, p.holds (fun _ => 0)) :
+    MidenLean.execWithEnv env fuel ⟨stack, mem, frames, adv⟩ proc =
+    some ⟨result.state.stack.map (Expr.eval (fun _ => 0)) ++ rest,
+          fun addr => (result.state.memory addr).eval (fun _ => 0),
+          frames,
+          result.state.advice.map (Expr.eval (fun _ => 0))⟩ := by
+  subst hstack
+  exact reflect_proc_with_env_locals_concrete proc insts ops env fuel
+    stackPrefix rest mem frames adv k result
+    hbody hlocals hops hfuel hnoexec hresult hpreconds
+
+/-- Proc-generic zero-locals wrapper for theorem goals stated with a concrete
+    `s : MidenState` plus a stack decomposition hypothesis `s.stack = ...`. -/
+theorem reflect_proc_with_env_zero_state
+    (proc : Procedure) (insts : List Instruction) (ops : List MidenLean.Op)
+    (env : MidenLean.ProcEnv) (fuel : Nat)
+    (s : MidenLean.MidenState) (stackPrefix rest : List Felt)
+    (result : BlockResult)
+    (hstack : s.stack = stackPrefix ++ rest)
+    (hbody : proc.body = ops)
+    (hlocals : proc.numLocals = 0)
+    (hops : ops = insts.map MidenLean.Op.inst)
+    (hfuel : fuel > 0)
+    (hnoexec : insts.all (fun i => !isExecInst i) = true)
+    (hresult : execBlock insts (concreteState stackPrefix s.memory s.frames s.advice) = some result)
+    (hpreconds : ∀ p ∈ result.preconditions, p.holds (fun _ => 0)) :
+    MidenLean.execWithEnv env fuel s proc =
+    some ⟨result.state.stack.map (Expr.eval (fun _ => 0)) ++ rest,
+          fun addr => (result.state.memory addr).eval (fun _ => 0),
+          s.frames,
+          result.state.advice.map (Expr.eval (fun _ => 0))⟩ := by
+  cases s with
+  | mk stack mem frames adv =>
+      simp only at hstack ⊢
+      subst hstack
+      exact reflect_proc_with_env_zero_stack proc insts ops env fuel
+        (stack := stackPrefix ++ rest)
+        stackPrefix rest mem frames adv result
+        rfl hbody hlocals hops hfuel hnoexec hresult hpreconds
+
+/-- Proc-generic positive-locals wrapper for theorem goals stated with a
+    concrete `s : MidenState` plus a stack decomposition hypothesis. -/
+theorem reflect_proc_with_env_locals_state
+    (proc : Procedure) (insts : List Instruction) (ops : List MidenLean.Op)
+    (env : MidenLean.ProcEnv) (fuel : Nat)
+    (s : MidenLean.MidenState) (stackPrefix rest : List Felt)
+    (k : Nat) (result : BlockResult)
+    (hstack : s.stack = stackPrefix ++ rest)
+    (hbody : proc.body = ops)
+    (hlocals : proc.numLocals = k + 1)
+    (hops : ops = insts.map MidenLean.Op.inst)
+    (hfuel : fuel > 0)
+    (hnoexec : insts.all (fun i => !isExecInst i) = true)
+    (hresult : execBlock insts (concreteStateWithLocals stackPrefix s.memory s.frames s.advice (k + 1)) = some result)
+    (hpreconds : ∀ p ∈ result.preconditions, p.holds (fun _ => 0)) :
+    MidenLean.execWithEnv env fuel s proc =
+    some ⟨result.state.stack.map (Expr.eval (fun _ => 0)) ++ rest,
+          fun addr => (result.state.memory addr).eval (fun _ => 0),
+          s.frames,
+          result.state.advice.map (Expr.eval (fun _ => 0))⟩ := by
+  cases s with
+  | mk stack mem frames adv =>
+      simp only at hstack ⊢
+      subst hstack
+      exact reflect_proc_with_env_locals_stack proc insts ops env fuel
+        (stack := stackPrefix ++ rest)
+        stackPrefix rest mem frames adv k result
+        rfl hbody hlocals hops hfuel hnoexec hresult hpreconds
+
+/-!
+Generic straight-line reflection over `execProcedure`, with optional call
+summaries carried by `ReflectEnv`.
+-/
+
+/-- Proof-facing symbolic summary for a named callee at a fixed minimum fuel. -/
+structure ReflectSpec (env : MidenLean.ProcEnv) (minFuel : Nat) (name : String) where
+  callee : Procedure
+  spec : MidenLean.Symbolic.Spec
+  hlookup : env name = some callee
+  sound : spec.sound env minFuel callee
+
+/-- Proof-facing symbolic environment used by `miden_reflect`.
+    The `minFuel` index matches the concrete subcall fuel used by `opStep`. -/
+abbrev ReflectEnv (env : MidenLean.ProcEnv) (minFuel : Nat) :=
+  (name : String) → Option (ReflectSpec env minFuel name)
+
+/-- Empty reflection environment for no-call procedures. -/
+def ReflectEnv.empty {env : MidenLean.ProcEnv} {minFuel : Nat} : ReflectEnv env minFuel := fun _ => none
+
+/-- Forget the soundness proofs and expose only the symbolic summaries. -/
+def ReflectEnv.toSymbolic {env : MidenLean.ProcEnv} {minFuel : Nat}
+    (Γ : ReflectEnv env minFuel) : MidenLean.Symbolic.ProcEnv :=
+  fun name => (Γ name).map fun rs => rs.spec
+
+/-- The callee-soundness premise required by `execOps_sound` follows from a
+    `ReflectEnv`. -/
+theorem ReflectEnv.toSymbolic_sound {env : MidenLean.ProcEnv} {minFuel : Nat}
+    (Γ : ReflectEnv env minFuel) :
+    ∀ name (spec : MidenLean.Symbolic.Spec),
+      Γ.toSymbolic name = some spec →
+      ∃ callee, env name = some callee ∧ spec.sound env minFuel callee := by
+  intro name spec hspec
+  unfold ReflectEnv.toSymbolic at hspec
+  cases hΓ : Γ name with
+  | none =>
+      simp [hΓ] at hspec
+  | some rs =>
+      have hrs : rs.spec = spec := by
+        simpa [hΓ] using hspec
+      subst spec
+      exact ⟨rs.callee, rs.hlookup, rs.sound⟩
+
+/-- Symbolic execution of a whole straight-line procedure, including local-frame
+    allocation/pop for `numLocals > 0`. -/
+def execProcedure (senv : MidenLean.Symbolic.ProcEnv) (proc : Procedure) (s : State) :
+    Option BlockResult :=
+  match proc.numLocals with
+  | 0 =>
+      execOps senv proc.body s
+  | k + 1 =>
+      let aligned := MidenLean.alignLocals (k + 1)
+      let base := match s.frames with
+        | [] => 0
+        | f :: _ => f.base + f.alignedNumLocals
+      let frame : MidenLean.LocalFrame := { base, numLocals := k + 1, alignedNumLocals := aligned }
+      let s' := { s with frames := frame :: s.frames }
+      match execOps senv proc.body s' with
+      | some result =>
+          some { result with state := { result.state with frames := s.frames } }
+      | none => none
+
+/-- Turn a procedure into a symbolic summary relative to a `ReflectEnv`. -/
+def procSpec {env : MidenLean.ProcEnv} {minFuel : Nat}
+    (Γ : ReflectEnv env minFuel) (proc : Procedure) : MidenLean.Symbolic.Spec where
+  transform := execProcedure (Γ.toSymbolic) proc
+
+private theorem models_pushFrame
+    (ss : State) (cs : MidenState) (σ : Assignment) (rest : List Felt)
+    (frame : MidenLean.LocalFrame)
+    (hmodels : ss.models cs σ rest) :
+    ({ ss with frames := frame :: ss.frames }).models
+      ({ cs with frames := frame :: cs.frames }) σ rest := by
+  rcases hmodels with ⟨hstk, hmem, hframes, hadv⟩
+  exact ⟨hstk, hmem, by simp [hframes], hadv⟩
+
+private theorem models_restoreFrames
+    (ss : State) (cs : MidenState) (σ : Assignment) (rest : List Felt)
+    (frames : List MidenLean.LocalFrame)
+    (hmodels : ss.models cs σ rest) :
+    ({ ss with frames := frames }).models
+      ({ cs with frames := frames }) σ rest := by
+  rcases hmodels with ⟨hstk, hmem, _, hadv⟩
+  exact ⟨hstk, hmem, rfl, hadv⟩
+
+/-- Soundness for `execProcedure` at the exact concrete fuel budget
+    `minFuel + 1`. -/
+theorem execProcedure_sound
+    (senv : MidenLean.Symbolic.ProcEnv) (env : MidenLean.ProcEnv) (minFuel : Nat)
+    (proc : Procedure) (ss : State) (cs : MidenState)
+    (σ : Assignment) (rest : List Felt) (result : BlockResult)
+    (hmodels : ss.models cs σ rest)
+    (hresult : execProcedure senv proc ss = some result)
+    (hpreconds : ∀ p ∈ result.preconditions, p.holds σ)
+    (hcallees : ∀ name (spec : MidenLean.Symbolic.Spec),
+      senv name = some spec →
+      ∃ callee, env name = some callee ∧ spec.sound env minFuel callee) :
+    ∃ cs', MidenLean.execWithEnv env (minFuel + 1) cs proc = some cs'
+      ∧ result.state.models cs' σ rest := by
+  cases proc with
+  | mk name numLocals body =>
+      cases numLocals with
+      | zero =>
+          simp [execProcedure] at hresult
+          obtain ⟨cs', hconc, hmod⟩ :=
+            execOps_sound senv env minFuel body ss cs σ rest result
+              hmodels hresult hpreconds hcallees
+          have hconc' :
+              MidenLean.execWithEnv env (minFuel + 1) cs
+                { name := name, numLocals := 0, body := body } = some cs' := by
+            rw [MidenLean.execWithEnv_body_eq env (minFuel + 1) cs
+                { name := name, numLocals := 0, body := body } body rfl rfl]
+            simpa [MidenLean.execWithEnv_ofOps] using hconc
+          exact ⟨cs', hconc', hmod⟩
+      | succ k =>
+          let aligned := MidenLean.alignLocals (k + 1)
+          let base := match ss.frames with
+            | [] => 0
+            | f :: _ => f.base + f.alignedNumLocals
+          let frame : MidenLean.LocalFrame := { base, numLocals := k + 1, alignedNumLocals := aligned }
+          let ss' : State := { ss with frames := frame :: ss.frames }
+          have hframes0 : cs.frames = ss.frames := by
+            rcases hmodels with ⟨_, _, hframes0, _⟩
+            exact hframes0
+          let cbase := match cs.frames with
+            | [] => 0
+            | f :: _ => f.base + f.alignedNumLocals
+          let cframe : MidenLean.LocalFrame :=
+            { base := cbase, numLocals := k + 1, alignedNumLocals := MidenLean.alignLocals (k + 1) }
+          let cs' : MidenState := { cs with frames := cframe :: cs.frames }
+          have hcbase : cbase = base := by
+            unfold cbase base
+            rw [hframes0]
+          have haligned : MidenLean.alignLocals (k + 1) = aligned := by rfl
+          have hcframe : cframe = frame := by
+            simp [cframe, frame, hcbase, haligned]
+          have hmodels' : ss'.models cs' σ rest := by
+            simpa [ss', cs', hcframe] using
+              (models_pushFrame ss cs σ rest frame hmodels)
+          cases hexecOps : execOps senv body ss' with
+          | none =>
+              simp [execProcedure, aligned, base, frame, ss', hexecOps] at hresult
+          | some bodyResult =>
+              simp [execProcedure, aligned, base, frame, ss', hexecOps] at hresult
+              subst result
+              obtain ⟨csMid, hconcBody, hmodBody⟩ :=
+                execOps_sound senv env minFuel body ss' cs' σ rest bodyResult
+                  hmodels' hexecOps hpreconds hcallees
+              have hconcProc :
+                  MidenLean.execWithEnv env (minFuel + 1) cs
+                    { name := name, numLocals := k + 1, body := body } =
+                  some { csMid with frames := cs.frames } := by
+                have hconcBody' :
+                    MidenLean.execWithEnv env (minFuel + 1) cs' body = some csMid := by
+                  simpa [MidenLean.execWithEnv_ofOps] using hconcBody
+                rw [MidenLean.execWithEnv_body_eq_withLocals env (minFuel + 1) cs
+                    { name := name, numLocals := k + 1, body := body } body k rfl rfl]
+                simpa [cs', cframe, cbase] using
+                  congrArg
+                    (fun x =>
+                      match x with
+                      | some r => some { r with frames := cs.frames }
+                      | none => none)
+                    hconcBody'
+              refine ⟨{ csMid with frames := cs.frames }, hconcProc, ?_⟩
+              simpa [hframes0] using
+                models_restoreFrames bodyResult.state csMid σ rest cs.frames hmodBody
+
+/-- A procedure executed symbolically against a `ReflectEnv` yields a sound
+    summary for the next-higher concrete fuel level. -/
+theorem procSpec_sound {env : MidenLean.ProcEnv} {minFuel : Nat}
+    (Γ : ReflectEnv env minFuel) (proc : Procedure) :
+    (procSpec Γ proc).sound env (minFuel + 1) proc := by
+  intro ss cs σ rest result fuel hfuel hresult hmodels hpreconds
+  obtain ⟨cs', hbase, hmod⟩ :=
+    execProcedure_sound (senv := Γ.toSymbolic) (env := env) (minFuel := minFuel)
+      proc ss cs σ rest result hmodels hresult hpreconds (ReflectEnv.toSymbolic_sound Γ)
+  exact ⟨cs', MidenLean.execWithEnv_fuel_mono hfuel hbase, hmod⟩
+
+/-- Build a proof-carrying reflection environment directly from a reducible
+    concrete `ProcEnv`, bounded by the minimum concrete subcall fuel. -/
+def ReflectEnv.ofConcrete (env : MidenLean.ProcEnv) : (minFuel : Nat) → ReflectEnv env minFuel
+  | 0 => ReflectEnv.empty
+  | n + 1 => fun name =>
+      match hlookup : env name with
+      | some proc =>
+          some
+            { callee := proc
+              spec := procSpec (ReflectEnv.ofConcrete env n) proc
+              hlookup := hlookup
+              sound := by
+                simpa using
+                  (procSpec_sound (Γ := ReflectEnv.ofConcrete env n) (proc := proc)) }
+      | none => none
+
+/-- Procedure-level reflection over a fully concrete symbolic state, using an
+    explicit `ReflectEnv` for direct callees. -/
+theorem reflect_proc_concrete_using
+    (proc : Procedure) (env : MidenLean.ProcEnv) (fuel : Nat)
+    (Γ : ReflectEnv env (fuel - 1))
+    (stackPrefix rest : List Felt) (mem : Nat → Felt)
+    (frames : List MidenLean.LocalFrame) (adv : List Felt)
+    (result : BlockResult)
+    (hfuel : fuel > 0)
+    (hresult : execProcedure (Γ.toSymbolic) proc
+      (concreteState stackPrefix mem frames adv) = some result)
+    (hpreconds : ∀ p ∈ result.preconditions, p.holds concreteAssignment) :
+    MidenLean.execWithEnv env fuel ⟨stackPrefix ++ rest, mem, frames, adv⟩ proc =
+    some ⟨result.state.stack.map (Expr.eval concreteAssignment) ++ rest,
+          fun addr => (result.state.memory addr).eval concreteAssignment,
+          result.state.frames,
+          result.state.advice.map (Expr.eval concreteAssignment)⟩ := by
+  have hmain :=
+    execProcedure_sound (senv := Γ.toSymbolic) (env := env) (minFuel := fuel - 1)
+      proc (concreteState stackPrefix mem frames adv)
+      ⟨stackPrefix ++ rest, mem, frames, adv⟩ concreteAssignment rest result
+      (concreteState_models stackPrefix rest mem frames adv)
+      hresult hpreconds (ReflectEnv.toSymbolic_sound Γ)
+  obtain ⟨cs', hconc, hmod⟩ := hmain
+  have hconc' :
+      MidenLean.execWithEnv env fuel ⟨stackPrefix ++ rest, mem, frames, adv⟩ proc = some cs' := by
+    have hfuel' : fuel - 1 + 1 = fuel := by omega
+    simpa [hfuel'] using hconc
+  rw [hconc']
+  unfold State.models at hmod
+  obtain ⟨hstk, hmem, hframes, hadv⟩ := hmod
+  cases cs'
+  simp only [Option.some.injEq, MidenLean.MidenState.mk.injEq] at hstk hmem hframes hadv ⊢
+  exact ⟨hstk, funext hmem, hframes, hadv⟩
+
+/-- Procedure-level reflection over a fully concrete symbolic state with no
+    callee summaries. -/
+theorem reflect_proc_concrete
+    (proc : Procedure) (env : MidenLean.ProcEnv) (fuel : Nat)
+    (stackPrefix rest : List Felt) (mem : Nat → Felt)
+    (frames : List MidenLean.LocalFrame) (adv : List Felt)
+    (result : BlockResult)
+    (hfuel : fuel > 0)
+    (hresult : execProcedure ((ReflectEnv.empty (env := env) (minFuel := fuel - 1)).toSymbolic) proc
+      (concreteState stackPrefix mem frames adv) = some result)
+    (hpreconds : ∀ p ∈ result.preconditions, p.holds concreteAssignment) :
+    MidenLean.execWithEnv env fuel ⟨stackPrefix ++ rest, mem, frames, adv⟩ proc =
+    some ⟨result.state.stack.map (Expr.eval concreteAssignment) ++ rest,
+          fun addr => (result.state.memory addr).eval concreteAssignment,
+          result.state.frames,
+          result.state.advice.map (Expr.eval concreteAssignment)⟩ := by
+  exact reflect_proc_concrete_using proc env fuel
+    (Γ := ReflectEnv.empty (env := env) (minFuel := fuel - 1))
+    stackPrefix rest mem frames adv result hfuel hresult hpreconds
+
+/-- Procedure-level reflection with an explicit stack decomposition. -/
+theorem reflect_proc_stack_using
+    (proc : Procedure) (env : MidenLean.ProcEnv) (fuel : Nat)
+    (Γ : ReflectEnv env (fuel - 1))
+    (stack stackPrefix rest : List Felt) (mem : Nat → Felt)
+    (frames : List MidenLean.LocalFrame) (adv : List Felt)
+    (result : BlockResult)
+    (hstack : stack = stackPrefix ++ rest)
+    (hfuel : fuel > 0)
+    (hresult : execProcedure (Γ.toSymbolic) proc
+      (concreteState stackPrefix mem frames adv) = some result)
+    (hpreconds : ∀ p ∈ result.preconditions, p.holds concreteAssignment) :
+    MidenLean.execWithEnv env fuel ⟨stack, mem, frames, adv⟩ proc =
+    some ⟨result.state.stack.map (Expr.eval concreteAssignment) ++ rest,
+          fun addr => (result.state.memory addr).eval concreteAssignment,
+          result.state.frames,
+          result.state.advice.map (Expr.eval concreteAssignment)⟩ := by
+  subst hstack
+  exact reflect_proc_concrete_using proc env fuel Γ
+    stackPrefix rest mem frames adv result hfuel hresult hpreconds
+
+/-- Procedure-level reflection with an explicit stack decomposition and no
+    callee summaries. -/
+theorem reflect_proc_stack
+    (proc : Procedure) (env : MidenLean.ProcEnv) (fuel : Nat)
+    (stack stackPrefix rest : List Felt) (mem : Nat → Felt)
+    (frames : List MidenLean.LocalFrame) (adv : List Felt)
+    (result : BlockResult)
+    (hstack : stack = stackPrefix ++ rest)
+    (hfuel : fuel > 0)
+    (hresult : execProcedure ((ReflectEnv.empty (env := env) (minFuel := fuel - 1)).toSymbolic) proc
+      (concreteState stackPrefix mem frames adv) = some result)
+    (hpreconds : ∀ p ∈ result.preconditions, p.holds concreteAssignment) :
+    MidenLean.execWithEnv env fuel ⟨stack, mem, frames, adv⟩ proc =
+    some ⟨result.state.stack.map (Expr.eval concreteAssignment) ++ rest,
+          fun addr => (result.state.memory addr).eval concreteAssignment,
+          result.state.frames,
+          result.state.advice.map (Expr.eval concreteAssignment)⟩ := by
+  subst hstack
+  exact reflect_proc_concrete proc env fuel
+    stackPrefix rest mem frames adv result hfuel hresult hpreconds
+
+/-- Procedure-level reflection for theorem goals over a concrete `s` with a
+    stack-decomposition hypothesis, using an explicit `ReflectEnv`. -/
+theorem reflect_proc_state_using
+    (proc : Procedure) (env : MidenLean.ProcEnv) (fuel : Nat)
+    (Γ : ReflectEnv env (fuel - 1))
+    (s : MidenLean.MidenState) (stackPrefix rest : List Felt)
+    (result : BlockResult)
+    (hstack : s.stack = stackPrefix ++ rest)
+    (hfuel : fuel > 0)
+    (hresult : execProcedure (Γ.toSymbolic) proc
+      (concreteState stackPrefix s.memory s.frames s.advice) = some result)
+    (hpreconds : ∀ p ∈ result.preconditions, p.holds concreteAssignment) :
+    MidenLean.execWithEnv env fuel s proc =
+    some ⟨result.state.stack.map (Expr.eval concreteAssignment) ++ rest,
+          fun addr => (result.state.memory addr).eval concreteAssignment,
+          result.state.frames,
+          result.state.advice.map (Expr.eval concreteAssignment)⟩ := by
+  cases s with
+  | mk stack mem frames adv =>
+      simp only at hstack ⊢
+      subst hstack
+      exact reflect_proc_stack_using proc env fuel Γ
+        (stack := stackPrefix ++ rest)
+        stackPrefix rest mem frames adv result rfl hfuel hresult hpreconds
+
+/-- Procedure-level reflection for theorem goals over a concrete `s` with a
+    stack-decomposition hypothesis and no callee summaries. -/
+theorem reflect_proc_state
+    (proc : Procedure) (env : MidenLean.ProcEnv) (fuel : Nat)
+    (s : MidenLean.MidenState) (stackPrefix rest : List Felt)
+    (result : BlockResult)
+    (hstack : s.stack = stackPrefix ++ rest)
+    (hfuel : fuel > 0)
+    (hresult : execProcedure ((ReflectEnv.empty (env := env) (minFuel := fuel - 1)).toSymbolic) proc
+      (concreteState stackPrefix s.memory s.frames s.advice) = some result)
+    (hpreconds : ∀ p ∈ result.preconditions, p.holds concreteAssignment) :
+    MidenLean.execWithEnv env fuel s proc =
+    some ⟨result.state.stack.map (Expr.eval concreteAssignment) ++ rest,
+          fun addr => (result.state.memory addr).eval concreteAssignment,
+          result.state.frames,
+          result.state.advice.map (Expr.eval concreteAssignment)⟩ := by
+  cases s with
+  | mk stack mem frames adv =>
+      simp only at hstack ⊢
+      subst hstack
+      exact reflect_proc_stack proc env fuel
+        (stack := stackPrefix ++ rest)
+        stackPrefix rest mem frames adv result rfl hfuel hresult hpreconds
 
 end MidenLean.Symbolic.Reflect
