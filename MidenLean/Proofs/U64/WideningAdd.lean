@@ -15,11 +15,11 @@ set_option maxHeartbeats 4000000 in
     Output stack: [c_lo, c_hi, overflow] ++ rest
     where (c_hi, c_lo) is the 64-bit sum and overflow is the carry bit. -/
 theorem u64_widening_add_exec
-    (a_lo a_hi b_lo b_hi : Felt) (rest : List Felt) (s : MidenState)
+    (a_lo a_hi b_lo b_hi : Felt) (rest : List Felt) (s : Concrete.State)
     (hs : s.stack = b_lo :: b_hi :: a_lo :: a_hi :: rest)
     (ha_lo : a_lo.isU32 = true) (ha_hi : a_hi.isU32 = true)
     (hb_lo : b_lo.isU32 = true) (hb_hi : b_hi.isU32 = true) :
-    execWithEnv u64ProcEnv 10 s Miden.Core.U64.widening_add =
+    execProcedure u64ProcEnv 10 s Miden.Core.U64.widening_add =
     some (s.withStack (
       let lo_sum := b_lo.val + a_lo.val
       let carry := lo_sum / 2^32
@@ -29,9 +29,9 @@ theorem u64_widening_add_exec
       let overflow := Felt.ofNat (hi_sum / 2^32)
       c_lo :: c_hi :: overflow :: rest)) := by
   obtain ⟨stk, mem, frames, adv⟩ := s
-  simp only [MidenState.withStack] at hs ⊢
+  simp only [Concrete.State.withStack] at hs ⊢
   subst hs
-  unfold Miden.Core.U64.widening_add execWithEnv
+  unfold Miden.Core.U64.widening_add execProcedure
   simp only [List.foldlM, u64ProcEnv]
   dsimp only [bind, Bind.bind, Option.bind]
   rw [u64_overflowing_add_run u64ProcEnv 8 a_lo a_hi b_lo b_hi rest mem frames adv
@@ -43,9 +43,9 @@ theorem u64_widening_add_exec
 /-- `u64::widening_add` computes the full 65-bit sum of two u64 values.
     Input stack:  [b.lo, b.hi, a.lo, a.hi] ++ rest
     Output stack: [(a + b).lo, (a + b).hi, overflow] ++ rest -/
-theorem u64_widening_add_correct (a b : U64) (rest : List Felt) (s : MidenState)
+theorem u64_widening_add_correct (a b : U64) (rest : List Felt) (s : Concrete.State)
     (hs : s.stack = b.lo.val :: b.hi.val :: a.lo.val :: a.hi.val :: rest) :
-    execWithEnv u64ProcEnv 10 s Miden.Core.U64.widening_add =
+    execProcedure u64ProcEnv 10 s Miden.Core.U64.widening_add =
     some (s.withStack (
       (a + b).lo.val :: (a + b).hi.val ::
       (if a.toNat + b.toNat ≥ 2^64 then (1 : Felt) else 0) :: rest)) := by

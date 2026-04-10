@@ -17,10 +17,10 @@ set_option maxHeartbeats 4000000 in
     Input stack:  [x0, x1, x2, x3, x4] ++ rest
     Output stack: [sorry] ++ rest -/
 theorem word_store_word_u32s_le_correct
-    (x0 x1 x2 x3 x4 : Felt) (rest : List Felt) (s : MidenState)
+    (x0 x1 x2 x3 x4 : Felt) (rest : List Felt) (s : Concrete.State)
     (hs : s.stack = x0 :: x1 :: x2 :: x3 :: x4 :: rest)
     :
-    exec 20 s Miden.Core.Word.store_word_u32s_le =
+    execProcedure emptyEnv 20 s Miden.Core.Word.store_word_u32s_le =
     some (s.withStack (sorry :: rest))  -- TODO: specify output
     := by
   miden_setup Miden.Core.Word.store_word_u32s_le

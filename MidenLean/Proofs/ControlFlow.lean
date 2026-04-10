@@ -17,19 +17,19 @@ namespace MidenLean
 /-- If execution of the then-branch and else-branch both produce a state
     satisfying `P` (under the appropriate condition), then executing a
     singleton `ifElse` op succeeds and satisfies `P`. -/
-theorem execWithEnv_ifElse
+theorem execProcedure_ifElse
     (env : ProcEnv) (fuel : Nat)
-    (thenOps elseOps : List Op) (s : MidenState)
-    (P : MidenState → Prop)
+    (thenOps elseOps : List Op) (s : Concrete.State)
+    (P : Concrete.State → Prop)
     (cond : Felt) (rest : List Felt)
     (hs : s.stack = cond :: rest)
     (hthen : cond.val = 1 →
-      ∃ s', execWithEnv env fuel (s.withStack rest) thenOps = some s' ∧ P s')
+      ∃ s', execProcedure env fuel (s.withStack rest) thenOps = some s' ∧ P s')
     (helse : cond.val = 0 →
-      ∃ s', execWithEnv env fuel (s.withStack rest) elseOps = some s' ∧ P s')
+      ∃ s', execProcedure env fuel (s.withStack rest) elseOps = some s' ∧ P s')
     (hbool : cond.val = 0 ∨ cond.val = 1) :
-    ∃ s', execWithEnv env (fuel + 1) s [Op.ifElse thenOps elseOps] = some s' ∧ P s' := by
-  unfold execWithEnv
+    ∃ s', execProcedure env (fuel + 1) s [Op.ifElse thenOps elseOps] = some s' ∧ P s' := by
+  unfold execProcedure
   simp only [Procedure.ofOps, List.foldlM, bind, Bind.bind, Option.bind, pure, Pure.pure, hs]
   rcases hbool with h0 | h1
   · -- cond.val = 0: else branch
@@ -40,29 +40,29 @@ theorem execWithEnv_ifElse
     exact ⟨s', by simp [h1, hexec], hp⟩
 
 /-- Equality-oriented singleton `ifElse` rule. -/
-theorem execWithEnv_ifElse_eq
+theorem execProcedure_ifElse_eq
     (env : ProcEnv) (fuel : Nat)
     (thenOps elseOps : List Op)
-    (s s' : MidenState)
+    (s s' : Concrete.State)
     (cond : Felt) (rest : List Felt)
     (hs : s.stack = cond :: rest)
     (hfuel : fuel > 0)
     (hthen : cond.val = 1 →
-      execWithEnv env (fuel - 1) (s.withStack rest) thenOps = some s')
+      execProcedure env (fuel - 1) (s.withStack rest) thenOps = some s')
     (helse : cond.val = 0 →
-      execWithEnv env (fuel - 1) (s.withStack rest) elseOps = some s')
+      execProcedure env (fuel - 1) (s.withStack rest) elseOps = some s')
     (hbool : cond.val = 0 ∨ cond.val = 1) :
-    execWithEnv env fuel s [Op.ifElse thenOps elseOps] = some s' := by
+    execProcedure env fuel s [Op.ifElse thenOps elseOps] = some s' := by
   cases fuel with
   | zero => omega
   | succ fuel' =>
-      simp only [execWithEnv, Procedure.ofOps, List.foldlM, bind, Bind.bind, Option.bind, pure,
+      simp only [execProcedure, Procedure.ofOps, List.foldlM, bind, Bind.bind, Option.bind, pure,
         Pure.pure, hs]
       rcases hbool with h0 | h1
-      · have helse' : execWithEnv env fuel' (s.withStack rest) elseOps = some s' := by
+      · have helse' : execProcedure env fuel' (s.withStack rest) elseOps = some s' := by
           simpa using helse h0
         simp [h0, helse']
-      · have hthen' : execWithEnv env fuel' (s.withStack rest) thenOps = some s' := by
+      · have hthen' : execProcedure env fuel' (s.withStack rest) thenOps = some s' := by
           simpa using hthen h1
         simp [h1, hthen']
 
@@ -72,60 +72,60 @@ theorem execWithEnv_ifElse_eq
     then after `n` iterations the invariant holds at index `n`.
 
     Direct induction on `n` with an explicit starting index. -/
-theorem execWithEnv_repeat
+theorem execProcedure_repeat
     (env : ProcEnv) (fuel : Nat) (n : Nat) (body : List Op)
-    (s : MidenState)
-    (inv : Nat → MidenState → Prop)
+    (s : Concrete.State)
+    (inv : Nat → Concrete.State → Prop)
     (hinit : inv 0 s)
     (hstep : ∀ i s₀, i < n → inv i s₀ →
-      ∃ s₁, execWithEnv env fuel s₀ body = some s₁ ∧ inv (i + 1) s₁) :
-    ∃ s', execWithEnv.doRepeat env fuel n body s = some s' ∧ inv n s' := by
+      ∃ s₁, execProcedure env fuel s₀ body = some s₁ ∧ inv (i + 1) s₁) :
+    ∃ s', execProcedure.doRepeat env fuel n body s = some s' ∧ inv n s' := by
   suffices ∀ k start s, start + k = n → inv start s →
       (∀ i s₀, start ≤ i → i < n → inv i s₀ →
-        ∃ s₁, execWithEnv env fuel s₀ body = some s₁ ∧ inv (i + 1) s₁) →
-      ∃ s', execWithEnv.doRepeat env fuel k body s = some s' ∧ inv n s' from
+        ∃ s₁, execProcedure env fuel s₀ body = some s₁ ∧ inv (i + 1) s₁) →
+      ∃ s', execProcedure.doRepeat env fuel k body s = some s' ∧ inv n s' from
     this n 0 s (by omega) hinit (fun i s₀ _ hi hinv => hstep i s₀ hi hinv)
   intro k
   induction k with
   | zero =>
     intro start s hsk hinv _
-    simp [execWithEnv.doRepeat]
+    simp [execProcedure.doRepeat]
     have : start = n := by omega
     subst this; exact hinv
   | succ k' ih =>
     intro start s hsk hinv hstep_bounded
-    simp only [execWithEnv.doRepeat]
+    simp only [execProcedure.doRepeat]
     obtain ⟨s₁, hexec, hinv₁⟩ := hstep_bounded start s le_rfl (by omega) hinv
     rw [hexec]
     exact ih (start + 1) s₁ (by omega) hinv₁
       (fun i s₀ hi₁ hi₂ hinv_i => hstep_bounded i s₀ (by omega) hi₂ hinv_i)
 
 /-- Equality-oriented singleton `repeat 0` rule. -/
-theorem execWithEnv_repeat_zero_eq
-    (env : ProcEnv) (fuel : Nat) (body : List Op) (s : MidenState)
+theorem execProcedure_repeat_zero_eq
+    (env : ProcEnv) (fuel : Nat) (body : List Op) (s : Concrete.State)
     (hfuel : fuel > 0) :
-    execWithEnv env fuel s [Op.repeat 0 body] = some s := by
+    execProcedure env fuel s [Op.repeat 0 body] = some s := by
   cases fuel with
   | zero => omega
   | succ fuel' =>
-      simp [execWithEnv, Procedure.ofOps, execWithEnv.doRepeat]
+      simp [execProcedure, Procedure.ofOps, execProcedure.doRepeat]
 
 /-- Equality-oriented singleton `repeat (n + 1)` rule. -/
-theorem execWithEnv_repeat_succ_eq
+theorem execProcedure_repeat_succ_eq
     (env : ProcEnv) (fuel n : Nat) (body : List Op)
-    (s s₁ s₂ : MidenState)
+    (s s₁ s₂ : Concrete.State)
     (hfuel : fuel > 0)
-    (hbody : execWithEnv env (fuel - 1) s body = some s₁)
-    (hrest : execWithEnv env fuel s₁ [Op.repeat n body] = some s₂) :
-    execWithEnv env fuel s [Op.repeat (n + 1) body] = some s₂ := by
+    (hbody : execProcedure env (fuel - 1) s body = some s₁)
+    (hrest : execProcedure env fuel s₁ [Op.repeat n body] = some s₂) :
+    execProcedure env fuel s [Op.repeat (n + 1) body] = some s₂ := by
   cases fuel with
   | zero => omega
   | succ fuel' =>
-      have hbody' : execWithEnv env fuel' s body = some s₁ := by
+      have hbody' : execProcedure env fuel' s body = some s₁ := by
         simpa using hbody
-      have hrest' : execWithEnv.doRepeat env fuel' n body s₁ = some s₂ := by
-        simpa [execWithEnv, Procedure.ofOps] using hrest
-      simp [execWithEnv, Procedure.ofOps, execWithEnv.doRepeat, hbody', hrest']
+      have hrest' : execProcedure.doRepeat env fuel' n body s₁ = some s₂ := by
+        simpa [execProcedure, Procedure.ofOps] using hrest
+      simp [execProcedure, Procedure.ofOps, execProcedure.doRepeat, hbody', hrest']
 
 -- whileTrue composition rule
 
@@ -136,34 +136,34 @@ theorem execWithEnv_repeat_succ_eq
 
     The proof proceeds by induction on the loop-fuel parameter `f`, with
     the measure ensuring `f` is large enough for all iterations. -/
-theorem execWithEnv_while
+theorem execProcedure_while
     (env : ProcEnv) (fuel : Nat)
-    (body : List Op) (s : MidenState)
-    (inv : MidenState → Prop)
-    (post : MidenState → Prop)
-    (measure : MidenState → Nat)
+    (body : List Op) (s : Concrete.State)
+    (inv : Concrete.State → Prop)
+    (post : Concrete.State → Prop)
+    (measure : Concrete.State → Nat)
     (hinit : inv s)
     (hbool : ∀ s₀, inv s₀ →
       ∃ cond rest, s₀.stack = cond :: rest ∧ (cond.val = 0 ∨ cond.val = 1))
     (hstep : ∀ s₀ cond rest, inv s₀ →
       s₀.stack = cond :: rest →
       cond.val = 1 →
-      ∃ s₁, execWithEnv env fuel (s₀.withStack rest) body = some s₁
+      ∃ s₁, execProcedure env fuel (s₀.withStack rest) body = some s₁
              ∧ inv s₁ ∧ measure s₁ < measure s₀)
     (hexit : ∀ s₀ cond rest, inv s₀ →
       s₀.stack = cond :: rest →
       cond.val = 0 →
       post (s₀.withStack rest))
     (hfuel : fuel ≥ measure s + 1) :
-    ∃ s', execWithEnv.doWhile env fuel fuel body s = some s' ∧ post s' := by
+    ∃ s', execProcedure.doWhile env fuel fuel body s = some s' ∧ post s' := by
   suffices h : ∀ s₀ f, inv s₀ → measure s₀ < f → f ≤ fuel →
-      ∃ s', execWithEnv.doWhile env fuel f body s₀ = some s' ∧ post s' from
+      ∃ s', execProcedure.doWhile env fuel f body s₀ = some s' ∧ post s' from
     h s fuel hinit (by omega) le_rfl
   intro s₀ f hinv₀ hmeas hf_le
   induction f generalizing s₀ with
   | zero => omega
   | succ f' ih =>
-    simp only [execWithEnv.doWhile]
+    simp only [execProcedure.doWhile]
     obtain ⟨cond, rest, hstk, hcond_bool⟩ := hbool s₀ hinv₀
     rw [hstk]
     rcases hcond_bool with h0 | h1
@@ -172,8 +172,8 @@ theorem execWithEnv_while
       simp [h0]
     · -- cond.val = 1: continue
       obtain ⟨s₁, hexec, hinv₁, hdec⟩ := hstep s₀ cond rest hinv₀ hstk h1
-      have hexec' : execWithEnv env fuel (s₀.withStack rest) body = some s₁ :=
-        execWithEnv_fuel_mono (by omega) hexec
+      have hexec' : execProcedure env fuel (s₀.withStack rest) body = some s₁ :=
+        execProcedure_fuel_mono (by omega) hexec
       simp only [show (cond.val == 1) = true from by simp [h1], ite_true, hexec']
       exact ih s₁ hinv₁ (by omega) (by omega)
 

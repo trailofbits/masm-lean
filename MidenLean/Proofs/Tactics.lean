@@ -164,8 +164,8 @@ macro_rules
 -- miden_setup: automate the proof preamble
 
 open Lean Elab Tactic Meta in
-/-- `miden_setup ProcName` automates the standard boilerplate for `exec`-based proofs.
-    Destructures `s`, substitutes `hs`, unfolds `exec`, the block wrapper, and `execWithEnv`,
+/-- `miden_setup ProcName` automates the standard boilerplate for `execProcedure emptyEnv`-based proofs.
+    Destructures `s`, substitutes `hs`, unfolds `execProcedure emptyEnv`, the block wrapper, and `execProcedure`,
     then normalizes.
     After `miden_setup`, the goal is a chain of `execInstruction` calls bound with `>>=`. -/
 elab "miden_setup " proc:term : tactic => do
@@ -176,15 +176,15 @@ elab "miden_setup " proc:term : tactic => do
   let frames := mkIdent `frames
   let adv := mkIdent `adv
   evalTactic (← `(tactic| obtain ⟨$stk, $mem, $frames, $adv⟩ := $s))
-  evalTactic (← `(tactic| simp only [MidenState.withStack] at $hs ⊢))
+  evalTactic (← `(tactic| simp only [Concrete.State.withStack] at $hs ⊢))
   evalTactic (← `(tactic| subst $hs))
   let procId : TSyntax `ident := ⟨proc.raw⟩
-  evalTactic (← `(tactic| unfold exec $procId execWithEnv))
+  evalTactic (← `(tactic| unfold emptyEnv $procId execProcedure))
   evalTactic (← `(tactic| simp only [List.foldlM, Procedure.ofOps]))
 
 open Lean Elab Tactic Meta in
-/-- `miden_setup_env ProcName` is like `miden_setup` but for `execWithEnv`-based proofs.
-    Unfolds the procedure and `execWithEnv`. -/
+/-- `miden_setup_env ProcName` is like `miden_setup` but for `execProcedure`-based proofs.
+    Unfolds the procedure and `execProcedure`. -/
 elab "miden_setup_env " proc:term : tactic => do
   let s := mkIdent `s
   let hs := mkIdent `hs
@@ -193,10 +193,10 @@ elab "miden_setup_env " proc:term : tactic => do
   let frames := mkIdent `frames
   let adv := mkIdent `adv
   evalTactic (← `(tactic| obtain ⟨$stk, $mem, $frames, $adv⟩ := $s))
-  evalTactic (← `(tactic| simp only [MidenState.withStack] at $hs ⊢))
+  evalTactic (← `(tactic| simp only [Concrete.State.withStack] at $hs ⊢))
   evalTactic (← `(tactic| subst $hs))
   let procId : TSyntax `ident := ⟨proc.raw⟩
-  evalTactic (← `(tactic| unfold $procId execWithEnv))
+  evalTactic (← `(tactic| unfold $procId execProcedure))
   evalTactic (← `(tactic| simp only [List.foldlM, Procedure.ofOps]))
 
 -- miden_call: resolve a procedure call
@@ -219,13 +219,13 @@ macro_rules
   | `(tactic| miden_call $proc) =>
     `(tactic|
       (dsimp only [bind, Bind.bind, Option.bind]
-       unfold $proc execWithEnv
+       unfold $proc execProcedure
        simp only [List.foldlM, Procedure.ofOps]))
 
 /-- Compositional procedure call: rewrite with a callee's `_run` theorem
     instead of unfolding the callee body. The `_run` theorem is applied via
     `rw`, then the bind is normalized. Fuel mismatches are handled by
-    `execWithEnv_fuel_mono` (from Fuel.lean).
+    `execProcedure_fuel_mono` (from Fuel.lean).
 
     Usage:
       miden_exec u64_overflowing_add_run
@@ -243,14 +243,14 @@ macro_rules
 
 /-- Unfold one iteration of a `repeat` loop (via `doRepeat`).
     Unfolds doRepeat. In the recursive case (n > 0), also unfolds
-    the body's execWithEnv and reduces foldlM.
+    the body's execProcedure and reduces foldlM.
     In the base case (n = 0), the unfold produces `some st`. -/
 syntax "miden_loop" : tactic
 macro_rules
   | `(tactic| miden_loop) =>
     `(tactic|
-      (unfold execWithEnv.doRepeat
-       try (unfold execWithEnv; simp only [List.foldlM, Procedure.ofOps])))
+      (unfold execProcedure.doRepeat
+       try (unfold execProcedure; simp only [List.foldlM, Procedure.ofOps])))
 
 -- miden_recover: Felt.ofNat value recovery
 
@@ -342,7 +342,7 @@ elab_rules : tactic
         (intros p hp;
          simp [miden_reflect_norm,
                and_assoc, and_left_comm, and_comm,
-               MidenLean.MidenState.withStack,
+               MidenLean.Concrete.State.withStack,
                MidenLean.Symbolic.Precondition.holds,
                MidenLean.Symbolic.Expr.eval,
                MidenLean.Symbolic.Reflect.concreteAssignment,
@@ -351,7 +351,7 @@ elab_rules : tactic
                MidenLean.LocalFrame.localAddr] at hp;
          simp [miden_reflect_norm,
                and_assoc, and_left_comm, and_comm,
-               MidenLean.MidenState.withStack,
+               MidenLean.Concrete.State.withStack,
                MidenLean.Symbolic.Precondition.holds,
                MidenLean.Symbolic.Expr.eval,
                MidenLean.Symbolic.Reflect.concreteAssignment,
@@ -364,7 +364,7 @@ elab_rules : tactic
         Lean.Elab.Tactic.evalTactic (← `(tactic|
           simp [miden_reflect_norm,
                 and_assoc, and_left_comm, and_comm,
-                MidenLean.MidenState.withStack,
+                MidenLean.Concrete.State.withStack,
                 MidenLean.Symbolic.Precondition.holds,
                 MidenLean.Symbolic.Expr.eval,
                 MidenLean.Symbolic.Reflect.concreteAssignment,
@@ -389,7 +389,7 @@ elab_rules : tactic
                 MidenLean.Symbolic.Reflect.concreteAssignment,
                 MidenLean.Symbolic.Reflect.concreteState,
                 MidenLean.Symbolic.Reflect.concreteStateWithLocals,
-                MidenLean.MidenState.withStack,
+                MidenLean.Concrete.State.withStack,
                 MidenLean.LocalFrame.localAddr,
                 and_assoc, and_left_comm, and_comm] at *))
       catch _ =>

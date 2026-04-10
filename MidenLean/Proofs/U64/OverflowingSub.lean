@@ -16,11 +16,11 @@ set_option maxHeartbeats 8000000 in
     where (diff_hi, diff_lo) is the u64 difference a - b,
     and borrow = 1 iff the subtraction underflowed. -/
 theorem u64_overflowing_sub_exec
-    (a_lo a_hi b_lo b_hi : Felt) (rest : List Felt) (s : MidenState)
+    (a_lo a_hi b_lo b_hi : Felt) (rest : List Felt) (s : Concrete.State)
     (hs : s.stack = b_lo :: b_hi :: a_lo :: a_hi :: rest)
     (ha_lo : a_lo.isU32 = true) (ha_hi : a_hi.isU32 = true)
     (hb_lo : b_lo.isU32 = true) (hb_hi : b_hi.isU32 = true) :
-    exec 20 s Miden.Core.U64.overflowing_sub =
+    execProcedure emptyEnv 20 s Miden.Core.U64.overflowing_sub =
     some (s.withStack (
       let sub_lo := u32OverflowingSub a_lo.val b_lo.val
       let sub_hi := u32OverflowingSub a_hi.val b_hi.val
@@ -36,9 +36,9 @@ theorem u64_overflowing_sub_exec
     Input stack:  [b.lo, b.hi, a.lo, a.hi] ++ rest
     Output stack: [borrow, (a - b).lo, (a - b).hi] ++ rest
     where borrow = 1 iff a < b. -/
-theorem u64_overflowing_sub_correct (a b : U64) (rest : List Felt) (s : MidenState)
+theorem u64_overflowing_sub_correct (a b : U64) (rest : List Felt) (s : Concrete.State)
     (hs : s.stack = b.lo.val :: b.hi.val :: a.lo.val :: a.hi.val :: rest) :
-    exec 20 s Miden.Core.U64.overflowing_sub =
+    execProcedure emptyEnv 20 s Miden.Core.U64.overflowing_sub =
     some (s.withStack (
       (if decide (a < b) then (1 : Felt) else 0) ::
       (a - b).lo.val :: (a - b).hi.val :: rest)) := by

@@ -17,13 +17,13 @@ set_option maxHeartbeats 4000000 in
     Input stack:  [a, b, c, d] ++ rest
     Output stack: [sorry] ++ rest -/
 theorem u64_gt_correct
-    (a b c d : Felt) (rest : List Felt) (s : MidenState)
+    (a b c d : Felt) (rest : List Felt) (s : Concrete.State)
     (hs : s.stack = a :: b :: c :: d :: rest)
     (ha_u32 : a.isU32 = true)  -- from u32OverflowSub at instruction 7
     (hb_u32 : b.isU32 = true)  -- from u32OverflowSub at instruction 4
     (hd_u32 : d.isU32 = true)  -- from u32OverflowSub at instruction 4
     :
-    exec 18 s Miden.Core.U64.gt =
+    execProcedure emptyEnv 18 s Miden.Core.U64.gt =
     some (s.withStack (sorry :: rest))  -- TODO: specify output
     := by
   -- Chunked/manual scaffold: fill chunk lemmas or manual proof here.

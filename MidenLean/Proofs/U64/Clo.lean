@@ -11,10 +11,10 @@ open MidenLean.Tactics
 
 set_option maxHeartbeats 8000000 in
 /-- `u64::clo` raw: result in terms of u32CountLeadingZeros on complemented limbs. -/
-theorem u64_clo_exec (lo hi : Felt) (rest : List Felt) (s : MidenState)
+theorem u64_clo_exec (lo hi : Felt) (rest : List Felt) (s : Concrete.State)
     (hs : s.stack = lo :: hi :: rest)
     (hlo : lo.isU32 = true) (hhi : hi.isU32 = true) :
-    exec 20 s Miden.Core.U64.clo =
+    execProcedure emptyEnv 20 s Miden.Core.U64.clo =
     some (s.withStack (
       (if hi == (4294967295 : Felt)
        then Felt.ofNat (u32CountLeadingZeros (u32Max - 1 - lo.val)) + 32
@@ -25,9 +25,9 @@ theorem u64_clo_exec (lo hi : Felt) (rest : List Felt) (s : MidenState)
 /-- `u64::clo` counts leading ones of a u64 value.
     Input stack:  [a.lo, a.hi] ++ rest
     Output stack: [Felt.ofNat a.countLeadingOnes] ++ rest -/
-theorem u64_clo_correct (a : U64) (rest : List Felt) (s : MidenState)
+theorem u64_clo_correct (a : U64) (rest : List Felt) (s : Concrete.State)
     (hs : s.stack = a.lo.val :: a.hi.val :: rest) :
-    exec 20 s Miden.Core.U64.clo =
+    execProcedure emptyEnv 20 s Miden.Core.U64.clo =
     some (s.withStack (Felt.ofNat a.countLeadingOnes :: rest)) := by
   have h := u64_clo_exec a.lo.val a.hi.val rest s hs a.lo.isU32 a.hi.isU32
   unfold U64.countLeadingOnes u32CountLeadingOnes

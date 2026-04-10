@@ -19,7 +19,7 @@ set_option maxHeartbeats 4000000 in
 theorem u64_div_exec
     (a_lo a_hi b_lo b_hi : Felt) (rest : List Felt)
     (q_lo q_hi r_lo r_hi : Felt) (adv_rest : List Felt)
-    (s : MidenState)
+    (s : Concrete.State)
     (hs : s.stack = b_lo :: b_hi :: a_lo :: a_hi :: rest)
     (hadv : s.advice = q_lo :: q_hi :: r_lo :: r_hi :: adv_rest)
     (hq_hi_u32 : q_hi.isU32 = true)
@@ -61,7 +61,7 @@ theorem u64_div_exec
         (r_hi.val + (b_lo.val * q_hi.val) % 2^32) / 2^32) % 2^32))
     (h_a_lo_eq : a_lo = Felt.ofNat ((r_hi.val +
         (b_lo.val * q_hi.val) % 2^32) % 2^32)) :
-    execWithEnv u64ProcEnv 51 s Miden.Core.U64.div =
+    execProcedure u64ProcEnv 51 s Miden.Core.U64.div =
     some { stack := q_hi :: q_lo :: rest,
            memory := s.memory,
            frames := s.frames,
@@ -69,11 +69,11 @@ theorem u64_div_exec
   obtain ⟨stk, mem, frames, adv⟩ := s
   simp only [] at hadv
   subst hs; subst hadv
-  -- Unfold div: exec "divmod"; drop; drop
-  unfold Miden.Core.U64.div execWithEnv
+  -- Unfold div: execProcedure emptyEnv "divmod"; drop; drop
+  unfold Miden.Core.U64.div execProcedure
   simp only [List.foldlM, u64ProcEnv]
   dsimp only [bind, Bind.bind, Option.bind]
-  -- The exec "divmod" resolves and calls execWithEnv u64ProcEnv 50 s divmod_body
+  -- The execProcedure emptyEnv "divmod" resolves and calls execProcedure u64ProcEnv 50 s divmod_body
   -- Use the divmod correctness theorem
   rw [u64_divmod_exec a_lo a_hi b_lo b_hi rest q_lo q_hi r_lo r_hi adv_rest
         ⟨b_lo :: b_hi :: a_lo :: a_hi :: rest, mem, frames, q_lo :: q_hi :: r_lo :: r_hi :: adv_rest⟩
@@ -93,10 +93,10 @@ set_option maxHeartbeats 4000000 in
     Advice stack: [q.hi, q.lo, r.hi, r.lo] ++ adv_rest
     Output stack: [q.lo, q.hi] ++ rest -/
 theorem u64_div_correct (a b q r : U64) (rest : List Felt) (adv_rest : List Felt)
-    (s : MidenState)
+    (s : Concrete.State)
     (hs : s.stack = b.lo.val :: b.hi.val :: a.lo.val :: a.hi.val :: rest)
     (hadv : s.advice = q.hi.val :: q.lo.val :: r.hi.val :: r.lo.val :: adv_rest) :
-    execWithEnv u64ProcEnv 51 s Miden.Core.U64.div =
+    execProcedure u64ProcEnv 51 s Miden.Core.U64.div =
     some { stack := q.lo.val :: q.hi.val :: rest,
            memory := s.memory,
            frames := s.frames,
@@ -107,12 +107,12 @@ theorem u64_div_correct (a b q r : U64) (rest : List Felt) (adv_rest : List Felt
   constructor
   · -- Forward: div success → conditions
     intro hexec
-    unfold Miden.Core.U64.div execWithEnv at hexec
+    unfold Miden.Core.U64.div execProcedure at hexec
     simp only [List.foldlM, u64ProcEnv] at hexec
     -- hexec : (do let s' ← exec_divmod; drop; drop; pure s') = some result
     -- Case split on divmod result
     revert hexec
-    cases h_dm : execWithEnv u64ProcEnv 50
+    cases h_dm : execProcedure u64ProcEnv 50
       { stack := b.lo.val :: b.hi.val :: a.lo.val :: a.hi.val :: rest, memory := mem,
         frames := frames,
         advice := q.hi.val :: q.lo.val :: r.hi.val :: r.lo.val :: adv_rest }
@@ -126,7 +126,7 @@ theorem u64_div_correct (a b q r : U64) (rest : List Felt) (adv_rest : List Felt
     have h_divmod := (u64_divmod_correct a b q r rest adv_rest
       ⟨b.lo.val :: b.hi.val :: a.lo.val :: a.hi.val :: rest, mem, frames,
        q.hi.val :: q.lo.val :: r.hi.val :: r.lo.val :: adv_rest⟩ rfl rfl).mpr ⟨hdiv, hlt⟩
-    unfold Miden.Core.U64.div execWithEnv
+    unfold Miden.Core.U64.div execProcedure
     simp only [List.foldlM, u64ProcEnv]
     dsimp only [bind, Bind.bind, Option.bind]
     rw [h_divmod]

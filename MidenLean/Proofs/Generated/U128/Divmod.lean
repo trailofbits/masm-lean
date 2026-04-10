@@ -17,7 +17,7 @@ set_option maxHeartbeats 8000000 in
     Input stack:  [x0, x1, x2, x3, x4, x5, x6, x7] ++ rest
     Output stack: [sorry] ++ rest -/
 theorem u128_divmod_correct
-    (x0 x1 x2 x3 x4 x5 x6 x7 : Felt) (rest : List Felt) (s : MidenState)
+    (x0 x1 x2 x3 x4 x5 x6 x7 : Felt) (rest : List Felt) (s : Concrete.State)
     (hs : s.stack = x0 :: x1 :: x2 :: x3 :: x4 :: x5 :: x6 :: x7 :: rest)
     (v0 v1 v2 v3 v4 v5 v6 v7 : Felt) (adv_rest : List Felt)
     (hadv : s.advice = v0 :: v1 :: v2 :: v3 :: v4 :: v5 :: v6 :: v7 :: adv_rest)
@@ -26,7 +26,7 @@ theorem u128_divmod_correct
     (hx6_u32 : x6.isU32 = true)  -- from u32WidenMadd at instruction 20
     (hx7_u32 : x7.isU32 = true)  -- from u32WidenMul at instruction 9
     :
-    exec 163 s Miden.Core.U128.divmod =
+    execProcedure emptyEnv 163 s Miden.Core.U128.divmod =
     some (s.withStack (sorry :: rest))  -- TODO: specify output
     := by
   -- Chunked/manual scaffold: fill chunk lemmas or manual proof here.

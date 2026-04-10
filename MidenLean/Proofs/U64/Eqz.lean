@@ -15,9 +15,9 @@ set_option maxHeartbeats 4000000 in
     Output stack: [is_zero] ++ rest
     where is_zero = 1 iff both input limbs are zero. -/
 theorem u64_eqz_exec
-    (lo hi : Felt) (rest : List Felt) (s : MidenState)
+    (lo hi : Felt) (rest : List Felt) (s : Concrete.State)
     (hs : s.stack = lo :: hi :: rest) :
-    exec 9 s Miden.Core.U64.eqz =
+    execProcedure emptyEnv 9 s Miden.Core.U64.eqz =
     some (s.withStack (
       (if (lo == (0 : Felt)) && (hi == (0 : Felt))
        then (1 : Felt) else 0) :: rest)) := by
@@ -27,9 +27,9 @@ theorem u64_eqz_exec
 /-- `u64::eqz` tests whether a u64 value is zero.
     Input stack:  [a.lo, a.hi] ++ rest
     Output stack: [if a == 0 then 1 else 0] ++ rest -/
-theorem u64_eqz_correct (a : U64) (rest : List Felt) (s : MidenState)
+theorem u64_eqz_correct (a : U64) (rest : List Felt) (s : Concrete.State)
     (hs : s.stack = a.lo.val :: a.hi.val :: rest) :
-    exec 9 s Miden.Core.U64.eqz =
+    execProcedure emptyEnv 9 s Miden.Core.U64.eqz =
     some (s.withStack (
       (if a == U64.ofNat 0 then (1 : Felt) else 0) :: rest)) := by
   simp only [U64.beq_iff, U64.ofNat]

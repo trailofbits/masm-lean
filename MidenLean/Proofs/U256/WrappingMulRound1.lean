@@ -11,7 +11,7 @@ open MidenLean.Tactics
 -- ============================================================================
 
 set_option maxHeartbeats 16000000 in
-/-- Part A: padw, locLoadwBe 16, movdnw 2, movup 12, exec mulstep4,
+/-- Part A: padw, locLoadwBe 16, movdnw 2, movup 12, execProcedure emptyEnv mulstep4,
     movdn 9, movdn 9, swapw 1, locStorewBe 16, dropw.
     Computes b0 × a[0..3] and stores low results to locals 16. -/
 theorem wm_r1a_correct (a b : U256) (rest : List Felt)
@@ -26,7 +26,7 @@ theorem wm_r1a_correct (a b : U256) (rest : List Felt)
     let c₂ := mulstepCarry c₁ a.a1.val b.a0.val 0
     let c₃ := mulstepCarry c₂ a.a2.val b.a0.val 0
     let c₄ := mulstepCarry c₃ a.a3.val b.a0.val 0
-    execWithEnv u256ProcEnv (fuel + 3)
+    execProcedure u256ProcEnv (fuel + 3)
       ⟨a.a7.val :: a.a6.val :: a.a5.val :: a.a4.val ::
        a.a3.val :: a.a2.val :: a.a1.val :: a.a0.val :: b.a0.val :: rest,
        mem, frame :: frames, adv⟩
@@ -39,7 +39,7 @@ theorem wm_r1a_correct (a b : U256) (rest : List Felt)
             else if i = la 16 then mulstepLo 0 a.a0.val b.a0.val 0
             else mem i,
           frame :: frames, adv⟩ := by
-  unfold wm_r1a execWithEnv Procedure.ofOps
+  unfold wm_r1a execProcedure Procedure.ofOps
   simp only [List.foldlM, u256ProcEnv]
   -- 1. padw
   dsimp only [bind, Bind.bind, Option.bind]
@@ -54,7 +54,7 @@ theorem wm_r1a_correct (a b : U256) (rest : List Felt)
   dsimp only [bind, Bind.bind, Option.bind]
   -- 4. movup 12
   miden_movup
-  -- 5. exec "mulstep4"
+  -- 5. execProcedure emptyEnv "mulstep4"
   have h0u : (0 : Felt).isU32 = true := by simp [Felt.isU32]
   have hmul4 := u256_mulstep4_correct
     b.a0.val a.a7.val a.a6.val a.a5.val a.a4.val
@@ -67,7 +67,7 @@ theorem wm_r1a_correct (a b : U256) (rest : List Felt)
     rfl
     (U256.a0_isU32 b) (U256.a3_isU32 a) (U256.a2_isU32 a) (U256.a1_isU32 a) (U256.a0_isU32 a)
     h0u h0u h0u h0u fuel
-  simp only [MidenState.withStack] at hmul4
+  simp only [Concrete.State.withStack] at hmul4
   rw [hmul4]; clear hmul4
   dsimp only [bind, Bind.bind, Option.bind]
   -- 6. movdn 9
@@ -102,7 +102,7 @@ private theorem wm_r1b1_correct (a b : U256) (rest : List Felt)
     (h20_0 : mem (frame.localAddr 20) = 0) :
     let c₅ := mulstepCarry c₄ a.a4.val b.a0.val 0
     let c₆ := mulstepCarry c₅ a.a5.val b.a0.val 0
-    execWithEnv u256ProcEnv (fuel + 3)
+    execProcedure u256ProcEnv (fuel + 3)
       ⟨a.a7.val :: a.a6.val :: a.a5.val :: a.a4.val :: c₄ :: b.a0.val :: rest,
        mem, frame :: frames, adv⟩
       (Procedure.ofOps wm_r1b1) =
@@ -110,7 +110,7 @@ private theorem wm_r1b1_correct (a b : U256) (rest : List Felt)
           mulstepLo c₅ a.a5.val b.a0.val 0 :: mulstepLo c₄ a.a4.val b.a0.val 0 ::
           (0 : Felt) :: (0 : Felt) :: rest,
           mem, frame :: frames, adv⟩ := by
-  unfold wm_r1b1 execWithEnv Procedure.ofOps
+  unfold wm_r1b1 execProcedure Procedure.ofOps
   simp only [List.foldlM, u256ProcEnv]
   have h0u : (0 : Felt).isU32 = true := by simp [Felt.isU32]
   -- Setup: padw
@@ -139,7 +139,7 @@ private theorem wm_r1b1_correct (a b : U256) (rest : List Felt)
      b.a0.val :: a.a7.val :: a.a6.val :: a.a5.val :: (0 : Felt) :: (0 : Felt) :: (0 : Felt) :: rest,
      mem, frame :: frames, adv⟩
     rfl hc₄ (U256.a4_isU32 a) (U256.a0_isU32 b) h0u
-  simp only [MidenState.withStack] at hms1
+  simp only [Concrete.State.withStack] at hms1
   rw [hms1]; clear hms1; dsimp only [bind, Bind.bind, Option.bind]
   -- swap 1, movdn 5
   miden_swap
@@ -162,7 +162,7 @@ private theorem wm_r1b1_correct (a b : U256) (rest : List Felt)
      mulstepLo c₄ a.a4.val b.a0.val 0 :: (0 : Felt) :: (0 : Felt) :: rest,
      mem, frame :: frames, adv⟩
     rfl hc₅u (U256.a5_isU32 a) (U256.a0_isU32 b) h0u
-  simp only [MidenState.withStack] at hms2
+  simp only [Concrete.State.withStack] at hms2
   rw [hms2]; clear hms2; dsimp only [bind, Bind.bind, Option.bind]
   -- swap 1, movdn 4
   miden_swap
@@ -179,7 +179,7 @@ private theorem wm_r1b2_correct (a b : U256) (rest : List Felt)
     (c₆ : Felt) (hc₆ : c₆.isU32 = true) (l₅ l₄ : Felt) :
     let la := frame.localAddr
     let c₇ := mulstepCarry c₆ a.a6.val b.a0.val 0
-    execWithEnv u256ProcEnv (fuel + 3)
+    execProcedure u256ProcEnv (fuel + 3)
       ⟨c₆ :: b.a0.val :: a.a7.val :: a.a6.val :: l₅ :: l₄ :: (0 : Felt) :: (0 : Felt) :: rest,
        mem, frame :: frames, adv⟩
       (Procedure.ofOps wm_r1b2) =
@@ -191,7 +191,7 @@ private theorem wm_r1b2_correct (a b : U256) (rest : List Felt)
             else if i = la 20 then l₄
             else mem i,
           frame :: frames, adv⟩ := by
-  unfold wm_r1b2 execWithEnv Procedure.ofOps
+  unfold wm_r1b2 execProcedure Procedure.ofOps
   simp only [List.foldlM, u256ProcEnv]
   have h0u : (0 : Felt).isU32 = true := by simp [Felt.isU32]
   -- === Mulstep 3: c₆ × a6 ===
@@ -208,7 +208,7 @@ private theorem wm_r1b2_correct (a b : U256) (rest : List Felt)
      b.a0.val :: a.a7.val :: l₅ :: l₄ :: (0 : Felt) :: rest,
      mem, frame :: frames, adv⟩
     rfl hc₆ (U256.a6_isU32 a) (U256.a0_isU32 b) h0u
-  simp only [MidenState.withStack] at hms3
+  simp only [Concrete.State.withStack] at hms3
   rw [hms3]; clear hms3; dsimp only [bind, Bind.bind, Option.bind]
   -- swap 1, movdn 3
   miden_swap
@@ -229,7 +229,7 @@ private theorem wm_r1b2_correct (a b : U256) (rest : List Felt)
      mulstepLo c₆ a.a6.val b.a0.val 0 :: l₅ :: l₄ :: rest,
      mem, frame :: frames, adv⟩
     rfl hc₇u (U256.a7_isU32 a) (U256.a0_isU32 b) h0u
-  simp only [MidenState.withStack] at hms4
+  simp only [Concrete.State.withStack] at hms4
   rw [hms4]; clear hms4; dsimp only [bind, Bind.bind, Option.bind]
   -- drop (remove carry)
   rw [stepDrop]; dsimp only [bind, Bind.bind, Option.bind]
@@ -255,7 +255,7 @@ private theorem wm_r1b_correct (a b : U256) (rest : List Felt)
     let c₅ := mulstepCarry c₄ a.a4.val b.a0.val 0
     let c₆ := mulstepCarry c₅ a.a5.val b.a0.val 0
     let c₇ := mulstepCarry c₆ a.a6.val b.a0.val 0
-    execWithEnv u256ProcEnv (fuel + 3)
+    execProcedure u256ProcEnv (fuel + 3)
       ⟨a.a7.val :: a.a6.val :: a.a5.val :: a.a4.val :: c₄ :: b.a0.val :: rest,
        mem, frame :: frames, adv⟩
       (Procedure.ofOps wm_r1b) =
@@ -269,7 +269,7 @@ private theorem wm_r1b_correct (a b : U256) (rest : List Felt)
           frame :: frames, adv⟩ := by
   -- Decompose into two halves
   rw [show (wm_r1b : List Op) = wm_r1b1 ++ wm_r1b2 from wm_r1b_eq_b1_b2]
-  rw [execWithEnv_append]
+  rw [execProcedure_append]
   -- Apply Part B1
   have hc₅u : (mulstepCarry c₄ a.a4.val b.a0.val 0).isU32 = true :=
     mulstep_carry_isU32 c₄ a.a4.val b.a0.val 0 hc₄ (U256.a4_isU32 a) (U256.a0_isU32 b)
@@ -311,7 +311,7 @@ theorem wm_round1_correct (a b : U256) (rest : List Felt)
     let c₅ := mulstepCarry c₄ a.a4.val b.a0.val 0
     let c₆ := mulstepCarry c₅ a.a5.val b.a0.val 0
     let c₇ := mulstepCarry c₆ a.a6.val b.a0.val 0
-    execWithEnv u256ProcEnv (fuel + 3)
+    execProcedure u256ProcEnv (fuel + 3)
       ⟨a.a7.val :: a.a6.val :: a.a5.val :: a.a4.val ::
        a.a3.val :: a.a2.val :: a.a1.val :: a.a0.val :: b.a0.val :: rest,
        mem, frame :: frames, adv⟩
@@ -330,7 +330,7 @@ theorem wm_round1_correct (a b : U256) (rest : List Felt)
           frame :: frames, adv⟩ := by
   -- Split into Part A (mulstep4) and Part B (individual mulsteps)
   rw [show (wm_round1 : List Op) = wm_r1a ++ wm_r1b from wm_round1_eq_r1a_r1b]
-  rw [execWithEnv_append]
+  rw [execProcedure_append]
   -- Apply Part A
   rw [wm_r1a_correct a b rest mem frame frames adv fuel hnl h16_3 h16_2 h16_1 h16_0]
   simp only [bind, Bind.bind, Option.bind]

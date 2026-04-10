@@ -17,14 +17,14 @@ set_option maxHeartbeats 8000000 in
     Input stack:  [x0, x1, x2, x3, x4] ++ rest
     Output stack: [sorry] ++ rest -/
 theorem u128_rotl_correct
-    (x0 x1 x2 x3 x4 : Felt) (rest : List Felt) (s : MidenState)
+    (x0 x1 x2 x3 x4 : Felt) (rest : List Felt) (s : Concrete.State)
     (hs : s.stack = x0 :: x1 :: x2 :: x3 :: x4 :: rest)
     (hx1_u32 : x1.isU32 = true)  -- from u32Or at instruction 31
     (hx2_u32 : x2.isU32 = true)  -- from u32Or at instruction 27
     (hx3_u32 : x3.isU32 = true)  -- from u32Or at instruction 23
     (hx4_u32 : x4.isU32 = true)  -- from u32Or at instruction 20
     :
-    execWithEnv u128ProcEnv 121 s Miden.Core.U128.rotl =
+    execProcedure u128ProcEnv 121 s Miden.Core.U128.rotl =
     some (s.withStack (sorry :: rest))  -- TODO: specify output
     := by
   -- Chunked/manual scaffold: fill chunk lemmas or manual proof here.
@@ -49,7 +49,7 @@ theorem u128_rotl_correct
   -- TODO: fill this step inside the chunked/manual scaffold
   -- Instruction 9: movup 4
   -- TODO: fill this step inside the chunked/manual scaffold
-  -- Instruction 10: exec "shl"
+  -- Instruction 10: execProcedure emptyEnv "shl"
   -- TODO: fill this step inside the chunked/manual scaffold
   -- Instruction 11: movdn 8
   -- TODO: fill this step inside the chunked/manual scaffold
@@ -65,7 +65,7 @@ theorem u128_rotl_correct
   -- TODO: fill this step inside the chunked/manual scaffold
   -- Instruction 17: u32WrappingSub
   -- TODO: fill this step inside the chunked/manual scaffold
-  -- Instruction 18: exec "shr"
+  -- Instruction 18: execProcedure emptyEnv "shr"
   -- TODO: fill this step inside the chunked/manual scaffold
   -- Instruction 19: movup 4
   -- TODO: fill this step inside the chunked/manual scaffold

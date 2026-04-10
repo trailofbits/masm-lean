@@ -17,10 +17,10 @@ set_option maxHeartbeats 8000000 in
     Input stack:  [a, b, c, d] ++ rest
     Output stack: [sorry] ++ rest -/
 theorem u128_clo_correct
-    (a b c d : Felt) (rest : List Felt) (s : MidenState)
+    (a b c d : Felt) (rest : List Felt) (s : Concrete.State)
     (hs : s.stack = a :: b :: c :: d :: rest)
     :
-    exec 33 s Miden.Core.U128.clo =
+    execProcedure emptyEnv 33 s Miden.Core.U128.clo =
     some (s.withStack (sorry :: rest))  -- TODO: specify output
     := by
   -- Chunked/manual scaffold: fill chunk lemmas or manual proof here.

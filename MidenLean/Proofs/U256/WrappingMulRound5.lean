@@ -35,7 +35,7 @@ theorem wm_round5_correct (a b : U256) (rest : List Felt)
     let carry1 := mulstepCarry 0 a.a0.val b.a4.val lo2
     let carry2 := mulstepCarry carry1 a.a1.val b.a4.val lo3
     let carry3 := mulstepCarry carry2 a.a2.val b.a4.val lo4
-    execWithEnv u256ProcEnv (fuel + 3)
+    execProcedure u256ProcEnv (fuel + 3)
       ⟨l₅ :: lo4 :: lo3 :: lo2 :: rest, mem, frame :: frames, adv⟩
       (Procedure.ofOps wm_round5) =
     some ⟨mulstepLo carry3 a.a3.val b.a4.val l₅ ::
@@ -43,7 +43,7 @@ theorem wm_round5_correct (a b : U256) (rest : List Felt)
           mulstepLo carry1 a.a1.val b.a4.val lo3 ::
           mulstepLo 0 a.a0.val b.a4.val lo2 :: rest,
           mem, frame :: frames, adv⟩ := by
-  unfold wm_round5 execWithEnv Procedure.ofOps
+  unfold wm_round5 execProcedure Procedure.ofOps
   simp only [List.foldlM, u256ProcEnv]
   dsimp only [bind, Bind.bind, Option.bind]
   -- padw
@@ -65,7 +65,7 @@ theorem wm_round5_correct (a b : U256) (rest : List Felt)
   miden_step
   -- dropw
   rw [stepDropw]; dsimp only [bind, Bind.bind, Option.bind]
-  -- exec "mulstep4"
+  -- execProcedure emptyEnv "mulstep4"
   have hmul4 := u256_mulstep4_correct
     b.a4.val a.a7.val a.a6.val a.a5.val a.a4.val
     a.a3.val a.a2.val a.a1.val a.a0.val
@@ -75,7 +75,7 @@ theorem wm_round5_correct (a b : U256) (rest : List Felt)
      mem, frame :: frames, adv⟩
     rfl (U256.a4_isU32 b) (U256.a3_isU32 a) (U256.a2_isU32 a) (U256.a1_isU32 a) (U256.a0_isU32 a)
     hl₅ hlo4 hlo3 hlo2 fuel
-  simp only [MidenState.withStack] at hmul4
+  simp only [Concrete.State.withStack] at hmul4
   rw [hmul4]; clear hmul4; dsimp only [bind, Bind.bind, Option.bind]
   -- dropw (removes carry4, b₄, a₇, a₆)
   rw [stepDropw]; dsimp only [bind, Bind.bind, Option.bind]

@@ -55,11 +55,11 @@ set_option maxHeartbeats 12000000 in
 private theorem rotl_chunk1_correct
     (shift lo hi : Felt) (rest : List Felt) (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (hshift_u32 : shift.isU32 = true) :
-    exec 30 ⟨shift :: lo :: hi :: rest, mem, frames, adv⟩ rotl_chunk1 =
+    execProcedure emptyEnv 30 ⟨shift :: lo :: hi :: rest, mem, frames, adv⟩ rotl_chunk1 =
       some ⟨Felt.ofNat (u32OverflowingSub 31 shift.val).1 ::
         Felt.ofNat (u32OverflowingSub 31 shift.val).2 ::
         shift :: hi :: lo :: rest, mem, frames, adv⟩ := by
-  unfold exec rotl_chunk1 execWithEnv
+  unfold rotl_chunk1 execProcedure
   simp only [List.foldlM]
   miden_movup
   miden_swap
@@ -75,14 +75,14 @@ set_option maxHeartbeats 12000000 in
 private theorem rotl_chunk2_correct
     (shift lo hi : Felt) (rest : List Felt) (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (hshift_u32 : shift.isU32 = true) :
-    exec 30
+    execProcedure emptyEnv 30
       ⟨Felt.ofNat (u32OverflowingSub 31 shift.val).1 ::
         Felt.ofNat (u32OverflowingSub 31 shift.val).2 ::
         shift :: hi :: lo :: rest, mem, frames, adv⟩
       rotl_chunk2 =
       some ⟨Felt.ofNat (2 ^ (shift.val &&& 31)) ::
         hi :: lo :: Felt.ofNat (u32OverflowingSub 31 shift.val).1 :: rest, mem, frames, adv⟩ := by
-  unfold exec rotl_chunk2 execWithEnv
+  unfold rotl_chunk2 execProcedure
   simp only [List.foldlM]
   have h_eff_bound : shift.val &&& 31 ≤ 31 := Nat.and_le_right
   have h_eff_lt_prime : shift.val &&& 31 < GOLDILOCKS_PRIME := by
@@ -114,12 +114,12 @@ private theorem rotl_chunk3_correct
     let cross_lo := Felt.ofNat ((hi.val * 2 ^ eff + (2 ^ eff * lo.val) / 2 ^ 32) % 2 ^ 32)
     let result_hi :=
       Felt.ofNat ((hi.val * 2 ^ eff + (2 ^ eff * lo.val) / 2 ^ 32) / 2 ^ 32) + lo_prod_lo
-    exec 30
+    execProcedure emptyEnv 30
       ⟨pow :: hi :: lo :: Felt.ofNat (u32OverflowingSub 31 shift.val).1 :: rest, mem, frames, adv⟩
       rotl_chunk3 =
       some ⟨Felt.ofNat (u32OverflowingSub 31 shift.val).1 ::
         cross_lo :: result_hi :: rest, mem, frames, adv⟩ := by
-  unfold exec rotl_chunk3 execWithEnv
+  unfold rotl_chunk3 execProcedure
   simp only [List.foldlM]
   have h_eff_bound : shift.val &&& 31 ≤ 31 := Nat.and_le_right
   have h_pow_lt_prime : 2 ^ (shift.val &&& 31) < GOLDILOCKS_PRIME := by
@@ -174,14 +174,14 @@ private theorem rotl_chunk4_correct
     let cross := hi.val * 2 ^ eff + lo_prod / 2 ^ 32
     let result_lo := Felt.ofNat (cross % 2 ^ 32)
     let result_hi := Felt.ofNat (cross / 2 ^ 32) + Felt.ofNat (lo_prod % 2 ^ 32)
-    exec 30
+    execProcedure emptyEnv 30
       ⟨Felt.ofNat (u32OverflowingSub 31 shift.val).1 ::
         result_lo :: result_hi :: rest, mem, frames, adv⟩
       rotl_chunk4 =
       some ⟨(if decide (31 < shift.val) then result_lo else result_hi) ::
         (if decide (31 < shift.val) then result_hi else result_lo) ::
         rest, mem, frames, adv⟩ := by
-  unfold exec rotl_chunk4 execWithEnv
+  unfold rotl_chunk4 execProcedure
   simp only [List.foldlM]
   rw [u32OverflowingSub_borrow_ite 31 shift.val]
   rw [stepCswapIte]
@@ -192,7 +192,7 @@ private theorem rotl_chunk4_correct
 set_option maxHeartbeats 16000000 in
 /-- `u64::rotl` raw: result in terms of schoolbook multiplication of limbs. -/
 theorem u64_rotl_exec
-    (lo hi shift : Felt) (rest : List Felt) (s : MidenState)
+    (lo hi shift : Felt) (rest : List Felt) (s : Concrete.State)
     (hs : s.stack = shift :: lo :: hi :: rest)
     (hshift_u32 : shift.isU32 = true)
     (hlo : lo.isU32 = true)
@@ -203,14 +203,14 @@ theorem u64_rotl_exec
     let cross := hi.val * pow + lo_prod / 2 ^ 32
     let result_lo := Felt.ofNat (cross % 2 ^ 32)
     let result_hi := Felt.ofNat (cross / 2 ^ 32) + Felt.ofNat (lo_prod % 2 ^ 32)
-    exec 30 s Miden.Core.U64.rotl =
+    execProcedure emptyEnv 30 s Miden.Core.U64.rotl =
       some (s.withStack (
         if decide (31 < shift.val) then
           result_lo :: result_hi :: rest
         else
           result_hi :: result_lo :: rest)) := by
   obtain ⟨stk, mem, frames, adv⟩ := s
-  simp only [MidenState.withStack] at hs ⊢
+  simp only [Concrete.State.withStack] at hs ⊢
   subst hs
   rw [MidenLean.exec_body_eq _ _ _ _ rotl_decomp rfl, MidenLean.exec_append]
   rw [rotl_chunk1_correct shift lo hi rest mem frames adv hshift_u32]
@@ -313,10 +313,10 @@ set_option maxHeartbeats 16000000 in
 /-- `u64::rotl` left-rotates a u64 value by `shift` bits.
     Input stack:  [shift, a.lo, a.hi] ++ rest
     Output stack: [(a.rotl shift).lo, (a.rotl shift).hi] ++ rest -/
-theorem u64_rotl_correct (a : U64) (shift : Felt) (rest : List Felt) (s : MidenState)
+theorem u64_rotl_correct (a : U64) (shift : Felt) (rest : List Felt) (s : Concrete.State)
     (hs : s.stack = shift :: a.lo.val :: a.hi.val :: rest)
     (hshift : shift.val ≤ 63) :
-    exec 30 s Miden.Core.U64.rotl =
+    execProcedure emptyEnv 30 s Miden.Core.U64.rotl =
     some (s.withStack ((a.rotl shift.val).lo.val :: (a.rotl shift.val).hi.val :: rest)) := by
   have hshift_u32 : shift.isU32 = true := by
     simp only [Felt.isU32, decide_eq_true_eq]; omega

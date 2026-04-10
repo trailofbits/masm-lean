@@ -56,7 +56,7 @@ private theorem u128_wrapping_mul_tail_arith_run
     (ha2 : a2.isU32 = true) (ha3 : a3.isU32 = true)
     (hb0 : b0.isU32 = true) (hb1 : b1.isU32 = true)
     (hb2 : b2.isU32 = true) (hb3 : b3.isU32 = true) :
-    execWithEnv env (fuel + 1)
+    execProcedure env (fuel + 1)
       ⟨u128MulO2Sum a0 a1 a2 b0 b1 b2 ::
         u128MulO2Carry a0 a1 a2 b0 b1 b2 ::
         a0 :: a1 :: a2 :: a3 :: b0 :: b1 :: b2 :: b3 ::
@@ -74,7 +74,7 @@ private theorem u128_wrapping_mul_tail_arith_run
       u128MulC2 a0 a1 a2 b0 b1 b2 ::
       rest,
       mem, frames, adv⟩ := by
-  unfold execWithEnv u128_wrapping_mul_tail_arith
+  unfold execProcedure u128_wrapping_mul_tail_arith
   simp only [List.foldlM]
   have hO2Sum_u32 : (u128MulO2Sum a0 a1 a2 b0 b1 b2).isU32 = true := by
     unfold u128MulO2Sum
@@ -120,11 +120,11 @@ private theorem u128_wrapping_mul_tail_cleanup_run
     (env : ProcEnv) (fuel : Nat)
     (c3 a0 a1 a2 a3 b0 b1 b2 b3 c0 c1 c2 : Felt) (rest : List Felt)
     (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt) :
-    execWithEnv env (fuel + 1)
+    execProcedure env (fuel + 1)
       ⟨c3 :: a0 :: a1 :: a2 :: a3 :: b0 :: b1 :: b2 :: b3 :: c0 :: c1 :: c2 :: rest, mem, frames, adv⟩
       u128_wrapping_mul_tail_cleanup =
     some ⟨c0 :: c1 :: c2 :: c3 :: rest, mem, frames, adv⟩ := by
-  unfold execWithEnv u128_wrapping_mul_tail_cleanup
+  unfold execProcedure u128_wrapping_mul_tail_cleanup
   simp only [List.foldlM]
   miden_movup
   miden_movup
@@ -152,7 +152,7 @@ private theorem u128_wrapping_mul_tail_run
     (ha2 : a2.isU32 = true) (ha3 : a3.isU32 = true)
     (hb0 : b0.isU32 = true) (hb1 : b1.isU32 = true)
     (hb2 : b2.isU32 = true) (hb3 : b3.isU32 = true) :
-    execWithEnv env (fuel + 1)
+    execProcedure env (fuel + 1)
       ⟨u128MulO2Sum a0 a1 a2 b0 b1 b2 ::
         u128MulO2Carry a0 a1 a2 b0 b1 b2 ::
         a0 :: a1 :: a2 :: a3 :: b0 :: b1 :: b2 :: b3 ::
@@ -169,7 +169,7 @@ private theorem u128_wrapping_mul_tail_run
       u128MulC3 a0 a1 a2 a3 b0 b1 b2 b3 ::
       rest,
       mem, frames, adv⟩ := by
-  rw [u128_wrapping_mul_tail_decomp, execWithEnv_append]
+  rw [u128_wrapping_mul_tail_decomp, execProcedure_append]
   rw [u128_wrapping_mul_tail_arith_run env fuel a0 a1 a2 a3 b0 b1 b2 b3 rest mem frames adv
     ha0 ha1 ha2 ha3 hb0 hb1 hb2 hb3]
   miden_bind
@@ -186,7 +186,7 @@ theorem u128_wrapping_mul_run
     (ha2 : a2.isU32 = true) (ha3 : a3.isU32 = true)
     (hb0 : b0.isU32 = true) (hb1 : b1.isU32 = true)
     (hb2 : b2.isU32 = true) (hb3 : b3.isU32 = true) :
-    execWithEnv env (fuel + 1)
+    execProcedure env (fuel + 1)
       ⟨b0 :: b1 :: b2 :: b3 :: a0 :: a1 :: a2 :: a3 :: rest, mem, frames, adv⟩
       Miden.Core.U128.wrapping_mul =
     some ⟨
@@ -196,7 +196,7 @@ theorem u128_wrapping_mul_run
       u128MulC3 a0 a1 a2 a3 b0 b1 b2 b3 ::
       rest,
       mem, frames, adv⟩ := by
-  rw [execWithEnv_body_eq _ _ _ _ _ wrapping_mul_decomp rfl, execWithEnv_append]
+  rw [execProcedure_body_eq _ _ _ _ _ wrapping_mul_decomp rfl, execProcedure_append]
   rw [u128_mul_low_chunk_run env fuel a0 a1 a2 a3 b0 b1 b2 b3 rest mem frames adv
     ha0 ha1 ha2 ha3 hb0 hb1 hb2 hb3]
   miden_bind
@@ -208,13 +208,13 @@ set_option maxHeartbeats 12000000 in
     This is the preferred theorem-backed summary shape for reflective callers. -/
 theorem u128_wrapping_mul_exec
     (env : ProcEnv) (fuel : Nat)
-    (a0 a1 a2 a3 b0 b1 b2 b3 : Felt) (rest : List Felt) (s : MidenState)
+    (a0 a1 a2 a3 b0 b1 b2 b3 : Felt) (rest : List Felt) (s : Concrete.State)
     (hs : s.stack = b0 :: b1 :: b2 :: b3 :: a0 :: a1 :: a2 :: a3 :: rest)
     (ha0 : a0.isU32 = true) (ha1 : a1.isU32 = true)
     (ha2 : a2.isU32 = true) (ha3 : a3.isU32 = true)
     (hb0 : b0.isU32 = true) (hb1 : b1.isU32 = true)
     (hb2 : b2.isU32 = true) (hb3 : b3.isU32 = true) :
-    execWithEnv env (fuel + 1) s Miden.Core.U128.wrapping_mul =
+    execProcedure env (fuel + 1) s Miden.Core.U128.wrapping_mul =
     some (s.withStack (
       u128MulC0 a0 b0 ::
       u128MulC1 a0 a1 b0 b1 ::
@@ -222,7 +222,7 @@ theorem u128_wrapping_mul_exec
       u128MulC3 a0 a1 a2 a3 b0 b1 b2 b3 ::
       rest)) := by
   obtain ⟨stk, mem, frames, adv⟩ := s
-  simp only [MidenState.withStack] at hs ⊢
+  simp only [Concrete.State.withStack] at hs ⊢
   subst hs
   simpa using
     u128_wrapping_mul_run env fuel a0 a1 a2 a3 b0 b1 b2 b3 rest mem frames adv
@@ -234,20 +234,20 @@ set_option maxHeartbeats 12000000 in
     Output stack: [c0, c1, c2, c3] ++ rest
     where `c0..c3` are the low-to-high limbs of `(a * b) mod 2^128`. -/
 theorem u128_wrapping_mul_raw
-    (a0 a1 a2 a3 b0 b1 b2 b3 : Felt) (rest : List Felt) (s : MidenState)
+    (a0 a1 a2 a3 b0 b1 b2 b3 : Felt) (rest : List Felt) (s : Concrete.State)
     (hs : s.stack = b0 :: b1 :: b2 :: b3 :: a0 :: a1 :: a2 :: a3 :: rest)
     (ha0 : a0.isU32 = true) (ha1 : a1.isU32 = true)
     (ha2 : a2.isU32 = true) (ha3 : a3.isU32 = true)
     (hb0 : b0.isU32 = true) (hb1 : b1.isU32 = true)
     (hb2 : b2.isU32 = true) (hb3 : b3.isU32 = true) :
-    exec 65 s Miden.Core.U128.wrapping_mul =
+    execProcedure emptyEnv 65 s Miden.Core.U128.wrapping_mul =
     some (s.withStack (
       u128MulC0 a0 b0 ::
       u128MulC1 a0 a1 b0 b1 ::
       u128MulC2 a0 a1 a2 b0 b1 b2 ::
       u128MulC3 a0 a1 a2 a3 b0 b1 b2 b3 ::
       rest)) := by
-  simpa [exec] using
+  simpa [emptyEnv] using
     u128_wrapping_mul_exec (env := fun _ => none) (fuel := 64)
       a0 a1 a2 a3 b0 b1 b2 b3 rest s hs
       ha0 ha1 ha2 ha3 hb0 hb1 hb2 hb3
@@ -256,10 +256,10 @@ set_option maxHeartbeats 12000000 in
 /-- `u128::wrapping_mul` computes `(a * b) mod 2^128` for two 128-bit values.
     Input stack:  [b.a0, b.a1, b.a2, b.a3, a.a0, a.a1, a.a2, a.a3] ++ rest
     Output stack: [(a*b).a0, (a*b).a1, (a*b).a2, (a*b).a3] ++ rest -/
-theorem u128_wrapping_mul_correct (a b : U128) (rest : List Felt) (s : MidenState)
+theorem u128_wrapping_mul_correct (a b : U128) (rest : List Felt) (s : Concrete.State)
     (hs : s.stack = b.a0.val :: b.a1.val :: b.a2.val :: b.a3.val ::
                     a.a0.val :: a.a1.val :: a.a2.val :: a.a3.val :: rest) :
-    exec 65 s Miden.Core.U128.wrapping_mul =
+    execProcedure emptyEnv 65 s Miden.Core.U128.wrapping_mul =
     some (s.withStack (
       (a * b).a0.val :: (a * b).a1.val :: (a * b).a2.val :: (a * b).a3.val :: rest)) := by
   have h := u128_wrapping_mul_raw a.a0.val a.a1.val a.a2.val a.a3.val

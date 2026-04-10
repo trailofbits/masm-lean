@@ -17,11 +17,11 @@ set_option maxHeartbeats 8000000 in
     Input stack:  [a, b, c] ++ rest
     Output stack: [sorry] ++ rest -/
 theorem u64_rotr_correct
-    (a b c : Felt) (rest : List Felt) (s : MidenState)
+    (a b c : Felt) (rest : List Felt) (s : Concrete.State)
     (hs : s.stack = a :: b :: c :: rest)
     (hc_u32 : c.isU32 = true)  -- from u32And at instruction 7
     :
-    exec 35 s Miden.Core.U64.rotr =
+    execProcedure emptyEnv 35 s Miden.Core.U64.rotr =
     some (s.withStack (sorry :: rest))  -- TODO: specify output
     := by
   -- Chunked/manual scaffold: fill chunk lemmas or manual proof here.

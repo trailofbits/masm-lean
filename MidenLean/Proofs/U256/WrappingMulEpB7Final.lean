@@ -26,12 +26,12 @@ theorem wm_ep_b7_correct (a b : U256) (rest : List Felt)
     (h0_2 : mem (frame.localAddr 0 + 2) = b.a6.val)
     (h0_1 : mem (frame.localAddr 0 + 1) = b.a5.val)
     (h0_0 : mem (frame.localAddr 0) = b.a4.val) :
-    execWithEnv u256ProcEnv (fuel + 3)
+    execProcedure u256ProcEnv (fuel + 3)
       ⟨L₇ :: L₆ :: L₅ :: L₄ :: rest, mem, frame :: frames, adv⟩
       (Procedure.ofOps wm_ep_b7) =
     some ⟨mulstepLo 0 a.a0.val b.a7.val L₇ :: L₆ :: L₅ :: L₄ :: rest,
           mem, frame :: frames, adv⟩ := by
-  unfold wm_ep_b7 execWithEnv Procedure.ofOps
+  unfold wm_ep_b7 execProcedure Procedure.ofOps
   simp only [List.foldlM, u256ProcEnv]
   dsimp only [bind, Bind.bind, Option.bind]
   -- padw + locLoadwBe 12
@@ -67,7 +67,7 @@ theorem wm_ep_b7_correct (a b : U256) (rest : List Felt)
      a.a3.val :: a.a2.val :: a.a1.val :: L₆ :: L₅ :: L₄ :: rest,
      mem, frame :: frames, adv⟩
     rfl h0u (U256.a0_isU32 a) (U256.a7_isU32 b) hL₇
-  simp only [MidenState.withStack] at hms
+  simp only [Concrete.State.withStack] at hms
   rw [hms]; clear hms; dsimp only [bind, Bind.bind, Option.bind]
   -- drop (remove carry)
   rw [stepDrop]; dsimp only [bind, Bind.bind, Option.bind]
@@ -100,14 +100,14 @@ theorem wm_final_correct
     (h16_2 : mem (frame.localAddr 16 + 2) = R₂)
     (h16_1 : mem (frame.localAddr 16 + 1) = R₁)
     (h16_0 : mem (frame.localAddr 16) = R₀) :
-    execWithEnv u256ProcEnv (fuel + 3)
+    execProcedure u256ProcEnv (fuel + 3)
       ⟨L₇ :: L₆ :: L₅ :: L₄ :: d0 :: d1 :: d2 :: d3 ::
        d4 :: d5 :: d6 :: d7 :: d8 :: d9 :: d10 :: d11 ::
        d12 :: d13 :: d14 :: d15 :: rest, mem, frame :: frames, adv⟩
       (Procedure.ofOps wm_final) =
     some ⟨R₀ :: R₁ :: R₂ :: R₃ :: L₄ :: L₅ :: L₆ :: L₇ :: rest,
           mem, frame :: frames, adv⟩ := by
-  unfold wm_final execWithEnv Procedure.ofOps
+  unfold wm_final execProcedure Procedure.ofOps
   simp only [List.foldlM, u256ProcEnv]
   dsimp only [bind, Bind.bind, Option.bind]
   -- padw
@@ -117,7 +117,7 @@ theorem wm_final_correct
   rw [h16_3, h16_2, h16_1, h16_0]; dsimp only [bind, Bind.bind, Option.bind]
   -- swapw 1: swap [R₃, R₂, R₁, R₀] with [L₇, L₆, L₅, L₄]
   rw [stepSwapw1]; dsimp only [bind, Bind.bind, Option.bind]
-  -- exec u256_le_to_be: reverse top 8
+  -- execProcedure emptyEnv u256_le_to_be: reverse top 8
   -- Stack before: [L₇, L₆, L₅, L₄, R₃, R₂, R₁, R₀, d0..d15, rest]
   -- Stack after:  [R₀, R₁, R₂, R₃, L₄, L₅, L₆, L₇, d0..d15, rest]
   rw [le_to_be_env]; dsimp only [bind, Bind.bind, Option.bind]

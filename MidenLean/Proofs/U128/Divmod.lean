@@ -10,11 +10,11 @@ open MidenLean.StepLemmas
 open MidenLean.Tactics
 
 /-- Execute a concatenation of op lists in two phases. -/
-private theorem exec_append (fuel : Nat) (s : MidenState) (xs ys : List Op) :
-    exec fuel s (xs ++ ys) = (do
-      let s' ← exec fuel s xs
-      exec fuel s' ys) := by
-  simpa [exec] using execWithEnv_append (env := fun _ => none) fuel s xs ys
+private theorem exec_append (fuel : Nat) (s : Concrete.State) (xs ys : List Op) :
+    execProcedure emptyEnv fuel s (xs ++ ys) = (do
+      let s' ← execProcedure emptyEnv fuel s xs
+      execProcedure emptyEnv fuel s' ys) := by
+  simpa [emptyEnv] using execProcedure_append (env := fun _ => none) fuel s xs ys
 
 private theorem stepU32AssertWLocal (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (a b c d : Felt) (rest : List Felt)
@@ -31,7 +31,7 @@ private theorem stepAdvLoadWLocal (mem : Nat → Felt) (frames : List LocalFrame
         .advLoadW =
       some ⟨v0 :: v1 :: v2 :: v3 :: rest, mem, frames, adv_rest⟩ := by
   unfold execInstruction execAdvLoadW
-  simp [MidenState.withAdvice, MidenState.withStack]
+  simp [Concrete.State.withAdvice, Concrete.State.withStack]
 
 private theorem stepAssertzWithErrorLocal (msg : String) (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (a : Felt) (rest : List Felt)
@@ -39,7 +39,7 @@ private theorem stepAssertzWithErrorLocal (msg : String) (mem : Nat → Felt) (f
     execInstruction ⟨a :: rest, mem, frames, adv⟩ (.assertzWithError msg) =
       some ⟨rest, mem, frames, adv⟩ := by
   unfold execInstruction execAssertz
-  simp [ha, MidenState.withStack]
+  simp [ha, Concrete.State.withStack]
 
 private theorem stepAssertzWithError_noneLocal (msg : String) (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (a : Felt) (rest : List Felt)
@@ -55,7 +55,7 @@ private theorem stepSwapw2Local (mem : Nat → Felt) (frames : List LocalFrame) 
       some ⟨c0 :: c1 :: c2 :: c3 :: b0 :: b1 :: b2 :: b3 :: a0 :: a1 :: a2 :: a3 :: rest,
         mem, frames, adv⟩ := by
   unfold execInstruction execSwapw
-  simp [MidenState.withStack]
+  simp [Concrete.State.withStack]
 
 private theorem felt_ite_val_local (p : Prop) [Decidable p] :
     (if p then (1 : Felt) else (0 : Felt)).val = if p then 1 else 0 := by
@@ -276,14 +276,14 @@ private theorem divmodSetup_run
     (rest adv_rest : List Felt) (mem : Nat → Felt) (frames : List LocalFrame)
     (hq0 : q0.isU32 = true) (hq1 : q1.isU32 = true) (hq2 : q2.isU32 = true) (hq3 : q3.isU32 = true)
     (hr0 : r0.isU32 = true) (hr1 : r1.isU32 = true) (hr2 : r2.isU32 = true) (hr3 : r3.isU32 = true) :
-    exec 163
+    execProcedure emptyEnv 163
       ⟨b0 :: b1 :: b2 :: b3 :: a0 :: a1 :: a2 :: a3 :: rest,
         mem, frames, r0 :: r1 :: r2 :: r3 :: q0 :: q1 :: q2 :: q3 :: adv_rest⟩
       divmodSetup =
     some ⟨q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 ::
             b0 :: b1 :: b2 :: b3 :: a0 :: a1 :: a2 :: a3 :: rest,
           mem, frames, adv_rest⟩ := by
-  unfold divmodSetup exec execWithEnv
+  unfold divmodSetup execProcedure emptyEnv execProcedure
   simp only [List.foldlM]
   rw [show execInstruction
       ⟨b0 :: b1 :: b2 :: b3 :: a0 :: a1 :: a2 :: a3 :: rest, mem, frames,
@@ -415,7 +415,7 @@ private theorem divmodCol0_run
     (hq0 : q0.isU32 = true) (_hq1 : q1.isU32 = true) (_hq2 : q2.isU32 = true) (_hq3 : q3.isU32 = true)
     (hr0 : r0.isU32 = true) (ha0_eq : a0 = Felt.ofNat (u128DivmodCol0 q0.val b0.val r0.val % 2 ^ 32))
     (hb0 : b0.isU32 = true) :
-    exec 163
+    execProcedure emptyEnv 163
       ⟨q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 ::
         b0 :: b1 :: b2 :: b3 :: a0 :: a1 :: a2 :: a3 :: rest,
         mem, frames, adv_rest⟩
@@ -424,7 +424,7 @@ private theorem divmodCol0_run
             q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 ::
             b0 :: b1 :: b2 :: b3 :: a1 :: a2 :: a3 :: rest,
           mem, frames, adv_rest⟩ := by
-  unfold divmodCol0 exec execWithEnv
+  unfold divmodCol0 execProcedure emptyEnv execProcedure
   simp only [List.foldlM]
   miden_dup
   miden_dup
@@ -449,7 +449,7 @@ private theorem divmodCol0_run
               b0 :: b1 :: b2 :: b3 :: a1 :: a2 :: a3 :: rest
             , memory := mem
             , frames := frames
-            , advice := adv_rest } : MidenState))
+            , advice := adv_rest } : Concrete.State))
       (divmodCol0Carry_eq q0 b0 r0 hq0 hb0 hr0).symm)
 
 private theorem divmodCol0_none
@@ -459,13 +459,13 @@ private theorem divmodCol0_none
     (hr0 : r0.isU32 = true)
     (hb0 : b0.isU32 = true)
     (ha0_ne : a0 ≠ Felt.ofNat (u128DivmodCol0 q0.val b0.val r0.val % 2 ^ 32)) :
-    exec 163
+    execProcedure emptyEnv 163
       ⟨q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 ::
         b0 :: b1 :: b2 :: b3 :: a0 :: a1 :: a2 :: a3 :: rest,
         mem, frames, adv_rest⟩
       divmodCol0 =
     none := by
-  unfold divmodCol0 exec execWithEnv
+  unfold divmodCol0 execProcedure emptyEnv execProcedure
   simp only [List.foldlM]
   miden_dup
   miden_dup
@@ -509,7 +509,7 @@ private theorem divmodCol1_run
     (hc0_u32 : c0.isU32 = true)
     (hc0_val : c0.val = u128DivmodCol0 q0.val b0.val r0.val / 2 ^ 32)
     (ha1_eq : a1 = Felt.ofNat (u128DivmodCol1 q0.val q1.val b0.val b1.val r0.val r1.val % 2 ^ 32)) :
-    exec 163
+    execProcedure emptyEnv 163
       ⟨c0 :: q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 ::
         b0 :: b1 :: b2 :: b3 :: a1 :: a2 :: a3 :: rest,
         mem, frames, adv_rest⟩
@@ -589,7 +589,7 @@ private theorem divmodCol1_run
     omega
   have hcarry_val : (Felt.ofNat carry).val = carry := by
     exact felt_ofNat_val_lt _ hcarry_lt_prime
-  unfold divmodCol1 exec execWithEnv
+  unfold divmodCol1 execProcedure emptyEnv execProcedure
   simp only [List.foldlM]
   miden_dup
   miden_dup
@@ -646,7 +646,7 @@ private theorem divmodCol1_none
     (hc0_u32 : c0.isU32 = true)
     (hc0_val : c0.val = u128DivmodCol0 q0.val b0.val r0.val / 2 ^ 32)
     (ha1_ne : a1 ≠ Felt.ofNat (u128DivmodCol1 q0.val q1.val b0.val b1.val r0.val r1.val % 2 ^ 32)) :
-    exec 163
+    execProcedure emptyEnv 163
       ⟨c0 :: q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 ::
         b0 :: b1 :: b2 :: b3 :: a1 :: a2 :: a3 :: rest,
         mem, frames, adv_rest⟩
@@ -707,7 +707,7 @@ private theorem divmodCol1_none
       a1 = Felt.ofNat addLo := hEq
       _ = Felt.ofNat (u128DivmodCol1 q0.val q1.val b0.val b1.val r0.val r1.val % 2 ^ 32) := by
             exact congrArg Felt.ofNat hlo_nat.symm
-  unfold divmodCol1 exec execWithEnv
+  unfold divmodCol1 execProcedure emptyEnv execProcedure
   simp only [List.foldlM]
   miden_dup
   miden_dup
@@ -793,7 +793,7 @@ private theorem divmodCol2a_run
     let lo1 := (b1.val * q1.val + lo0) % base
     let hi1 := (b1.val * q1.val + lo0) / base
     let sumHi := c1Hi.val + hi0 + hi1
-    exec 163
+    execProcedure emptyEnv 163
       ⟨c1Lo :: c1Hi :: q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 ::
         b0 :: b1 :: b2 :: b3 :: a2 :: a3 :: rest,
         mem, frames, adv_rest⟩
@@ -828,7 +828,7 @@ private theorem divmodCol2a_run
             2 ^ 32) =
         Felt.ofNat lo0 := by
     simp [lo0, base, hc1Lo_val]
-  unfold divmodCol2a exec execWithEnv
+  unfold divmodCol2a execProcedure emptyEnv execProcedure
   simp only [List.foldlM]
   miden_dup
   miden_dup
@@ -887,7 +887,7 @@ private theorem divmodCol2b_run
     let sumHi := c1Hi.val + hi0 + hi1
     let madd2Lo := (b2.val * q0.val + lo1) % base
     let madd2Hi := (b2.val * q0.val + lo1) / base
-    exec 163
+    execProcedure emptyEnv 163
       ⟨Felt.ofNat lo1 :: Felt.ofNat sumHi ::
         q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 ::
         b0 :: b1 :: b2 :: b3 :: a2 :: a3 :: rest,
@@ -909,7 +909,7 @@ private theorem divmodCol2b_run
       lo1 = (b1.val * q1.val + (b0.val * q2.val + c1Lo.val)) % base := by
     dsimp [lo1, lo0]
     rw [add_mod_right_mod]
-  unfold divmodCol2b exec execWithEnv
+  unfold divmodCol2b execProcedure emptyEnv execProcedure
   simp only [List.foldlM]
   miden_dup
   miden_dup
@@ -954,7 +954,7 @@ private theorem divmodCol2c_run
     let sumHi := c1Hi.val + hi0 + hi1
     let madd2Lo := (b2.val * q0.val + lo1) % base
     let madd2Hi := (b2.val * q0.val + lo1) / base
-    exec 163
+    execProcedure emptyEnv 163
       ⟨Felt.ofNat madd2Lo :: Felt.ofNat (sumHi + madd2Hi) ::
         q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 ::
         b0 :: b1 :: b2 :: b3 :: a2 :: a3 :: rest,
@@ -1063,7 +1063,7 @@ private theorem divmodCol2c_run
       u128DivmodCol2 q0.val q1.val q2.val b0.val b1.val b2.val r0.val r1.val r2.val / base = carry := by
     rw [hrepr, Nat.add_mul_div_right _ _ (show 0 < base by positivity), Nat.div_eq_of_lt haddLo_lt]
     simp [carry]
-  unfold divmodCol2c exec execWithEnv
+  unfold divmodCol2c execProcedure emptyEnv execProcedure
   simp only [List.foldlM]
   miden_dup
   rw [stepU32WidenAdd (a := Felt.ofNat madd2Lo) (b := r2) (ha := u32_mod_isU32 _) (hb := hr2)]
@@ -1110,7 +1110,7 @@ private theorem divmodCol2c_none
       c1Hi.val = u128DivmodCol1 q0.val q1.val b0.val b1.val r0.val r1.val / 2 ^ 32 / 2 ^ 32)
     (ha2_ne :
       a2 ≠ Felt.ofNat (u128DivmodCol2 q0.val q1.val q2.val b0.val b1.val b2.val r0.val r1.val r2.val % 2 ^ 32)) :
-    exec 163
+    execProcedure emptyEnv 163
       ⟨Felt.ofNat
           (((b2.val * q0.val +
                 ((b1.val * q1.val + ((b0.val * q2.val + c1Lo.val) % 2 ^ 32)) % 2 ^ 32)) %
@@ -1204,7 +1204,7 @@ private theorem divmodCol2c_none
             (u128DivmodCol2 q0.val q1.val q2.val b0.val b1.val b2.val r0.val r1.val r2.val %
               2 ^ 32) := by
               exact congrArg Felt.ofNat hlo_nat.symm
-  unfold divmodCol2c exec execWithEnv
+  unfold divmodCol2c execProcedure emptyEnv execProcedure
   simp only [List.foldlM]
   miden_dup
   rw [stepU32WidenAdd (a := Felt.ofNat madd2Lo) (b := r2) (ha := u32_mod_isU32 _) (hb := hr2)]
@@ -1230,7 +1230,7 @@ private theorem divmodCol2_run
       c1Hi.val = u128DivmodCol1 q0.val q1.val b0.val b1.val r0.val r1.val / 2 ^ 32 / 2 ^ 32)
     (ha2_eq :
       a2 = Felt.ofNat (u128DivmodCol2 q0.val q1.val q2.val b0.val b1.val b2.val r0.val r1.val r2.val % 2 ^ 32)) :
-    exec 163
+    execProcedure emptyEnv 163
       ⟨c1Lo :: c1Hi :: q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 ::
         b0 :: b1 :: b2 :: b3 :: a2 :: a3 :: rest,
         mem, frames, adv_rest⟩
@@ -1315,7 +1315,7 @@ private theorem divmodCol3a_run
     let lo1 := (b1.val * q2.val + lo0) % base
     let hi1 := (b1.val * q2.val + lo0) / base
     let sumHi := c2Hi.val + hi0 + hi1
-    exec 163
+    execProcedure emptyEnv 163
       ⟨c2Lo :: c2Hi :: q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 ::
         b0 :: b1 :: b2 :: b3 :: a3 :: rest,
         mem, frames, adv_rest⟩
@@ -1342,7 +1342,7 @@ private theorem divmodCol3a_run
   have hhi0_eq :
       Felt.ofNat ((b0.val * q3.val + c2Lo.val) / 2 ^ 32) = Felt.ofNat hi0 := by
     rfl
-  unfold divmodCol3a exec execWithEnv
+  unfold divmodCol3a execProcedure emptyEnv execProcedure
   simp only [List.foldlM]
   miden_dup
   miden_dup
@@ -1391,7 +1391,7 @@ private theorem divmodCol3b_run
     let sumHi := c2Hi.val + hi0 + hi1
     let madd2Lo := (b2.val * q1.val + lo1) % base
     let madd2Hi := (b2.val * q1.val + lo1) / base
-    exec 163
+    execProcedure emptyEnv 163
       ⟨Felt.ofNat lo1 :: Felt.ofNat sumHi ::
         q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 ::
         b0 :: b1 :: b2 :: b3 :: a3 :: rest,
@@ -1413,7 +1413,7 @@ private theorem divmodCol3b_run
       lo1 = (b1.val * q2.val + (b0.val * q3.val + c2Lo.val)) % base := by
     dsimp [lo1, lo0]
     rw [add_mod_right_mod]
-  unfold divmodCol3b exec execWithEnv
+  unfold divmodCol3b execProcedure emptyEnv execProcedure
   simp only [List.foldlM]
   miden_dup
   miden_dup
@@ -1467,7 +1467,7 @@ private theorem divmodCol3c_run
     let madd2Lo := (b2.val * q1.val + lo1) % base
     let madd2Hi := (b2.val * q1.val + lo1) / base
     let sumHi' := sumHi + madd2Hi
-    exec 163
+    execProcedure emptyEnv 163
       ⟨Felt.ofNat madd2Lo :: Felt.ofNat sumHi' ::
         q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 ::
         b0 :: b1 :: b2 :: b3 :: a3 :: rest,
@@ -1573,7 +1573,7 @@ private theorem divmodCol3c_run
       rw [Nat.add_mul_div_right _ _ (show 0 < base by positivity), Nat.div_eq_of_lt haddLo_lt]
       simp
     rw [← hcarry_nat, hcarry_zero]
-  unfold divmodCol3c exec execWithEnv
+  unfold divmodCol3c execProcedure emptyEnv execProcedure
   simp only [List.foldlM]
   miden_dup
   miden_dup
@@ -1640,7 +1640,7 @@ private theorem divmodCol3c_none_a3
     let madd2Lo := (b2.val * q1.val + lo1) % base
     let madd2Hi := (b2.val * q1.val + lo1) / base
     let sumHi' := sumHi + madd2Hi
-    exec 163
+    execProcedure emptyEnv 163
       ⟨Felt.ofNat madd2Lo :: Felt.ofNat sumHi' ::
         q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 ::
         b0 :: b1 :: b2 :: b3 :: a3 :: rest,
@@ -1742,7 +1742,7 @@ private theorem divmodCol3c_none_a3
                 r0.val r1.val r2.val r3.val %
               2 ^ 32) := by
               exact congrArg Felt.ofNat hlo_nat.symm
-  unfold divmodCol3c exec execWithEnv
+  unfold divmodCol3c execProcedure emptyEnv execProcedure
   simp only [List.foldlM]
   miden_dup
   miden_dup
@@ -1803,7 +1803,7 @@ private theorem divmodCol3c_none_carry
     let madd2Lo := (b2.val * q1.val + lo1) % base
     let madd2Hi := (b2.val * q1.val + lo1) / base
     let sumHi' := sumHi + madd2Hi
-    exec 163
+    execProcedure emptyEnv 163
       ⟨Felt.ofNat madd2Lo :: Felt.ofNat sumHi' ::
         q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 ::
         b0 :: b1 :: b2 :: b3 :: a3 :: rest,
@@ -1959,7 +1959,7 @@ private theorem divmodCol3c_none_carry
   have hfelt_nonzero : (Felt.ofNat carry).val ≠ 0 := by
     rw [felt_ofNat_val_lt _ hcarry_lt_prime]
     exact hcarry_ne'
-  unfold divmodCol3c exec execWithEnv
+  unfold divmodCol3c execProcedure emptyEnv execProcedure
   simp only [List.foldlM]
   miden_dup
   miden_dup
@@ -2023,7 +2023,7 @@ private theorem divmodCol3_run
           r0.val r1.val r2.val r3.val /
         2 ^ 32 =
       0) :
-    exec 163
+    execProcedure emptyEnv 163
       ⟨c2Lo :: c2Hi :: q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 ::
         b0 :: b1 :: b2 :: b3 :: a3 :: rest,
         mem, frames, adv_rest⟩
@@ -2162,14 +2162,14 @@ private theorem divmodOverflow1_bool_run
     (rest adv_rest : List Felt) (mem : Nat → Felt) (frames : List LocalFrame)
     (hq2 : q2.isU32 = true) (hq3 : q3.isU32 = true)
     (hb1 : b1.isU32 = true) (hb2 : b2.isU32 = true) :
-    exec 163
+    execProcedure emptyEnv 163
       ⟨q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 :: b0 :: b1 :: b2 :: b3 :: rest,
         mem, frames, adv_rest⟩
       divmodOverflow1 =
     some ⟨(if divmodOverflowP41Bool q3 b1 || divmodOverflowP42Bool q2 b2 then (1 : Felt) else 0) ::
             q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 :: b0 :: b1 :: b2 :: b3 :: rest,
           mem, frames, adv_rest⟩ := by
-  unfold divmodOverflow1 exec execWithEnv
+  unfold divmodOverflow1 execProcedure emptyEnv execProcedure
   simp only [List.foldlM]
   rw [stepPush]
   miden_bind
@@ -2232,7 +2232,7 @@ private theorem divmodOverflow2_bool_run
     (rest adv_rest : List Felt) (mem : Nat → Felt) (frames : List LocalFrame)
     (hq1 : q1.isU32 = true) (_hq2 : q2.isU32 = true) (hq3 : q3.isU32 = true)
     (_hb1 : b1.isU32 = true) (hb2 : b2.isU32 = true) (hb3 : b3.isU32 = true) :
-    exec 163
+    execProcedure emptyEnv 163
       ⟨(if divmodOverflowP41Bool q3 b1 || divmodOverflowP42Bool q2 b2 then (1 : Felt) else 0) ::
         q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 :: b0 :: b1 :: b2 :: b3 :: rest,
         mem, frames, adv_rest⟩
@@ -2244,7 +2244,7 @@ private theorem divmodOverflow2_bool_run
           else 0) ::
             q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 :: b0 :: b1 :: b2 :: b3 :: rest,
           mem, frames, adv_rest⟩ := by
-  unfold divmodOverflow2 exec execWithEnv
+  unfold divmodOverflow2 execProcedure emptyEnv execProcedure
   simp only [List.foldlM]
   miden_dup
   miden_dup
@@ -2294,7 +2294,7 @@ private theorem divmodOverflow3Check_run
     (rest adv_rest : List Felt) (mem : Nat → Felt) (frames : List LocalFrame)
     (hq2 : q2.isU32 = true) (hq3 : q3.isU32 = true)
     (hb3 : b3.isU32 = true) :
-    exec 163
+    execProcedure emptyEnv 163
       ⟨(if (((divmodOverflowP41Bool q3 b1 || divmodOverflowP42Bool q2 b2) ||
               divmodOverflowP43Bool q1 b3) ||
             divmodOverflowP52Bool q3 b2) then
@@ -2306,7 +2306,7 @@ private theorem divmodOverflow3Check_run
     some ⟨(if divmodOverflowBool q1 q2 q3 b1 b2 b3 then (1 : Felt) else 0) ::
             q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 :: b0 :: b1 :: b2 :: b3 :: rest,
           mem, frames, adv_rest⟩ := by
-  unfold divmodOverflow3Check exec execWithEnv
+  unfold divmodOverflow3Check execProcedure emptyEnv execProcedure
   simp only [List.foldlM]
   miden_dup
   miden_dup
@@ -2337,7 +2337,7 @@ private theorem divmodOverflow3_eval
     (rest adv_rest : List Felt) (mem : Nat → Felt) (frames : List LocalFrame)
     (hq2 : q2.isU32 = true) (hq3 : q3.isU32 = true)
     (hb3 : b3.isU32 = true) :
-    exec 163
+    execProcedure emptyEnv 163
       ⟨(if (((divmodOverflowP41Bool q3 b1 || divmodOverflowP42Bool q2 b2) ||
               divmodOverflowP43Bool q1 b3) ||
             divmodOverflowP52Bool q3 b2) then
@@ -2356,13 +2356,13 @@ private theorem divmodOverflow3_eval
   miden_bind
   by_cases hover : divmodOverflowBool q1 q2 q3 b1 b2 b3
   · rw [show ((if divmodOverflowBool q1 q2 q3 b1 b2 b3 then (1 : Felt) else 0) : Felt) = 1 by simp [hover]]
-    unfold exec execWithEnv
+    unfold execProcedure
     simp only [List.foldlM]
     rw [stepAssertzWithError_noneLocal "u128 divmod: q*b overflow" mem frames adv_rest (1 : Felt)
       (q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 :: b0 :: b1 :: b2 :: b3 :: rest) (by simp)]
     simp [hover]
   · rw [show ((if divmodOverflowBool q1 q2 q3 b1 b2 b3 then (1 : Felt) else 0) : Felt) = 0 by simp [hover]]
-    unfold exec execWithEnv
+    unfold execProcedure
     simp only [List.foldlM]
     rw [stepAssertzWithErrorLocal "u128 divmod: q*b overflow" mem frames adv_rest (0 : Felt)
       (q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 :: b0 :: b1 :: b2 :: b3 :: rest) rfl]
@@ -2373,7 +2373,7 @@ private theorem divmodOverflow_eval
     (rest adv_rest : List Felt) (mem : Nat → Felt) (frames : List LocalFrame)
     (hq1 : q1.isU32 = true) (hq2 : q2.isU32 = true) (hq3 : q3.isU32 = true)
     (hb1 : b1.isU32 = true) (hb2 : b2.isU32 = true) (hb3 : b3.isU32 = true) :
-    exec 163
+    execProcedure emptyEnv 163
       ⟨q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 :: b0 :: b1 :: b2 :: b3 :: rest,
         mem, frames, adv_rest⟩
       divmodOverflow =
@@ -2438,13 +2438,13 @@ private theorem divmodOverflow1_run
     (hb1 : b1.isU32 = true) (hb2 : b2.isU32 = true)
     (hq3b1_zero : q3.val * b1.val = 0)
     (hq2b2_zero : q2.val * b2.val = 0) :
-    exec 163
+    execProcedure emptyEnv 163
       ⟨q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 :: b0 :: b1 :: b2 :: b3 :: rest,
         mem, frames, adv_rest⟩
       divmodOverflow1 =
     some ⟨(0 : Felt) :: q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 :: b0 :: b1 :: b2 :: b3 :: rest,
           mem, frames, adv_rest⟩ := by
-  unfold divmodOverflow1 exec execWithEnv
+  unfold divmodOverflow1 execProcedure emptyEnv execProcedure
   simp only [List.foldlM]
   have hq3b1_zero' : b1.val * q3.val = 0 := by
     simpa [Nat.mul_comm] using hq3b1_zero
@@ -2505,13 +2505,13 @@ private theorem divmodOverflow2_run
     (hb2 : b2.isU32 = true) (hb3 : b3.isU32 = true)
     (hq1b3_zero : q1.val * b3.val = 0)
     (hq3b2_zero : q3.val * b2.val = 0) :
-    exec 163
+    execProcedure emptyEnv 163
       ⟨(0 : Felt) :: q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 :: b0 :: b1 :: b2 :: b3 :: rest,
         mem, frames, adv_rest⟩
       divmodOverflow2 =
     some ⟨(0 : Felt) :: q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 :: b0 :: b1 :: b2 :: b3 :: rest,
           mem, frames, adv_rest⟩ := by
-  unfold divmodOverflow2 exec execWithEnv
+  unfold divmodOverflow2 execProcedure emptyEnv execProcedure
   simp only [List.foldlM]
   have hq1b3_zero' : b3.val * q1.val = 0 := by
     simpa [Nat.mul_comm] using hq1b3_zero
@@ -2570,13 +2570,13 @@ private theorem divmodOverflow3_run
     (hb3 : b3.isU32 = true)
     (hq2b3_zero : q2.val * b3.val = 0)
     (hq3b3_zero : q3.val * b3.val = 0) :
-    exec 163
+    execProcedure emptyEnv 163
       ⟨(0 : Felt) :: q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 :: b0 :: b1 :: b2 :: b3 :: rest,
         mem, frames, adv_rest⟩
       divmodOverflow3 =
     some ⟨q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 :: b0 :: b1 :: b2 :: b3 :: rest,
           mem, frames, adv_rest⟩ := by
-  unfold divmodOverflow3 exec execWithEnv
+  unfold divmodOverflow3 execProcedure emptyEnv execProcedure
   simp only [List.foldlM]
   have hq2b3_zero' : b3.val * q2.val = 0 := by
     simpa [Nat.mul_comm] using hq2b3_zero
@@ -2642,7 +2642,7 @@ private theorem divmodOverflow_run
     (hq3b2_zero : q3.val * b2.val = 0)
     (hq2b3_zero : q2.val * b3.val = 0)
     (hq3b3_zero : q3.val * b3.val = 0) :
-    exec 163
+    execProcedure emptyEnv 163
       ⟨q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 :: b0 :: b1 :: b2 :: b3 :: rest,
         mem, frames, adv_rest⟩
       divmodOverflow =
@@ -2711,14 +2711,14 @@ private theorem divmodCompare1_run
     (q0 q1 q2 q3 r0 r1 r2 r3 b0 b1 b2 b3 : Felt)
     (rest adv_rest : List Felt) (mem : Nat → Felt) (frames : List LocalFrame)
     (hr0 : r0.isU32 = true) (hb0 : b0.isU32 = true) :
-    exec 163
+    execProcedure emptyEnv 163
       ⟨q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 :: b0 :: b1 :: b2 :: b3 :: rest,
         mem, frames, adv_rest⟩
       divmodCompare1 =
     some ⟨Felt.ofNat (u32OverflowingSub r0.val b0.val).1 ::
             q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 :: b0 :: b1 :: b2 :: b3 :: rest,
           mem, frames, adv_rest⟩ := by
-  unfold divmodCompare1 exec execWithEnv
+  unfold divmodCompare1 execProcedure emptyEnv execProcedure
   simp only [List.foldlM]
   miden_dup
   miden_dup
@@ -2733,7 +2733,7 @@ private theorem divmodCompare2_run
     (rest adv_rest : List Felt) (mem : Nat → Felt) (frames : List LocalFrame)
     (hr0 : r0.isU32 = true) (hr1 : r1.isU32 = true)
     (hb0 : b0.isU32 = true) (hb1 : b1.isU32 = true) :
-    exec 163
+    execProcedure emptyEnv 163
       ⟨Felt.ofNat (u32OverflowingSub r0.val b0.val).1 ::
         q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 :: b0 :: b1 :: b2 :: b3 :: rest,
         mem, frames, adv_rest⟩
@@ -2741,7 +2741,7 @@ private theorem divmodCompare2_run
     some ⟨u128Borrow1 r0 r1 b0 b1 ::
             q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 :: b0 :: b1 :: b2 :: b3 :: rest,
           mem, frames, adv_rest⟩ := by
-  unfold divmodCompare2 exec execWithEnv
+  unfold divmodCompare2 execProcedure emptyEnv execProcedure
   simp only [List.foldlM]
   miden_dup
   miden_dup
@@ -2781,7 +2781,7 @@ private theorem divmodCompare3_run
     (rest adv_rest : List Felt) (mem : Nat → Felt) (frames : List LocalFrame)
     (hr0 : r0.isU32 = true) (hr1 : r1.isU32 = true) (hr2 : r2.isU32 = true)
     (hb0 : b0.isU32 = true) (hb1 : b1.isU32 = true) (hb2 : b2.isU32 = true) :
-    exec 163
+    execProcedure emptyEnv 163
       ⟨u128Borrow1 r0 r1 b0 b1 ::
         q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 :: b0 :: b1 :: b2 :: b3 :: rest,
         mem, frames, adv_rest⟩
@@ -2789,7 +2789,7 @@ private theorem divmodCompare3_run
     some ⟨u128Borrow2 r0 r1 r2 b0 b1 b2 ::
             q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 :: b0 :: b1 :: b2 :: b3 :: rest,
           mem, frames, adv_rest⟩ := by
-  unfold divmodCompare3 exec execWithEnv
+  unfold divmodCompare3 execProcedure emptyEnv execProcedure
   simp only [List.foldlM]
   miden_dup
   miden_dup
@@ -2862,14 +2862,14 @@ private theorem divmodCompare4_run
     (hr0 : r0.isU32 = true) (hr1 : r1.isU32 = true) (hr2 : r2.isU32 = true) (hr3 : r3.isU32 = true)
     (hb0 : b0.isU32 = true) (hb1 : b1.isU32 = true) (hb2 : b2.isU32 = true) (hb3 : b3.isU32 = true)
     (h_lt_result : u128LtBool r0 r1 r2 r3 b0 b1 b2 b3 = true) :
-    exec 163
+    execProcedure emptyEnv 163
       ⟨u128Borrow2 r0 r1 r2 b0 b1 b2 ::
         q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 :: b0 :: b1 :: b2 :: b3 :: rest,
         mem, frames, adv_rest⟩
       divmodCompare4 =
     some ⟨r0 :: r1 :: r2 :: r3 :: q0 :: q1 :: q2 :: q3 :: rest,
           mem, frames, adv_rest⟩ := by
-  unfold divmodCompare4 exec execWithEnv
+  unfold divmodCompare4 execProcedure emptyEnv execProcedure
   simp only [List.foldlM]
   miden_dup
   miden_dup
@@ -3028,13 +3028,13 @@ private theorem divmodCompare4_none
     (hr0 : r0.isU32 = true) (hr1 : r1.isU32 = true) (hr2 : r2.isU32 = true) (hr3 : r3.isU32 = true)
     (hb0 : b0.isU32 = true) (hb1 : b1.isU32 = true) (hb2 : b2.isU32 = true) (hb3 : b3.isU32 = true)
     (h_lt_result : u128LtBool r0 r1 r2 r3 b0 b1 b2 b3 ≠ true) :
-    exec 163
+    execProcedure emptyEnv 163
       ⟨u128Borrow2 r0 r1 r2 b0 b1 b2 ::
         q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 :: b0 :: b1 :: b2 :: b3 :: rest,
         mem, frames, adv_rest⟩
       divmodCompare4 =
     none := by
-  unfold divmodCompare4 exec execWithEnv
+  unfold divmodCompare4 execProcedure emptyEnv execProcedure
   simp only [List.foldlM]
   miden_dup
   miden_dup
@@ -3199,7 +3199,7 @@ private theorem divmodTail_run
     (hq2b3_zero : q2.val * b3.val = 0)
     (hq3b3_zero : q3.val * b3.val = 0)
     (h_lt_result : u128LtBool r0 r1 r2 r3 b0 b1 b2 b3 = true) :
-    exec 163
+    execProcedure emptyEnv 163
       ⟨q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 :: b0 :: b1 :: b2 :: b3 :: rest,
         mem, frames, adv_rest⟩
       divmodTail =
@@ -4122,7 +4122,7 @@ set_option maxHeartbeats 16000000 in
 set_option maxRecDepth 65536 in
 theorem u128_divmod_raw
     (a0 a1 a2 a3 b0 b1 b2 b3 q0 q1 q2 q3 r0 r1 r2 r3 : Felt)
-    (rest adv_rest : List Felt) (s : MidenState)
+    (rest adv_rest : List Felt) (s : Concrete.State)
     (hs : s.stack = b0 :: b1 :: b2 :: b3 :: a0 :: a1 :: a2 :: a3 :: rest)
     (hadv : s.advice = r0 :: r1 :: r2 :: r3 :: q0 :: q1 :: q2 :: q3 :: adv_rest)
     (ha0 : a0.isU32 = true) (ha1 : a1.isU32 = true) (ha2 : a2.isU32 = true) (ha3 : a3.isU32 = true)
@@ -4134,7 +4134,7 @@ theorem u128_divmod_raw
         + u128RawValue r0.val r1.val r2.val r3.val =
         u128RawValue a0.val a1.val a2.val a3.val)
     (hlt : u128RawValue r0.val r1.val r2.val r3.val < u128RawValue b0.val b1.val b2.val b3.val) :
-    exec 163 s Miden.Core.U128.divmod =
+    execProcedure emptyEnv 163 s Miden.Core.U128.divmod =
     some { stack := r0 :: r1 :: r2 :: r3 :: q0 :: q1 :: q2 :: q3 :: rest,
            memory := s.memory,
            frames := s.frames,
@@ -4277,13 +4277,13 @@ theorem u128_divmod_raw
 set_option maxHeartbeats 16000000 in
 set_option maxRecDepth 65536 in
 theorem u128_divmod_conditions_of_exec
-    (a b q r : U128) (rest adv_rest : List Felt) (s : MidenState)
+    (a b q r : U128) (rest adv_rest : List Felt) (s : Concrete.State)
     (hs : s.stack = b.a0.val :: b.a1.val :: b.a2.val :: b.a3.val ::
                     a.a0.val :: a.a1.val :: a.a2.val :: a.a3.val :: rest)
     (hadv : s.advice = r.a0.val :: r.a1.val :: r.a2.val :: r.a3.val ::
                       q.a0.val :: q.a1.val :: q.a2.val :: q.a3.val :: adv_rest)
-    {s' : MidenState}
-    (hexec : exec 163 s Miden.Core.U128.divmod = some s') :
+    {s' : Concrete.State}
+    (hexec : execProcedure emptyEnv 163 s Miden.Core.U128.divmod = some s') :
     q.toNat * b.toNat + r.toNat = a.toNat ∧ r.toNat < b.toNat := by
   obtain ⟨stk, mem, frames, adv⟩ := s
   simp only [] at hs hadv
@@ -4402,7 +4402,7 @@ theorem u128_divmod_conditions_of_exec
   let col2Madd2Hi : Nat := (b.a2.val.val * q.a0.val.val + col2Lo1) / 2 ^ 32
   rw [exec_append] at hexec
   have hCol2b :
-      exec 163
+      execProcedure emptyEnv 163
         ⟨Felt.ofNat
             ((b.a1.val.val * q.a1.val.val +
                 (b.a0.val.val * q.a2.val.val +
@@ -4465,7 +4465,7 @@ theorem u128_divmod_conditions_of_exec
         a.a2.val a.a3.val
         rest adv_rest mem frames        q.a0.isU32 b.a2.isU32)
   have hexecCol2c :
-      ((exec 163
+      ((execProcedure emptyEnv 163
           ⟨Felt.ofNat col2Madd2Lo :: Felt.ofNat (col2SumHi + col2Madd2Hi) ::
               q.a0.val :: q.a1.val :: q.a2.val :: q.a3.val ::
               r.a0.val :: r.a1.val :: r.a2.val :: r.a3.val ::
@@ -4473,10 +4473,10 @@ theorem u128_divmod_conditions_of_exec
               a.a2.val :: a.a3.val :: rest,
             mem, frames, adv_rest⟩
           divmodCol2c).bind
-        fun a => exec 163 a (divmodCol3 ++ divmodTail)) =
+        fun a => execProcedure emptyEnv 163 a (divmodCol3 ++ divmodTail)) =
       some s' := by
     have hCol2bc :
-        (exec 163
+        (execProcedure emptyEnv 163
             ⟨Felt.ofNat
                 ((b.a1.val.val * q.a1.val.val +
                     (b.a0.val.val * q.a2.val.val +
@@ -4515,8 +4515,8 @@ theorem u128_divmod_conditions_of_exec
               a.a2.val :: a.a3.val :: rest,
             mem, frames, adv_rest⟩
             divmodCol2b).bind
-          (fun st => exec 163 st divmodCol2c) =
-        exec 163
+          (fun st => execProcedure emptyEnv 163 st divmodCol2c) =
+        execProcedure emptyEnv 163
           ⟨Felt.ofNat col2Madd2Lo :: Felt.ofNat (col2SumHi + col2Madd2Hi) ::
               q.a0.val :: q.a1.val :: q.a2.val :: q.a3.val ::
               r.a0.val :: r.a1.val :: r.a2.val :: r.a3.val ::
@@ -4527,7 +4527,7 @@ theorem u128_divmod_conditions_of_exec
       rw [hCol2b]
       simp [Option.bind]
     have hexec_bind :
-        ((exec 163
+        ((execProcedure emptyEnv 163
             ⟨Felt.ofNat
                 ((b.a1.val.val * q.a1.val.val +
                     (b.a0.val.val * q.a2.val.val +
@@ -4566,8 +4566,8 @@ theorem u128_divmod_conditions_of_exec
               a.a2.val :: a.a3.val :: rest,
             mem, frames, adv_rest⟩
             divmodCol2b).bind
-          (fun st => exec 163 st divmodCol2c)).bind
-        (fun a => exec 163 a (divmodCol3 ++ divmodTail)) =
+          (fun st => execProcedure emptyEnv 163 st divmodCol2c)).bind
+        (fun a => execProcedure emptyEnv 163 a (divmodCol3 ++ divmodTail)) =
       some s' := by
       simpa [bind, Bind.bind, Option.bind] using hexec
     rw [hCol2bc] at hexec_bind
@@ -4581,7 +4581,7 @@ theorem u128_divmod_conditions_of_exec
               r.a0.val.val r.a1.val.val r.a2.val.val %
             2 ^ 32) := by
     by_contra h_not
-    rw [show exec 163
+    rw [show execProcedure emptyEnv 163
         ⟨Felt.ofNat col2Madd2Lo :: Felt.ofNat (col2SumHi + col2Madd2Hi) ::
             q.a0.val :: q.a1.val :: q.a2.val :: q.a3.val ::
             r.a0.val :: r.a1.val :: r.a2.val :: r.a3.val ::
@@ -4613,7 +4613,7 @@ theorem u128_divmod_conditions_of_exec
             (felt_ofNat_val_lt _ (u32_val_lt_prime _ hc1Hi_lt))
             h_not)] at hexec
     simp at hexec
-  rw [show exec 163
+  rw [show execProcedure emptyEnv 163
       ⟨Felt.ofNat col2Madd2Lo :: Felt.ofNat (col2SumHi + col2Madd2Hi) ::
           q.a0.val :: q.a1.val :: q.a2.val :: q.a3.val ::
           r.a0.val :: r.a1.val :: r.a2.val :: r.a3.val ::
@@ -4705,7 +4705,7 @@ theorem u128_divmod_conditions_of_exec
   let col3Madd2Hi : Nat := (b.a2.val.val * q.a1.val.val + col3Lo1) / 2 ^ 32
   rw [exec_append] at hexec
   have hCol3b :
-      exec 163
+      execProcedure emptyEnv 163
         ⟨Felt.ofNat
             ((b.a1.val.val * q.a2.val.val +
                 (b.a0.val.val * q.a3.val.val +
@@ -4770,7 +4770,7 @@ theorem u128_divmod_conditions_of_exec
         a.a3.val
         rest adv_rest mem frames        q.a1.isU32 b.a2.isU32)
   have hexecCol3c :
-      ((exec 163
+      ((execProcedure emptyEnv 163
           ⟨Felt.ofNat col3Madd2Lo :: Felt.ofNat (col3SumHi + col3Madd2Hi) ::
               q.a0.val :: q.a1.val :: q.a2.val :: q.a3.val ::
               r.a0.val :: r.a1.val :: r.a2.val :: r.a3.val ::
@@ -4778,10 +4778,10 @@ theorem u128_divmod_conditions_of_exec
               a.a3.val :: rest,
             mem, frames, adv_rest⟩
           divmodCol3c).bind
-        fun a => exec 163 a divmodTail) =
+        fun a => execProcedure emptyEnv 163 a divmodTail) =
       some s' := by
     have hCol3bc :
-        (exec 163
+        (execProcedure emptyEnv 163
             ⟨Felt.ofNat
                 ((b.a1.val.val * q.a2.val.val +
                     (b.a0.val.val * q.a3.val.val +
@@ -4820,8 +4820,8 @@ theorem u128_divmod_conditions_of_exec
               a.a3.val :: rest,
             mem, frames, adv_rest⟩
             divmodCol3b).bind
-          (fun st => exec 163 st divmodCol3c) =
-        exec 163
+          (fun st => execProcedure emptyEnv 163 st divmodCol3c) =
+        execProcedure emptyEnv 163
           ⟨Felt.ofNat col3Madd2Lo :: Felt.ofNat (col3SumHi + col3Madd2Hi) ::
               q.a0.val :: q.a1.val :: q.a2.val :: q.a3.val ::
               r.a0.val :: r.a1.val :: r.a2.val :: r.a3.val ::
@@ -4832,7 +4832,7 @@ theorem u128_divmod_conditions_of_exec
       rw [hCol3b]
       simp [Option.bind]
     have hexec_bind :
-        ((exec 163
+        ((execProcedure emptyEnv 163
             ⟨Felt.ofNat
                 ((b.a1.val.val * q.a2.val.val +
                     (b.a0.val.val * q.a3.val.val +
@@ -4871,8 +4871,8 @@ theorem u128_divmod_conditions_of_exec
               a.a3.val :: rest,
             mem, frames, adv_rest⟩
             divmodCol3b).bind
-          (fun st => exec 163 st divmodCol3c)).bind
-        (fun a => exec 163 a divmodTail) =
+          (fun st => execProcedure emptyEnv 163 st divmodCol3c)).bind
+        (fun a => execProcedure emptyEnv 163 a divmodTail) =
       some s' := by
       simpa [bind, Bind.bind, Option.bind] using hexec
     rw [hCol3bc] at hexec_bind
@@ -5110,12 +5110,12 @@ theorem u128_divmod_conditions_of_exec
     Advice stack: [r.a0, r.a1, r.a2, r.a3, q.a0, q.a1, q.a2, q.a3] ++ adv_rest
     Output stack: [r.a0, r.a1, r.a2, r.a3, q.a0, q.a1, q.a2, q.a3] ++ rest -/
 theorem u128_divmod_correct
-    (a b q r : U128) (rest adv_rest : List Felt) (s : MidenState)
+    (a b q r : U128) (rest adv_rest : List Felt) (s : Concrete.State)
     (hs : s.stack = b.a0.val :: b.a1.val :: b.a2.val :: b.a3.val ::
                     a.a0.val :: a.a1.val :: a.a2.val :: a.a3.val :: rest)
     (hadv : s.advice = r.a0.val :: r.a1.val :: r.a2.val :: r.a3.val ::
                       q.a0.val :: q.a1.val :: q.a2.val :: q.a3.val :: adv_rest) :
-    exec 163 s Miden.Core.U128.divmod =
+    execProcedure emptyEnv 163 s Miden.Core.U128.divmod =
     some { stack := r.a0.val :: r.a1.val :: r.a2.val :: r.a3.val ::
                      q.a0.val :: q.a1.val :: q.a2.val :: q.a3.val :: rest,
            memory := s.memory,

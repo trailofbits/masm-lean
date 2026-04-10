@@ -17,7 +17,7 @@ set_option maxHeartbeats 8000000 in
     Input stack:  [x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12, x13, x14, x15] ++ rest
     Output stack: [sorry] ++ rest -/
 theorem u256_add_with_carry_be_correct
-    (x0 x1 x2 x3 x4 x5 x6 x7 x8 x9 x10 x11 x12 x13 x14 x15 : Felt) (rest : List Felt) (s : MidenState)
+    (x0 x1 x2 x3 x4 x5 x6 x7 x8 x9 x10 x11 x12 x13 x14 x15 : Felt) (rest : List Felt) (s : Concrete.State)
     (hs : s.stack = x0 :: x1 :: x2 :: x3 :: x4 :: x5 :: x6 :: x7 :: x8 :: x9 :: x10 :: x11 :: x12 :: x13 :: x14 :: x15 :: rest)
     (hx0_u32 : x0.isU32 = true)  -- from u32OverflowAdd at instruction 3
     (hx1_u32 : x1.isU32 = true)  -- from u32OverflowAdd3 at instruction 6
@@ -36,7 +36,7 @@ theorem u256_add_with_carry_be_correct
     (hx14_u32 : x14.isU32 = true)  -- from u32OverflowAdd3 at instruction 24
     (hx15_u32 : x15.isU32 = true)  -- from u32OverflowAdd3 at instruction 27
     :
-    exec 33 s Miden.Core.U256.add_with_carry_be =
+    execProcedure emptyEnv 33 s Miden.Core.U256.add_with_carry_be =
     some (s.withStack (sorry :: rest))  -- TODO: specify output
     := by
   -- Chunked/manual scaffold: fill chunk lemmas or manual proof here.

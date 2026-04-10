@@ -49,7 +49,7 @@ private theorem stepU32OverflowSubLocal (mem : Nat → Felt) (frames : List Loca
           Felt.ofNat (u32OverflowingSub a.val b.val).2 ::
           rest, mem, frames, adv⟩ := by
   unfold execInstruction execU32OverflowSub
-  simp [ha, hb, MidenState.withStack]
+  simp [ha, hb, Concrete.State.withStack]
 
 -- ============================================================================
 -- Chunk definitions
@@ -122,7 +122,7 @@ private theorem swb_chunk1_correct
     let sub_borrow₁ := (u32OverflowingSub a1.val lo₁).1
     let d₁ := (u32OverflowingSub a1.val lo₁).2
     let borrow₁ := hi₁ + sub_borrow₁
-    execWithEnv env (fuel + 1)
+    execProcedure env (fuel + 1)
       ⟨b7 :: b6 :: b5 :: b4 :: b3 :: b2 :: b1 :: b0 ::
        a7 :: a6 :: a5 :: a4 :: a3 :: a2 :: a1 :: a0 :: rest, mem, frames, adv⟩
       swb_chunk1 =
@@ -143,7 +143,7 @@ private theorem swb_chunk1_correct
   have hlo1_val : (Felt.ofNat (((u32OverflowingSub a0.val b0.val).1 + b1.val) % 2^32)).val =
       ((u32OverflowingSub a0.val b0.val).1 + b1.val) % 2^32 :=
     felt_ofNat_val_lt _ (by unfold GOLDILOCKS_PRIME; omega)
-  unfold swb_chunk1 execWithEnv
+  unfold swb_chunk1 execProcedure
   simp only [List.foldlM]
   rw [stepSwapw3]; miden_bind
   miden_movup; miden_movup
@@ -181,7 +181,7 @@ private theorem swb_chunk2_correct
     let lo₃ := wb₃ % 2^32
     let borrow₃ := wb₃ / 2^32 + (u32OverflowingSub x3.val lo₃).1
     let d₃ := (u32OverflowingSub x3.val lo₃).2
-    execWithEnv env (fuel + 1)
+    execProcedure env (fuel + 1)
       ⟨borrow_in :: prev1 :: prev0 :: x3 :: x2 :: y3 :: y2 :: z0 :: z1 :: z2 :: z3 ::
        w0 :: w1 :: w2 :: w3 :: rest, mem, frames, adv⟩
       swb_chunk2 =
@@ -218,7 +218,7 @@ private theorem swb_chunk2_correct
   have hlo3_val : (Felt.ofNat ((borrow₂ + y3.val) % 2^32)).val =
       (borrow₂ + y3.val) % 2^32 :=
     felt_ofNat_val_lt _ (by unfold GOLDILOCKS_PRIME; omega)
-  unfold swb_chunk2 execWithEnv
+  unfold swb_chunk2 execProcedure
   simp only [List.foldlM]
   -- Limb 2
   miden_movup
@@ -263,7 +263,7 @@ private theorem swb_chunk3_correct
     let lo₅ := wb₅ % 2^32
     let borrow₅ := wb₅ / 2^32 + (u32OverflowingSub z2.val lo₅).1
     let d₅ := (u32OverflowingSub z2.val lo₅).2
-    execWithEnv env (fuel + 1)
+    execProcedure env (fuel + 1)
       ⟨borrow_in :: prev3 :: prev2 :: prev1 :: prev0 ::
        z0 :: z1 :: z2 :: z3 :: w0 :: w1 :: w2 :: w3 :: rest, mem, frames, adv⟩
       swb_chunk3 =
@@ -298,7 +298,7 @@ private theorem swb_chunk3_correct
   have hlo5_val : (Felt.ofNat ((borrow₄ + w2.val) % 2^32)).val =
       (borrow₄ + w2.val) % 2^32 :=
     felt_ofNat_val_lt _ (by unfold GOLDILOCKS_PRIME; omega)
-  unfold swb_chunk3 execWithEnv
+  unfold swb_chunk3 execProcedure
   simp only [List.foldlM]
   miden_movup
   rw [stepU32WidenAdd (ha := hbin) (hb := hw3)]; miden_bind
@@ -341,7 +341,7 @@ private theorem swb_chunk4_correct
     let lo₇ := wb₇ % 2^32
     let borrow₇ := wb₇ / 2^32 + (u32OverflowingSub z0.val lo₇).1
     let d₇ := (u32OverflowingSub z0.val lo₇).2
-    execWithEnv env (fuel + 1)
+    execProcedure env (fuel + 1)
       ⟨borrow_in :: prev5 :: prev4 :: prev3 :: prev2 :: prev1 :: prev0 ::
        z0 :: z1 :: w0 :: w1 :: rest, mem, frames, adv⟩
       swb_chunk4 =
@@ -375,7 +375,7 @@ private theorem swb_chunk4_correct
   have hlo7_val : (Felt.ofNat ((borrow₆ + w0.val) % 2^32)).val =
       (borrow₆ + w0.val) % 2^32 :=
     felt_ofNat_val_lt _ (by unfold GOLDILOCKS_PRIME; omega)
-  unfold swb_chunk4 execWithEnv
+  unfold swb_chunk4 execProcedure
   simp only [List.foldlM]
   miden_movup
   rw [stepU32WidenAdd (ha := hbin) (hb := hw1)]; miden_bind
@@ -499,7 +499,7 @@ set_option maxHeartbeats 8000000 in
 private theorem u256_sub_with_borrow_be_raw
     (a b : U256) (rest : List Felt) (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (fuel : Nat) :
-    execWithEnv u256ProcEnv (fuel + 1)
+    execProcedure u256ProcEnv (fuel + 1)
       ⟨b.a7.val :: b.a6.val :: b.a5.val :: b.a4.val ::
        b.a3.val :: b.a2.val :: b.a1.val :: b.a0.val ::
        a.a7.val :: a.a6.val :: a.a5.val :: a.a4.val ::
@@ -516,7 +516,7 @@ private theorem u256_sub_with_borrow_be_raw
           Felt.ofNat ((a.toNat + 2^256 - b.toNat) % 2^32) :: rest,
           mem, frames, adv⟩ := by
   -- Decompose procedure into chunks
-  rw [execWithEnv_body_eq _ _ _ _ _ swb_decomp rfl, execWithEnv_append]
+  rw [execProcedure_body_eq _ _ _ _ _ swb_decomp rfl, execProcedure_append]
   -- Define borrow₀
   set borrow₀ := (u32OverflowingSub a.a0.val.val b.a0.val.val).1
   have hborrow0_le : borrow₀ ≤ 1 := u32OverflowingSub_fst_le_one _ _
@@ -534,7 +534,7 @@ private theorem u256_sub_with_borrow_be_raw
   have hborrow1_val : (Felt.ofNat borrow₁).val = borrow₁ :=
     felt_ofNat_val_lt _ (by unfold GOLDILOCKS_PRIME; omega)
   -- Chunk 2
-  rw [execWithEnv_append]
+  rw [execProcedure_append]
   rw [swb_chunk2_correct (hbin := hborrow1_isU32) (hbin_le := by rw [hborrow1_val]; exact hborrow1_le)
       (hx2 := a.a2_isU32) (hy2 := b.a2_isU32)
       (hx3 := a.a3_isU32) (hy3 := b.a3_isU32)]
@@ -553,7 +553,7 @@ private theorem u256_sub_with_borrow_be_raw
   have hborrow3_val : (Felt.ofNat borrow₃).val = borrow₃ :=
     felt_ofNat_val_lt _ (by unfold GOLDILOCKS_PRIME; omega)
   -- Chunk 3
-  rw [execWithEnv_append]
+  rw [execProcedure_append]
   rw [swb_chunk3_correct (hbin := hborrow3_isU32) (hbin_le := by rw [hborrow3_val]; exact hborrow3_le)
       (hz3 := a.a4_isU32) (hw3 := b.a4_isU32)
       (hz2 := a.a5_isU32) (hw2 := b.a5_isU32)]
@@ -640,7 +640,7 @@ private theorem u256_sub_with_borrow_be_raw
 theorem u256_sub_with_borrow_be_correct
     (a b : U256) (rest : List Felt) (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (fuel : Nat) :
-    execWithEnv u256ProcEnv (fuel + 1)
+    execProcedure u256ProcEnv (fuel + 1)
       ⟨b.a7.val :: b.a6.val :: b.a5.val :: b.a4.val ::
        b.a3.val :: b.a2.val :: b.a1.val :: b.a0.val ::
        a.a7.val :: a.a6.val :: a.a5.val :: a.a4.val ::

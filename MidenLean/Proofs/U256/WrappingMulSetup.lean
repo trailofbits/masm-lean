@@ -18,7 +18,7 @@ theorem wm_setup_correct (a b : U256) (rest : List Felt) (mem : Nat → Felt)
     (frame : LocalFrame) (frames : List LocalFrame) (adv : List Felt) (fuel : Nat)
     (hnl : frame.numLocals ≥ 24) :
     let la := frame.localAddr
-    execWithEnv u256ProcEnv (fuel + 3)
+    execProcedure u256ProcEnv (fuel + 3)
       ⟨b.a0.val :: b.a1.val :: b.a2.val :: b.a3.val ::
        b.a4.val :: b.a5.val :: b.a6.val :: b.a7.val ::
        a.a0.val :: a.a1.val :: a.a2.val :: a.a3.val ::
@@ -42,9 +42,9 @@ theorem wm_setup_correct (a b : U256) (rest : List Felt) (mem : Nat → Felt)
             else if i = la 0 + 1 then b.a5.val else if i = la 0 then b.a4.val
             else mem i,
           frame :: frames, adv⟩ := by
-  unfold wm_setup execWithEnv Procedure.ofOps
+  unfold wm_setup execProcedure Procedure.ofOps
   simp only [List.foldlM, u256ProcEnv]
-  -- Step 1: exec "u256_le_to_be_pair"
+  -- Step 1: execProcedure emptyEnv "u256_le_to_be_pair"
   dsimp only [bind, Bind.bind, Option.bind]
   rw [u256_u256_le_to_be_pair_raw]
   dsimp only [bind, Bind.bind, Option.bind]

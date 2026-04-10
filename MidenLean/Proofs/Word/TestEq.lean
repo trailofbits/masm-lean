@@ -13,17 +13,17 @@ set_option maxHeartbeats 4000000 in
     Output stack: [result, a0, a1, a2, a3, b0, b1, b2, b3] ++ rest
     where result = 1 iff all corresponding elements are equal, else 0. -/
 theorem word_test_eq_correct (a0 a1 a2 a3 b0 b1 b2 b3 : Felt) (rest : List Felt)
-    (s : MidenState)
+    (s : Concrete.State)
     (hs : s.stack = a0 :: a1 :: a2 :: a3 :: b0 :: b1 :: b2 :: b3 :: rest) :
-    exec 20 s Miden.Core.Word.test_eq =
+    execProcedure emptyEnv 20 s Miden.Core.Word.test_eq =
     some (s.withStack (
       (if (b3 == a3) && (b2 == a2) && (b1 == a1) && (b0 == a0)
        then (1 : Felt) else 0) ::
       a0 :: a1 :: a2 :: a3 :: b0 :: b1 :: b2 :: b3 :: rest)) := by
   obtain ⟨stk, mem, frames, adv⟩ := s
-  simp only [MidenState.withStack] at hs ⊢
+  simp only [Concrete.State.withStack] at hs ⊢
   subst hs
-  unfold exec Miden.Core.Word.test_eq execWithEnv
+  unfold Miden.Core.Word.test_eq execProcedure
   simp only [List.foldlM]
   miden_step  -- dup 7
   miden_step  -- dup 4

@@ -17,7 +17,7 @@ set_option maxHeartbeats 4000000 in
     Input stack:  [x0, x1, x2, x3, x4, x5, x6, x7] ++ rest
     Output stack: [sorry] ++ rest -/
 theorem u128_overflowing_add_correct
-    (x0 x1 x2 x3 x4 x5 x6 x7 : Felt) (rest : List Felt) (s : MidenState)
+    (x0 x1 x2 x3 x4 x5 x6 x7 : Felt) (rest : List Felt) (s : Concrete.State)
     (hs : s.stack = x0 :: x1 :: x2 :: x3 :: x4 :: x5 :: x6 :: x7 :: rest)
     (hx1_u32 : x1.isU32 = true)  -- from u32WidenAdd3 at instruction 9
     (hx2_u32 : x2.isU32 = true)  -- from u32WidenAdd3 at instruction 5
@@ -27,7 +27,7 @@ theorem u128_overflowing_add_correct
     (hx6_u32 : x6.isU32 = true)  -- from u32WidenAdd3 at instruction 5
     (hx7_u32 : x7.isU32 = true)  -- from u32WidenAdd at instruction 1
     :
-    exec 20 s Miden.Core.U128.overflowing_add =
+    execProcedure emptyEnv 20 s Miden.Core.U128.overflowing_add =
     some (s.withStack (sorry :: rest))  -- TODO: specify output
     := by
   miden_setup Miden.Core.U128.overflowing_add

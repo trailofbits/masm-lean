@@ -17,14 +17,14 @@ set_option maxHeartbeats 4000000 in
     Input stack:  [a, b, c, d] ++ rest
     Output stack: [sorry] ++ rest -/
 theorem u64_wrapping_mul_correct
-    (a b c d : Felt) (rest : List Felt) (s : MidenState)
+    (a b c d : Felt) (rest : List Felt) (s : Concrete.State)
     (hs : s.stack = a :: b :: c :: d :: rest)
     (ha_u32 : a.isU32 = true)  -- from u32WidenMadd at instruction 11
     (hb_u32 : b.isU32 = true)  -- from u32WidenMul at instruction 2
     (hc_u32 : c.isU32 = true)  -- from u32WidenMadd at instruction 6
     (hd_u32 : d.isU32 = true)  -- from u32WidenMul at instruction 2
     :
-    exec 20 s Miden.Core.U64.wrapping_mul =
+    execProcedure emptyEnv 20 s Miden.Core.U64.wrapping_mul =
     some (s.withStack (sorry :: rest))  -- TODO: specify output
     := by
   miden_setup Miden.Core.U64.wrapping_mul

@@ -21,7 +21,7 @@ structure State where
 /-- The symbolic state models the concrete state when every component agrees
     under the assignment `σ`. The concrete stack may have additional elements
     (`rest`) below the symbolic portion. -/
-def State.models (ss : State) (cs : MidenState) (σ : Assignment)
+def State.models (ss : State) (cs : Concrete.State) (σ : Assignment)
     (rest : List Felt) : Prop :=
   cs.stack = ss.stack.map (Expr.eval σ) ++ rest ∧
   (∀ addr, cs.memory addr = (ss.memory addr).eval σ) ∧

@@ -16,13 +16,13 @@ set_option maxHeartbeats 8000000 in
     where `c0..c3` are the low-to-high limbs of `(a * b) mod 2^128`
     and `overflow` is `1` exactly when the discarded high part is nonzero. -/
 theorem u128_widening_mul_raw
-    (a0 a1 a2 a3 b0 b1 b2 b3 : Felt) (rest : List Felt) (s : MidenState)
+    (a0 a1 a2 a3 b0 b1 b2 b3 : Felt) (rest : List Felt) (s : Concrete.State)
     (hs : s.stack = b0 :: b1 :: b2 :: b3 :: a0 :: a1 :: a2 :: a3 :: rest)
     (ha0 : a0.isU32 = true) (ha1 : a1.isU32 = true)
     (ha2 : a2.isU32 = true) (ha3 : a3.isU32 = true)
     (hb0 : b0.isU32 = true) (hb1 : b1.isU32 = true)
     (hb2 : b2.isU32 = true) (hb3 : b3.isU32 = true) :
-    execWithEnv u128ProcEnv 31 s Miden.Core.U128.widening_mul =
+    execProcedure u128ProcEnv 31 s Miden.Core.U128.widening_mul =
     some (s.withStack (
       u128MulC0 a0 b0 ::
       u128MulC1 a0 a1 b0 b1 ::
@@ -31,12 +31,12 @@ theorem u128_widening_mul_raw
       (if u128MulOverflowBool a0 a1 a2 a3 b0 b1 b2 b3 then (1 : Felt) else 0) ::
       rest)) := by
   obtain ⟨stk, mem, frames, adv⟩ := s
-  simp only [MidenState.withStack] at hs ⊢
+  simp only [Concrete.State.withStack] at hs ⊢
   subst hs
-  unfold Miden.Core.U128.widening_mul execWithEnv
+  unfold Miden.Core.U128.widening_mul execProcedure
   simp only [List.foldlM, u128ProcEnv]
   dsimp only [bind, Bind.bind, Option.bind]
-  rw [show execWithEnv u128ProcEnv 30
+  rw [show execProcedure u128ProcEnv 30
       ⟨b0 :: b1 :: b2 :: b3 :: a0 :: a1 :: a2 :: a3 :: rest, mem, frames, adv⟩
       Miden.Core.U128.overflowing_mul =
       some ⟨
@@ -57,10 +57,10 @@ set_option maxHeartbeats 8000000 in
 /-- `u128::widening_mul` computes `(a * b) mod 2^128` and an overflow flag.
     Input stack:  [b.a0, b.a1, b.a2, b.a3, a.a0, a.a1, a.a2, a.a3] ++ rest
     Output stack: [(a*b).a0, (a*b).a1, (a*b).a2, (a*b).a3, overflow] ++ rest -/
-theorem u128_widening_mul_correct (a b : U128) (rest : List Felt) (s : MidenState)
+theorem u128_widening_mul_correct (a b : U128) (rest : List Felt) (s : Concrete.State)
     (hs : s.stack = b.a0.val :: b.a1.val :: b.a2.val :: b.a3.val ::
                     a.a0.val :: a.a1.val :: a.a2.val :: a.a3.val :: rest) :
-    execWithEnv u128ProcEnv 31 s Miden.Core.U128.widening_mul =
+    execProcedure u128ProcEnv 31 s Miden.Core.U128.widening_mul =
     some (s.withStack (
       (a * b).a0.val :: (a * b).a1.val :: (a * b).a2.val :: (a * b).a3.val ::
       (if u128MulOverflowBool a.a0.val a.a1.val a.a2.val a.a3.val

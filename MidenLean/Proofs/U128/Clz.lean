@@ -15,11 +15,11 @@ set_option maxHeartbeats 12000000 in
     where `a..d` are low-to-high u32 limbs and the result is the number of
     leading zero bits in the 128-bit value. -/
 theorem u128_clz_raw
-    (a b c d : Felt) (rest : List Felt) (s : MidenState)
+    (a b c d : Felt) (rest : List Felt) (s : Concrete.State)
     (hs : s.stack = a :: b :: c :: d :: rest)
     (ha : a.isU32 = true) (hb : b.isU32 = true)
     (hc : c.isU32 = true) (hd : d.isU32 = true) :
-    exec 33 s Miden.Core.U128.clz =
+    execProcedure emptyEnv 33 s Miden.Core.U128.clz =
     some (s.withStack (
       (if d == (0 : Felt) then
         if c == (0 : Felt) then
@@ -32,17 +32,17 @@ theorem u128_clz_raw
       else
         Felt.ofNat (u32CountLeadingZeros d.val)) :: rest)) := by
   obtain ⟨stk, mem, frames, adv⟩ := s
-  simp only [MidenState.withStack] at hs ⊢
+  simp only [Concrete.State.withStack] at hs ⊢
   subst hs
-  unfold exec Miden.Core.U128.clz execWithEnv
+  unfold Miden.Core.U128.clz execProcedure
   simp only [List.foldlM]
   miden_movup
   miden_dup
   rw [stepEqImm]
   miden_bind
   by_cases hd0 : d == (0 : Felt)
-  · simp [hd0, MidenState.withStack]
-    unfold execWithEnv
+  · simp [hd0, Concrete.State.withStack]
+    unfold execProcedure
     simp only [List.foldlM]
     rw [stepDrop]
     miden_bind
@@ -51,8 +51,8 @@ theorem u128_clz_raw
     rw [stepEqImm]
     miden_bind
     by_cases hc0 : c == (0 : Felt)
-    · simp [hc0, MidenState.withStack]
-      unfold execWithEnv
+    · simp [hc0, Concrete.State.withStack]
+      unfold execProcedure
       simp only [List.foldlM]
       rw [stepDrop]
       miden_bind
@@ -61,8 +61,8 @@ theorem u128_clz_raw
       rw [stepEqImm]
       miden_bind
       by_cases hb0 : b == (0 : Felt)
-      · simp [hb0, MidenState.withStack]
-        unfold execWithEnv
+      · simp [hb0, Concrete.State.withStack]
+        unfold execProcedure
         simp only [List.foldlM]
         rw [stepDrop]
         miden_bind
@@ -72,8 +72,8 @@ theorem u128_clz_raw
         have hc_eq : c = 0 := by exact beq_iff_eq.mp hc0
         have hb_eq : b = 0 := by exact beq_iff_eq.mp hb0
         simp [hc_eq, hb_eq]
-      · simp [hb0, MidenState.withStack]
-        unfold execWithEnv
+      · simp [hb0, Concrete.State.withStack]
+        unfold execProcedure
         simp only [List.foldlM]
         simp (config := { decide := true }) only [bind, Bind.bind, Option.bind, pure, Pure.pure]
         rw [stepSwap (hn := by decide) (htop := rfl) (hnth := rfl)]
@@ -88,8 +88,8 @@ theorem u128_clz_raw
           intro hb_eq
           exact hb0 (by simp [hb_eq])
         simp [hc_eq, hb_ne]
-    · simp [hc0, MidenState.withStack]
-      unfold execWithEnv
+    · simp [hc0, Concrete.State.withStack]
+      unfold execProcedure
       simp only [List.foldlM]
       simp (config := { decide := true }) only [bind, Bind.bind, Option.bind, pure, Pure.pure]
       miden_movdn
@@ -104,8 +104,8 @@ theorem u128_clz_raw
         intro hc_eq
         exact hc0 (by simp [hc_eq])
       simp [hc_ne]
-  · simp [hd0, MidenState.withStack]
-    unfold execWithEnv
+  · simp [hd0, Concrete.State.withStack]
+    unfold execProcedure
     simp only [List.foldlM]
     simp (config := { decide := true }) only [bind, Bind.bind, Option.bind, pure, Pure.pure]
     miden_movdn
@@ -120,9 +120,9 @@ theorem u128_clz_raw
 /-- `u128::clz` pushes the count of leading zeros of a 128-bit value.
     Input stack:  [a.a0, a.a1, a.a2, a.a3] ++ rest
     Output stack: [countLeadingZeros a] ++ rest -/
-theorem u128_clz_correct (a : U128) (rest : List Felt) (s : MidenState)
+theorem u128_clz_correct (a : U128) (rest : List Felt) (s : Concrete.State)
     (hs : s.stack = a.a0.val :: a.a1.val :: a.a2.val :: a.a3.val :: rest) :
-    exec 33 s Miden.Core.U128.clz =
+    execProcedure emptyEnv 33 s Miden.Core.U128.clz =
     some (s.withStack (Felt.ofNat (U128.countLeadingZeros a) :: rest)) := by
   have h := u128_clz_raw a.a0.val a.a1.val a.a2.val a.a3.val rest s hs
     a.a0.isU32 a.a1.isU32 a.a2.isU32 a.a3.isU32

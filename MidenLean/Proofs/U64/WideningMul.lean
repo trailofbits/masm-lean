@@ -47,7 +47,7 @@ private theorem widening_mul_chunk1_correct
     (a_lo a_hi b_lo b_hi : Felt) (rest : List Felt) (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (ha_lo : a_lo.isU32 = true) (ha_hi : a_hi.isU32 = true)
     (hb_lo : b_lo.isU32 = true) (hb_hi : b_hi.isU32 = true) :
-    exec 30 ⟨b_lo :: b_hi :: a_lo :: a_hi :: rest, mem, frames, adv⟩ widening_mul_chunk1 =
+    execProcedure emptyEnv 30 ⟨b_lo :: b_hi :: a_lo :: a_hi :: rest, mem, frames, adv⟩ widening_mul_chunk1 =
       some ⟨Felt.ofNat
               ((b_lo.val * a_hi.val + (b_hi.val * a_lo.val + b_lo.val * a_lo.val / 2 ^ 32) % 2 ^ 32) /
                 2 ^ 32) ::
@@ -57,7 +57,7 @@ private theorem widening_mul_chunk1_correct
             Felt.ofNat ((b_hi.val * a_lo.val + b_lo.val * a_lo.val / 2 ^ 32) / 2 ^ 32) ::
             Felt.ofNat (b_lo.val * a_lo.val % 2 ^ 32) ::
             a_hi :: b_hi :: rest, mem, frames, adv⟩ := by
-  unfold exec widening_mul_chunk1 execWithEnv
+  unfold widening_mul_chunk1 execProcedure
   simp only [List.foldlM]
   rw [stepReversew]
   miden_bind
@@ -96,7 +96,7 @@ private theorem widening_mul_chunk2_correct
     (a_lo a_hi b_lo b_hi : Felt) (rest : List Felt) (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (ha_lo : a_lo.isU32 = true) (ha_hi : a_hi.isU32 = true)
     (hb_lo : b_lo.isU32 = true) (hb_hi : b_hi.isU32 = true) :
-    exec 30
+    execProcedure emptyEnv 30
         ⟨Felt.ofNat
             ((b_lo.val * a_hi.val + (b_hi.val * a_lo.val + b_lo.val * a_lo.val / 2 ^ 32) % 2 ^ 32) /
               2 ^ 32) ::
@@ -132,7 +132,7 @@ private theorem widening_mul_chunk2_correct
                       2 ^ 32) /
                   2 ^ 32)) ::
             rest, mem, frames, adv⟩ := by
-  unfold exec widening_mul_chunk2 execWithEnv
+  unfold widening_mul_chunk2 execProcedure
   simp only [List.foldlM]
   miden_movup
   miden_movup
@@ -243,11 +243,11 @@ set_option maxHeartbeats 12000000 in
     Output stack: [c0, c1, c2, c3] ++ rest
     where (c3, c2, c1, c0) is the 128-bit product a * b. -/
 theorem u64_widening_mul_exec
-    (a_lo a_hi b_lo b_hi : Felt) (rest : List Felt) (s : MidenState)
+    (a_lo a_hi b_lo b_hi : Felt) (rest : List Felt) (s : Concrete.State)
     (hs : s.stack = b_lo :: b_hi :: a_lo :: a_hi :: rest)
     (ha_lo : a_lo.isU32 = true) (ha_hi : a_hi.isU32 = true)
     (hb_lo : b_lo.isU32 = true) (hb_hi : b_hi.isU32 = true) :
-    exec 30 s Miden.Core.U64.widening_mul =
+    execProcedure emptyEnv 30 s Miden.Core.U64.widening_mul =
     some (s.withStack (
       let prod0 := b_lo.val * a_lo.val
       let cross1 := b_hi.val * a_lo.val + prod0 / 2 ^ 32
@@ -259,7 +259,7 @@ theorem u64_widening_mul_exec
       Felt.ofNat (widenAdd % 2 ^ 32) ::
       (Felt.ofNat (widenAdd / 2 ^ 32) + Felt.ofNat (high / 2 ^ 32)) :: rest)) := by
   obtain ⟨stk, mem, frames, adv⟩ := s
-  simp only [MidenState.withStack] at hs ⊢
+  simp only [Concrete.State.withStack] at hs ⊢
   subst hs
   rw [MidenLean.exec_body_eq _ _ _ _ widening_mul_decomp rfl, MidenLean.exec_append]
   rw [widening_mul_chunk1_correct a_lo a_hi b_lo b_hi rest mem frames adv ha_lo ha_hi hb_lo hb_hi]
@@ -301,9 +301,9 @@ private theorem limbs_from_reconstruction (c0 c1 c2 c3 n : Nat)
     Input stack:  [b.lo, b.hi, a.lo, a.hi] ++ rest
     Output stack: [c0, c1, c2, c3] ++ rest
     where (c3, c2, c1, c0) are the four u32 limbs of the 128-bit product. -/
-theorem u64_widening_mul_correct (a b : U64) (rest : List Felt) (s : MidenState)
+theorem u64_widening_mul_correct (a b : U64) (rest : List Felt) (s : Concrete.State)
     (hs : s.stack = b.lo.val :: b.hi.val :: a.lo.val :: a.hi.val :: rest) :
-    exec 30 s Miden.Core.U64.widening_mul =
+    execProcedure emptyEnv 30 s Miden.Core.U64.widening_mul =
     some (s.withStack (
       let p := a.toNat * b.toNat
       Felt.ofNat (p % 2^32) ::

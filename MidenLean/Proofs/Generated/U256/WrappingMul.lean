@@ -17,15 +17,15 @@ set_option maxHeartbeats 8000000 in
     Input stack:  [x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12, x13, x14, x15] ++ rest
     Output stack: [sorry] ++ rest -/
 theorem u256_wrapping_mul_correct
-    (x0 x1 x2 x3 x4 x5 x6 x7 x8 x9 x10 x11 x12 x13 x14 x15 : Felt) (rest : List Felt) (s : MidenState)
+    (x0 x1 x2 x3 x4 x5 x6 x7 x8 x9 x10 x11 x12 x13 x14 x15 : Felt) (rest : List Felt) (s : Concrete.State)
     (hs : s.stack = x0 :: x1 :: x2 :: x3 :: x4 :: x5 :: x6 :: x7 :: x8 :: x9 :: x10 :: x11 :: x12 :: x13 :: x14 :: x15 :: rest)
     :
-    execWithEnv u256ProcEnv 976 s Miden.Core.U256.wrapping_mul =
+    execProcedure u256ProcEnv 976 s Miden.Core.U256.wrapping_mul =
     some (s.withStack (sorry :: rest))  -- TODO: specify output
     := by
   -- Chunked/manual scaffold: fill chunk lemmas or manual proof here.
   -- chunk1 begin
-  -- Instruction 1: exec "u256_le_to_be_pair"
+  -- Instruction 1: execProcedure emptyEnv "u256_le_to_be_pair"
   -- TODO: fill this step inside the chunked/manual scaffold
   -- Instruction 2: locStorewBe
   -- TODO: fill this step inside the chunked/manual scaffold
@@ -65,7 +65,7 @@ theorem u256_wrapping_mul_correct
   -- TODO: fill this step inside the chunked/manual scaffold
   -- Instruction 19: movup 12
   -- TODO: fill this step inside the chunked/manual scaffold
-  -- Instruction 20: exec "mulstep4"
+  -- Instruction 20: execProcedure emptyEnv "mulstep4"
   -- TODO: fill this step inside the chunked/manual scaffold
   -- chunk2 end
   -- chunk3 begin
@@ -99,7 +99,7 @@ theorem u256_wrapping_mul_correct
   -- TODO: fill this step inside the chunked/manual scaffold
   -- Instruction 34: swap 3
   -- TODO: fill this step inside the chunked/manual scaffold
-  -- Instruction 35: exec "mulstep"
+  -- Instruction 35: execProcedure emptyEnv "mulstep"
   -- TODO: fill this step inside the chunked/manual scaffold
   -- Instruction 36: swap 1
   -- TODO: fill this step inside the chunked/manual scaffold
@@ -113,7 +113,7 @@ theorem u256_wrapping_mul_correct
   -- TODO: fill this step inside the chunked/manual scaffold
   -- Instruction 41: swap 3
   -- TODO: fill this step inside the chunked/manual scaffold
-  -- Instruction 42: exec "mulstep"
+  -- Instruction 42: execProcedure emptyEnv "mulstep"
   -- TODO: fill this step inside the chunked/manual scaffold
   -- chunk4 end
   -- chunk5 begin
@@ -129,7 +129,7 @@ theorem u256_wrapping_mul_correct
   -- TODO: fill this step inside the chunked/manual scaffold
   -- Instruction 48: swap 3
   -- TODO: fill this step inside the chunked/manual scaffold
-  -- Instruction 49: exec "mulstep"
+  -- Instruction 49: execProcedure emptyEnv "mulstep"
   -- TODO: fill this step inside the chunked/manual scaffold
   -- chunk5 end
   -- chunk6 begin
@@ -145,7 +145,7 @@ theorem u256_wrapping_mul_correct
   -- TODO: fill this step inside the chunked/manual scaffold
   -- Instruction 55: swap 3
   -- TODO: fill this step inside the chunked/manual scaffold
-  -- Instruction 56: exec "mulstep"
+  -- Instruction 56: execProcedure emptyEnv "mulstep"
   -- TODO: fill this step inside the chunked/manual scaffold
   -- chunk6 end
   -- chunk7 begin
@@ -189,7 +189,7 @@ theorem u256_wrapping_mul_correct
   -- TODO: fill this step inside the chunked/manual scaffold
   -- Instruction 75: dropw
   -- TODO: fill this step inside the chunked/manual scaffold
-  -- Instruction 76: exec "mulstep4"
+  -- Instruction 76: execProcedure emptyEnv "mulstep4"
   -- TODO: fill this step inside the chunked/manual scaffold
   -- chunk8 end
   -- chunk9 begin
@@ -239,7 +239,7 @@ theorem u256_wrapping_mul_correct
   -- TODO: fill this step inside the chunked/manual scaffold
   -- Instruction 98: swap 3
   -- TODO: fill this step inside the chunked/manual scaffold
-  -- Instruction 99: exec "mulstep"
+  -- Instruction 99: execProcedure emptyEnv "mulstep"
   -- TODO: fill this step inside the chunked/manual scaffold
   -- chunk10 end
   -- chunk11 begin
@@ -255,7 +255,7 @@ theorem u256_wrapping_mul_correct
   -- TODO: fill this step inside the chunked/manual scaffold
   -- Instruction 105: swap 3
   -- TODO: fill this step inside the chunked/manual scaffold
-  -- Instruction 106: exec "mulstep"
+  -- Instruction 106: execProcedure emptyEnv "mulstep"
   -- TODO: fill this step inside the chunked/manual scaffold
   -- chunk11 end
   -- chunk12 begin
@@ -271,7 +271,7 @@ theorem u256_wrapping_mul_correct
   -- TODO: fill this step inside the chunked/manual scaffold
   -- Instruction 112: swap 3
   -- TODO: fill this step inside the chunked/manual scaffold
-  -- Instruction 113: exec "mulstep"
+  -- Instruction 113: execProcedure emptyEnv "mulstep"
   -- TODO: fill this step inside the chunked/manual scaffold
   -- chunk12 end
   -- chunk13 begin
@@ -321,7 +321,7 @@ theorem u256_wrapping_mul_correct
   -- TODO: fill this step inside the chunked/manual scaffold
   -- Instruction 135: dropw
   -- TODO: fill this step inside the chunked/manual scaffold
-  -- Instruction 136: exec "mulstep4"
+  -- Instruction 136: execProcedure emptyEnv "mulstep4"
   -- TODO: fill this step inside the chunked/manual scaffold
   -- chunk14 end
   -- chunk15 begin
@@ -381,7 +381,7 @@ theorem u256_wrapping_mul_correct
   -- TODO: fill this step inside the chunked/manual scaffold
   -- Instruction 162: swap 3
   -- TODO: fill this step inside the chunked/manual scaffold
-  -- Instruction 163: exec "mulstep"
+  -- Instruction 163: execProcedure emptyEnv "mulstep"
   -- TODO: fill this step inside the chunked/manual scaffold
   -- Instruction 164: swap 1
   -- TODO: fill this step inside the chunked/manual scaffold
@@ -395,7 +395,7 @@ theorem u256_wrapping_mul_correct
   -- TODO: fill this step inside the chunked/manual scaffold
   -- Instruction 169: swap 3
   -- TODO: fill this step inside the chunked/manual scaffold
-  -- Instruction 170: exec "mulstep"
+  -- Instruction 170: execProcedure emptyEnv "mulstep"
   -- TODO: fill this step inside the chunked/manual scaffold
   -- chunk17 end
   -- chunk18 begin
@@ -455,7 +455,7 @@ theorem u256_wrapping_mul_correct
   -- TODO: fill this step inside the chunked/manual scaffold
   -- Instruction 196: dropw
   -- TODO: fill this step inside the chunked/manual scaffold
-  -- Instruction 197: exec "mulstep4"
+  -- Instruction 197: execProcedure emptyEnv "mulstep4"
   -- TODO: fill this step inside the chunked/manual scaffold
   -- Instruction 198: movdn 9
   -- TODO: fill this step inside the chunked/manual scaffold
@@ -505,7 +505,7 @@ theorem u256_wrapping_mul_correct
   -- chunk22 begin
   -- Instruction 219: swap 3
   -- TODO: fill this step inside the chunked/manual scaffold
-  -- Instruction 220: exec "mulstep"
+  -- Instruction 220: execProcedure emptyEnv "mulstep"
   -- TODO: fill this step inside the chunked/manual scaffold
   -- Instruction 221: drop
   -- TODO: fill this step inside the chunked/manual scaffold
@@ -533,7 +533,7 @@ theorem u256_wrapping_mul_correct
   -- TODO: fill this step inside the chunked/manual scaffold
   -- Instruction 232: dropw
   -- TODO: fill this step inside the chunked/manual scaffold
-  -- Instruction 233: exec "mulstep4"
+  -- Instruction 233: execProcedure emptyEnv "mulstep4"
   -- TODO: fill this step inside the chunked/manual scaffold
   -- Instruction 234: dropw
   -- TODO: fill this step inside the chunked/manual scaffold
@@ -567,7 +567,7 @@ theorem u256_wrapping_mul_correct
   -- TODO: fill this step inside the chunked/manual scaffold
   -- Instruction 248: push
   -- TODO: fill this step inside the chunked/manual scaffold
-  -- Instruction 249: exec "mulstep"
+  -- Instruction 249: execProcedure emptyEnv "mulstep"
   -- TODO: fill this step inside the chunked/manual scaffold
   -- chunk24 end
   -- chunk25 begin
@@ -583,7 +583,7 @@ theorem u256_wrapping_mul_correct
   -- TODO: fill this step inside the chunked/manual scaffold
   -- Instruction 255: swap 3
   -- TODO: fill this step inside the chunked/manual scaffold
-  -- Instruction 256: exec "mulstep"
+  -- Instruction 256: execProcedure emptyEnv "mulstep"
   -- TODO: fill this step inside the chunked/manual scaffold
   -- chunk25 end
   -- chunk26 begin
@@ -599,7 +599,7 @@ theorem u256_wrapping_mul_correct
   -- TODO: fill this step inside the chunked/manual scaffold
   -- Instruction 262: swap 3
   -- TODO: fill this step inside the chunked/manual scaffold
-  -- Instruction 263: exec "mulstep"
+  -- Instruction 263: execProcedure emptyEnv "mulstep"
   -- TODO: fill this step inside the chunked/manual scaffold
   -- chunk26 end
   -- chunk27 begin
@@ -635,7 +635,7 @@ theorem u256_wrapping_mul_correct
   -- TODO: fill this step inside the chunked/manual scaffold
   -- Instruction 278: push
   -- TODO: fill this step inside the chunked/manual scaffold
-  -- Instruction 279: exec "mulstep"
+  -- Instruction 279: execProcedure emptyEnv "mulstep"
   -- TODO: fill this step inside the chunked/manual scaffold
   -- chunk28 end
   -- chunk29 begin
@@ -651,7 +651,7 @@ theorem u256_wrapping_mul_correct
   -- TODO: fill this step inside the chunked/manual scaffold
   -- Instruction 285: swap 3
   -- TODO: fill this step inside the chunked/manual scaffold
-  -- Instruction 286: exec "mulstep"
+  -- Instruction 286: execProcedure emptyEnv "mulstep"
   -- TODO: fill this step inside the chunked/manual scaffold
   -- chunk29 end
   -- chunk30 begin
@@ -687,7 +687,7 @@ theorem u256_wrapping_mul_correct
   -- TODO: fill this step inside the chunked/manual scaffold
   -- Instruction 301: push
   -- TODO: fill this step inside the chunked/manual scaffold
-  -- Instruction 302: exec "mulstep"
+  -- Instruction 302: execProcedure emptyEnv "mulstep"
   -- TODO: fill this step inside the chunked/manual scaffold
   -- chunk31 end
   -- chunk32 begin
@@ -707,7 +707,7 @@ theorem u256_wrapping_mul_correct
   -- TODO: fill this step inside the chunked/manual scaffold
   -- Instruction 310: swapw 1
   -- TODO: fill this step inside the chunked/manual scaffold
-  -- Instruction 311: exec "u256_le_to_be"
+  -- Instruction 311: execProcedure emptyEnv "u256_le_to_be"
   -- TODO: fill this step inside the chunked/manual scaffold
   -- chunk32 end
   -- chunk33 begin

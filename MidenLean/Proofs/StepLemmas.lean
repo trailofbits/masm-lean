@@ -27,7 +27,7 @@ set_option maxHeartbeats 800000 in
     execInstruction ⟨stk, mem, frames, adv⟩ (.dup n) =
     some ⟨v :: stk, mem, frames, adv⟩ := by
   unfold execInstruction execDup
-  simp [h, MidenState.withStack]
+  simp [h, Concrete.State.withStack]
 
 set_option maxHeartbeats 4000000 in
 /-- Parametric swap: swaps the top element with the element at index `n`.
@@ -39,7 +39,7 @@ set_option maxHeartbeats 4000000 in
     execInstruction ⟨stk, mem, frames, adv⟩ (.swap n) =
     some ⟨(stk.set 0 nth).set n.val top, mem, frames, adv⟩ := by
   unfold execInstruction execSwap
-  simp [hn, htop, hnth, MidenState.withStack]
+  simp [hn, htop, hnth, Concrete.State.withStack]
 
 -- movup and movdn: parametric forms
 
@@ -52,7 +52,7 @@ set_option maxHeartbeats 4000000 in
     execInstruction ⟨stk, mem, frames, adv⟩ (.movup n) =
     some ⟨v :: stk.eraseIdx n, mem, frames, adv⟩ := by
   unfold execInstruction execMovup removeNth
-  simp [hn, hv, MidenState.withStack]
+  simp [hn, hv, Concrete.State.withStack]
 
 set_option maxHeartbeats 4000000 in
 /-- Parametric movdn: pops the top element and inserts it at position `n`.
@@ -63,7 +63,7 @@ set_option maxHeartbeats 4000000 in
     execInstruction ⟨top :: rest, mem, frames, adv⟩ (.movdn n) =
     some ⟨insertAt rest n top, mem, frames, adv⟩ := by
   unfold execInstruction execMovdn
-  simp [hn, MidenState.withStack]
+  simp [hn, Concrete.State.withStack]
 
 set_option maxHeartbeats 400000 in
 @[miden_dispatch] theorem stepReversew (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
@@ -78,7 +78,7 @@ set_option maxHeartbeats 800000 in
     execInstruction ⟨a :: b :: c :: d :: rest, mem, frames, adv⟩ (.dupw 0) =
     some ⟨a :: b :: c :: d :: a :: b :: c :: d :: rest, mem, frames, adv⟩ := by
   unfold execInstruction execDupw
-  simp [MidenState.withStack]
+  simp [Concrete.State.withStack]
 
 set_option maxHeartbeats 800000 in
 @[miden_dispatch] theorem stepDupw1 (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
@@ -86,7 +86,7 @@ set_option maxHeartbeats 800000 in
     execInstruction ⟨a0 :: a1 :: a2 :: a3 :: b0 :: b1 :: b2 :: b3 :: rest, mem, frames, adv⟩ (.dupw 1) =
     some ⟨b0 :: b1 :: b2 :: b3 :: a0 :: a1 :: a2 :: a3 :: b0 :: b1 :: b2 :: b3 :: rest, mem, frames, adv⟩ := by
   unfold execInstruction execDupw
-  simp [MidenState.withStack]
+  simp [Concrete.State.withStack]
 
 set_option maxHeartbeats 800000 in
 @[miden_dispatch] theorem stepSwapw1 (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
@@ -94,7 +94,7 @@ set_option maxHeartbeats 800000 in
     execInstruction ⟨a0 :: a1 :: a2 :: a3 :: b0 :: b1 :: b2 :: b3 :: rest, mem, frames, adv⟩ (.swapw 1) =
     some ⟨b0 :: b1 :: b2 :: b3 :: a0 :: a1 :: a2 :: a3 :: rest, mem, frames, adv⟩ := by
   unfold execInstruction execSwapw
-  simp [MidenState.withStack]
+  simp [Concrete.State.withStack]
 
 set_option maxHeartbeats 800000 in
 @[miden_dispatch] theorem stepSwapw2 (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
@@ -103,7 +103,7 @@ set_option maxHeartbeats 800000 in
         c0 :: c1 :: c2 :: c3 :: rest, mem, frames, adv⟩ (.swapw 2) =
       some ⟨c0 :: c1 :: c2 :: c3 :: b0 :: b1 :: b2 :: b3 ::
         a0 :: a1 :: a2 :: a3 :: rest, mem, frames, adv⟩ := by
-  unfold execInstruction execSwapw; simp [MidenState.withStack]
+  unfold execInstruction execSwapw; simp [Concrete.State.withStack]
 
 set_option maxHeartbeats 800000 in
 @[miden_dispatch] theorem stepSwapw3 (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
@@ -112,7 +112,7 @@ set_option maxHeartbeats 800000 in
         c0 :: c1 :: c2 :: c3 :: d0 :: d1 :: d2 :: d3 :: rest, mem, frames, adv⟩ (.swapw 3) =
       some ⟨d0 :: d1 :: d2 :: d3 :: b0 :: b1 :: b2 :: b3 ::
         c0 :: c1 :: c2 :: c3 :: a0 :: a1 :: a2 :: a3 :: rest, mem, frames, adv⟩ := by
-  unfold execInstruction execSwapw; simp [MidenState.withStack]
+  unfold execInstruction execSwapw; simp [Concrete.State.withStack]
 
 set_option maxHeartbeats 1600000 in
 /-- movdnw 2: move the top word down by 2 word positions.
@@ -124,7 +124,7 @@ set_option maxHeartbeats 1600000 in
     some ⟨b0 :: b1 :: b2 :: b3 :: c0 :: c1 :: c2 :: c3 ::
           a0 :: a1 :: a2 :: a3 :: rest, mem, frames, adv⟩ := by
   unfold execInstruction execMovdnw
-  simp [MidenState.withStack]
+  simp [Concrete.State.withStack]
 
 set_option maxHeartbeats 1600000 in
 /-- movdnw 3: move the top word down by 3 word positions.
@@ -136,7 +136,7 @@ set_option maxHeartbeats 1600000 in
     some ⟨b0 :: b1 :: b2 :: b3 :: c0 :: c1 :: c2 :: c3 ::
           d0 :: d1 :: d2 :: d3 :: a0 :: a1 :: a2 :: a3 :: rest, mem, frames, adv⟩ := by
   unfold execInstruction execMovdnw
-  simp [MidenState.withStack]
+  simp [Concrete.State.withStack]
 
 set_option maxHeartbeats 800000 in
 /-- swapdw: swap the first two words with the second two words.
@@ -148,7 +148,7 @@ set_option maxHeartbeats 800000 in
     some ⟨c0 :: c1 :: c2 :: c3 :: d0 :: d1 :: d2 :: d3 ::
           a0 :: a1 :: a2 :: a3 :: b0 :: b1 :: b2 :: b3 :: rest, mem, frames, adv⟩ := by
   unfold execInstruction execSwapdw
-  simp [MidenState.withStack]
+  simp [Concrete.State.withStack]
 
 set_option maxHeartbeats 800000 in
 /-- movdn 8: move the top element down by 8 positions.
@@ -158,7 +158,7 @@ set_option maxHeartbeats 800000 in
     execInstruction ⟨a0 :: a1 :: a2 :: a3 :: a4 :: a5 :: a6 :: a7 :: a8 :: rest, mem, frames, adv⟩
       (.movdn 8) =
     some ⟨a1 :: a2 :: a3 :: a4 :: a5 :: a6 :: a7 :: a8 :: a0 :: rest, mem, frames, adv⟩ := by
-  unfold execInstruction execMovdn; simp [MidenState.withStack]; rfl
+  unfold execInstruction execMovdn; simp [Concrete.State.withStack]; rfl
 
 set_option maxHeartbeats 800000 in
 /-- movup 8: move element at position 8 to the top.
@@ -168,7 +168,7 @@ set_option maxHeartbeats 800000 in
     execInstruction ⟨a0 :: a1 :: a2 :: a3 :: a4 :: a5 :: a6 :: a7 :: a8 :: rest, mem, frames, adv⟩
       (.movup 8) =
     some ⟨a8 :: a0 :: a1 :: a2 :: a3 :: a4 :: a5 :: a6 :: a7 :: rest, mem, frames, adv⟩ := by
-  unfold execInstruction execMovup; simp [MidenState.withStack]; rfl
+  unfold execInstruction execMovup; simp [Concrete.State.withStack]; rfl
 
 -- Assertions
 
@@ -179,7 +179,7 @@ set_option maxHeartbeats 400000 in
     execInstruction ⟨a :: rest, mem, frames, adv⟩ .assert =
     some ⟨rest, mem, frames, adv⟩ := by
   unfold execInstruction execAssert
-  simp [h, MidenState.withStack]
+  simp [h, Concrete.State.withStack]
 
 set_option maxHeartbeats 400000 in
 /-- assertWithError behaves identically to assert (error string is for debugging). -/
@@ -188,7 +188,7 @@ set_option maxHeartbeats 400000 in
     execInstruction ⟨a :: rest, mem, frames, adv⟩ (.assertWithError msg) =
     some ⟨rest, mem, frames, adv⟩ := by
   unfold execInstruction execAssert
-  simp [h, MidenState.withStack]
+  simp [h, Concrete.State.withStack]
 
 set_option maxHeartbeats 400000 in
 /-- assertz succeeds when top of stack is 0, pops it. -/
@@ -198,7 +198,7 @@ set_option maxHeartbeats 400000 in
     execInstruction ⟨a :: rest, mem, frames, adv⟩ .assertz =
     some ⟨rest, mem, frames, adv⟩ := by
   unfold execInstruction execAssertz
-  simp [ha, MidenState.withStack]
+  simp [ha, Concrete.State.withStack]
 
 set_option maxHeartbeats 400000 in
 /-- assertEq succeeds when top two elements are equal, pops both. -/
@@ -207,7 +207,7 @@ set_option maxHeartbeats 400000 in
     execInstruction ⟨a :: a :: rest, mem, frames, adv⟩ .assertEq =
     some ⟨rest, mem, frames, adv⟩ := by
   unfold execInstruction execAssertEq
-  simp [MidenState.withStack]
+  simp [Concrete.State.withStack]
 
 set_option maxHeartbeats 400000 in
 /-- assertEqWithError behaves identically to assertEq. -/
@@ -216,7 +216,7 @@ set_option maxHeartbeats 400000 in
     execInstruction ⟨a :: a :: rest, mem, frames, adv⟩ (.assertEqWithError msg) =
     some ⟨rest, mem, frames, adv⟩ := by
   unfold execInstruction execAssertEq
-  simp [MidenState.withStack]
+  simp [Concrete.State.withStack]
 
 -- Assertion failure lemmas (for forward-direction proofs)
 
@@ -285,7 +285,7 @@ set_option maxHeartbeats 800000 in
     execInstruction ⟨b0 :: b1 :: b2 :: b3 :: a0 :: a1 :: a2 :: a3 :: rest, mem, frames, adv⟩ .eqw =
       some ⟨(if (a0 == b0) && (a1 == b1) && (a2 == b2) && (a3 == b3) then (1 : Felt) else 0) ::
         b0 :: b1 :: b2 :: b3 :: a0 :: a1 :: a2 :: a3 :: rest, mem, frames, adv⟩ := by
-  unfold execInstruction execEqw; simp [MidenState.withStack]
+  unfold execInstruction execEqw; simp [Concrete.State.withStack]
 
 set_option maxHeartbeats 400000 in
 @[miden_dispatch] theorem stepLt (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
@@ -325,7 +325,7 @@ set_option maxHeartbeats 800000 in
       Instruction.and =
     some ⟨(if q && p then (1 : Felt) else 0) :: rest, mem, frames, adv⟩ := by
   unfold execInstruction execAnd
-  simp only [Felt.isBool_ite_bool, MidenState.withStack]
+  simp only [Felt.isBool_ite_bool, Concrete.State.withStack]
   cases p <;> cases q <;> simp
 
 set_option maxHeartbeats 800000 in
@@ -336,7 +336,7 @@ set_option maxHeartbeats 800000 in
       Instruction.or =
     some ⟨(if q || p then (1 : Felt) else 0) :: rest, mem, frames, adv⟩ := by
   unfold execInstruction execOr
-  simp only [Felt.isBool_ite_bool, MidenState.withStack]
+  simp only [Felt.isBool_ite_bool, Concrete.State.withStack]
   cases p <;> cases q <;> simp
 
 set_option maxHeartbeats 800000 in
@@ -347,7 +347,7 @@ set_option maxHeartbeats 800000 in
       Instruction.not =
     some ⟨(if !p then (1 : Felt) else 0) :: rest, mem, frames, adv⟩ := by
   unfold execInstruction execNot
-  simp only [Felt.isBool_ite_bool, MidenState.withStack]
+  simp only [Felt.isBool_ite_bool, Concrete.State.withStack]
   cases p <;> simp
 
 -- Conditional stack manipulation
@@ -361,7 +361,7 @@ set_option maxHeartbeats 800000 in
       .cswap =
     some ⟨(if p then a else b) :: (if p then b else a) :: rest, mem, frames, adv⟩ := by
   unfold execInstruction execCswap
-  simp only [MidenState.withStack]
+  simp only [Concrete.State.withStack]
   cases p <;> simp
 
 set_option maxHeartbeats 800000 in
@@ -373,7 +373,7 @@ set_option maxHeartbeats 800000 in
       .cdrop =
     some ⟨(if p then b else a) :: rest, mem, frames, adv⟩ := by
   unfold execInstruction execCdrop
-  simp only [MidenState.withStack]
+  simp only [Concrete.State.withStack]
   cases p <;> simp
 
 set_option maxHeartbeats 800000 in
@@ -393,7 +393,7 @@ set_option maxHeartbeats 800000 in
       (if p then b3 else a3) ::
       rest, mem, frames, adv⟩ := by
   unfold execInstruction execCdropw
-  simp only [MidenState.withStack]
+  simp only [Concrete.State.withStack]
   cases p <;> simp
 
 -- Field arithmetic
@@ -463,7 +463,7 @@ set_option maxHeartbeats 400000 in
     execInstruction ⟨a :: rest, mem, frames, adv⟩ .pow2 =
     some ⟨Felt.ofNat (2^a.val) :: rest, mem, frames, adv⟩ := by
   unfold execInstruction execPow2
-  simp [show ¬(a.val > 63) from by omega, MidenState.withStack]
+  simp [show ¬(a.val > 63) from by omega, Concrete.State.withStack]
 
 -- U32 arithmetic
 
@@ -475,7 +475,7 @@ set_option maxHeartbeats 4000000 in
     some ⟨Felt.ofNat ((a.val + b.val) % 2^32) ::
           Felt.ofNat ((a.val + b.val) / 2^32) :: rest, mem, frames, adv⟩ := by
   unfold execInstruction execU32WidenAdd u32WideAdd u32Max
-  simp [ha, hb, MidenState.withStack]
+  simp [ha, hb, Concrete.State.withStack]
 
 set_option maxHeartbeats 4000000 in
 @[miden_dispatch] theorem stepU32OverflowAdd (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
@@ -485,7 +485,7 @@ set_option maxHeartbeats 4000000 in
     some ⟨Felt.ofNat ((a.val + b.val) / 2^32) ::
           Felt.ofNat ((a.val + b.val) % 2^32) :: rest, mem, frames, adv⟩ := by
   unfold execInstruction execU32OverflowAdd u32WideAdd u32Max
-  simp [ha, hb, MidenState.withStack]
+  simp [ha, hb, Concrete.State.withStack]
 
 set_option maxHeartbeats 4000000 in
 @[miden_dispatch] theorem stepU32WidenAdd3 (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
@@ -495,7 +495,7 @@ set_option maxHeartbeats 4000000 in
     some ⟨Felt.ofNat ((a.val + b.val + c.val) % 2^32) ::
           Felt.ofNat ((a.val + b.val + c.val) / 2^32) :: rest, mem, frames, adv⟩ := by
   unfold execInstruction execU32WidenAdd3 u32WideAdd3 u32Max
-  simp [ha, hb, hc, MidenState.withStack]
+  simp [ha, hb, hc, Concrete.State.withStack]
 
 set_option maxHeartbeats 4000000 in
 @[miden_dispatch] theorem stepU32OverflowSub (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
@@ -506,7 +506,7 @@ set_option maxHeartbeats 4000000 in
           Felt.ofNat (u32OverflowingSub a.val b.val).2 ::
           rest, mem, frames, adv⟩ := by
   unfold execInstruction execU32OverflowSub
-  simp [ha, hb, MidenState.withStack]
+  simp [ha, hb, Concrete.State.withStack]
 
 set_option maxHeartbeats 4000000 in
 @[miden_dispatch] theorem stepU32WidenMul (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
@@ -516,7 +516,7 @@ set_option maxHeartbeats 4000000 in
     some ⟨Felt.ofNat ((a.val * b.val) % 2^32) ::
           Felt.ofNat ((a.val * b.val) / 2^32) :: rest, mem, frames, adv⟩ := by
   unfold execInstruction execU32WidenMul u32WideMul u32Max
-  simp [ha, hb, MidenState.withStack]
+  simp [ha, hb, Concrete.State.withStack]
 
 set_option maxHeartbeats 4000000 in
 @[miden_dispatch] theorem stepU32WidenMadd (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
@@ -526,7 +526,7 @@ set_option maxHeartbeats 4000000 in
     some ⟨Felt.ofNat ((a.val * b.val + c.val) % 2^32) ::
           Felt.ofNat ((a.val * b.val + c.val) / 2^32) :: rest, mem, frames, adv⟩ := by
   unfold execInstruction execU32WidenMadd u32WideMadd u32Max
-  simp [ha, hb, hc, MidenState.withStack]
+  simp [ha, hb, hc, Concrete.State.withStack]
 
 set_option maxHeartbeats 4000000 in
 @[miden_dispatch] theorem stepU32WrappingMadd (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
@@ -535,7 +535,7 @@ set_option maxHeartbeats 4000000 in
     execInstruction ⟨b :: a :: c :: rest, mem, frames, adv⟩ .u32WrappingMadd =
     some ⟨Felt.ofNat ((a.val * b.val + c.val) % 2^32) :: rest, mem, frames, adv⟩ := by
   unfold execInstruction execU32WrappingMadd u32Max
-  simp [ha, hb, hc, MidenState.withStack]
+  simp [ha, hb, hc, Concrete.State.withStack]
 
 -- U32 bitwise (require isU32 preconditions)
 
@@ -546,7 +546,7 @@ set_option maxHeartbeats 4000000 in
     execInstruction ⟨b :: a :: rest, mem, frames, adv⟩ .u32And =
     some ⟨Felt.ofNat (a.val &&& b.val) :: rest, mem, frames, adv⟩ := by
   unfold execInstruction execU32And
-  simp [ha, hb, MidenState.withStack]
+  simp [ha, hb, Concrete.State.withStack]
 
 set_option maxHeartbeats 4000000 in
 @[miden_dispatch] theorem stepU32Or (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
@@ -555,7 +555,7 @@ set_option maxHeartbeats 4000000 in
     execInstruction ⟨b :: a :: rest, mem, frames, adv⟩ .u32Or =
     some ⟨Felt.ofNat (a.val ||| b.val) :: rest, mem, frames, adv⟩ := by
   unfold execInstruction execU32Or
-  simp [ha, hb, MidenState.withStack]
+  simp [ha, hb, Concrete.State.withStack]
 
 set_option maxHeartbeats 4000000 in
 @[miden_dispatch] theorem stepU32Xor (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
@@ -564,7 +564,7 @@ set_option maxHeartbeats 4000000 in
     execInstruction ⟨b :: a :: rest, mem, frames, adv⟩ .u32Xor =
     some ⟨Felt.ofNat (a.val ^^^ b.val) :: rest, mem, frames, adv⟩ := by
   unfold execInstruction execU32Xor
-  simp [ha, hb, MidenState.withStack]
+  simp [ha, hb, Concrete.State.withStack]
 
 set_option maxHeartbeats 4000000 in
 @[miden_dispatch] theorem stepU32Not (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
@@ -573,7 +573,7 @@ set_option maxHeartbeats 4000000 in
     execInstruction ⟨a :: rest, mem, frames, adv⟩ .u32Not =
     some ⟨Felt.ofNat (u32Max - 1 - a.val) :: rest, mem, frames, adv⟩ := by
   unfold execInstruction execU32Not u32Max
-  simp [ha, MidenState.withStack]
+  simp [ha, Concrete.State.withStack]
 
 -- U32 comparison (require isU32 preconditions)
 
@@ -584,7 +584,7 @@ set_option maxHeartbeats 4000000 in
     execInstruction ⟨b :: a :: rest, mem, frames, adv⟩ .u32Lt =
     some ⟨(if a.val < b.val then (1 : Felt) else 0) :: rest, mem, frames, adv⟩ := by
   unfold execInstruction execU32Lt
-  simp [ha, hb, MidenState.withStack]
+  simp [ha, hb, Concrete.State.withStack]
 
 set_option maxHeartbeats 4000000 in
 @[miden_dispatch] theorem stepU32Gt (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
@@ -593,7 +593,7 @@ set_option maxHeartbeats 4000000 in
     execInstruction ⟨b :: a :: rest, mem, frames, adv⟩ .u32Gt =
     some ⟨(if a.val > b.val then (1 : Felt) else 0) :: rest, mem, frames, adv⟩ := by
   unfold execInstruction execU32Gt
-  simp [ha, hb, MidenState.withStack]
+  simp [ha, hb, Concrete.State.withStack]
 
 set_option maxHeartbeats 4000000 in
 @[miden_dispatch] theorem stepU32Lte (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
@@ -602,7 +602,7 @@ set_option maxHeartbeats 4000000 in
     execInstruction ⟨b :: a :: rest, mem, frames, adv⟩ .u32Lte =
     some ⟨(if a.val ≤ b.val then (1 : Felt) else 0) :: rest, mem, frames, adv⟩ := by
   unfold execInstruction execU32Lte
-  simp [ha, hb, MidenState.withStack]
+  simp [ha, hb, Concrete.State.withStack]
 
 set_option maxHeartbeats 4000000 in
 @[miden_dispatch] theorem stepU32Gte (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
@@ -611,7 +611,7 @@ set_option maxHeartbeats 4000000 in
     execInstruction ⟨b :: a :: rest, mem, frames, adv⟩ .u32Gte =
     some ⟨(if a.val ≥ b.val then (1 : Felt) else 0) :: rest, mem, frames, adv⟩ := by
   unfold execInstruction execU32Gte
-  simp [ha, hb, MidenState.withStack]
+  simp [ha, hb, Concrete.State.withStack]
 
 -- U32 bit counting
 
@@ -622,7 +622,7 @@ set_option maxHeartbeats 4000000 in
     execInstruction ⟨a :: rest, mem, frames, adv⟩ .u32Clz =
     some ⟨Felt.ofNat (u32CountLeadingZeros a.val) :: rest, mem, frames, adv⟩ := by
   unfold execInstruction execU32Clz
-  simp [ha, MidenState.withStack]
+  simp [ha, Concrete.State.withStack]
 
 set_option maxHeartbeats 4000000 in
 @[miden_dispatch] theorem stepU32Ctz (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
@@ -631,7 +631,7 @@ set_option maxHeartbeats 4000000 in
     execInstruction ⟨a :: rest, mem, frames, adv⟩ .u32Ctz =
     some ⟨Felt.ofNat (u32CountTrailingZeros a.val) :: rest, mem, frames, adv⟩ := by
   unfold execInstruction execU32Ctz
-  simp [ha, MidenState.withStack]
+  simp [ha, Concrete.State.withStack]
 
 set_option maxHeartbeats 4000000 in
 /-- u32Clo: count leading ones, expressed via u32CountLeadingZeros on the bitwise complement.
@@ -642,7 +642,7 @@ set_option maxHeartbeats 4000000 in
     execInstruction ⟨a :: rest, mem, frames, adv⟩ .u32Clo =
     some ⟨Felt.ofNat (u32CountLeadingZeros (u32Max - 1 - a.val)) :: rest, mem, frames, adv⟩ := by
   unfold execInstruction execU32Clo u32CountLeadingOnes
-  simp [ha, MidenState.withStack]
+  simp [ha, Concrete.State.withStack]
 
 set_option maxHeartbeats 4000000 in
 /-- u32Cto: count trailing ones, expressed via u32CountTrailingZeros on the XOR complement.
@@ -653,7 +653,7 @@ set_option maxHeartbeats 4000000 in
     execInstruction ⟨a :: rest, mem, frames, adv⟩ .u32Cto =
     some ⟨Felt.ofNat (u32CountTrailingZeros (a.val ^^^ (u32Max - 1))) :: rest, mem, frames, adv⟩ := by
   unfold execInstruction execU32Cto u32CountTrailingOnes
-  simp [ha, MidenState.withStack]
+  simp [ha, Concrete.State.withStack]
 
 -- U32 split
 
@@ -673,7 +673,7 @@ set_option maxHeartbeats 400000 in
     execInstruction ⟨b :: a :: rest, mem, frames, adv⟩ .div =
     some ⟨(a * b⁻¹) :: rest, mem, frames, adv⟩ := by
   unfold execInstruction execDiv
-  simp [hb, MidenState.withStack]
+  simp [hb, Concrete.State.withStack]
 
 -- U32 divmod (requires isU32 and nonzero divisor)
 
@@ -685,7 +685,7 @@ set_option maxHeartbeats 4000000 in
     execInstruction ⟨b :: a :: rest, mem, frames, adv⟩ .u32DivMod =
     some ⟨Felt.ofNat (a.val % b.val) :: Felt.ofNat (a.val / b.val) :: rest, mem, frames, adv⟩ := by
   unfold execInstruction execU32DivMod
-  simp [ha, hb, hbnz, MidenState.withStack]
+  simp [ha, hb, hbnz, Concrete.State.withStack]
 
 -- Emit (no-op)
 
@@ -705,7 +705,7 @@ set_option maxHeartbeats 800000 in
     execInstruction ⟨stk, mem, frames, adv⟩ (.advPush n) =
     some ⟨(adv.take n).reverse ++ stk, mem, frames, adv.drop n⟩ := by
   unfold execInstruction execAdvPush
-  simp only [MidenState.withStack, MidenState.withAdvice]
+  simp only [Concrete.State.withStack, Concrete.State.withAdvice]
   split
   · omega
   · rfl
@@ -718,7 +718,7 @@ set_option maxHeartbeats 800000 in
     some ⟨v :: stk, mem, frames, adv'⟩ := by
   unfold execInstruction execAdvPush
   subst hadv
-  simp [MidenState.withStack, MidenState.withAdvice]
+  simp [Concrete.State.withStack, Concrete.State.withAdvice]
 
 set_option maxHeartbeats 800000 in
 @[miden_dispatch] theorem stepAdvPush2 (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
@@ -728,7 +728,7 @@ set_option maxHeartbeats 800000 in
     some ⟨v2 :: v1 :: stk, mem, frames, adv'⟩ := by
   unfold execInstruction execAdvPush
   subst hadv
-  simp [MidenState.withStack, MidenState.withAdvice]
+  simp [Concrete.State.withStack, Concrete.State.withAdvice]
 
 -- Local memory (frame-aware)
 
@@ -740,7 +740,7 @@ set_option maxHeartbeats 800000 in
     execInstruction ⟨stk, mem, frame :: frames_rest, adv⟩ (.locLoad idx) =
     some ⟨mem (frame.localAddr idx) :: stk, mem, frame :: frames_rest, adv⟩ := by
   unfold execInstruction execLocLoad
-  simp [MidenState.readLocal?, MidenState.localAddr?, hidx, MidenState.withStack]
+  simp [Concrete.State.readLocal?, Concrete.State.localAddr?, hidx, Concrete.State.withStack]
 
 set_option maxHeartbeats 800000 in
 /-- locStore: pop the top of the stack and write it to local slot `idx`. -/
@@ -750,7 +750,7 @@ set_option maxHeartbeats 800000 in
     execInstruction ⟨v :: rest, mem, frame :: frames_rest, adv⟩ (.locStore idx) =
     some ⟨rest, fun i => if i = frame.localAddr idx then v else mem i, frame :: frames_rest, adv⟩ := by
   unfold execInstruction execLocStore
-  simp [MidenState.writeLocal?, MidenState.localAddr?, hidx, MidenState.writeMemory, MidenState.withStack]
+  simp [Concrete.State.writeLocal?, Concrete.State.localAddr?, hidx, Concrete.State.writeMemory, Concrete.State.withStack]
 
 set_option maxHeartbeats 1600000 in
 /-- locStorewBe: store the top word to local memory at `idx` in big-endian order.
@@ -770,7 +770,7 @@ set_option maxHeartbeats 1600000 in
                else mem i,
       frame :: frames_rest, adv⟩ := by
   unfold execInstruction execLocStorewBe currentFrame
-  simp [halign, Nat.not_lt_of_le hbound, MidenState.writeMemory, MidenState.withStack]
+  simp [halign, Nat.not_lt_of_le hbound, Concrete.State.writeMemory, Concrete.State.withStack]
 
 set_option maxHeartbeats 1600000 in
 /-- locStorewLe: store the top word to local memory at `idx` in little-endian order.
@@ -790,7 +790,7 @@ set_option maxHeartbeats 1600000 in
                else mem i,
       frame :: frames_rest, adv⟩ := by
   unfold execInstruction execLocStorewLe currentFrame
-  simp [halign, Nat.not_lt_of_le hbound, MidenState.writeMemory, MidenState.withStack]
+  simp [halign, Nat.not_lt_of_le hbound, Concrete.State.writeMemory, Concrete.State.withStack]
 
 set_option maxHeartbeats 800000 in
 /-- locLoadwBe: load a word from local memory at `idx` in big-endian order,
@@ -804,7 +804,7 @@ set_option maxHeartbeats 800000 in
     some ⟨mem (baseAddr + 3) :: mem (baseAddr + 2) :: mem (baseAddr + 1) :: mem baseAddr :: rest,
       mem, frame :: frames_rest, adv⟩ := by
   unfold execInstruction execLocLoadwBe currentFrame
-  simp [halign, Nat.not_lt_of_le hbound, MidenState.withStack]
+  simp [halign, Nat.not_lt_of_le hbound, Concrete.State.withStack]
 
 set_option maxHeartbeats 800000 in
 /-- locLoadwLe: load a word from local memory at `idx` in little-endian order,
@@ -818,7 +818,7 @@ set_option maxHeartbeats 800000 in
     some ⟨mem baseAddr :: mem (baseAddr + 1) :: mem (baseAddr + 2) :: mem (baseAddr + 3) :: rest,
       mem, frame :: frames_rest, adv⟩ := by
   unfold execInstruction execLocLoadwLe currentFrame
-  simp [halign, Nat.not_lt_of_le hbound, MidenState.withStack]
+  simp [halign, Nat.not_lt_of_le hbound, Concrete.State.withStack]
 
 set_option maxHeartbeats 800000 in
 /-- locaddr: push the absolute address of local slot `idx` onto the stack. -/
@@ -828,6 +828,6 @@ set_option maxHeartbeats 800000 in
     execInstruction ⟨stk, mem, frame :: frames_rest, adv⟩ (.locaddr idx) =
     some ⟨Felt.ofNat (frame.localAddr idx) :: stk, mem, frame :: frames_rest, adv⟩ := by
   unfold execInstruction execLocAddr
-  simp [MidenState.localAddr?, hidx, MidenState.withStack]
+  simp [Concrete.State.localAddr?, hidx, Concrete.State.withStack]
 
 end MidenLean.StepLemmas

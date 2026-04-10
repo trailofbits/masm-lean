@@ -74,10 +74,10 @@ private theorem shr_k2_setup_correct
     (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (hshift_u32 : shift.isU32 = true)
     (hshift : shift.val ≤ 31) (hshift_pos : 0 < shift.val) :
-    exec 33 ⟨shift :: a0 :: a1 :: a2 :: a3 :: rest, mem, frames, adv⟩ shr_k2_setup =
+    execProcedure emptyEnv 33 ⟨shift :: a0 :: a1 :: a2 :: a3 :: rest, mem, frames, adv⟩ shr_k2_setup =
     some ⟨Felt.ofNat (2 ^ (32 - shift.val)) :: shift :: a0 :: a1 :: a2 :: a3 :: rest,
       mem, frames, adv⟩ := by
-  unfold exec shr_k2_setup execWithEnv
+  unfold shr_k2_setup execProcedure
   simp only [List.foldlM]
   rw [stepPush]
   miden_bind
@@ -103,14 +103,14 @@ private theorem shr_k2_compute_correct
     (ha2_u32 : a2.isU32 = true) (ha3_u32 : a3.isU32 = true)
     (hshift : shift.val ≤ 31) (hshift_pos : 0 < shift.val) :
     let pow := Felt.ofNat (2 ^ (32 - shift.val))
-    exec 33
+    execProcedure emptyEnv 33
       ⟨pow :: shift :: a0 :: a1 :: a2 :: a3 :: rest, mem, frames, adv⟩
       shr_k2_compute =
     some ⟨Felt.ofNat ((a2.val / 2 ^ shift.val) ||| ((a3.val * 2 ^ (32 - shift.val)) % 2 ^ 32)) ::
       Felt.ofNat (a3.val / 2 ^ shift.val) ::
       pow :: shift :: a0 :: a1 :: a2 :: a3 :: rest,
       mem, frames, adv⟩ := by
-  unfold exec shr_k2_compute execWithEnv
+  unfold shr_k2_compute execProcedure
   simp only [List.foldlM]
   have hpow_u32 : (Felt.ofNat (2 ^ (32 - shift.val))).isU32 = true :=
     pow32_sub_isU32 shift hshift_pos hshift
@@ -148,10 +148,10 @@ set_option maxHeartbeats 2000000 in
 private theorem shr_k2_cleanup_correct
     (r0 r1 pow shift a0 a1 a2 a3 : Felt) (rest : List Felt)
     (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt) :
-    exec 33 ⟨r0 :: r1 :: pow :: shift :: a0 :: a1 :: a2 :: a3 :: rest, mem, frames, adv⟩
+    execProcedure emptyEnv 33 ⟨r0 :: r1 :: pow :: shift :: a0 :: a1 :: a2 :: a3 :: rest, mem, frames, adv⟩
       shr_k2_cleanup =
     some ⟨r0 :: r1 :: rest, mem, frames, adv⟩ := by
-  unfold exec shr_k2_cleanup execWithEnv
+  unfold shr_k2_cleanup execProcedure
   simp only [List.foldlM]
   miden_movdn
   miden_movdn
@@ -179,7 +179,7 @@ private theorem shr_k2_nonzero
     (hshift_u32 : shift.isU32 = true)
     (ha2_u32 : a2.isU32 = true) (ha3_u32 : a3.isU32 = true)
     (hshift : shift.val ≤ 31) (hshift_pos : 0 < shift.val) :
-    exec 33 ⟨shift :: a0 :: a1 :: a2 :: a3 :: rest, mem, frames, adv⟩
+    execProcedure emptyEnv 33 ⟨shift :: a0 :: a1 :: a2 :: a3 :: rest, mem, frames, adv⟩
       (shr_k2_setup ++ (shr_k2_compute ++ shr_k2_cleanup)) =
     some ⟨Felt.ofNat ((a2.val / 2 ^ shift.val) ||| ((a3.val * 2 ^ (32 - shift.val)) % 2 ^ 32)) ::
       Felt.ofNat (a3.val / 2 ^ shift.val) :: rest, mem, frames, adv⟩ := by
@@ -206,13 +206,13 @@ set_option maxHeartbeats 4000000 in
     Output stack: [r0, r1] ++ rest
     where `r0` and `r1` are the low-to-high u32 limbs of `(a3:a2:a1:a0) >> (64 + shift)`. -/
 theorem u128_shr_k2_raw
-    (shift a0 a1 a2 a3 : Felt) (rest : List Felt) (s : MidenState)
+    (shift a0 a1 a2 a3 : Felt) (rest : List Felt) (s : Concrete.State)
     (hs : s.stack = shift :: a0 :: a1 :: a2 :: a3 :: rest)
     (hshift_u32 : shift.isU32 = true)
     (ha2_u32 : a2.isU32 = true) (ha3_u32 : a3.isU32 = true)
     (hshift : shift.val ≤ 31) :
     let pow := 2 ^ (32 - shift.val)
-    exec 34 s Miden.Core.U128.shr_k2 =
+    execProcedure emptyEnv 34 s Miden.Core.U128.shr_k2 =
     some (s.withStack (
       if shift == (0 : Felt) then
         a2 :: a3 :: rest
@@ -220,23 +220,23 @@ theorem u128_shr_k2_raw
         Felt.ofNat ((a2.val / 2 ^ shift.val) ||| ((a3.val * pow) % 4294967296)) ::
         Felt.ofNat (a3.val / 2 ^ shift.val) :: rest)) := by
   obtain ⟨stk, mem, frames, adv⟩ := s
-  simp only [MidenState.withStack] at hs ⊢
+  simp only [Concrete.State.withStack] at hs ⊢
   subst hs
-  unfold exec Miden.Core.U128.shr_k2 execWithEnv
+  unfold Miden.Core.U128.shr_k2 execProcedure
   simp only [List.foldlM]
   miden_dup
   rw [stepEqImm]
   miden_bind
   by_cases hzero : shift == (0 : Felt)
-  · simp [hzero, MidenState.withStack]
-    unfold execWithEnv
+  · simp [hzero, Concrete.State.withStack]
+    unfold execProcedure
     simp only [List.foldlM]
     rw [stepDrop]
     miden_bind
     rw [stepDrop]
     miden_bind
     rw [stepDrop]
-  · simp [hzero, MidenState.withStack]
+  · simp [hzero, Concrete.State.withStack]
     have hshift_ne_zero : shift.val ≠ 0 := by
       intro hval
       apply hzero
@@ -245,7 +245,7 @@ theorem u128_shr_k2_raw
     have hshift_pos : 0 < shift.val := by omega
     have h := shr_k2_nonzero shift a0 a1 a2 a3 rest mem frames adv
       hshift_u32 ha2_u32 ha3_u32 hshift hshift_pos
-    simp only [exec, shr_k2_setup, shr_k2_compute, shr_k2_cleanup,
+    simp only [shr_k2_setup, shr_k2_compute, shr_k2_cleanup,
       List.nil_append, List.cons_append] at h
     rw [h]; rfl
 
@@ -254,10 +254,10 @@ set_option maxHeartbeats 4000000 in
     Input stack:  [shift, a.a0, a.a1, a.a2, a.a3] ++ rest
     Output stack: [(a.shr (64 + shift)).a0, (a.shr (64 + shift)).a1] ++ rest -/
 theorem u128_shr_k2_correct
-    (a : U128) (shift : U32) (rest : List Felt) (s : MidenState)
+    (a : U128) (shift : U32) (rest : List Felt) (s : Concrete.State)
     (hs : s.stack = shift.val :: a.a0.val :: a.a1.val :: a.a2.val :: a.a3.val :: rest)
     (hshift_lt32 : shift.toNat < 32) :
-    exec 34 s Miden.Core.U128.shr_k2 =
+    execProcedure emptyEnv 34 s Miden.Core.U128.shr_k2 =
     some (s.withStack (
       (a.shr (64 + shift.toNat)).a0.val ::
       (a.shr (64 + shift.toNat)).a1.val :: rest)) := by

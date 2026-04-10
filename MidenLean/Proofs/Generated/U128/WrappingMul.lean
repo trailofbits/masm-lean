@@ -17,7 +17,7 @@ set_option maxHeartbeats 8000000 in
     Input stack:  [x0, x1, x2, x3, x4, x5, x6, x7] ++ rest
     Output stack: [sorry] ++ rest -/
 theorem u128_wrapping_mul_correct
-    (x0 x1 x2 x3 x4 x5 x6 x7 : Felt) (rest : List Felt) (s : MidenState)
+    (x0 x1 x2 x3 x4 x5 x6 x7 : Felt) (rest : List Felt) (s : Concrete.State)
     (hs : s.stack = x0 :: x1 :: x2 :: x3 :: x4 :: x5 :: x6 :: x7 :: rest)
     (hx0_u32 : x0.isU32 = true)  -- from u32WrappingMadd at instruction 39
     (hx1_u32 : x1.isU32 = true)  -- from u32WidenMadd at instruction 20
@@ -28,7 +28,7 @@ theorem u128_wrapping_mul_correct
     (hx6_u32 : x6.isU32 = true)  -- from u32WidenMadd at instruction 13
     (hx7_u32 : x7.isU32 = true)  -- from u32WidenMul at instruction 6
     :
-    exec 65 s Miden.Core.U128.wrapping_mul =
+    execProcedure emptyEnv 65 s Miden.Core.U128.wrapping_mul =
     some (s.withStack (sorry :: rest))  -- TODO: specify output
     := by
   -- Chunked/manual scaffold: fill chunk lemmas or manual proof here.

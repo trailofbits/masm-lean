@@ -21,7 +21,7 @@ set_option maxHeartbeats 4000000 in
 theorem u256_overflowing_add_correct
     (a b : U256) (rest : List Felt) (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (fuel : Nat) :
-    execWithEnv u256ProcEnv (fuel + 3)
+    execProcedure u256ProcEnv (fuel + 3)
       ⟨b.a0.val :: b.a1.val :: b.a2.val :: b.a3.val ::
        b.a4.val :: b.a5.val :: b.a6.val :: b.a7.val ::
        a.a0.val :: a.a1.val :: a.a2.val :: a.a3.val ::
@@ -32,19 +32,19 @@ theorem u256_overflowing_add_correct
           (a + b).a4.val :: (a + b).a5.val :: (a + b).a6.val :: (a + b).a7.val :: rest,
           mem, frames, adv⟩ := by
   -- Unfold procedure body
-  unfold Miden.Core.U256.overflowing_add execWithEnv
+  unfold Miden.Core.U256.overflowing_add execProcedure
   simp only [List.foldlM, u256ProcEnv]
-  -- Step 1: exec "u256_le_to_be_pair" (convert LE → BE)
+  -- Step 1: execProcedure emptyEnv "u256_le_to_be_pair" (convert LE → BE)
   dsimp only [bind, Bind.bind, Option.bind]
   rw [u256_u256_le_to_be_pair_raw]
   dsimp only [bind, Bind.bind, Option.bind]
-  -- Step 2: exec "add_with_carry_be"
+  -- Step 2: execProcedure emptyEnv "add_with_carry_be"
   rw [u256_add_with_carry_be_correct]
   dsimp only [bind, Bind.bind, Option.bind]
   -- Step 3: movdn 8 (move carry below result limbs)
   rw [stepMovdn8]
   dsimp only [bind, Bind.bind, Option.bind]
-  -- Step 4: exec "u256_le_to_be" (convert BE → LE)
+  -- Step 4: execProcedure emptyEnv "u256_le_to_be" (convert BE → LE)
   rw [le_to_be_env]
   dsimp only [bind, Bind.bind, Option.bind]
   -- Step 5: movup 8 (bring carry to top)

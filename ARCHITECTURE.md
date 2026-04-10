@@ -15,10 +15,11 @@ The project has two components:
 ├── MidenLean.lean                  Root import file
 ├── MidenLean/
 │   ├── Felt.lean                   Goldilocks field implementation
-│   ├── State.lean                  Miden VM state definition
 │   ├── Instruction.lean            Inductive type with ~130 MASM instructions
 │   ├── Op.lean                     Control flow and procedure call operations
-│   ├── Semantics.lean              Executable semantics for MASM instructions and procedures
+│   ├── Concrete/
+│   │   ├── State.lean              Miden VM state definition (Concrete.State)
+│   │   └── Exec.lean               Executable semantics for MASM instructions and procedures
 │   ├── Symbolic/                   Symbolic executor, soundness lemmas, and reflection tactics
 │   ├── Generated/                  Auto-generated MASM procedure definitions (do not edit)
 │   └── Proofs/
@@ -38,7 +39,7 @@ MASM programs are represented as `List Op` values rather than Lean functions, wi
 
 ### VM State
 
-Defined in `State.lean` as a structure with four fields:
+Defined in `Concrete/State.lean` as a structure with four fields:
 
 | Field    | Type         | Semantics                           |
 | -------- | ------------ | ----------------------------------- |
@@ -51,15 +52,15 @@ Memory is modeled as a total function `Nat → Felt` rather than a finite map. T
 
 Each MASM instruction is implemented by a dedicated handler function (e.g., `execDrop`, `execDup`, `execSwap`, `execMovup`). The top-level `execInstruction` is a thin dispatch that pattern-matches on the `Instruction` and delegates to the appropriate handler. This avoids duplicating instruction logic between the semantics and the step lemmas.
 
-The VM executor (defined by `execInstruction` and `execWithEnv`) returns `Option MidenState`. Failure conditions (failed assertions, division by zero, stack underflow, out-of-bounds memory) produce `none`. A correctness theorem of the form `exec fuel s ops = some s'` proves both that the procedure terminates within the fuel budget and that the result state matches the specification. `execWithEnv` takes a `fuel` parameter that bounds recursion depth. This ensures structural termination without complex well-founded arguments.
+The VM executor (defined by `execInstruction` and `execProcedure`) returns `Option Concrete.State`. Failure conditions (failed assertions, division by zero, stack underflow, out-of-bounds memory) produce `none`. A correctness theorem of the form `execProcedure emptyEnv fuel s ops = some s'` proves both that the procedure terminates within the fuel budget and that the result state matches the specification. `execProcedure` takes a `fuel` parameter that bounds recursion depth. This ensures structural termination without complex well-founded arguments.
 
-`ProcEnv` (`String → Option Procedure`) maps procedure names to procedures. `exec` uses an empty environment (no inter-procedure calls); `execWithProcs` resolves `exec` instructions via the environment. For manual proofs, per-module proof files typically define concrete environments such as `u64ProcEnv` or `u128ProcEnv` for call-bearing procedures.
+`ProcEnv` (`String → Option Procedure`) maps procedure names to procedures. `emptyEnv` is the trivial environment (no inter-procedure calls). For manual proofs, per-module proof files typically define concrete environments such as `u64ProcEnv` or `u128ProcEnv` for call-bearing procedures.
 
 ## Proof Architecture
 
 The project now has two complementary proof styles:
 
-1. **Manual step-by-step execution proofs** over `execWithEnv`, using step lemmas and chunk decomposition.
+1. **Manual step-by-step execution proofs** over `execProcedure`, using step lemmas and chunk decomposition.
 2. **Symbolic-execution-based reflection proofs**, where a symbolic executor computes the effect of a straight-line block and a soundness theorem transports that symbolic result back to the concrete semantics.
 
 Both styles prove the same semantic object: an equation in the executable semantics. The symbolic path exists to scale proof generation across larger parts of the core library.
@@ -80,12 +81,12 @@ The `_exec` layer is also the intended theorem-backed call-summary interface for
 A typical manual correctness proof follows this structure:
 
 1. **Destructure** the state: `obtain ⟨stk, mem, frames, adv⟩ := s`
-2. **Unfold** the procedure and execution machinery: `unfold exec ProcName execWithEnv`
+2. **Unfold** the procedure and execution machinery: `unfold emptyEnv ProcName execProcedure`
 3. **Rewrite to monadic form**: `change (do let s' ← execInstruction ...; ...)`
 4. **Step through** instruction by instruction: `rw [stepFoo]; miden_bind` or use `miden_step`
 5. **Close** with `simp` or `rfl`
 
-For procedures with branching (`ifElse`), step 4 includes a `by_cases` to case-split on the condition. For procedures with loops (`repeat`), `unfold execWithEnv.doRepeat` unrolls each iteration. Step lemmas in `StepLemmas.lean` pre-compute the effect of a single `execInstruction` call by unfolding the dispatch and the handler (e.g., `unfold execInstruction execDup; simp`). The lemmas are parametric where possible: `stepDup` handles any `dup n`, `stepSwap` handles any `swap n`, and `stepMovup`/`stepMovdn` handle any valid index with an explicit range hypothesis.
+For procedures with branching (`ifElse`), step 4 includes a `by_cases` to case-split on the condition. For procedures with loops (`repeat`), `unfold execProcedure.doRepeat` unrolls each iteration. Step lemmas in `StepLemmas.lean` pre-compute the effect of a single `execInstruction` call by unfolding the dispatch and the handler (e.g., `unfold execInstruction execDup; simp`). The lemmas are parametric where possible: `stepDup` handles any `dup n`, `stepSwap` handles any `swap n`, and `stepMovup`/`stepMovdn` handle any valid index with an explicit range hypothesis.
 
 ### Tactics (`Tactics.lean`)
 
@@ -104,13 +105,13 @@ The symbolic proof stack lives under `MidenLean/Symbolic/`:
 
 - `Expr.lean` defines symbolic expressions, boolean/connective combinators, and evaluation.
 - `State.lean` and `Exec.lean` define symbolic states, preconditions, and symbolic execution for instructions and straight-line op lists.
-- `Soundness.lean` proves that symbolic execution is sound with respect to `execWithEnv`.
+- `Soundness.lean` proves that symbolic execution is sound with respect to `execProcedure`.
 - `Reflect.lean` packages this into tactic-facing reflection theorems for fully concrete initial states.
 - `Tactic.lean` implements `miden_reflect` and `miden_vcg`.
 
 The reflection workflow is:
 
-1. Recognize a concrete `exec` / `execWithEnv` goal.
+1. Recognize a concrete `execProcedure` goal.
 2. Extract the relevant stack prefix and concrete state projections.
 3. Run symbolic execution on the procedure body.
 4. Use the soundness theorem to turn the symbolic result into a concrete execution equation.
@@ -120,7 +121,7 @@ The reflection workflow is:
 
 - plain instruction-only blocks
 - call-bearing straight-line blocks via `ReflectEnv`
-- theorem-shaped goals over a concrete `s : MidenState`
+- theorem-shaped goals over a concrete `s : Concrete.State`
 
 `miden_vcg` is the control-flow decomposer. It currently supports:
 
@@ -142,7 +143,7 @@ The theorem-backed path is intended for expensive helpers such as multiplication
 
 `@[simp]`-tagged lemmas for:
 
-- `MidenState.withStack` projections (stack, memory, locals, advice)
+- `Concrete.State.withStack` projections (stack, memory, locals, advice)
 - local-frame and read-after-write simplification
 - `Felt.isBool` on `if p then 1 else 0` expressions
 - `Felt.ite_mul_ite` for boolean AND reduction
@@ -155,8 +156,8 @@ Following Lean 4 / Mathlib style:
 
 | Category          | Convention     | Examples                                          |
 | ----------------- | -------------- | ------------------------------------------------- |
-| Types, structures | UpperCamelCase | `MidenState`, `Instruction`, `Op`                 |
-| Definitions       | lowerCamelCase | `execInstruction`, `execWithEnv`, `zeroMemory`    |
+| Types, structures | UpperCamelCase | `Concrete.State`, `Instruction`, `Op`             |
+| Definitions       | lowerCamelCase | `execInstruction`, `execProcedure`, `zeroMemory`  |
 | Theorems          | lowerCamelCase | `stepDup`, `stepSwap`, `u64_eq_correct`           |
 | Namespaces        | UpperCamelCase | `MidenLean`, `MidenLean.StepLemmas`               |
 | Generated procs   | dot-separated  | `Miden.Core.Math.U64.eq`, `Miden.Core.Word.testz` |

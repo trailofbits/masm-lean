@@ -15,11 +15,11 @@ set_option maxHeartbeats 12000000 in
     where `a..d` are low-to-high u32 limbs and the result is the number of
     trailing zero bits in the 128-bit value. -/
 theorem u128_ctz_raw
-    (a b c d : Felt) (rest : List Felt) (s : MidenState)
+    (a b c d : Felt) (rest : List Felt) (s : Concrete.State)
     (hs : s.stack = a :: b :: c :: d :: rest)
     (ha : a.isU32 = true) (hb : b.isU32 = true)
     (hc : c.isU32 = true) (hd : d.isU32 = true) :
-    exec 30 s Miden.Core.U128.ctz =
+    execProcedure emptyEnv 30 s Miden.Core.U128.ctz =
     some (s.withStack (
       (if a == (0 : Felt) then
         if b == (0 : Felt) then
@@ -32,16 +32,16 @@ theorem u128_ctz_raw
       else
         Felt.ofNat (u32CountTrailingZeros a.val)) :: rest)) := by
   obtain ⟨stk, mem, frames, adv⟩ := s
-  simp only [MidenState.withStack] at hs ⊢
+  simp only [Concrete.State.withStack] at hs ⊢
   subst hs
-  unfold exec Miden.Core.U128.ctz execWithEnv
+  unfold Miden.Core.U128.ctz execProcedure
   simp only [List.foldlM]
   miden_dup
   rw [stepEqImm]
   miden_bind
   by_cases ha0 : a == (0 : Felt)
-  · simp [ha0, MidenState.withStack]
-    unfold execWithEnv
+  · simp [ha0, Concrete.State.withStack]
+    unfold execProcedure
     simp only [List.foldlM]
     rw [stepDrop]
     miden_bind
@@ -49,8 +49,8 @@ theorem u128_ctz_raw
     rw [stepEqImm]
     miden_bind
     by_cases hb0 : b == (0 : Felt)
-    · simp [hb0, MidenState.withStack]
-      unfold execWithEnv
+    · simp [hb0, Concrete.State.withStack]
+      unfold execProcedure
       simp only [List.foldlM]
       rw [stepDrop]
       miden_bind
@@ -58,8 +58,8 @@ theorem u128_ctz_raw
       rw [stepEqImm]
       miden_bind
       by_cases hc0 : c == (0 : Felt)
-      · simp [hc0, MidenState.withStack]
-        unfold execWithEnv
+      · simp [hc0, Concrete.State.withStack]
+        unfold execProcedure
         simp only [List.foldlM]
         rw [stepDrop]
         miden_bind
@@ -69,8 +69,8 @@ theorem u128_ctz_raw
         have hb_eq : b = 0 := by exact beq_iff_eq.mp hb0
         have hc_eq : c = 0 := by exact beq_iff_eq.mp hc0
         simp [hb_eq, hc_eq]
-      · simp [hc0, MidenState.withStack]
-        unfold execWithEnv
+      · simp [hc0, Concrete.State.withStack]
+        unfold execProcedure
         simp only [List.foldlM]
         simp (config := { decide := true }) only [bind, Bind.bind, Option.bind, pure, Pure.pure]
         rw [stepSwap (hn := by decide) (htop := rfl) (hnth := rfl)]
@@ -85,8 +85,8 @@ theorem u128_ctz_raw
           intro hc_eq
           exact hc0 (by simp [hc_eq])
         simp [hb_eq, hc_ne]
-    · simp [hb0, MidenState.withStack]
-      unfold execWithEnv
+    · simp [hb0, Concrete.State.withStack]
+      unfold execProcedure
       simp only [List.foldlM]
       simp (config := { decide := true }) only [bind, Bind.bind, Option.bind, pure, Pure.pure]
       miden_movdn
@@ -101,8 +101,8 @@ theorem u128_ctz_raw
         intro hb_eq
         exact hb0 (by simp [hb_eq])
       simp [hb_ne]
-  · simp [ha0, MidenState.withStack]
-    unfold execWithEnv
+  · simp [ha0, Concrete.State.withStack]
+    unfold execProcedure
     simp only [List.foldlM]
     simp (config := { decide := true }) only [bind, Bind.bind, Option.bind, pure, Pure.pure]
     miden_movdn
@@ -117,9 +117,9 @@ theorem u128_ctz_raw
 /-- `u128::ctz` pushes the count of trailing zeros of a 128-bit value.
     Input stack:  [a.a0, a.a1, a.a2, a.a3] ++ rest
     Output stack: [countTrailingZeros a] ++ rest -/
-theorem u128_ctz_correct (a : U128) (rest : List Felt) (s : MidenState)
+theorem u128_ctz_correct (a : U128) (rest : List Felt) (s : Concrete.State)
     (hs : s.stack = a.a0.val :: a.a1.val :: a.a2.val :: a.a3.val :: rest) :
-    exec 30 s Miden.Core.U128.ctz =
+    execProcedure emptyEnv 30 s Miden.Core.U128.ctz =
     some (s.withStack (Felt.ofNat (U128.countTrailingZeros a) :: rest)) := by
   have h := u128_ctz_raw a.a0.val a.a1.val a.a2.val a.a3.val rest s hs
     a.a0.isU32 a.a1.isU32 a.a2.isU32 a.a3.isU32

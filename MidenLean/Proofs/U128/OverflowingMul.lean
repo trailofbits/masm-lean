@@ -9,11 +9,11 @@ open MidenLean.StepLemmas
 open MidenLean.Tactics
 
 /-- Execute a concatenation of op lists in two phases. -/
-theorem execWithEnv_append (env : ProcEnv) (fuel : Nat) (s : MidenState) (xs ys : List Op) :
-    execWithEnv env fuel s (xs ++ ys) = (do
-      let s' ← execWithEnv env fuel s xs
-      execWithEnv env fuel s' ys) := by
-  unfold execWithEnv
+theorem execProcedure_append (env : ProcEnv) (fuel : Nat) (s : Concrete.State) (xs ys : List Op) :
+    execProcedure env fuel s (xs ++ ys) = (do
+      let s' ← execProcedure env fuel s xs
+      execProcedure env fuel s' ys) := by
+  unfold execProcedure
   cases fuel <;> simp [List.foldlM_append]
 
 def u128MulC0 (a0 b0 : Felt) : Felt := Felt.ofNat ((b0.val * a0.val) % 2 ^ 32)
@@ -407,7 +407,7 @@ private theorem u128_mul_low_chunk1_run
     (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (ha0 : a0.isU32 = true) (ha1 : a1.isU32 = true)
     (hb0 : b0.isU32 = true) :
-    execWithEnv env (fuel + 1)
+    execProcedure env (fuel + 1)
       ⟨b0 :: b1 :: b2 :: b3 :: a0 :: a1 :: a2 :: a3 :: rest, mem, frames, adv⟩
       u128_mul_low_chunk1 =
     some ⟨
@@ -418,7 +418,7 @@ private theorem u128_mul_low_chunk1_run
       u128MulC0 a0 b0 ::
       rest,
       mem, frames, adv⟩ := by
-  unfold execWithEnv u128_mul_low_chunk1
+  unfold execProcedure u128_mul_low_chunk1
   simp only [List.foldlM]
   have hO0_u32 : (u128MulO0 a0 b0).isU32 = true := by
     unfold u128MulO0
@@ -449,7 +449,7 @@ private theorem u128_mul_low_chunk2_run
     (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (ha0 : a0.isU32 = true) (ha1 : a1.isU32 = true) (ha2 : a2.isU32 = true)
     (hb0 : b0.isU32 = true) (hb1 : b1.isU32 = true) :
-    execWithEnv env (fuel + 1)
+    execProcedure env (fuel + 1)
       ⟨b1 ::
         u128MulP1 a0 a1 b0 ::
         u128MulO1a a0 a1 b0 ::
@@ -468,7 +468,7 @@ private theorem u128_mul_low_chunk2_run
       u128MulO1Carry a0 a1 b0 b1 ::
       rest,
       mem, frames, adv⟩ := by
-  unfold execWithEnv u128_mul_low_chunk2
+  unfold execProcedure u128_mul_low_chunk2
   simp only [List.foldlM]
   have hO0_u32 : (u128MulO0 a0 b0).isU32 = true := by
     unfold u128MulO0
@@ -609,7 +609,7 @@ private theorem u128_mul_low_chunk3_run
     (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (ha0 : a0.isU32 = true) (ha1 : a1.isU32 = true) (ha2 : a2.isU32 = true)
     (hb0 : b0.isU32 = true) (hb1 : b1.isU32 = true) (hb2 : b2.isU32 = true) :
-    execWithEnv env (fuel + 1)
+    execProcedure env (fuel + 1)
       ⟨u128MulP2b a0 a1 a2 b0 b1 ::
         u128MulO2b a0 a1 a2 b0 b1 ::
         u128MulO2a a0 a1 a2 b0 b1 ::
@@ -629,7 +629,7 @@ private theorem u128_mul_low_chunk3_run
       u128MulC2 a0 a1 a2 b0 b1 b2 ::
       rest,
       mem, frames, adv⟩ := by
-  unfold execWithEnv u128_mul_low_chunk3
+  unfold execProcedure u128_mul_low_chunk3
   simp only [List.foldlM]
   have hP2b_u32 : (u128MulP2b a0 a1 a2 b0 b1).isU32 = true := by
     unfold u128MulP2b
@@ -760,7 +760,7 @@ theorem u128_mul_low_chunk_run
     (ha2 : a2.isU32 = true) (_ha3 : a3.isU32 = true)
     (hb0 : b0.isU32 = true) (hb1 : b1.isU32 = true)
     (hb2 : b2.isU32 = true) (_hb3 : b3.isU32 = true) :
-    execWithEnv env (fuel + 1)
+    execProcedure env (fuel + 1)
       ⟨b0 :: b1 :: b2 :: b3 :: a0 :: a1 :: a2 :: a3 :: rest, mem, frames, adv⟩
       u128_mul_low_chunk =
     some ⟨
@@ -772,10 +772,10 @@ theorem u128_mul_low_chunk_run
       u128MulC2 a0 a1 a2 b0 b1 b2 ::
       rest,
       mem, frames, adv⟩ := by
-  rw [u128_mul_low_chunk_decomp, execWithEnv_append]
+  rw [u128_mul_low_chunk_decomp, execProcedure_append]
   rw [u128_mul_low_chunk1_run env fuel a0 a1 a2 a3 b0 b1 b2 b3 rest mem frames adv ha0 ha1 hb0]
   miden_bind
-  rw [execWithEnv_append]
+  rw [execProcedure_append]
   rw [u128_mul_low_chunk2_run env fuel a0 a1 a2 a3 b0 b1 b2 b3 rest mem frames adv
     ha0 ha1 ha2 hb0 hb1]
   miden_bind
@@ -791,7 +791,7 @@ theorem u128_overflowing_mul_c3_chunk_run
     (ha2 : a2.isU32 = true) (ha3 : a3.isU32 = true)
     (hb0 : b0.isU32 = true) (hb1 : b1.isU32 = true)
     (hb2 : b2.isU32 = true) (hb3 : b3.isU32 = true) :
-    execWithEnv env (fuel + 1)
+    execProcedure env (fuel + 1)
       ⟨u128MulO2Sum a0 a1 a2 b0 b1 b2 ::
         u128MulO2Carry a0 a1 a2 b0 b1 b2 ::
         a0 :: a1 :: a2 :: a3 :: b0 :: b1 :: b2 :: b3 ::
@@ -814,7 +814,7 @@ theorem u128_overflowing_mul_c3_chunk_run
       u128MulC2 a0 a1 a2 b0 b1 b2 ::
       rest,
       mem, frames, adv⟩ := by
-  unfold execWithEnv u128_overflowing_mul_c3_chunk
+  unfold execProcedure u128_overflowing_mul_c3_chunk
   simp only [List.foldlM]
   have hO2Sum_u32 : (u128MulO2Sum a0 a1 a2 b0 b1 b2).isU32 = true := by
     unfold u128MulO2Sum
@@ -858,7 +858,7 @@ theorem u128_overflowing_mul_overflow_acc_chunk_run
     (env : ProcEnv) (fuel : Nat)
     (a0 a1 a2 a3 b0 b1 b2 b3 : Felt) (rest : List Felt)
     (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt) :
-    execWithEnv env (fuel + 1)
+    execProcedure env (fuel + 1)
       ⟨u128MulC3 a0 a1 a2 a3 b0 b1 b2 b3 ::
         u128MulO3d a0 a1 a2 a3 b0 b1 b2 b3 ::
         u128MulO3c a0 a1 a2 a3 b0 b1 b2 ::
@@ -881,9 +881,9 @@ theorem u128_overflowing_mul_overflow_acc_chunk_run
       u128MulC2 a0 a1 a2 b0 b1 b2 ::
       rest,
       mem, frames, adv⟩ := by
-  unfold u128_overflowing_mul_overflow_acc_chunk execWithEnv execInstruction
+  unfold u128_overflowing_mul_overflow_acc_chunk execProcedure execInstruction
     execSwap execMovup execAdd execNeqImm removeNth
-  simp [MidenState.withStack, u128MulCarryOverflowBool]
+  simp [Concrete.State.withStack, u128MulCarryOverflowBool]
 
 set_option maxHeartbeats 8000000 in
 private theorem u128_overflowing_mul_overflow_products_chunk1_run
@@ -892,7 +892,7 @@ private theorem u128_overflowing_mul_overflow_products_chunk1_run
     (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (_ha1 : a1.isU32 = true) (ha2 : a2.isU32 = true) (ha3 : a3.isU32 = true)
     (hb1 : b1.isU32 = true) (hb2 : b2.isU32 = true) :
-    execWithEnv env (fuel + 1)
+    execProcedure env (fuel + 1)
       ⟨(if u128MulCarryOverflowBool a0 a1 a2 a3 b0 b1 b2 b3 then (1 : Felt) else 0) ::
         u128MulC3 a0 a1 a2 a3 b0 b1 b2 b3 ::
         a0 :: a1 :: a2 :: a3 :: b0 :: b1 :: b2 :: b3 ::
@@ -912,7 +912,7 @@ private theorem u128_overflowing_mul_overflow_products_chunk1_run
       u128MulC2 a0 a1 a2 b0 b1 b2 ::
       rest,
       mem, frames, adv⟩ := by
-  unfold execWithEnv u128_overflowing_mul_overflow_products_chunk1
+  unfold execProcedure u128_overflowing_mul_overflow_products_chunk1
   simp only [List.foldlM]
   miden_dup
   miden_dup
@@ -944,7 +944,7 @@ private theorem u128_overflowing_mul_overflow_products_chunk2_run
     (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (ha1 : a1.isU32 = true) (ha3 : a3.isU32 = true)
     (hb2 : b2.isU32 = true) (hb3 : b3.isU32 = true) :
-    execWithEnv env (fuel + 1)
+    execProcedure env (fuel + 1)
       ⟨(if ((u128MulCarryOverflowBool a0 a1 a2 a3 b0 b1 b2 b3 || u128MulP41Bool a1 a3 b1) ||
             u128MulP42Bool a2 b2) then (1 : Felt) else 0) ::
         u128MulC3 a0 a1 a2 a3 b0 b1 b2 b3 ::
@@ -967,7 +967,7 @@ private theorem u128_overflowing_mul_overflow_products_chunk2_run
       u128MulC2 a0 a1 a2 b0 b1 b2 ::
       rest,
       mem, frames, adv⟩ := by
-  unfold execWithEnv u128_overflowing_mul_overflow_products_chunk2
+  unfold execProcedure u128_overflowing_mul_overflow_products_chunk2
   simp only [List.foldlM]
   miden_dup
   miden_dup
@@ -999,7 +999,7 @@ private theorem u128_overflowing_mul_overflow_products_chunk3_run
     (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (ha2 : a2.isU32 = true) (ha3 : a3.isU32 = true)
     (hb3 : b3.isU32 = true) :
-    execWithEnv env (fuel + 1)
+    execProcedure env (fuel + 1)
       ⟨(if ((((u128MulCarryOverflowBool a0 a1 a2 a3 b0 b1 b2 b3 || u128MulP41Bool a1 a3 b1) ||
               u128MulP42Bool a2 b2) || u128MulP43Bool a1 b3) || u128MulP52Bool a3 b2) then
             (1 : Felt)
@@ -1021,7 +1021,7 @@ private theorem u128_overflowing_mul_overflow_products_chunk3_run
       u128MulC2 a0 a1 a2 b0 b1 b2 ::
       rest,
       mem, frames, adv⟩ := by
-  unfold execWithEnv u128_overflowing_mul_overflow_products_chunk3
+  unfold execProcedure u128_overflowing_mul_overflow_products_chunk3
   simp only [List.foldlM]
   miden_dup
   miden_dup
@@ -1056,7 +1056,7 @@ theorem u128_overflowing_mul_overflow_products_chunk_run
     (ha2 : a2.isU32 = true) (ha3 : a3.isU32 = true)
     (_hb0 : b0.isU32 = true) (hb1 : b1.isU32 = true)
     (hb2 : b2.isU32 = true) (hb3 : b3.isU32 = true) :
-    execWithEnv env (fuel + 1)
+    execProcedure env (fuel + 1)
       ⟨(if u128MulCarryOverflowBool a0 a1 a2 a3 b0 b1 b2 b3 then (1 : Felt) else 0) ::
         u128MulC3 a0 a1 a2 a3 b0 b1 b2 b3 ::
         a0 :: a1 :: a2 :: a3 :: b0 :: b1 :: b2 :: b3 ::
@@ -1075,11 +1075,11 @@ theorem u128_overflowing_mul_overflow_products_chunk_run
       u128MulC2 a0 a1 a2 b0 b1 b2 ::
       rest,
       mem, frames, adv⟩ := by
-  rw [u128_overflowing_mul_overflow_products_chunk_decomp, execWithEnv_append]
+  rw [u128_overflowing_mul_overflow_products_chunk_decomp, execProcedure_append]
   rw [u128_overflowing_mul_overflow_products_chunk1_run env fuel a0 a1 a2 a3 b0 b1 b2 b3 rest mem frames adv
     ha1 ha2 ha3 hb1 hb2]
   miden_bind
-  rw [execWithEnv_append]
+  rw [execProcedure_append]
   rw [u128_overflowing_mul_overflow_products_chunk2_run env fuel a0 a1 a2 a3 b0 b1 b2 b3 rest mem frames adv
     ha1 ha3 hb2 hb3]
   miden_bind
@@ -1090,14 +1090,14 @@ theorem u128_overflowing_mul_cleanup_chunk_run
     (env : ProcEnv) (fuel : Nat)
     (overflow c0 c1 c2 c3 a0 a1 a2 a3 b0 b1 b2 b3 : Felt) (rest : List Felt)
     (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt) :
-    execWithEnv env (fuel + 1)
+    execProcedure env (fuel + 1)
       ⟨overflow :: c3 :: a0 :: a1 :: a2 :: a3 :: b0 :: b1 :: b2 :: b3 :: c0 :: c1 :: c2 :: rest,
         mem, frames, adv⟩
       u128_overflowing_mul_cleanup_chunk =
     some ⟨overflow :: c0 :: c1 :: c2 :: c3 :: rest, mem, frames, adv⟩ := by
-  unfold u128_overflowing_mul_cleanup_chunk execWithEnv execInstruction
+  unfold u128_overflowing_mul_cleanup_chunk execProcedure execInstruction
     execMovup execDrop execSwap execMovdn removeNth insertAt
-  simp [MidenState.withStack]
+  simp [Concrete.State.withStack]
 
 set_option maxHeartbeats 12000000 in
 theorem u128_overflowing_mul_run
@@ -1108,7 +1108,7 @@ theorem u128_overflowing_mul_run
     (ha2 : a2.isU32 = true) (ha3 : a3.isU32 = true)
     (hb0 : b0.isU32 = true) (hb1 : b1.isU32 = true)
     (hb2 : b2.isU32 = true) (hb3 : b3.isU32 = true) :
-    execWithEnv env (fuel + 1)
+    execProcedure env (fuel + 1)
       ⟨b0 :: b1 :: b2 :: b3 :: a0 :: a1 :: a2 :: a3 :: rest, mem, frames, adv⟩
       Miden.Core.U128.overflowing_mul =
     some ⟨
@@ -1119,18 +1119,18 @@ theorem u128_overflowing_mul_run
       u128MulC3 a0 a1 a2 a3 b0 b1 b2 b3 ::
       rest,
       mem, frames, adv⟩ := by
-  rw [execWithEnv_body_eq _ _ _ _ _ overflowing_mul_decomp rfl, execWithEnv_append]
+  rw [execProcedure_body_eq _ _ _ _ _ overflowing_mul_decomp rfl, execProcedure_append]
   rw [u128_mul_low_chunk_run env fuel a0 a1 a2 a3 b0 b1 b2 b3 rest mem frames adv
     ha0 ha1 ha2 ha3 hb0 hb1 hb2 hb3]
   miden_bind
-  rw [execWithEnv_append]
+  rw [execProcedure_append]
   rw [u128_overflowing_mul_c3_chunk_run env fuel a0 a1 a2 a3 b0 b1 b2 b3 rest mem frames adv
     ha0 ha1 ha2 ha3 hb0 hb1 hb2 hb3]
   miden_bind
-  rw [execWithEnv_append]
+  rw [execProcedure_append]
   rw [u128_overflowing_mul_overflow_acc_chunk_run env fuel a0 a1 a2 a3 b0 b1 b2 b3 rest mem frames adv]
   miden_bind
-  rw [execWithEnv_append]
+  rw [execProcedure_append]
   rw [u128_overflowing_mul_overflow_products_chunk_run env fuel a0 a1 a2 a3 b0 b1 b2 b3 rest mem frames adv
     ha0 ha1 ha2 ha3 hb0 hb1 hb2 hb3]
   miden_bind
@@ -1143,13 +1143,13 @@ set_option maxHeartbeats 12000000 in
     where `c0..c3` are the low-to-high limbs of `(a * b) mod 2^128`
     and `overflow` is `1` exactly when the discarded high part is nonzero. -/
 theorem u128_overflowing_mul_raw
-    (a0 a1 a2 a3 b0 b1 b2 b3 : Felt) (rest : List Felt) (s : MidenState)
+    (a0 a1 a2 a3 b0 b1 b2 b3 : Felt) (rest : List Felt) (s : Concrete.State)
     (hs : s.stack = b0 :: b1 :: b2 :: b3 :: a0 :: a1 :: a2 :: a3 :: rest)
     (ha0 : a0.isU32 = true) (ha1 : a1.isU32 = true)
     (ha2 : a2.isU32 = true) (ha3 : a3.isU32 = true)
     (hb0 : b0.isU32 = true) (hb1 : b1.isU32 = true)
     (hb2 : b2.isU32 = true) (hb3 : b3.isU32 = true) :
-    exec 116 s Miden.Core.U128.overflowing_mul =
+    execProcedure emptyEnv 116 s Miden.Core.U128.overflowing_mul =
     some (s.withStack (
       (if u128MulOverflowBool a0 a1 a2 a3 b0 b1 b2 b3 then (1 : Felt) else 0) ::
       u128MulC0 a0 b0 ::
@@ -1158,9 +1158,9 @@ theorem u128_overflowing_mul_raw
       u128MulC3 a0 a1 a2 a3 b0 b1 b2 b3 ::
       rest)) := by
   obtain ⟨stk, mem, frames, adv⟩ := s
-  simp only [MidenState.withStack] at hs ⊢
+  simp only [Concrete.State.withStack] at hs ⊢
   subst hs
-  simpa [exec] using
+  simpa [emptyEnv] using
     u128_overflowing_mul_run (fun _ => none) 115 a0 a1 a2 a3 b0 b1 b2 b3 rest mem frames adv
       ha0 ha1 ha2 ha3 hb0 hb1 hb2 hb3
 
@@ -1508,10 +1508,10 @@ set_option maxHeartbeats 12000000 in
     and an overflow flag.
     Input stack:  [b.a0, b.a1, b.a2, b.a3, a.a0, a.a1, a.a2, a.a3] ++ rest
     Output stack: [overflow, (a*b).a0, (a*b).a1, (a*b).a2, (a*b).a3] ++ rest -/
-theorem u128_overflowing_mul_correct (a b : U128) (rest : List Felt) (s : MidenState)
+theorem u128_overflowing_mul_correct (a b : U128) (rest : List Felt) (s : Concrete.State)
     (hs : s.stack = b.a0.val :: b.a1.val :: b.a2.val :: b.a3.val ::
                     a.a0.val :: a.a1.val :: a.a2.val :: a.a3.val :: rest) :
-    exec 116 s Miden.Core.U128.overflowing_mul =
+    execProcedure emptyEnv 116 s Miden.Core.U128.overflowing_mul =
     some (s.withStack (
       (if u128MulOverflowBool a.a0.val a.a1.val a.a2.val a.a3.val
           b.a0.val b.a1.val b.a2.val b.a3.val then (1 : Felt) else 0) ::

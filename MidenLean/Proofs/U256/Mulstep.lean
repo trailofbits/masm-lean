@@ -16,22 +16,22 @@ set_option maxHeartbeats 4000000 in
     Output stack: [Felt.ofNat ((c*b+a) / 2^32) + Felt.ofNat (((c*b+a) % 2^32 + d) / 2^32),
                    Felt.ofNat (((c*b+a) % 2^32 + d) % 2^32)] ++ rest -/
 theorem u256_mulstep_correct
-    (a b c d : Felt) (rest : List Felt) (s : MidenState)
+    (a b c d : Felt) (rest : List Felt) (s : Concrete.State)
     (hs : s.stack = a :: b :: c :: d :: rest)
     (ha_u32 : a.isU32 = true)
     (hb_u32 : b.isU32 = true)
     (hc_u32 : c.isU32 = true)
     (hd_u32 : d.isU32 = true) :
-    exec 11 s Miden.Core.U256.mulstep =
+    execProcedure emptyEnv 11 s Miden.Core.U256.mulstep =
     some (s.withStack (
       (Felt.ofNat ((c.val * b.val + a.val) / 2 ^ 32) +
         Felt.ofNat (((c.val * b.val + a.val) % 2 ^ 32 + d.val) / 2 ^ 32)) ::
       Felt.ofNat (((c.val * b.val + a.val) % 2 ^ 32 + d.val) % 2 ^ 32) :: rest)) := by
   -- Manual setup (equivalent to miden_setup)
   obtain ⟨stk, mem, frames, adv⟩ := s
-  simp only [MidenState.withStack] at hs ⊢
+  simp only [Concrete.State.withStack] at hs ⊢
   subst hs
-  unfold exec Miden.Core.U256.mulstep execWithEnv
+  unfold Miden.Core.U256.mulstep execProcedure
   simp only [List.foldlM]
   -- Instruction 1: movdn 2
   -- Stack: [a, b, c, d | rest] → [b, c, a, d | rest]

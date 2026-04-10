@@ -9,11 +9,11 @@ open MidenLean.StepLemmas
 open MidenLean.Tactics
 
 /-- Execute a concatenation of op lists in two phases. -/
-private theorem execWithEnv_append (env : ProcEnv) (fuel : Nat) (s : MidenState) (xs ys : List Op) :
-    execWithEnv env fuel s (xs ++ ys) = (do
-      let s' ← execWithEnv env fuel s xs
-      execWithEnv env fuel s' ys) := by
-  unfold execWithEnv
+private theorem execProcedure_append (env : ProcEnv) (fuel : Nat) (s : Concrete.State) (xs ys : List Op) :
+    execProcedure env fuel s (xs ++ ys) = (do
+      let s' ← execProcedure env fuel s xs
+      execProcedure env fuel s' ys) := by
+  unfold execProcedure
   cases fuel <;> simp [List.foldlM_append]
 
 private def sub0 (a0 b0 : Felt) : Nat × Nat :=
@@ -195,11 +195,11 @@ private theorem chunk1_correct
     (a0 a1 a2 a3 b0 b1 b2 b3 : Felt) (rest : List Felt)
     (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (ha0 : a0.isU32 = true) (hb0 : b0.isU32 = true) :
-    execWithEnv env (fuel + 1)
+    execProcedure env (fuel + 1)
       ⟨b0 :: b1 :: b2 :: b3 :: a0 :: a1 :: a2 :: a3 :: rest, mem, frames, adv⟩
       chunk1 =
     some ⟨stage1a a0 a1 a2 a3 b0 b1 b2 b3 rest, mem, frames, adv⟩ := by
-  unfold chunk1 execWithEnv
+  unfold chunk1 execProcedure
   simp only [List.foldlM]
   miden_movup
   miden_movup
@@ -216,11 +216,11 @@ private theorem chunk2_correct
     (a0 a1 a2 a3 b0 b1 b2 b3 : Felt) (rest : List Felt)
     (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (ha1 : a1.isU32 = true) (hb1 : b1.isU32 = true) :
-    execWithEnv env (fuel + 1)
+    execProcedure env (fuel + 1)
       ⟨stage1a a0 a1 a2 a3 b0 b1 b2 b3 rest, mem, frames, adv⟩
       chunk2 =
     some ⟨stage1b a0 a1 a2 a3 b0 b1 b2 b3 rest, mem, frames, adv⟩ := by
-  unfold stage1a chunk2 execWithEnv
+  unfold stage1a chunk2 execProcedure
   simp only [List.foldlM]
   miden_movdn
   miden_movup
@@ -236,11 +236,11 @@ private theorem chunk3_correct
     (a0 a1 a2 a3 b0 b1 b2 b3 : Felt) (rest : List Felt)
     (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (ha1 : a1.isU32 = true) (hb1 : b1.isU32 = true) :
-    execWithEnv env (fuel + 1)
+    execProcedure env (fuel + 1)
       ⟨stage1b a0 a1 a2 a3 b0 b1 b2 b3 rest, mem, frames, adv⟩
       chunk3 =
     some ⟨stage1c a0 a1 a2 a3 b0 b1 b2 b3 rest, mem, frames, adv⟩ := by
-  unfold stage1b chunk3 execWithEnv
+  unfold stage1b chunk3 execProcedure
   simp only [List.foldlM]
   have ha1_lt : a1.val < 2 ^ 32 := by simpa [Felt.isU32, decide_eq_true_eq] using ha1
   have hb1_lt : b1.val < 2 ^ 32 := by simpa [Felt.isU32, decide_eq_true_eq] using hb1
@@ -268,11 +268,11 @@ private theorem chunk4_correct
     (a0 a1 a2 a3 b0 b1 b2 b3 : Felt) (rest : List Felt)
     (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (ha2 : a2.isU32 = true) (hb2 : b2.isU32 = true) :
-    execWithEnv env (fuel + 1)
+    execProcedure env (fuel + 1)
       ⟨stage1c a0 a1 a2 a3 b0 b1 b2 b3 rest, mem, frames, adv⟩
       chunk4 =
     some ⟨stage2a a0 a1 a2 a3 b0 b1 b2 b3 rest, mem, frames, adv⟩ := by
-  unfold stage1c chunk4 execWithEnv
+  unfold stage1c chunk4 execProcedure
   simp only [List.foldlM]
   unfold sub1Adj sub1 sub0
   miden_movup
@@ -295,11 +295,11 @@ private theorem chunk5_correct
     (a0 a1 a2 a3 b0 b1 b2 b3 : Felt) (rest : List Felt)
     (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (ha2 : a2.isU32 = true) (hb2 : b2.isU32 = true) :
-    execWithEnv env (fuel + 1)
+    execProcedure env (fuel + 1)
       ⟨stage2a a0 a1 a2 a3 b0 b1 b2 b3 rest, mem, frames, adv⟩
       chunk5 =
     some ⟨stage2b a0 a1 a2 a3 b0 b1 b2 b3 rest, mem, frames, adv⟩ := by
-  unfold stage2a chunk5 execWithEnv
+  unfold stage2a chunk5 execProcedure
   simp only [List.foldlM]
   have ha2_lt : a2.val < 2 ^ 32 := by simpa [Felt.isU32, decide_eq_true_eq] using ha2
   have hb2_lt : b2.val < 2 ^ 32 := by simpa [Felt.isU32, decide_eq_true_eq] using hb2
@@ -325,11 +325,11 @@ private theorem chunk6_correct
     (a0 a1 a2 a3 b0 b1 b2 b3 : Felt) (rest : List Felt)
     (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (ha3 : a3.isU32 = true) (hb3 : b3.isU32 = true) :
-    execWithEnv env (fuel + 1)
+    execProcedure env (fuel + 1)
       ⟨stage2b a0 a1 a2 a3 b0 b1 b2 b3 rest, mem, frames, adv⟩
       chunk6 =
     some ⟨stage3a a0 a1 a2 a3 b0 b1 b2 b3 rest, mem, frames, adv⟩ := by
-  unfold stage2b chunk6 execWithEnv
+  unfold stage2b chunk6 execProcedure
   simp only [List.foldlM]
   unfold sub2Adj sub2
   miden_movup
@@ -352,11 +352,11 @@ private theorem chunk7_correct
     (a0 a1 a2 a3 b0 b1 b2 b3 : Felt) (rest : List Felt)
     (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (ha3 : a3.isU32 = true) (hb3 : b3.isU32 = true) :
-    execWithEnv env (fuel + 1)
+    execProcedure env (fuel + 1)
       ⟨stage3a a0 a1 a2 a3 b0 b1 b2 b3 rest, mem, frames, adv⟩
       chunk7 =
     some ⟨stage3b a0 a1 a2 a3 b0 b1 b2 b3 rest, mem, frames, adv⟩ := by
-  unfold stage3a chunk7 execWithEnv
+  unfold stage3a chunk7 execProcedure
   simp only [List.foldlM]
   have ha3_lt : a3.val < 2 ^ 32 := by simpa [Felt.isU32, decide_eq_true_eq] using ha3
   have hb3_lt : b3.val < 2 ^ 32 := by simpa [Felt.isU32, decide_eq_true_eq] using hb3
@@ -382,11 +382,11 @@ private theorem chunk8_correct
     (env : ProcEnv) (fuel : Nat)
     (a0 a1 a2 a3 b0 b1 b2 b3 : Felt) (rest : List Felt)
     (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt) :
-    execWithEnv env (fuel + 1)
+    execProcedure env (fuel + 1)
       ⟨stage3b a0 a1 a2 a3 b0 b1 b2 b3 rest, mem, frames, adv⟩
       chunk8 =
     some ⟨u128OverflowingSubResult a0 a1 a2 a3 b0 b1 b2 b3 rest, mem, frames, adv⟩ := by
-  unfold stage3b chunk8 execWithEnv
+  unfold stage3b chunk8 execProcedure
   simp only [List.foldlM]
   unfold sub3Adj sub3
   miden_movup
@@ -413,29 +413,29 @@ theorem u128_overflowing_sub_run
     (ha2 : a2.isU32 = true) (ha3 : a3.isU32 = true)
     (hb0 : b0.isU32 = true) (hb1 : b1.isU32 = true)
     (hb2 : b2.isU32 = true) (hb3 : b3.isU32 = true) :
-    execWithEnv env (fuel + 1)
+    execProcedure env (fuel + 1)
       ⟨b0 :: b1 :: b2 :: b3 :: a0 :: a1 :: a2 :: a3 :: rest, mem, frames, adv⟩
       Miden.Core.U128.overflowing_sub =
     some ⟨u128OverflowingSubResult a0 a1 a2 a3 b0 b1 b2 b3 rest, mem, frames, adv⟩ := by
-  rw [execWithEnv_body_eq _ _ _ _ _ overflowing_sub_decomp rfl, execWithEnv_append]
+  rw [execProcedure_body_eq _ _ _ _ _ overflowing_sub_decomp rfl, execProcedure_append]
   rw [chunk1_correct env fuel a0 a1 a2 a3 b0 b1 b2 b3 rest mem frames adv ha0 hb0]
   miden_bind
-  rw [execWithEnv_append]
+  rw [execProcedure_append]
   rw [chunk2_correct env fuel a0 a1 a2 a3 b0 b1 b2 b3 rest mem frames adv ha1 hb1]
   miden_bind
-  rw [execWithEnv_append]
+  rw [execProcedure_append]
   rw [chunk3_correct env fuel a0 a1 a2 a3 b0 b1 b2 b3 rest mem frames adv ha1 hb1]
   miden_bind
-  rw [execWithEnv_append]
+  rw [execProcedure_append]
   rw [chunk4_correct env fuel a0 a1 a2 a3 b0 b1 b2 b3 rest mem frames adv ha2 hb2]
   miden_bind
-  rw [execWithEnv_append]
+  rw [execProcedure_append]
   rw [chunk5_correct env fuel a0 a1 a2 a3 b0 b1 b2 b3 rest mem frames adv ha2 hb2]
   miden_bind
-  rw [execWithEnv_append]
+  rw [execProcedure_append]
   rw [chunk6_correct env fuel a0 a1 a2 a3 b0 b1 b2 b3 rest mem frames adv ha3 hb3]
   miden_bind
-  rw [execWithEnv_append]
+  rw [execProcedure_append]
   rw [chunk7_correct env fuel a0 a1 a2 a3 b0 b1 b2 b3 rest mem frames adv ha3 hb3]
   miden_bind
   exact chunk8_correct env fuel a0 a1 a2 a3 b0 b1 b2 b3 rest mem frames adv
@@ -447,18 +447,18 @@ set_option maxHeartbeats 8000000 in
     where `d0..d3` are the low-to-high limbs of `a - b`,
     and `borrow = 1` iff the subtraction underflowed. -/
 theorem u128_overflowing_sub_raw
-    (a0 a1 a2 a3 b0 b1 b2 b3 : Felt) (rest : List Felt) (s : MidenState)
+    (a0 a1 a2 a3 b0 b1 b2 b3 : Felt) (rest : List Felt) (s : Concrete.State)
     (hs : s.stack = b0 :: b1 :: b2 :: b3 :: a0 :: a1 :: a2 :: a3 :: rest)
     (ha0 : a0.isU32 = true) (ha1 : a1.isU32 = true)
     (ha2 : a2.isU32 = true) (ha3 : a3.isU32 = true)
     (hb0 : b0.isU32 = true) (hb1 : b1.isU32 = true)
     (hb2 : b2.isU32 = true) (hb3 : b3.isU32 = true) :
-    exec 49 s Miden.Core.U128.overflowing_sub =
+    execProcedure emptyEnv 49 s Miden.Core.U128.overflowing_sub =
     some (s.withStack (u128OverflowingSubResult a0 a1 a2 a3 b0 b1 b2 b3 rest)) := by
   obtain ⟨stk, mem, frames, adv⟩ := s
-  simp only [MidenState.withStack] at hs ⊢
+  simp only [Concrete.State.withStack] at hs ⊢
   subst hs
-  simpa [exec] using
+  simpa [emptyEnv] using
     u128_overflowing_sub_run (fun _ => none) 48 a0 a1 a2 a3 b0 b1 b2 b3 rest mem frames adv
       ha0 ha1 ha2 ha3 hb0 hb1 hb2 hb3
 
@@ -466,10 +466,10 @@ theorem u128_overflowing_sub_raw
     Input stack:  [b.a0, b.a1, b.a2, b.a3, a.a0, a.a1, a.a2, a.a3] ++ rest
     Output stack: [borrow, (a−b).a0, (a−b).a1, (a−b).a2, (a−b).a3] ++ rest
     where borrow = 1 iff `a < b`. -/
-theorem u128_overflowing_sub_correct (a b : U128) (rest : List Felt) (s : MidenState)
+theorem u128_overflowing_sub_correct (a b : U128) (rest : List Felt) (s : Concrete.State)
     (hs : s.stack = b.a0.val :: b.a1.val :: b.a2.val :: b.a3.val ::
                     a.a0.val :: a.a1.val :: a.a2.val :: a.a3.val :: rest) :
-    exec 49 s Miden.Core.U128.overflowing_sub =
+    execProcedure emptyEnv 49 s Miden.Core.U128.overflowing_sub =
     some (s.withStack (
       (if decide (a < b) then (1 : Felt) else 0) ::
       (a - b).a0.val :: (a - b).a1.val :: (a - b).a2.val :: (a - b).a3.val :: rest)) := by

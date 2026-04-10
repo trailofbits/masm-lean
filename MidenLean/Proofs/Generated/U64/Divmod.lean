@@ -17,14 +17,14 @@ set_option maxHeartbeats 8000000 in
     Input stack:  [a, b, c, d] ++ rest
     Output stack: [sorry] ++ rest -/
 theorem u64_divmod_correct
-    (a b c d : Felt) (rest : List Felt) (s : MidenState)
+    (a b c d : Felt) (rest : List Felt) (s : Concrete.State)
     (hs : s.stack = a :: b :: c :: d :: rest)
     (v0 v1 v2 v3 : Felt) (adv_rest : List Felt)
     (hadv : s.advice = v0 :: v1 :: v2 :: v3 :: adv_rest)
     (hc_u32 : c.isU32 = true)  -- from u32WidenMadd at instruction 9
     (hd_u32 : d.isU32 = true)  -- from u32WidenMul at instruction 5
     :
-    execWithEnv u64ProcEnv 175 s Miden.Core.U64.divmod =
+    execProcedure u64ProcEnv 175 s Miden.Core.U64.divmod =
     some (s.withStack (sorry :: rest))  -- TODO: specify output
     := by
   -- Chunked/manual scaffold: fill chunk lemmas or manual proof here.
@@ -94,7 +94,7 @@ theorem u64_divmod_correct
   -- TODO: fill this step inside the chunked/manual scaffold
   -- Instruction 33: movup 3
   -- TODO: fill this step inside the chunked/manual scaffold
-  -- Instruction 34: exec "lt"
+  -- Instruction 34: execProcedure emptyEnv "lt"
   -- TODO: fill this step inside the chunked/manual scaffold
   -- Instruction 35: assertWithError (requires hypothesis)
   -- TODO: fill this step inside the chunked/manual scaffold

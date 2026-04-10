@@ -15,17 +15,17 @@ set_option maxHeartbeats 4000000 in
     Output stack: [a3 >> shift] ++ rest
     Requires `shift` and `a3` to be u32 values, with `shift ≤ 31`. -/
 theorem u128_shr_k3_raw
-    (shift a0 a1 a2 a3 : Felt) (rest : List Felt) (s : MidenState)
+    (shift a0 a1 a2 a3 : Felt) (rest : List Felt) (s : Concrete.State)
     (hs : s.stack = shift :: a0 :: a1 :: a2 :: a3 :: rest)
     (hshift_u32 : shift.isU32 = true)
     (ha3_u32 : a3.isU32 = true)
     (hshift : shift.val ≤ 31) :
-    exec 12 s Miden.Core.U128.shr_k3 =
+    execProcedure emptyEnv 12 s Miden.Core.U128.shr_k3 =
     some (s.withStack (Felt.ofNat (a3.val / 2 ^ shift.val) :: rest)) := by
   obtain ⟨stk, mem, frames, adv⟩ := s
-  simp only [MidenState.withStack] at hs ⊢
+  simp only [Concrete.State.withStack] at hs ⊢
   subst hs
-  unfold exec Miden.Core.U128.shr_k3 execWithEnv
+  unfold Miden.Core.U128.shr_k3 execProcedure
   simp only [List.foldlM]
   miden_movup
   miden_swap
@@ -44,10 +44,10 @@ set_option maxHeartbeats 4000000 in
     Input stack:  [shift, a.a0, a.a1, a.a2, a.a3] ++ rest
     Output stack: [(a.shr (96 + shift)).a0] ++ rest -/
 theorem u128_shr_k3_correct
-    (a : U128) (shift : U32) (rest : List Felt) (s : MidenState)
+    (a : U128) (shift : U32) (rest : List Felt) (s : Concrete.State)
     (hs : s.stack = shift.val :: a.a0.val :: a.a1.val :: a.a2.val :: a.a3.val :: rest)
     (hshift_lt32 : shift.toNat < 32) :
-    exec 12 s Miden.Core.U128.shr_k3 =
+    execProcedure emptyEnv 12 s Miden.Core.U128.shr_k3 =
     some (s.withStack ((a.shr (96 + shift.toNat)).a0.val :: rest)) := by
   have hshift_le31 : shift.toNat ≤ 31 := Nat.le_pred_of_lt hshift_lt32
   have hraw := u128_shr_k3_raw shift.val a.a0.val a.a1.val a.a2.val a.a3.val rest s hs

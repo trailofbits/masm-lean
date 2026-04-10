@@ -11,14 +11,14 @@ open MidenLean.Tactics
 
 set_option maxHeartbeats 12000000 in
 set_option maxRecDepth 65536 in
-private theorem divmod_execWithEnv_eq_exec (fuel : Nat) (s : MidenState)
+private theorem divmod_execWithEnv_eq_exec (fuel : Nat) (s : Concrete.State)
     (hf : 0 < fuel) :
-    execWithEnv u128ProcEnv fuel s Miden.Core.U128.divmod =
-      exec 163 s Miden.Core.U128.divmod := by
+    execProcedure u128ProcEnv fuel s Miden.Core.U128.divmod =
+      execProcedure emptyEnv 163 s Miden.Core.U128.divmod := by
   cases fuel with
   | zero => cases hf
   | succ fuel' =>
-      simp (maxSteps := 5000000) [exec, execWithEnv, u128ProcEnv, Miden.Core.U128.divmod]
+      simp (maxSteps := 5000000) [emptyEnv, execProcedure, u128ProcEnv, Miden.Core.U128.divmod]
 
 set_option maxHeartbeats 12000000 in
 /-- `u128::div` verifies an advice-supplied quotient and remainder for u128 division,
@@ -28,12 +28,12 @@ set_option maxHeartbeats 12000000 in
     Advice stack: [r.a0, r.a1, r.a2, r.a3, q.a0, q.a1, q.a2, q.a3] ++ adv_rest
     Output stack: [q.a0, q.a1, q.a2, q.a3] ++ rest -/
 theorem u128_div_correct
-    (a b q r : U128) (rest adv_rest : List Felt) (s : MidenState)
+    (a b q r : U128) (rest adv_rest : List Felt) (s : Concrete.State)
     (hs : s.stack = b.a0.val :: b.a1.val :: b.a2.val :: b.a3.val ::
                     a.a0.val :: a.a1.val :: a.a2.val :: a.a3.val :: rest)
     (hadv : s.advice = r.a0.val :: r.a1.val :: r.a2.val :: r.a3.val ::
                       q.a0.val :: q.a1.val :: q.a2.val :: q.a3.val :: adv_rest) :
-    execWithEnv u128ProcEnv 31 s Miden.Core.U128.div =
+    execProcedure u128ProcEnv 31 s Miden.Core.U128.div =
     some { stack := q.a0.val :: q.a1.val :: q.a2.val :: q.a3.val :: rest,
            memory := s.memory,
            frames := s.frames,
@@ -45,10 +45,10 @@ theorem u128_div_correct
   subst hadv
   constructor
   · intro hexec
-    unfold Miden.Core.U128.div execWithEnv at hexec
+    unfold Miden.Core.U128.div execProcedure at hexec
     simp only [List.foldlM, u128ProcEnv] at hexec
     revert hexec
-    cases h_dm : execWithEnv u128ProcEnv 30
+    cases h_dm : execProcedure u128ProcEnv 30
       { stack := b.a0.val :: b.a1.val :: b.a2.val :: b.a3.val ::
                    a.a0.val :: a.a1.val :: a.a2.val :: a.a3.val :: rest,
         memory := mem,
@@ -61,7 +61,7 @@ theorem u128_div_correct
     | some val =>
         intro _
         have h_dm_exec :
-            exec 163
+            execProcedure emptyEnv 163
               { stack := b.a0.val :: b.a1.val :: b.a2.val :: b.a3.val ::
                          a.a0.val :: a.a1.val :: a.a2.val :: a.a3.val :: rest,
                 memory := mem,
@@ -74,7 +74,7 @@ theorem u128_div_correct
         exact u128_divmod_conditions_of_exec a b q r rest adv_rest _ rfl rfl h_dm_exec
   · intro ⟨hdiv, hlt⟩
     have h_divmod :
-        exec 163
+        execProcedure emptyEnv 163
           { stack := b.a0.val :: b.a1.val :: b.a2.val :: b.a3.val ::
                      a.a0.val :: a.a1.val :: a.a2.val :: a.a3.val :: rest,
             memory := mem,
@@ -95,7 +95,7 @@ theorem u128_div_correct
           advice := r.a0.val :: r.a1.val :: r.a2.val :: r.a3.val ::
                     q.a0.val :: q.a1.val :: q.a2.val :: q.a3.val :: adv_rest }
         rfl rfl).mpr ⟨hdiv, hlt⟩
-    unfold Miden.Core.U128.div execWithEnv
+    unfold Miden.Core.U128.div execProcedure
     simp only [List.foldlM, u128ProcEnv]
     dsimp only [bind, Bind.bind, Option.bind]
     rw [divmod_execWithEnv_eq_exec 30 _ (by decide)]

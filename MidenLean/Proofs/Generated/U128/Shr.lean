@@ -17,11 +17,11 @@ set_option maxHeartbeats 8000000 in
     Input stack:  [x0, x1, x2, x3, x4] ++ rest
     Output stack: [sorry] ++ rest -/
 theorem u128_shr_correct
-    (x0 x1 x2 x3 x4 : Felt) (rest : List Felt) (s : MidenState)
+    (x0 x1 x2 x3 x4 : Felt) (rest : List Felt) (s : Concrete.State)
     (hs : s.stack = x0 :: x1 :: x2 :: x3 :: x4 :: rest)
     (hx4_u32 : x4.isU32 = true)  -- from u32And at instruction 10
     :
-    execWithEnv u128ProcEnv 142 s Miden.Core.U128.shr =
+    execProcedure u128ProcEnv 142 s Miden.Core.U128.shr =
     some (s.withStack (sorry :: rest))  -- TODO: specify output
     := by
   -- Chunked/manual scaffold: fill chunk lemmas or manual proof here.
@@ -62,7 +62,7 @@ theorem u128_shr_correct
   try sorry  -- TODO: branch handling (MANUAL)
   -- Instruction 16: drop
   -- TODO: fill this step inside the chunked/manual scaffold
-  -- Instruction 17: exec "shr_k0"
+  -- Instruction 17: execProcedure emptyEnv "shr_k0"
   -- TODO: fill this step inside the chunked/manual scaffold
   -- else
   -- Instruction 18: dup 0
@@ -77,7 +77,7 @@ theorem u128_shr_correct
   -- TODO: fill this step inside the chunked/manual scaffold
   -- Instruction 22: movdn 5
   -- TODO: fill this step inside the chunked/manual scaffold
-  -- Instruction 23: exec "shr_k1"
+  -- Instruction 23: execProcedure emptyEnv "shr_k1"
   -- TODO: fill this step inside the chunked/manual scaffold
   -- else
   -- Instruction 24: dup 0
@@ -96,7 +96,7 @@ theorem u128_shr_correct
   -- TODO: fill this step inside the chunked/manual scaffold
   -- Instruction 30: movdn 5
   -- TODO: fill this step inside the chunked/manual scaffold
-  -- Instruction 31: exec "shr_k2"
+  -- Instruction 31: execProcedure emptyEnv "shr_k2"
   -- TODO: fill this step inside the chunked/manual scaffold
   -- else
   -- Instruction 32: drop
@@ -113,7 +113,7 @@ theorem u128_shr_correct
   -- TODO: fill this step inside the chunked/manual scaffold
   -- Instruction 38: movdn 5
   -- TODO: fill this step inside the chunked/manual scaffold
-  -- Instruction 39: exec "shr_k3"
+  -- Instruction 39: execProcedure emptyEnv "shr_k3"
   -- TODO: fill this step inside the chunked/manual scaffold
   -- if.true end
   -- if.true end

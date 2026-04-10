@@ -82,12 +82,12 @@ private theorem rotr_decomp :
 private theorem rotr_prefix_correct (env : ProcEnv) (fuel : Nat)
     (shift a0 a1 a2 a3 : Felt) (rest : List Felt)
     (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt) :
-    execWithEnv env (fuel + 1)
+    execProcedure env (fuel + 1)
       ⟨shift :: a0 :: a1 :: a2 :: a3 :: rest, mem, frames, adv⟩
       rotr_prefix =
     some ⟨(if shift == (0 : Felt) then (1 : Felt) else 0) ::
           shift :: a0 :: a1 :: a2 :: a3 :: rest, mem, frames, adv⟩ := by
-  unfold rotr_prefix execWithEnv
+  unfold rotr_prefix execProcedure
   simp only [List.foldlM]
   dsimp only [bind, Bind.bind, Option.bind, pure, Pure.pure]
   miden_dup
@@ -101,12 +101,12 @@ set_option maxHeartbeats 4000000 in
 private theorem rotr_dup_setup_correct (env : ProcEnv) (fuel : Nat)
     (shift a0 a1 a2 a3 : Felt) (rest : List Felt)
     (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt) :
-    execWithEnv env (fuel + 1)
+    execProcedure env (fuel + 1)
       ⟨shift :: a0 :: a1 :: a2 :: a3 :: rest, mem, frames, adv⟩
       rotr_dup_setup =
     some ⟨shift :: a0 :: a1 :: a2 :: a3 ::
           shift :: a0 :: a1 :: a2 :: a3 :: rest, mem, frames, adv⟩ := by
-  unfold rotr_dup_setup execWithEnv
+  unfold rotr_dup_setup execProcedure
   simp only [List.foldlM]
   dsimp only [bind, Bind.bind, Option.bind, pure, Pure.pure]
   miden_dup   -- dup 0
@@ -125,14 +125,14 @@ private theorem rotr_mid_setup_correct (env : ProcEnv) (fuel : Nat)
     (r0 r1 r2 r3 shift a0 a1 a2 a3 : Felt) (rest : List Felt)
     (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (hshift_u32 : shift.isU32 = true) :
-    execWithEnv env (fuel + 1)
+    execProcedure env (fuel + 1)
       ⟨r0 :: r1 :: r2 :: r3 :: shift :: a0 :: a1 :: a2 :: a3 :: rest,
        mem, frames, adv⟩
       rotr_mid_setup =
     some ⟨Felt.ofNat (u32OverflowingSub 128 shift.val).2 ::
           a0 :: a1 :: a2 :: a3 :: r0 :: r1 :: r2 :: r3 :: rest,
           mem, frames, adv⟩ := by
-  unfold rotr_mid_setup execWithEnv
+  unfold rotr_mid_setup execProcedure
   simp only [List.foldlM]
   dsimp only [bind, Bind.bind, Option.bind, pure, Pure.pure]
   miden_movdn  -- movdn 8
@@ -158,13 +158,13 @@ private theorem rotr_combine_correct (env : ProcEnv) (fuel : Nat)
     (hs2 : s2.isU32 = true) (hs3 : s3.isU32 = true)
     (hr0 : r0.isU32 = true) (hr1 : r1.isU32 = true)
     (hr2 : r2.isU32 = true) (hr3 : r3.isU32 = true) :
-    execWithEnv env (fuel + 1)
+    execProcedure env (fuel + 1)
       ⟨s0 :: s1 :: s2 :: s3 :: r0 :: r1 :: r2 :: r3 :: rest, mem, frames, adv⟩
       rotr_combine =
     some ⟨Felt.ofNat (s0.val ||| r0.val) :: Felt.ofNat (s1.val ||| r1.val) ::
           Felt.ofNat (s2.val ||| r2.val) :: Felt.ofNat (s3.val ||| r3.val) :: rest,
           mem, frames, adv⟩ := by
-  unfold rotr_combine execWithEnv
+  unfold rotr_combine execProcedure
   simp only [List.foldlM]
   dsimp only [bind, Bind.bind, Option.bind, pure, Pure.pure]
   miden_movup -- movup 4
@@ -190,46 +190,46 @@ private theorem rotr_combine_correct (env : ProcEnv) (fuel : Nat)
 -- ifElse dispatch helpers
 -- ============================================================================
 
-private theorem execWithEnv_append_rotr (env : ProcEnv) (fuel : Nat)
-    (s : MidenState) (xs ys : List Op) :
-    execWithEnv env fuel s (xs ++ ys) = (do
-      let s' ← execWithEnv env fuel s xs
-      execWithEnv env fuel s' ys) := by
-  unfold execWithEnv
+private theorem execProcedure_append_rotr (env : ProcEnv) (fuel : Nat)
+    (s : Concrete.State) (xs ys : List Op) :
+    execProcedure env fuel s (xs ++ ys) = (do
+      let s' ← execProcedure env fuel s xs
+      execProcedure env fuel s' ys) := by
+  unfold execProcedure
   cases fuel <;> simp [List.foldlM_append]
 
-private theorem execWithEnv_ifElse_one_rotr
+private theorem execProcedure_ifElse_one_rotr
     (env : ProcEnv) (fuel : Nat)
     (rest : List Felt) (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (thenBlk elseBlk : List Op) :
-    execWithEnv env (fuel + 2)
+    execProcedure env (fuel + 2)
       ⟨(1 : Felt) :: rest, mem, frames, adv⟩
       ([.ifElse thenBlk elseBlk] : List Op) =
-    execWithEnv env (fuel + 1) ⟨rest, mem, frames, adv⟩ thenBlk := by
-  conv_lhs => unfold execWithEnv
-  simp only [List.foldlM, MidenState.withStack]
+    execProcedure env (fuel + 1) ⟨rest, mem, frames, adv⟩ thenBlk := by
+  conv_lhs => unfold execProcedure
+  simp only [List.foldlM, Concrete.State.withStack]
   dsimp only [bind, Bind.bind, Option.bind, pure, Pure.pure]
   have hv1 : (1 : Felt).val = 1 := Felt.val_one'
   have hbeq : ((1 : Nat) == 1) = true := by decide
   simp only [hv1, hbeq, ↓reduceIte]
-  cases execWithEnv env (fuel + 1) ⟨rest, mem, frames, adv⟩ thenBlk <;> rfl
+  cases execProcedure env (fuel + 1) ⟨rest, mem, frames, adv⟩ thenBlk <;> rfl
 
-private theorem execWithEnv_ifElse_zero_rotr
+private theorem execProcedure_ifElse_zero_rotr
     (env : ProcEnv) (fuel : Nat)
     (rest : List Felt) (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (thenBlk elseBlk : List Op) :
-    execWithEnv env (fuel + 2)
+    execProcedure env (fuel + 2)
       ⟨(0 : Felt) :: rest, mem, frames, adv⟩
       ([.ifElse thenBlk elseBlk] : List Op) =
-    execWithEnv env (fuel + 1) ⟨rest, mem, frames, adv⟩ elseBlk := by
-  conv_lhs => unfold execWithEnv
-  simp only [List.foldlM, MidenState.withStack]
+    execProcedure env (fuel + 1) ⟨rest, mem, frames, adv⟩ elseBlk := by
+  conv_lhs => unfold execProcedure
+  simp only [List.foldlM, Concrete.State.withStack]
   dsimp only [bind, Bind.bind, Option.bind, pure, Pure.pure]
   have hv0 : (0 : Felt).val = 0 := Felt.val_zero'
   have hneq : ((0 : Nat) == 1) = false := by decide
   have hbeq : ((0 : Nat) == 0) = true := by decide
   simp only [hv0, hneq, hbeq, ↓reduceIte]
-  cases execWithEnv env (fuel + 1) ⟨rest, mem, frames, adv⟩ elseBlk <;> rfl
+  cases execProcedure env (fuel + 1) ⟨rest, mem, frames, adv⟩ elseBlk <;> rfl
 
 -- ============================================================================
 -- Nonzero branch: parametric composition
@@ -248,19 +248,19 @@ private theorem rotr_nonzero_correct (fuel : Nat)
     (hr2 : r2.isU32 = true) (hr3 : r3.isU32 = true)
     (hs0 : s0.isU32 = true) (hs1 : s1.isU32 = true)
     (hs2 : s2.isU32 = true) (hs3 : s3.isU32 = true)
-    (hshr : execWithEnv u128ProcEnv (fuel + 7)
+    (hshr : execProcedure u128ProcEnv (fuel + 7)
       ⟨shift :: a0 :: a1 :: a2 :: a3 ::
        shift :: a0 :: a1 :: a2 :: a3 :: rest, mem, frames, adv⟩
       Miden.Core.U128.shr =
       some ⟨r0 :: r1 :: r2 :: r3 ::
             shift :: a0 :: a1 :: a2 :: a3 :: rest, mem, frames, adv⟩)
-    (hshl : execWithEnv u128ProcEnv (fuel + 7)
+    (hshl : execProcedure u128ProcEnv (fuel + 7)
       ⟨Felt.ofNat (u32OverflowingSub 128 shift.val).2 ::
        a0 :: a1 :: a2 :: a3 :: r0 :: r1 :: r2 :: r3 :: rest, mem, frames, adv⟩
       Miden.Core.U128.shl =
       some ⟨s0 :: s1 :: s2 :: s3 ::
             r0 :: r1 :: r2 :: r3 :: rest, mem, frames, adv⟩) :
-    execWithEnv u128ProcEnv (fuel + 8)
+    execProcedure u128ProcEnv (fuel + 8)
       ⟨shift :: a0 :: a1 :: a2 :: a3 :: rest, mem, frames, adv⟩
       rotr_nonzero =
     some ⟨Felt.ofNat (s0.val ||| r0.val) :: Felt.ofNat (s1.val ||| r1.val) ::
@@ -269,28 +269,28 @@ private theorem rotr_nonzero_correct (fuel : Nat)
   unfold rotr_nonzero
   simp only [List.append_assoc]
   -- Step 1: dup setup
-  rw [execWithEnv_append_rotr]
+  rw [execProcedure_append_rotr]
   rw [rotr_dup_setup_correct u128ProcEnv (fuel + 7) shift a0 a1 a2 a3 rest mem frames adv]
   simp only [bind, Bind.bind, Option.bind]
-  -- Step 2: exec "shr"
-  rw [execWithEnv_append_rotr]
+  -- Step 2: execProcedure emptyEnv "shr"
+  rw [execProcedure_append_rotr]
   conv_lhs =>
     arg 1
-    unfold execWithEnv
+    unfold execProcedure
     simp only [List.foldlM, u128ProcEnv]
     dsimp only [bind, Bind.bind, Option.bind, pure, Pure.pure]
   rw [hshr]
   simp only [bind, Bind.bind, Option.bind]
   -- Step 3: mid setup
-  rw [execWithEnv_append_rotr]
+  rw [execProcedure_append_rotr]
   rw [rotr_mid_setup_correct u128ProcEnv (fuel + 7) r0 r1 r2 r3 shift a0 a1 a2 a3 rest
     mem frames adv hshift_u32]
   simp only [bind, Bind.bind, Option.bind]
-  -- Step 4: exec "shl"
-  rw [execWithEnv_append_rotr]
+  -- Step 4: execProcedure emptyEnv "shl"
+  rw [execProcedure_append_rotr]
   conv_lhs =>
     arg 1
-    unfold execWithEnv
+    unfold execProcedure
     simp only [List.foldlM, u128ProcEnv]
     dsimp only [bind, Bind.bind, Option.bind, pure, Pure.pure]
   rw [hshl]
@@ -310,7 +310,7 @@ set_option maxHeartbeats 8000000 in
     The shl and shr sub-procedure results are provided as parametric hypotheses; their
     individual correctness is proved in `u128_shl_correct` and `u128_shr_correct_run`. -/
 theorem u128_rotr_raw (fuel : Nat)
-    (shift a0 a1 a2 a3 : Felt) (rest : List Felt) (s : MidenState)
+    (shift a0 a1 a2 a3 : Felt) (rest : List Felt) (s : Concrete.State)
     (hs : s.stack = shift :: a0 :: a1 :: a2 :: a3 :: rest)
     (hshift_u32 : shift.isU32 = true)
     (r0 r1 r2 r3 s0 s1 s2 s3 : Felt)
@@ -318,7 +318,7 @@ theorem u128_rotr_raw (fuel : Nat)
     (hr2 : r2.isU32 = true) (hr3 : r3.isU32 = true)
     (hs0 : s0.isU32 = true) (hs1 : s1.isU32 = true)
     (hs2 : s2.isU32 = true) (hs3 : s3.isU32 = true)
-    (hshr : execWithEnv u128ProcEnv (fuel + 7)
+    (hshr : execProcedure u128ProcEnv (fuel + 7)
       ⟨shift :: a0 :: a1 :: a2 :: a3 ::
        shift :: a0 :: a1 :: a2 :: a3 :: rest,
        s.memory, s.frames, s.advice⟩
@@ -326,7 +326,7 @@ theorem u128_rotr_raw (fuel : Nat)
       some ⟨r0 :: r1 :: r2 :: r3 ::
             shift :: a0 :: a1 :: a2 :: a3 :: rest,
             s.memory, s.frames, s.advice⟩)
-    (hshl : execWithEnv u128ProcEnv (fuel + 7)
+    (hshl : execProcedure u128ProcEnv (fuel + 7)
       ⟨Felt.ofNat (u32OverflowingSub 128 shift.val).2 ::
        a0 :: a1 :: a2 :: a3 :: r0 :: r1 :: r2 :: r3 :: rest,
        s.memory, s.frames, s.advice⟩
@@ -334,7 +334,7 @@ theorem u128_rotr_raw (fuel : Nat)
       some ⟨s0 :: s1 :: s2 :: s3 ::
             r0 :: r1 :: r2 :: r3 :: rest,
             s.memory, s.frames, s.advice⟩) :
-    execWithEnv u128ProcEnv (fuel + 9) s Miden.Core.U128.rotr =
+    execProcedure u128ProcEnv (fuel + 9) s Miden.Core.U128.rotr =
     some (s.withStack (
       if shift == (0 : Felt) then
         a0 :: a1 :: a2 :: a3 :: rest
@@ -342,22 +342,22 @@ theorem u128_rotr_raw (fuel : Nat)
         Felt.ofNat (s0.val ||| r0.val) :: Felt.ofNat (s1.val ||| r1.val) ::
         Felt.ofNat (s2.val ||| r2.val) :: Felt.ofNat (s3.val ||| r3.val) :: rest)) := by
   obtain ⟨stk, mem, frames, adv⟩ := s
-  simp only [MidenState.withStack] at hs hshr hshl ⊢
+  simp only [Concrete.State.withStack] at hs hshr hshl ⊢
   subst hs
-  rw [execWithEnv_body_eq _ _ _ _ _ rotr_decomp rfl, execWithEnv_append_rotr]
+  rw [execProcedure_body_eq _ _ _ _ _ rotr_decomp rfl, execProcedure_append_rotr]
   rw [rotr_prefix_correct u128ProcEnv (fuel + 8) shift a0 a1 a2 a3 rest mem frames adv]
   simp only [bind, Bind.bind, Option.bind]
   by_cases hzero : shift == (0 : Felt)
   · -- shift == 0: identity
     simp only [hzero, ↓reduceIte]
-    rw [execWithEnv_ifElse_one_rotr u128ProcEnv (fuel + 7)]
-    conv_lhs => unfold execWithEnv
+    rw [execProcedure_ifElse_one_rotr u128ProcEnv (fuel + 7)]
+    conv_lhs => unfold execProcedure
     simp only [List.foldlM]
     dsimp only [bind, Bind.bind, Option.bind, pure, Pure.pure]
     rw [stepDrop]
   · -- shift ≠ 0: nonzero branch
     simp only [hzero, ↓reduceIte, Bool.false_eq_true]
-    rw [execWithEnv_ifElse_zero_rotr u128ProcEnv (fuel + 7)]
+    rw [execProcedure_ifElse_zero_rotr u128ProcEnv (fuel + 7)]
     exact rotr_nonzero_correct fuel shift a0 a1 a2 a3 rest mem frames adv
       r0 r1 r2 r3 s0 s1 s2 s3
       hshift_u32 hr0 hr1 hr2 hr3 hs0 hs1 hs2 hs3
@@ -371,15 +371,15 @@ set_option maxHeartbeats 16000000 in
 /-- `u128::rotr` right-rotates a u128 value by `shift` bits.
     Input stack:  [shift, a.a0, a.a1, a.a2, a.a3] ++ rest
     Output stack: [(a.rotr shift).a0, (a.rotr shift).a1, (a.rotr shift).a2, (a.rotr shift).a3] ++ rest -/
-theorem u128_rotr_correct (a : U128) (shift : U32) (rest : List Felt) (s : MidenState)
+theorem u128_rotr_correct (a : U128) (shift : U32) (rest : List Felt) (s : Concrete.State)
     (hs : s.stack = shift.val :: a.a0.val :: a.a1.val :: a.a2.val :: a.a3.val :: rest)
     (hshift_lt128 : shift.toNat < 128) :
-    execWithEnv u128ProcEnv 72 s Miden.Core.U128.rotr =
+    execProcedure u128ProcEnv 72 s Miden.Core.U128.rotr =
     some (s.withStack (
       (a.rotr shift.toNat).a0.val :: (a.rotr shift.toNat).a1.val ::
       (a.rotr shift.toNat).a2.val :: (a.rotr shift.toNat).a3.val :: rest)) := by
   obtain ⟨stk, mem, frames, adv⟩ := s
-  simp only [MidenState.withStack] at hs ⊢
+  simp only [Concrete.State.withStack] at hs ⊢
   subst hs
   by_cases hzero : shift.toNat = 0
   · have hshift0 : shift.val = (0 : Felt) := by
@@ -387,11 +387,11 @@ theorem u128_rotr_correct (a : U128) (shift : U32) (rest : List Felt) (s : Miden
       simpa [U32.toNat, Felt.val_zero'] using hzero
     have hshift0b : (shift.val == (0 : Felt)) = true := by
       exact beq_iff_eq.mpr hshift0
-    rw [execWithEnv_body_eq _ _ _ _ _ rotr_decomp rfl, execWithEnv_append_rotr]
+    rw [execProcedure_body_eq _ _ _ _ _ rotr_decomp rfl, execProcedure_append_rotr]
     rw [rotr_prefix_correct u128ProcEnv 71 shift.val a.a0.val a.a1.val a.a2.val a.a3.val rest mem frames adv]
     simp only [bind, Bind.bind, Option.bind, hshift0b, ↓reduceIte]
-    rw [execWithEnv_ifElse_one_rotr u128ProcEnv 70]
-    conv_lhs => unfold execWithEnv
+    rw [execProcedure_ifElse_one_rotr u128ProcEnv 70]
+    conv_lhs => unfold execProcedure
     simp only [List.foldlM]
     dsimp only [bind, Bind.bind, Option.bind, pure, Pure.pure]
     rw [stepDrop]
@@ -412,7 +412,7 @@ theorem u128_rotr_correct (a : U128) (shift : U32) (rest : List Felt) (s : Miden
       dsimp [shiftComp, U32.toNat]
       exact rotr_complement_lt128 shift.val hshift_lt128 hpos
     have hshr :
-        execWithEnv u128ProcEnv 70
+        execProcedure u128ProcEnv 70
           ⟨shift.val :: a.a0.val :: a.a1.val :: a.a2.val :: a.a3.val ::
             shift.val :: a.a0.val :: a.a1.val :: a.a2.val :: a.a3.val :: rest,
             mem, frames, adv⟩
@@ -421,7 +421,7 @@ theorem u128_rotr_correct (a : U128) (shift : U32) (rest : List Felt) (s : Miden
               (a.shr shift.toNat).a2.val :: (a.shr shift.toNat).a3.val ::
               shift.val :: a.a0.val :: a.a1.val :: a.a2.val :: a.a3.val :: rest,
               mem, frames, adv⟩ := by
-      simpa [MidenState.withStack] using
+      simpa [Concrete.State.withStack] using
         (u128_shr_correct_run 63 a shift
           (shift.val :: a.a0.val :: a.a1.val :: a.a2.val :: a.a3.val :: rest)
           ⟨shift.val :: a.a0.val :: a.a1.val :: a.a2.val :: a.a3.val ::
@@ -429,7 +429,7 @@ theorem u128_rotr_correct (a : U128) (shift : U32) (rest : List Felt) (s : Miden
             mem, frames, adv⟩
           rfl hshift_lt128)
     have hshl :
-        execWithEnv u128ProcEnv 70
+        execProcedure u128ProcEnv 70
           ⟨shiftComp.val :: a.a0.val :: a.a1.val :: a.a2.val :: a.a3.val ::
             (a.shr shift.toNat).a0.val :: (a.shr shift.toNat).a1.val ::
             (a.shr shift.toNat).a2.val :: (a.shr shift.toNat).a3.val :: rest,
@@ -440,7 +440,7 @@ theorem u128_rotr_correct (a : U128) (shift : U32) (rest : List Felt) (s : Miden
               (a.shr shift.toNat).a0.val :: (a.shr shift.toNat).a1.val ::
               (a.shr shift.toNat).a2.val :: (a.shr shift.toNat).a3.val :: rest,
               mem, frames, adv⟩ := by
-      simpa [MidenState.withStack, hshiftComp_toNat] using
+      simpa [Concrete.State.withStack, hshiftComp_toNat] using
         (u128_shl_correct a shiftComp
           ((a.shr shift.toNat).a0.val :: (a.shr shift.toNat).a1.val ::
             (a.shr shift.toNat).a2.val :: (a.shr shift.toNat).a3.val :: rest)

@@ -5,7 +5,7 @@
   Each test uses #eval with a guard that returns a descriptive error
   string on failure, so `lake build` success implies all tests pass.
 -/
-import MidenLean.Semantics
+import MidenLean.Concrete.Exec
 
 namespace MidenLean.Tests
 
@@ -16,16 +16,16 @@ open MidenLean
 -- ============================================================================
 
 /-- Shorthand for a state with given stack and empty memory/advice. -/
-private def mkState (stk : List Felt) : MidenState :=
-  MidenState.ofStack stk
+private def mkState (stk : List Felt) : Concrete.State :=
+  Concrete.State.ofStack stk
 
 /-- State with stack and advice. -/
-private def mkStateAdv (stk : List Felt) (adv : List Felt) : MidenState :=
-  MidenState.ofStackAdvice stk adv
+private def mkStateAdv (stk : List Felt) (adv : List Felt) : Concrete.State :=
+  Concrete.State.ofStackAdvice stk adv
 
 /-- State with stack and an active local frame for testing local-memory ops.
     `numLocals` defaults to 32, large enough for all existing tests. -/
-private def mkStateWithFrame (stk : List Felt) (numLocals : Nat := 32) : MidenState :=
+private def mkStateWithFrame (stk : List Felt) (numLocals : Nat := 32) : Concrete.State :=
   let aligned := alignLocals numLocals
   { stack := stk
   , memory := zeroMemory
@@ -33,25 +33,25 @@ private def mkStateWithFrame (stk : List Felt) (numLocals : Nat := 32) : MidenSt
   , advice := [] }
 
 /-- Run a single instruction on a state. -/
-private def runInst (s : MidenState) (i : Instruction) : Option MidenState :=
+private def runInst (s : Concrete.State) (i : Instruction) : Option Concrete.State :=
   execInstruction s i
 
 /-- Run a list of ops with given fuel. -/
-private def runOps (fuel : Nat) (s : MidenState) (ops : List Op) : Option MidenState :=
-  exec fuel s ops
+private def runOps (fuel : Nat) (s : Concrete.State) (ops : List Op) : Option Concrete.State :=
+  execProcedure emptyEnv fuel s ops
 
 /-- Check that the resulting stack matches expected values. -/
-private def checkStack (result : Option MidenState) (expected : List Felt) : Bool :=
+private def checkStack (result : Option Concrete.State) (expected : List Felt) : Bool :=
   match result with
   | some s => s.stack == expected
   | none => false
 
 /-- Check that the result is none (operation failed). -/
-private def checkNone (result : Option MidenState) : Bool :=
+private def checkNone (result : Option Concrete.State) : Bool :=
   result.isNone
 
 /-- Check that specific local slots have the expected values in memory-backed local storage. -/
-private def checkLocals (result : Option MidenState) (pairs : List (Nat × Felt)) : Bool :=
+private def checkLocals (result : Option Concrete.State) (pairs : List (Nat × Felt)) : Bool :=
   match result with
   | some s => pairs.all fun (idx, v) => s.memory (LOCAL_MEM_BASE + idx) == v
   | none => false
@@ -1172,8 +1172,8 @@ private def u32max : Nat := 2^32
     .inst .memStore,
     .inst (.locLoad 0)
   ]}
-  let s : MidenState := { stack := [42, 99], memory := zeroMemory, frames := [], advice := [] }
-  let r := exec 4 s proc
+  let s : Concrete.State := { stack := [42, 99], memory := zeroMemory, frames := [], advice := [] }
+  let r := execProcedure emptyEnv 4 s proc
   unless checkStack r [42, 99] do panic! "mixed mem->loc: stack wrong"
   unless checkLocals r [(0, 42)] do panic! "mixed mem->loc: local memory wrong"
 
@@ -1184,8 +1184,8 @@ private def u32max : Nat := 2^32
     .inst (.locaddr 1),
     .inst .memLoad
   ]}
-  let s : MidenState := { stack := [77, 99], memory := zeroMemory, frames := [], advice := [] }
-  let r := exec 4 s proc
+  let s : Concrete.State := { stack := [77, 99], memory := zeroMemory, frames := [], advice := [] }
+  let r := execProcedure emptyEnv 4 s proc
   unless checkStack r [77, 99] do panic! "mixed loc->mem: stack wrong"
 
 -- Word writes via memStorewBe after locaddr are visible via locLoadwBe.
@@ -1197,8 +1197,8 @@ private def u32max : Nat := 2^32
     .inst .padw,
     .inst (.locLoadwBe 4)
   ]}
-  let s : MidenState := { stack := [10, 20, 30, 40, 99], memory := zeroMemory, frames := [], advice := [] }
-  let r := exec 6 s proc
+  let s : Concrete.State := { stack := [10, 20, 30, 40, 99], memory := zeroMemory, frames := [], advice := [] }
+  let r := execProcedure emptyEnv 6 s proc
   unless checkStack r [10, 20, 30, 40, 99] do panic! "mixed memw->locw: stack wrong"
   unless checkLocals r [(4, 40), (5, 30), (6, 20), (7, 10)] do
     panic! "mixed memw->locw: local memory wrong"
@@ -1214,19 +1214,19 @@ private def u32max : Nat := 2^32
     .inst (.locLoad 0)
   ]}
   let env : ProcEnv := fun name => if name == "inner" then some inner else none
-  let s : MidenState := { stack := [55, 99], memory := zeroMemory, frames := [], advice := [] }
-  let r := execWithEnv env 5 s outer
+  let s : Concrete.State := { stack := [55, 99], memory := zeroMemory, frames := [], advice := [] }
+  let r := execProcedure env 5 s outer
   unless checkStack r [55, 99] do panic! "callee memStore via locaddr: stack wrong"
   unless checkLocals r [(0, 55)] do panic! "callee memStore via locaddr: local memory wrong"
 
--- Frame allocation via execWithEnv: procedure with numLocals > 0 gets a frame
+-- Frame allocation via execProcedure: procedure with numLocals > 0 gets a frame
 #eval do
   let proc : Procedure := { name := "test", numLocals := 8, body := [
     .inst (.locStorewBe 0),
     .inst (.locLoadwBe 0)
   ]}
-  let s : MidenState := { stack := [10, 20, 30, 40, 99], memory := zeroMemory, frames := [], advice := [] }
-  let r := exec 2 s proc
+  let s : Concrete.State := { stack := [10, 20, 30, 40, 99], memory := zeroMemory, frames := [], advice := [] }
+  let r := execProcedure emptyEnv 2 s proc
   -- After frame alloc, store, load, and frame dealloc: stack should be preserved
   unless checkStack r [10, 20, 30, 40, 99] do panic! "frame alloc: round-trip failed"
   -- frames should be restored to empty after procedure returns
@@ -1238,29 +1238,29 @@ private def u32max : Nat := 2^32
 -- Tier 3: Nested Exec / Frame Isolation (AC-15 / AC-12)
 -- ============================================================================
 
--- Nested exec: inner procedure gets its own frame
+-- Nested execProcedure emptyEnv: inner procedure gets its own frame
 #eval do
   -- Inner procedure: stores word to locals[0..3], reads it back
   let inner : Procedure := { name := "inner", numLocals := 4, body := [
     .inst (.locStorewBe 0),
     .inst (.locLoadwBe 0)
   ]}
-  -- Outer procedure: calls inner via exec
+  -- Outer procedure: calls inner via execProcedure emptyEnv
   let outer : Procedure := { name := "outer", numLocals := 8, body := [
     .inst (.locStorewBe 0),  -- store to outer's locals
     .inst (.exec "inner")    -- call inner (which stores to inner's locals)
   ]}
   let env : ProcEnv := fun name => if name == "inner" then some inner else none
-  let s : MidenState := { stack := [1, 2, 3, 4, 99], memory := zeroMemory, frames := [], advice := [] }
-  let r := execWithEnv env 5 s outer
+  let s : Concrete.State := { stack := [1, 2, 3, 4, 99], memory := zeroMemory, frames := [], advice := [] }
+  let r := execProcedure env 5 s outer
   -- After outer returns, frames should be empty
   match r with
   | some s' =>
-    unless s'.frames == [] do panic! "nested exec: frames not restored"
-    unless s'.stack == [1, 2, 3, 4, 99] do panic! "nested exec: stack wrong"
-  | none => panic! "nested exec: should succeed"
+    unless s'.frames == [] do panic! "nested execProcedure emptyEnv: frames not restored"
+    unless s'.stack == [1, 2, 3, 4, 99] do panic! "nested execProcedure emptyEnv: stack wrong"
+  | none => panic! "nested execProcedure emptyEnv: should succeed"
 
--- Nested exec: inner procedure's locals don't overwrite outer's locals
+-- Nested execProcedure emptyEnv: inner procedure's locals don't overwrite outer's locals
 #eval do
   let inner : Procedure := { name := "inner", numLocals := 4, body := [
     .inst (.push 77), .inst (.push 88), .inst (.push 99), .inst (.push 66),
@@ -1273,8 +1273,8 @@ private def u32max : Nat := 2^32
     .inst (.locLoadwBe 0)    -- read back outer's locals - should be unchanged
   ]}
   let env : ProcEnv := fun name => if name == "inner" then some inner else none
-  let s : MidenState := { stack := [10, 20, 30, 40, 99], memory := zeroMemory, frames := [], advice := [] }
-  let r := execWithEnv env 15 s outer
+  let s : Concrete.State := { stack := [10, 20, 30, 40, 99], memory := zeroMemory, frames := [], advice := [] }
+  let r := execProcedure env 15 s outer
   match r with
   | some s' =>
     -- After outer reads back its locals, stack should be [10, 20, 30, 40, 99]
@@ -1286,8 +1286,8 @@ private def u32max : Nat := 2^32
   let proc : Procedure := { name := "nop_proc", numLocals := 0, body := [
     .inst (.push 42)
   ]}
-  let s : MidenState := { stack := [99], memory := zeroMemory, frames := [], advice := [] }
-  let r := exec 2 s proc
+  let s : Concrete.State := { stack := [99], memory := zeroMemory, frames := [], advice := [] }
+  let r := execProcedure emptyEnv 2 s proc
   match r with
   | some s' =>
     unless s'.frames == [] do panic! "numLocals=0: frames should stay empty"
@@ -1308,8 +1308,8 @@ private def u32max : Nat := 2^32
   -- So p1.locaddr(0) = LOCAL_MEM_BASE + 4 = 2^31 + 4
   -- And p2.locaddr(0) = LOCAL_MEM_BASE + 0 = 2^31
   let env : ProcEnv := fun name => if name == "p1" then some proc1 else none
-  let s : MidenState := { stack := [99], memory := zeroMemory, frames := [], advice := [] }
-  let r := execWithEnv env 5 s proc2
+  let s : Concrete.State := { stack := [99], memory := zeroMemory, frames := [], advice := [] }
+  let r := execProcedure env 5 s proc2
   match r with
   | some s' =>
     -- Stack should be [LOCAL_MEM_BASE + 0, LOCAL_MEM_BASE + 4, 99]

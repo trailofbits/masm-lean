@@ -17,11 +17,11 @@ set_option maxHeartbeats 8000000 in
     Input stack:  [a, b, c] ++ rest
     Output stack: [sorry] ++ rest -/
 theorem u64_shr_correct
-    (a b c : Felt) (rest : List Felt) (s : MidenState)
+    (a b c : Felt) (rest : List Felt) (s : Concrete.State)
     (hs : s.stack = a :: b :: c :: rest)
     (hc_leq63 : c.val ≤ 63)  -- from pow2 at instruction 2
     :
-    exec 42 s Miden.Core.U64.shr =
+    execProcedure emptyEnv 42 s Miden.Core.U64.shr =
     some (s.withStack (sorry :: rest))  -- TODO: specify output
     := by
   -- Chunked/manual scaffold: fill chunk lemmas or manual proof here.

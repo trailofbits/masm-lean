@@ -8,7 +8,7 @@ open MidenLean.StepLemmas
 open MidenLean.Tactics
 
 private theorem u32Assert2_isU32 {a b : Felt} {rest : List Felt} {mem : Nat → Felt}
-    {frames : List LocalFrame} {adv : List Felt} {s' : MidenState}
+    {frames : List LocalFrame} {adv : List Felt} {s' : Concrete.State}
     (h : execInstruction ⟨a :: b :: rest, mem, frames, adv⟩ .u32Assert2 = some s') :
     a.isU32 = true ∧ b.isU32 = true ∧ s' = ⟨a :: b :: rest, mem, frames, adv⟩ := by
   unfold execInstruction execU32Assert2 at h
@@ -20,8 +20,8 @@ private theorem u32Assert2_isU32 {a b : Felt} {rest : List Felt} {mem : Nat → 
     exact ⟨decide_eq_true_eq.mpr hcond.2, decide_eq_true_eq.mpr hcond.1, h.symm⟩
   · simp at h
 
-private theorem bind_some_eq {x : Option MidenState} {f : MidenState → Option MidenState}
-    {b : MidenState} (h : (x >>= f) = some b) : ∃ a, x = some a ∧ f a = some b := by
+private theorem bind_some_eq {x : Option Concrete.State} {f : Concrete.State → Option Concrete.State}
+    {b : Concrete.State} (h : (x >>= f) = some b) : ∃ a, x = some a ∧ f a = some b := by
   simp only [bind, Bind.bind, Option.bind] at h
   split at h
   · simp at h
@@ -31,21 +31,21 @@ private theorem movup3_concrete (a b c d : Felt) (rest : List Felt) (mem : Nat �
     execInstruction ⟨a :: b :: c :: d :: rest, mem, frames, adv⟩ (.movup 3) =
     some ⟨d :: a :: b :: c :: rest, mem, frames, adv⟩ := by
   unfold execInstruction execMovup removeNth
-  simp [MidenState.withStack]
+  simp [Concrete.State.withStack]
 
 set_option maxHeartbeats 16000000 in
 /-- `u64::u32assert4` succeeds and leaves the stack unchanged iff all four
     top elements are u32 values. -/
 theorem u64_u32assert4_correct
-    (a b c d : Felt) (rest : List Felt) (s : MidenState)
+    (a b c d : Felt) (rest : List Felt) (s : Concrete.State)
     (hs : s.stack = a :: b :: c :: d :: rest) :
-    exec 10 s Miden.Core.U64.u32assert4 =
+    execProcedure emptyEnv 10 s Miden.Core.U64.u32assert4 =
     some (s.withStack (a :: b :: c :: d :: rest)) ↔
     (a.isU32 = true ∧ b.isU32 = true ∧ c.isU32 = true ∧ d.isU32 = true) := by
   obtain ⟨stk, mem, frames, adv⟩ := s
-  simp only [MidenState.withStack] at hs ⊢
+  simp only [Concrete.State.withStack] at hs ⊢
   subst hs
-  unfold exec Miden.Core.U64.u32assert4 execWithEnv
+  unfold Miden.Core.U64.u32assert4 execProcedure
   simp only [List.foldlM]
   change (do
     let s' ← execInstruction ⟨a :: b :: c :: d :: rest, mem, frames, adv⟩ .u32Assert2

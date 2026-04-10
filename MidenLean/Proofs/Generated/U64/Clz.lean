@@ -17,10 +17,10 @@ set_option maxHeartbeats 4000000 in
     Input stack:  [a, b] ++ rest
     Output stack: [sorry] ++ rest -/
 theorem u64_clz_correct
-    (a b : Felt) (rest : List Felt) (s : MidenState)
+    (a b : Felt) (rest : List Felt) (s : Concrete.State)
     (hs : s.stack = a :: b :: rest)
     :
-    exec 14 s Miden.Core.U64.clz =
+    execProcedure emptyEnv 14 s Miden.Core.U64.clz =
     some (s.withStack (sorry :: rest))  -- TODO: specify output
     := by
   -- Chunked/manual scaffold: fill chunk lemmas or manual proof here.

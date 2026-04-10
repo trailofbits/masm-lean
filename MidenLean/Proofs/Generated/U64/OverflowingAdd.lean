@@ -17,13 +17,13 @@ set_option maxHeartbeats 4000000 in
     Input stack:  [a, b, c, d] ++ rest
     Output stack: [sorry] ++ rest -/
 theorem u64_overflowing_add_correct
-    (a b c d : Felt) (rest : List Felt) (s : MidenState)
+    (a b c d : Felt) (rest : List Felt) (s : Concrete.State)
     (hs : s.stack = a :: b :: c :: d :: rest)
     (hb_u32 : b.isU32 = true)  -- from u32WidenAdd at instruction 1
     (hc_u32 : c.isU32 = true)  -- from u32WidenAdd3 at instruction 3
     (hd_u32 : d.isU32 = true)  -- from u32WidenAdd at instruction 1
     :
-    exec 10 s Miden.Core.U64.overflowing_add =
+    execProcedure emptyEnv 10 s Miden.Core.U64.overflowing_add =
     some (s.withStack (sorry :: rest))  -- TODO: specify output
     := by
   miden_setup Miden.Core.U64.overflowing_add

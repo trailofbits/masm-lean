@@ -96,7 +96,7 @@ theorem feltOfNat_val_small (n : Nat) (hn : n ≤ 31) :
 -- Simple stack ops (no preconditions, pure stack transformation)
 
 theorem execInstruction_sound_nop
-    (ss : State) (cs : MidenState)
+    (ss : State) (cs : Concrete.State)
     (σ : Assignment) (rest : List Felt)
     (ss' : State) (preconds : List Precondition)
     (hmodels : ss.models cs σ rest)
@@ -111,7 +111,7 @@ theorem execInstruction_sound_nop
     hstack, hmem, hframes, hadv⟩
 
 theorem execInstruction_sound_padw
-    (ss : State) (cs : MidenState)
+    (ss : State) (cs : Concrete.State)
     (σ : Assignment) (rest : List Felt)
     (ss' : State) (preconds : List Precondition)
     (hmodels : ss.models cs σ rest)
@@ -122,12 +122,12 @@ theorem execInstruction_sound_padw
   simp only [execInstruction] at hexec
   obtain ⟨rfl, rfl⟩ := Prod.mk.inj (Option.some.inj hexec)
   exact ⟨cs.withStack (0 :: 0 :: 0 :: 0 :: cs.stack),
-    by simp only [MidenLean.execInstruction, execPadw, hstack, MidenState.withStack],
-    ⟨by simp only [MidenState.withStack, List.map_cons, Expr.eval, hstack,
+    by simp only [MidenLean.execInstruction, execPadw, hstack, Concrete.State.withStack],
+    ⟨by simp only [Concrete.State.withStack, List.map_cons, Expr.eval, hstack,
          List.cons_append], hmem, hframes, hadv⟩⟩
 
 theorem execInstruction_sound_push
-    (v : Felt) (ss : State) (cs : MidenState)
+    (v : Felt) (ss : State) (cs : Concrete.State)
     (σ : Assignment) (rest : List Felt)
     (ss' : State) (preconds : List Precondition)
     (hmodels : ss.models cs σ rest)
@@ -138,12 +138,12 @@ theorem execInstruction_sound_push
   simp only [execInstruction] at hexec
   obtain ⟨rfl, rfl⟩ := Prod.mk.inj (Option.some.inj hexec)
   exact ⟨cs.withStack (v :: cs.stack),
-    by simp only [MidenLean.execInstruction, execPush, hstack, MidenState.withStack],
-    ⟨by simp only [MidenState.withStack, List.map_cons, Expr.eval, hstack,
+    by simp only [MidenLean.execInstruction, execPush, hstack, Concrete.State.withStack],
+    ⟨by simp only [Concrete.State.withStack, List.map_cons, Expr.eval, hstack,
          List.cons_append], hmem, hframes, hadv⟩⟩
 
 theorem execInstruction_sound_pushList
-    (vs : List Felt) (ss : State) (cs : MidenState)
+    (vs : List Felt) (ss : State) (cs : Concrete.State)
     (σ : Assignment) (rest : List Felt)
     (ss' : State) (preconds : List Precondition)
     (hmodels : ss.models cs σ rest)
@@ -154,11 +154,11 @@ theorem execInstruction_sound_pushList
   simp only [execInstruction] at hexec
   obtain ⟨rfl, rfl⟩ := Prod.mk.inj (Option.some.inj hexec)
   exact ⟨cs.withStack (vs ++ cs.stack),
-    by simp only [MidenLean.execInstruction, execPushList, hstack, MidenState.withStack],
-    ⟨by simp only [MidenState.withStack, List.map_append, hstack, List.append_assoc]; congr 1; exact (map_lit_map_eval σ vs).symm, hmem, hframes, hadv⟩⟩
+    by simp only [MidenLean.execInstruction, execPushList, hstack, Concrete.State.withStack],
+    ⟨by simp only [Concrete.State.withStack, List.map_append, hstack, List.append_assoc]; congr 1; exact (map_lit_map_eval σ vs).symm, hmem, hframes, hadv⟩⟩
 
 theorem execInstruction_sound_dropw
-    (ss : State) (cs : MidenState)
+    (ss : State) (cs : Concrete.State)
     (σ : Assignment) (rest : List Felt)
     (ss' : State) (preconds : List Precondition)
     (hmodels : ss.models cs σ rest)
@@ -175,10 +175,10 @@ theorem execInstruction_sound_dropw
     rw [hstk, List.map_cons, List.map_cons, List.map_cons, List.map_cons] at hstack
     exact ⟨cs.withStack (tail.map (Expr.eval σ) ++ rest),
       by simp only [MidenLean.execInstruction, execDropw, hstack]; rfl,
-      ⟨by simp only [MidenState.withStack], hmem, hframes, hadv⟩⟩
+      ⟨by simp only [Concrete.State.withStack], hmem, hframes, hadv⟩⟩
 
 theorem execInstruction_sound_swapdw
-    (ss : State) (cs : MidenState)
+    (ss : State) (cs : Concrete.State)
     (σ : Assignment) (rest : List Felt)
     (ss' : State) (preconds : List Precondition)
     (hmodels : ss.models cs σ rest)
@@ -198,8 +198,8 @@ theorem execInstruction_sound_swapdw
                         a0.eval σ::a1.eval σ::a2.eval σ::a3.eval σ::
                         b0.eval σ::b1.eval σ::b2.eval σ::b3.eval σ::
                         tail.map (Expr.eval σ) ++ rest),
-      by simp only [MidenLean.execInstruction, execSwapdw, hstack, MidenState.withStack]; rfl,
-      ⟨by simp only [MidenState.withStack, List.map_cons], hmem, hframes, hadv⟩⟩
+      by simp only [MidenLean.execInstruction, execSwapdw, hstack, Concrete.State.withStack]; rfl,
+      ⟨by simp only [Concrete.State.withStack, List.map_cons], hmem, hframes, hadv⟩⟩
   | _ =>
     split at hexec
     · -- overlap: the 16+ element pattern matched both arms; proceed like the main case
@@ -212,12 +212,12 @@ theorem execInstruction_sound_swapdw
                             a0.eval σ::a1.eval σ::a2.eval σ::a3.eval σ::
                             b0.eval σ::b1.eval σ::b2.eval σ::b3.eval σ::
                             tail.map (Expr.eval σ) ++ rest),
-        by simp only [MidenLean.execInstruction, execSwapdw, hstack, MidenState.withStack]; rfl,
-        ⟨by simp only [MidenState.withStack, List.map_cons], hmem, hframes, hadv⟩⟩
+        by simp only [MidenLean.execInstruction, execSwapdw, hstack, Concrete.State.withStack]; rfl,
+        ⟨by simp only [Concrete.State.withStack, List.map_cons], hmem, hframes, hadv⟩⟩
     · simp at hexec
 
 theorem execInstruction_sound_reversew
-    (ss : State) (cs : MidenState)
+    (ss : State) (cs : Concrete.State)
     (σ : Assignment) (rest : List Felt)
     (ss' : State) (preconds : List Precondition)
     (hmodels : ss.models cs σ rest)
@@ -235,10 +235,10 @@ theorem execInstruction_sound_reversew
     exact ⟨cs.withStack (d.eval σ :: c.eval σ :: b.eval σ :: a.eval σ ::
                           tail.map (Expr.eval σ) ++ rest),
       by simp only [MidenLean.execInstruction, execReversew, hstack]; rfl,
-      ⟨by simp only [MidenState.withStack, List.map_cons], hmem, hframes, hadv⟩⟩
+      ⟨by simp only [Concrete.State.withStack, List.map_cons], hmem, hframes, hadv⟩⟩
 
 theorem execInstruction_sound_addImm
-    (v : Felt) (ss : State) (cs : MidenState)
+    (v : Felt) (ss : State) (cs : Concrete.State)
     (σ : Assignment) (rest : List Felt)
     (ss' : State) (preconds : List Precondition)
     (hmodels : ss.models cs σ rest)
@@ -255,10 +255,10 @@ theorem execInstruction_sound_addImm
     rw [hstk, List.map_cons] at hstack
     exact ⟨cs.withStack ((a.eval σ + v) :: tail.map (Expr.eval σ) ++ rest),
       by simp only [MidenLean.execInstruction, execAddImm, hstack]; rfl,
-      ⟨by simp only [MidenState.withStack, List.map_cons, Expr.eval], hmem, hframes, hadv⟩⟩
+      ⟨by simp only [Concrete.State.withStack, List.map_cons, Expr.eval], hmem, hframes, hadv⟩⟩
 
 theorem execInstruction_sound_subImm
-    (v : Felt) (ss : State) (cs : MidenState)
+    (v : Felt) (ss : State) (cs : Concrete.State)
     (σ : Assignment) (rest : List Felt)
     (ss' : State) (preconds : List Precondition)
     (hmodels : ss.models cs σ rest)
@@ -275,10 +275,10 @@ theorem execInstruction_sound_subImm
     rw [hstk, List.map_cons] at hstack
     exact ⟨cs.withStack ((a.eval σ - v) :: tail.map (Expr.eval σ) ++ rest),
       by simp only [MidenLean.execInstruction, execSubImm, hstack]; rfl,
-      ⟨by simp only [MidenState.withStack, List.map_cons, Expr.eval], hmem, hframes, hadv⟩⟩
+      ⟨by simp only [Concrete.State.withStack, List.map_cons, Expr.eval], hmem, hframes, hadv⟩⟩
 
 theorem execInstruction_sound_mulImm
-    (v : Felt) (ss : State) (cs : MidenState)
+    (v : Felt) (ss : State) (cs : Concrete.State)
     (σ : Assignment) (rest : List Felt)
     (ss' : State) (preconds : List Precondition)
     (hmodels : ss.models cs σ rest)
@@ -295,10 +295,10 @@ theorem execInstruction_sound_mulImm
     rw [hstk, List.map_cons] at hstack
     exact ⟨cs.withStack ((a.eval σ * v) :: tail.map (Expr.eval σ) ++ rest),
       by simp only [MidenLean.execInstruction, execMulImm, hstack]; rfl,
-      ⟨by simp only [MidenState.withStack, List.map_cons, Expr.eval], hmem, hframes, hadv⟩⟩
+      ⟨by simp only [Concrete.State.withStack, List.map_cons, Expr.eval], hmem, hframes, hadv⟩⟩
 
 theorem execInstruction_sound_neg
-    (ss : State) (cs : MidenState)
+    (ss : State) (cs : Concrete.State)
     (σ : Assignment) (rest : List Felt)
     (ss' : State) (preconds : List Precondition)
     (hmodels : ss.models cs σ rest)
@@ -315,10 +315,10 @@ theorem execInstruction_sound_neg
     rw [hstk, List.map_cons] at hstack
     exact ⟨cs.withStack (-(a.eval σ) :: tail.map (Expr.eval σ) ++ rest),
       by simp only [MidenLean.execInstruction, execNeg, hstack]; rfl,
-      ⟨by simp only [MidenState.withStack, List.map_cons, Expr.eval], hmem, hframes, hadv⟩⟩
+      ⟨by simp only [Concrete.State.withStack, List.map_cons, Expr.eval], hmem, hframes, hadv⟩⟩
 
 theorem execInstruction_sound_incr
-    (ss : State) (cs : MidenState)
+    (ss : State) (cs : Concrete.State)
     (σ : Assignment) (rest : List Felt)
     (ss' : State) (preconds : List Precondition)
     (hmodels : ss.models cs σ rest)
@@ -335,10 +335,10 @@ theorem execInstruction_sound_incr
     rw [hstk, List.map_cons] at hstack
     exact ⟨cs.withStack ((a.eval σ + 1) :: tail.map (Expr.eval σ) ++ rest),
       by simp only [MidenLean.execInstruction, execIncr, hstack]; rfl,
-      ⟨by simp only [MidenState.withStack, List.map_cons, Expr.eval], hmem, hframes, hadv⟩⟩
+      ⟨by simp only [Concrete.State.withStack, List.map_cons, Expr.eval], hmem, hframes, hadv⟩⟩
 
 theorem execInstruction_sound_eqImm
-    (v : Felt) (ss : State) (cs : MidenState)
+    (v : Felt) (ss : State) (cs : Concrete.State)
     (σ : Assignment) (rest : List Felt)
     (ss' : State) (preconds : List Precondition)
     (hmodels : ss.models cs σ rest)
@@ -356,10 +356,10 @@ theorem execInstruction_sound_eqImm
     exact ⟨cs.withStack ((if a.eval σ == v then (1 : Felt) else 0) ::
                           tail.map (Expr.eval σ) ++ rest),
       by simp only [MidenLean.execInstruction, execEqImm, hstack]; rfl,
-      ⟨by simp only [MidenState.withStack, List.map_cons, Expr.eval], hmem, hframes, hadv⟩⟩
+      ⟨by simp only [Concrete.State.withStack, List.map_cons, Expr.eval], hmem, hframes, hadv⟩⟩
 
 theorem execInstruction_sound_neq
-    (ss : State) (cs : MidenState)
+    (ss : State) (cs : Concrete.State)
     (σ : Assignment) (rest : List Felt)
     (ss' : State) (preconds : List Precondition)
     (hmodels : ss.models cs σ rest)
@@ -377,10 +377,10 @@ theorem execInstruction_sound_neq
     refine ⟨cs.withStack ((if a.eval σ != b.eval σ then (1 : Felt) else 0) ::
                            tail.map (Expr.eval σ) ++ rest), ?_, ?_⟩
     · simp only [MidenLean.execInstruction, execNeq, hstack]; rfl
-    · exact ⟨by simp only [MidenState.withStack, List.map_cons, Expr.eval]; congr 1; congr 1; exact bne_if_eq_if (a.eval σ) (b.eval σ) 1 0, hmem, hframes, hadv⟩
+    · exact ⟨by simp only [Concrete.State.withStack, List.map_cons, Expr.eval]; congr 1; congr 1; exact bne_if_eq_if (a.eval σ) (b.eval σ) 1 0, hmem, hframes, hadv⟩
 
 theorem execInstruction_sound_neqImm
-    (v : Felt) (ss : State) (cs : MidenState)
+    (v : Felt) (ss : State) (cs : Concrete.State)
     (σ : Assignment) (rest : List Felt)
     (ss' : State) (preconds : List Precondition)
     (hmodels : ss.models cs σ rest)
@@ -398,10 +398,10 @@ theorem execInstruction_sound_neqImm
     refine ⟨cs.withStack ((if a.eval σ != v then (1 : Felt) else 0) ::
                            tail.map (Expr.eval σ) ++ rest), ?_, ?_⟩
     · simp only [MidenLean.execInstruction, execNeqImm, hstack]; rfl
-    · exact ⟨by simp only [MidenState.withStack, List.map_cons, Expr.eval]; congr 1; congr 1; exact bne_if_eq_if (a.eval σ) v 1 0, hmem, hframes, hadv⟩
+    · exact ⟨by simp only [Concrete.State.withStack, List.map_cons, Expr.eval]; congr 1; congr 1; exact bne_if_eq_if (a.eval σ) v 1 0, hmem, hframes, hadv⟩
 
 theorem execInstruction_sound_lt
-    (ss : State) (cs : MidenState)
+    (ss : State) (cs : Concrete.State)
     (σ : Assignment) (rest : List Felt)
     (ss' : State) (preconds : List Precondition)
     (hmodels : ss.models cs σ rest)
@@ -419,10 +419,10 @@ theorem execInstruction_sound_lt
     exact ⟨cs.withStack ((if (a.eval σ).val < (b.eval σ).val then (1 : Felt) else 0) ::
                           tail.map (Expr.eval σ) ++ rest),
       by simp only [MidenLean.execInstruction, execLt, hstack]; rfl,
-      ⟨by simp only [MidenState.withStack, List.map_cons, Expr.eval], hmem, hframes, hadv⟩⟩
+      ⟨by simp only [Concrete.State.withStack, List.map_cons, Expr.eval], hmem, hframes, hadv⟩⟩
 
 theorem execInstruction_sound_lte
-    (ss : State) (cs : MidenState)
+    (ss : State) (cs : Concrete.State)
     (σ : Assignment) (rest : List Felt)
     (ss' : State) (preconds : List Precondition)
     (hmodels : ss.models cs σ rest)
@@ -440,10 +440,10 @@ theorem execInstruction_sound_lte
     exact ⟨cs.withStack ((if (a.eval σ).val ≤ (b.eval σ).val then (1 : Felt) else 0) ::
                           tail.map (Expr.eval σ) ++ rest),
       by simp only [MidenLean.execInstruction, execLte, hstack]; rfl,
-      ⟨by simp only [MidenState.withStack, List.map_cons, Expr.eval], hmem, hframes, hadv⟩⟩
+      ⟨by simp only [Concrete.State.withStack, List.map_cons, Expr.eval], hmem, hframes, hadv⟩⟩
 
 theorem execInstruction_sound_gt
-    (ss : State) (cs : MidenState)
+    (ss : State) (cs : Concrete.State)
     (σ : Assignment) (rest : List Felt)
     (ss' : State) (preconds : List Precondition)
     (hmodels : ss.models cs σ rest)
@@ -461,10 +461,10 @@ theorem execInstruction_sound_gt
     exact ⟨cs.withStack ((if (a.eval σ).val > (b.eval σ).val then (1 : Felt) else 0) ::
                           tail.map (Expr.eval σ) ++ rest),
       by simp only [MidenLean.execInstruction, execGt, hstack]; rfl,
-      ⟨by simp only [MidenState.withStack, List.map_cons, Expr.eval], hmem, hframes, hadv⟩⟩
+      ⟨by simp only [Concrete.State.withStack, List.map_cons, Expr.eval], hmem, hframes, hadv⟩⟩
 
 theorem execInstruction_sound_gte
-    (ss : State) (cs : MidenState)
+    (ss : State) (cs : Concrete.State)
     (σ : Assignment) (rest : List Felt)
     (ss' : State) (preconds : List Precondition)
     (hmodels : ss.models cs σ rest)
@@ -482,10 +482,10 @@ theorem execInstruction_sound_gte
     exact ⟨cs.withStack ((if (a.eval σ).val ≥ (b.eval σ).val then (1 : Felt) else 0) ::
                           tail.map (Expr.eval σ) ++ rest),
       by simp only [MidenLean.execInstruction, execGte, hstack]; rfl,
-      ⟨by simp only [MidenState.withStack, List.map_cons, Expr.eval], hmem, hframes, hadv⟩⟩
+      ⟨by simp only [Concrete.State.withStack, List.map_cons, Expr.eval], hmem, hframes, hadv⟩⟩
 
 theorem execInstruction_sound_isOdd
-    (ss : State) (cs : MidenState)
+    (ss : State) (cs : Concrete.State)
     (σ : Assignment) (rest : List Felt)
     (ss' : State) (preconds : List Precondition)
     (hmodels : ss.models cs σ rest)
@@ -503,10 +503,10 @@ theorem execInstruction_sound_isOdd
     exact ⟨cs.withStack ((if (a.eval σ).val % 2 == 1 then (1 : Felt) else 0) ::
                           tail.map (Expr.eval σ) ++ rest),
       by simp only [MidenLean.execInstruction, execIsOdd, hstack]; rfl,
-      ⟨by simp only [MidenState.withStack, List.map_cons, Expr.eval], hmem, hframes, hadv⟩⟩
+      ⟨by simp only [Concrete.State.withStack, List.map_cons, Expr.eval], hmem, hframes, hadv⟩⟩
 
 theorem execInstruction_sound_u32Cast
-    (ss : State) (cs : MidenState)
+    (ss : State) (cs : Concrete.State)
     (σ : Assignment) (rest : List Felt)
     (ss' : State) (preconds : List Precondition)
     (hmodels : ss.models cs σ rest)
@@ -524,11 +524,11 @@ theorem execInstruction_sound_u32Cast
     refine ⟨cs.withStack ((a.eval σ).lo32 :: tail.map (Expr.eval σ) ++ rest), ?_, ?_⟩
     · change execU32Cast cs = _
       unfold execU32Cast
-      rw [hstack]; simp [MidenState.withStack]
-    · exact ⟨by simp only [MidenState.withStack, List.map_cons, Expr.eval], hmem, hframes, hadv⟩
+      rw [hstack]; simp [Concrete.State.withStack]
+    · exact ⟨by simp only [Concrete.State.withStack, List.map_cons, Expr.eval], hmem, hframes, hadv⟩
 
 theorem execInstruction_sound_u32Split
-    (ss : State) (cs : MidenState)
+    (ss : State) (cs : Concrete.State)
     (σ : Assignment) (rest : List Felt)
     (ss' : State) (preconds : List Precondition)
     (hmodels : ss.models cs σ rest)
@@ -546,13 +546,13 @@ theorem execInstruction_sound_u32Split
     refine ⟨cs.withStack ((a.eval σ).lo32 :: (a.eval σ).hi32 :: tail.map (Expr.eval σ) ++ rest), ?_, ?_⟩
     · change execU32Split cs = _
       unfold execU32Split
-      rw [hstack]; simp [MidenState.withStack]
-    · exact ⟨by simp only [MidenState.withStack, List.map_cons, Expr.eval,
+      rw [hstack]; simp [Concrete.State.withStack]
+    · exact ⟨by simp only [Concrete.State.withStack, List.map_cons, Expr.eval,
           List.cons_append], hmem, hframes, hadv⟩
 
 set_option maxHeartbeats 400000 in
 theorem execInstruction_sound_eqw
-    (ss : State) (cs : MidenState)
+    (ss : State) (cs : Concrete.State)
     (σ : Assignment) (rest : List Felt)
     (ss' : State) (preconds : List Precondition)
     (hmodels : ss.models cs σ rest)
@@ -578,15 +578,15 @@ theorem execInstruction_sound_eqw
                            :: tail.map (Expr.eval σ) ++ rest), ?_, ?_⟩
     · change execEqw cs = _
       unfold execEqw
-      rw [hstack]; simp [MidenState.withStack]
-    · exact ⟨by simp only [MidenState.withStack, List.map_cons, Expr.eval,
+      rw [hstack]; simp [Concrete.State.withStack]
+    · exact ⟨by simp only [Concrete.State.withStack, List.map_cons, Expr.eval,
           List.cons_append], hmem, hframes, hadv⟩
 
 
 -- Assertion ops (state-preserving, precondition-guarded assertions)
 
 theorem execInstruction_sound_assert
-    (ss : State) (cs : MidenState)
+    (ss : State) (cs : Concrete.State)
     (σ : Assignment) (rest : List Felt)
     (ss' : State) (preconds : List Precondition)
     (hmodels : ss.models cs σ rest)
@@ -607,12 +607,12 @@ theorem execInstruction_sound_assert
     refine ⟨cs.withStack (tail.map (Expr.eval σ) ++ rest), ?_, ?_⟩
     · change execAssert cs = _
       unfold execAssert
-      rw [hstack]; simp [hguard, MidenState.withStack]
-    · exact ⟨by simp only [MidenState.withStack], hmem, hframes, hadv⟩
+      rw [hstack]; simp [hguard, Concrete.State.withStack]
+    · exact ⟨by simp only [Concrete.State.withStack], hmem, hframes, hadv⟩
 
 
 theorem execInstruction_sound_assertWithError
-    (msg : String) (ss : State) (cs : MidenState)
+    (msg : String) (ss : State) (cs : Concrete.State)
     (σ : Assignment) (rest : List Felt)
     (ss' : State) (preconds : List Precondition)
     (hmodels : ss.models cs σ rest)
@@ -633,11 +633,11 @@ theorem execInstruction_sound_assertWithError
     refine ⟨cs.withStack (tail.map (Expr.eval σ) ++ rest), ?_, ?_⟩
     · change execAssert cs = _
       unfold execAssert
-      rw [hstack]; simp [hguard, MidenState.withStack]
-    · exact ⟨by simp only [MidenState.withStack], hmem, hframes, hadv⟩
+      rw [hstack]; simp [hguard, Concrete.State.withStack]
+    · exact ⟨by simp only [Concrete.State.withStack], hmem, hframes, hadv⟩
 
 theorem execInstruction_sound_assertz
-    (ss : State) (cs : MidenState)
+    (ss : State) (cs : Concrete.State)
     (σ : Assignment) (rest : List Felt)
     (ss' : State) (preconds : List Precondition)
     (hmodels : ss.models cs σ rest)
@@ -658,11 +658,11 @@ theorem execInstruction_sound_assertz
     refine ⟨cs.withStack (tail.map (Expr.eval σ) ++ rest), ?_, ?_⟩
     · change execAssertz cs = _
       unfold execAssertz
-      rw [hstack]; simp [hguard, MidenState.withStack]
-    · exact ⟨by simp only [MidenState.withStack], hmem, hframes, hadv⟩
+      rw [hstack]; simp [hguard, Concrete.State.withStack]
+    · exact ⟨by simp only [Concrete.State.withStack], hmem, hframes, hadv⟩
 
 theorem execInstruction_sound_assertzWithError
-    (msg : String) (ss : State) (cs : MidenState)
+    (msg : String) (ss : State) (cs : Concrete.State)
     (σ : Assignment) (rest : List Felt)
     (ss' : State) (preconds : List Precondition)
     (hmodels : ss.models cs σ rest)
@@ -683,11 +683,11 @@ theorem execInstruction_sound_assertzWithError
     refine ⟨cs.withStack (tail.map (Expr.eval σ) ++ rest), ?_, ?_⟩
     · change execAssertz cs = _
       unfold execAssertz
-      rw [hstack]; simp [hguard, MidenState.withStack]
-    · exact ⟨by simp only [MidenState.withStack], hmem, hframes, hadv⟩
+      rw [hstack]; simp [hguard, Concrete.State.withStack]
+    · exact ⟨by simp only [Concrete.State.withStack], hmem, hframes, hadv⟩
 
 theorem execInstruction_sound_assertEq
-    (ss : State) (cs : MidenState)
+    (ss : State) (cs : Concrete.State)
     (σ : Assignment) (rest : List Felt)
     (ss' : State) (preconds : List Precondition)
     (hmodels : ss.models cs σ rest)
@@ -708,11 +708,11 @@ theorem execInstruction_sound_assertEq
     refine ⟨cs.withStack (tail.map (Expr.eval σ) ++ rest), ?_, ?_⟩
     · change execAssertEq cs = _
       unfold execAssertEq
-      rw [hstack]; simp [hguard, MidenState.withStack]
-    · exact ⟨by simp only [MidenState.withStack], hmem, hframes, hadv⟩
+      rw [hstack]; simp [hguard, Concrete.State.withStack]
+    · exact ⟨by simp only [Concrete.State.withStack], hmem, hframes, hadv⟩
 
 theorem execInstruction_sound_assertEqWithError
-    (msg : String) (ss : State) (cs : MidenState)
+    (msg : String) (ss : State) (cs : Concrete.State)
     (σ : Assignment) (rest : List Felt)
     (ss' : State) (preconds : List Precondition)
     (hmodels : ss.models cs σ rest)
@@ -733,12 +733,12 @@ theorem execInstruction_sound_assertEqWithError
     refine ⟨cs.withStack (tail.map (Expr.eval σ) ++ rest), ?_, ?_⟩
     · change execAssertEq cs = _
       unfold execAssertEq
-      rw [hstack]; simp [hguard, MidenState.withStack]
-    · exact ⟨by simp only [MidenState.withStack], hmem, hframes, hadv⟩
+      rw [hstack]; simp [hguard, Concrete.State.withStack]
+    · exact ⟨by simp only [Concrete.State.withStack], hmem, hframes, hadv⟩
 
 set_option maxHeartbeats 400000 in
 theorem execInstruction_sound_assertEqw
-    (ss : State) (cs : MidenState)
+    (ss : State) (cs : Concrete.State)
     (σ : Assignment) (rest : List Felt)
     (ss' : State) (preconds : List Precondition)
     (hmodels : ss.models cs σ rest)
@@ -774,11 +774,11 @@ theorem execInstruction_sound_assertEqw
     refine ⟨cs.withStack (tail.map (Expr.eval σ) ++ rest), ?_, ?_⟩
     · change execAssertEqw cs = _
       unfold execAssertEqw
-      rw [hstack]; simp [hguard, MidenState.withStack]
-    · exact ⟨by simp only [MidenState.withStack], hmem, hframes, hadv⟩
+      rw [hstack]; simp [hguard, Concrete.State.withStack]
+    · exact ⟨by simp only [Concrete.State.withStack], hmem, hframes, hadv⟩
 
 theorem execInstruction_sound_u32Assert
-    (ss : State) (cs : MidenState)
+    (ss : State) (cs : Concrete.State)
     (σ : Assignment) (rest : List Felt)
     (ss' : State) (preconds : List Precondition)
     (hmodels : ss.models cs σ rest)
@@ -802,7 +802,7 @@ theorem execInstruction_sound_u32Assert
     · exact ⟨by simp only [hstk, hstack, List.map_cons], hmem, hframes, hadv⟩
 
 theorem execInstruction_sound_u32Assert2
-    (ss : State) (cs : MidenState)
+    (ss : State) (cs : Concrete.State)
     (σ : Assignment) (rest : List Felt)
     (ss' : State) (preconds : List Precondition)
     (hmodels : ss.models cs σ rest)
@@ -829,7 +829,7 @@ theorem execInstruction_sound_u32Assert2
     · exact ⟨by simp only [hstk, hstack, List.map_cons], hmem, hframes, hadv⟩
 
 theorem execInstruction_sound_u32AssertW
-    (ss : State) (cs : MidenState)
+    (ss : State) (cs : Concrete.State)
     (σ : Assignment) (rest : List Felt)
     (ss' : State) (preconds : List Precondition)
     (hmodels : ss.models cs σ rest)
@@ -866,7 +866,7 @@ theorem execInstruction_sound_u32AssertW
 -- 1. Boolean-guarded (isBool preconditions)
 
 theorem execInstruction_sound_or
-    (ss : State) (cs : MidenState)
+    (ss : State) (cs : Concrete.State)
     (σ : Assignment) (rest : List Felt)
     (ss' : State) (preconds : List Precondition)
     (hmodels : ss.models cs σ rest)
@@ -889,11 +889,11 @@ theorem execInstruction_sound_or
     refine ⟨cs.withStack ((a.eval σ + b.eval σ - a.eval σ * b.eval σ) :: tail.map (Expr.eval σ) ++ rest), ?_, ?_⟩
     · change execOr cs = _
       unfold execOr
-      rw [hstack]; simp [hguard, MidenState.withStack]
-    · exact ⟨by simp only [MidenState.withStack, List.map_cons, Expr.eval], hmem, hframes, hadv⟩
+      rw [hstack]; simp [hguard, Concrete.State.withStack]
+    · exact ⟨by simp only [Concrete.State.withStack, List.map_cons, Expr.eval], hmem, hframes, hadv⟩
 
 theorem execInstruction_sound_xor
-    (ss : State) (cs : MidenState)
+    (ss : State) (cs : Concrete.State)
     (σ : Assignment) (rest : List Felt)
     (ss' : State) (preconds : List Precondition)
     (hmodels : ss.models cs σ rest)
@@ -916,11 +916,11 @@ theorem execInstruction_sound_xor
     refine ⟨cs.withStack ((a.eval σ + b.eval σ - 2 * a.eval σ * b.eval σ) :: tail.map (Expr.eval σ) ++ rest), ?_, ?_⟩
     · change execXor cs = _
       unfold execXor
-      rw [hstack]; simp [hguard, MidenState.withStack]
-    · exact ⟨by simp only [MidenState.withStack, List.map_cons, Expr.eval], hmem, hframes, hadv⟩
+      rw [hstack]; simp [hguard, Concrete.State.withStack]
+    · exact ⟨by simp only [Concrete.State.withStack, List.map_cons, Expr.eval], hmem, hframes, hadv⟩
 
 theorem execInstruction_sound_not
-    (ss : State) (cs : MidenState)
+    (ss : State) (cs : Concrete.State)
     (σ : Assignment) (rest : List Felt)
     (ss' : State) (preconds : List Precondition)
     (hmodels : ss.models cs σ rest)
@@ -940,13 +940,13 @@ theorem execInstruction_sound_not
     refine ⟨cs.withStack ((1 - a.eval σ) :: tail.map (Expr.eval σ) ++ rest), ?_, ?_⟩
     · change execNot cs = _
       unfold execNot
-      rw [hstack]; simp [ha, MidenState.withStack]
-    · exact ⟨by simp only [MidenState.withStack, List.map_cons, Expr.eval], hmem, hframes, hadv⟩
+      rw [hstack]; simp [ha, Concrete.State.withStack]
+    · exact ⟨by simp only [Concrete.State.withStack, List.map_cons, Expr.eval], hmem, hframes, hadv⟩
 
 -- 2. Nonzero-guarded (nonzero precondition)
 
 theorem execInstruction_sound_div
-    (ss : State) (cs : MidenState)
+    (ss : State) (cs : Concrete.State)
     (σ : Assignment) (rest : List Felt)
     (ss' : State) (preconds : List Precondition)
     (hmodels : ss.models cs σ rest)
@@ -966,11 +966,11 @@ theorem execInstruction_sound_div
     refine ⟨cs.withStack ((a.eval σ * (b.eval σ)⁻¹) :: tail.map (Expr.eval σ) ++ rest), ?_, ?_⟩
     · change execDiv cs = _
       unfold execDiv
-      rw [hstack]; simp [hnz, MidenState.withStack]
-    · exact ⟨by simp only [MidenState.withStack, List.map_cons, Expr.eval], hmem, hframes, hadv⟩
+      rw [hstack]; simp [hnz, Concrete.State.withStack]
+    · exact ⟨by simp only [Concrete.State.withStack, List.map_cons, Expr.eval], hmem, hframes, hadv⟩
 
 theorem execInstruction_sound_divImm
-    (v : Felt) (ss : State) (cs : MidenState)
+    (v : Felt) (ss : State) (cs : Concrete.State)
     (σ : Assignment) (rest : List Felt)
     (ss' : State) (preconds : List Precondition)
     (hmodels : ss.models cs σ rest)
@@ -991,11 +991,11 @@ theorem execInstruction_sound_divImm
     refine ⟨cs.withStack ((a.eval σ * v⁻¹) :: tail.map (Expr.eval σ) ++ rest), ?_, ?_⟩
     · change execDivImm v cs = _
       unfold execDivImm
-      rw [hstack]; simp [hnz, MidenState.withStack]
-    · exact ⟨by simp only [MidenState.withStack, List.map_cons, Expr.eval], hmem, hframes, hadv⟩
+      rw [hstack]; simp [hnz, Concrete.State.withStack]
+    · exact ⟨by simp only [Concrete.State.withStack, List.map_cons, Expr.eval], hmem, hframes, hadv⟩
 
 theorem execInstruction_sound_inv
-    (ss : State) (cs : MidenState)
+    (ss : State) (cs : Concrete.State)
     (σ : Assignment) (rest : List Felt)
     (ss' : State) (preconds : List Precondition)
     (hmodels : ss.models cs σ rest)
@@ -1015,13 +1015,13 @@ theorem execInstruction_sound_inv
     refine ⟨cs.withStack ((a.eval σ)⁻¹ :: tail.map (Expr.eval σ) ++ rest), ?_, ?_⟩
     · change execInv cs = _
       unfold execInv
-      rw [hstack]; simp [hnz, MidenState.withStack]
-    · exact ⟨by simp only [MidenState.withStack, List.map_cons, Expr.eval], hmem, hframes, hadv⟩
+      rw [hstack]; simp [hnz, Concrete.State.withStack]
+    · exact ⟨by simp only [Concrete.State.withStack, List.map_cons, Expr.eval], hmem, hframes, hadv⟩
 
 -- 3. Value-bounded (valLeq precondition)
 
 theorem execInstruction_sound_pow2
-    (ss : State) (cs : MidenState)
+    (ss : State) (cs : Concrete.State)
     (σ : Assignment) (rest : List Felt)
     (ss' : State) (preconds : List Precondition)
     (hmodels : ss.models cs σ rest)
@@ -1042,13 +1042,13 @@ theorem execInstruction_sound_pow2
     refine ⟨cs.withStack (Felt.ofNat (2 ^ (a.eval σ).val) :: tail.map (Expr.eval σ) ++ rest), ?_, ?_⟩
     · change execPow2 cs = _
       unfold execPow2
-      rw [hstack]; simp [hguard, MidenState.withStack]
-    · exact ⟨by simp only [MidenState.withStack, List.map_cons, Expr.eval], hmem, hframes, hadv⟩
+      rw [hstack]; simp [hguard, Concrete.State.withStack]
+    · exact ⟨by simp only [Concrete.State.withStack, List.map_cons, Expr.eval], hmem, hframes, hadv⟩
 
 -- 4. U32 binary arithmetic
 
 theorem execInstruction_sound_u32OverflowAdd
-    (ss : State) (cs : MidenState)
+    (ss : State) (cs : Concrete.State)
     (σ : Assignment) (rest : List Felt)
     (ss' : State) (preconds : List Precondition)
     (hmodels : ss.models cs σ rest)
@@ -1072,12 +1072,12 @@ theorem execInstruction_sound_u32OverflowAdd
                           tail.map (Expr.eval σ) ++ rest), ?_, ?_⟩
     · change execU32OverflowAdd cs = _
       unfold execU32OverflowAdd
-      rw [hstack]; simp [ha, hb, u32WideAdd, MidenState.withStack]
-    · exact ⟨by simp only [MidenState.withStack, List.map_cons, Expr.eval,
+      rw [hstack]; simp [ha, hb, u32WideAdd, Concrete.State.withStack]
+    · exact ⟨by simp only [Concrete.State.withStack, List.map_cons, Expr.eval,
           List.cons_append], hmem, hframes, hadv⟩
 
 theorem execInstruction_sound_u32WrappingAdd
-    (ss : State) (cs : MidenState)
+    (ss : State) (cs : Concrete.State)
     (σ : Assignment) (rest : List Felt)
     (ss' : State) (preconds : List Precondition)
     (hmodels : ss.models cs σ rest)
@@ -1100,12 +1100,12 @@ theorem execInstruction_sound_u32WrappingAdd
                           tail.map (Expr.eval σ) ++ rest), ?_, ?_⟩
     · change execU32WrappingAdd cs = _
       unfold execU32WrappingAdd
-      rw [hstack]; simp [ha, hb, MidenState.withStack]
-    · exact ⟨by simp only [MidenState.withStack, List.map_cons, Expr.eval,
+      rw [hstack]; simp [ha, hb, Concrete.State.withStack]
+    · exact ⟨by simp only [Concrete.State.withStack, List.map_cons, Expr.eval,
           u32WAdd, u32Max, List.cons_append], hmem, hframes, hadv⟩
 
 theorem execInstruction_sound_u32OverflowAdd3
-    (ss : State) (cs : MidenState)
+    (ss : State) (cs : Concrete.State)
     (σ : Assignment) (rest : List Felt)
     (ss' : State) (preconds : List Precondition)
     (hmodels : ss.models cs σ rest)
@@ -1131,12 +1131,12 @@ theorem execInstruction_sound_u32OverflowAdd3
                           tail.map (Expr.eval σ) ++ rest), ?_, ?_⟩
     · change execU32OverflowAdd3 cs = _
       unfold execU32OverflowAdd3
-      rw [hstack]; simp [ha, hb, hc, u32WideAdd3, MidenState.withStack]
-    · exact ⟨by simp only [MidenState.withStack, List.map_cons, Expr.eval,
+      rw [hstack]; simp [ha, hb, hc, u32WideAdd3, Concrete.State.withStack]
+    · exact ⟨by simp only [Concrete.State.withStack, List.map_cons, Expr.eval,
           List.cons_append], hmem, hframes, hadv⟩
 
 theorem execInstruction_sound_u32WrappingAdd3
-    (ss : State) (cs : MidenState)
+    (ss : State) (cs : Concrete.State)
     (σ : Assignment) (rest : List Felt)
     (ss' : State) (preconds : List Precondition)
     (hmodels : ss.models cs σ rest)
@@ -1161,12 +1161,12 @@ theorem execInstruction_sound_u32WrappingAdd3
                           tail.map (Expr.eval σ) ++ rest), ?_, ?_⟩
     · change execU32WrappingAdd3 cs = _
       unfold execU32WrappingAdd3
-      rw [hstack]; simp [ha, hb, hc, MidenState.withStack]
-    · exact ⟨by simp only [MidenState.withStack, List.map_cons, Expr.eval,
+      rw [hstack]; simp [ha, hb, hc, Concrete.State.withStack]
+    · exact ⟨by simp only [Concrete.State.withStack, List.map_cons, Expr.eval,
           u32Max, List.cons_append], hmem, hframes, hadv⟩
 
 theorem execInstruction_sound_u32WrappingSub
-    (ss : State) (cs : MidenState)
+    (ss : State) (cs : Concrete.State)
     (σ : Assignment) (rest : List Felt)
     (ss' : State) (preconds : List Precondition)
     (hmodels : ss.models cs σ rest)
@@ -1189,12 +1189,12 @@ theorem execInstruction_sound_u32WrappingSub
                           tail.map (Expr.eval σ) ++ rest), ?_, ?_⟩
     · change execU32WrappingSub cs = _
       unfold execU32WrappingSub
-      rw [hstack]; simp [ha, hb, MidenState.withStack]
-    · exact ⟨by simp only [MidenState.withStack, List.map_cons, Expr.eval,
+      rw [hstack]; simp [ha, hb, Concrete.State.withStack]
+    · exact ⟨by simp only [Concrete.State.withStack, List.map_cons, Expr.eval,
           List.cons_append], hmem, hframes, hadv⟩
 
 theorem execInstruction_sound_u32WidenMul
-    (ss : State) (cs : MidenState)
+    (ss : State) (cs : Concrete.State)
     (σ : Assignment) (rest : List Felt)
     (ss' : State) (preconds : List Precondition)
     (hmodels : ss.models cs σ rest)
@@ -1218,12 +1218,12 @@ theorem execInstruction_sound_u32WidenMul
                           tail.map (Expr.eval σ) ++ rest), ?_, ?_⟩
     · change execU32WidenMul cs = _
       unfold execU32WidenMul
-      rw [hstack]; simp [ha, hb, u32WideMul, MidenState.withStack]
-    · exact ⟨by simp only [MidenState.withStack, List.map_cons, Expr.eval,
+      rw [hstack]; simp [ha, hb, u32WideMul, Concrete.State.withStack]
+    · exact ⟨by simp only [Concrete.State.withStack, List.map_cons, Expr.eval,
           List.cons_append], hmem, hframes, hadv⟩
 
 theorem execInstruction_sound_u32WrappingMul
-    (ss : State) (cs : MidenState)
+    (ss : State) (cs : Concrete.State)
     (σ : Assignment) (rest : List Felt)
     (ss' : State) (preconds : List Precondition)
     (hmodels : ss.models cs σ rest)
@@ -1246,12 +1246,12 @@ theorem execInstruction_sound_u32WrappingMul
                           tail.map (Expr.eval σ) ++ rest), ?_, ?_⟩
     · change execU32WrappingMul cs = _
       unfold execU32WrappingMul
-      rw [hstack]; simp [ha, hb, MidenState.withStack]
-    · exact ⟨by simp only [MidenState.withStack, List.map_cons, Expr.eval,
+      rw [hstack]; simp [ha, hb, Concrete.State.withStack]
+    · exact ⟨by simp only [Concrete.State.withStack, List.map_cons, Expr.eval,
           u32Max, List.cons_append], hmem, hframes, hadv⟩
 
 theorem execInstruction_sound_u32WidenMadd
-    (ss : State) (cs : MidenState)
+    (ss : State) (cs : Concrete.State)
     (σ : Assignment) (rest : List Felt)
     (ss' : State) (preconds : List Precondition)
     (hmodels : ss.models cs σ rest)
@@ -1277,12 +1277,12 @@ theorem execInstruction_sound_u32WidenMadd
                           tail.map (Expr.eval σ) ++ rest), ?_, ?_⟩
     · change execU32WidenMadd cs = _
       unfold execU32WidenMadd
-      rw [hstack]; simp [ha, hb, hc, u32WideMadd, MidenState.withStack]
-    · exact ⟨by simp only [MidenState.withStack, List.map_cons, Expr.eval,
+      rw [hstack]; simp [ha, hb, hc, u32WideMadd, Concrete.State.withStack]
+    · exact ⟨by simp only [Concrete.State.withStack, List.map_cons, Expr.eval,
           List.cons_append], hmem, hframes, hadv⟩
 
 theorem execInstruction_sound_u32WrappingMadd
-    (ss : State) (cs : MidenState)
+    (ss : State) (cs : Concrete.State)
     (σ : Assignment) (rest : List Felt)
     (ss' : State) (preconds : List Precondition)
     (hmodels : ss.models cs σ rest)
@@ -1307,14 +1307,14 @@ theorem execInstruction_sound_u32WrappingMadd
                           tail.map (Expr.eval σ) ++ rest), ?_, ?_⟩
     · change execU32WrappingMadd cs = _
       unfold execU32WrappingMadd
-      rw [hstack]; simp [ha, hb, hc, MidenState.withStack]
-    · exact ⟨by simp only [MidenState.withStack, List.map_cons, Expr.eval,
+      rw [hstack]; simp [ha, hb, hc, Concrete.State.withStack]
+    · exact ⟨by simp only [Concrete.State.withStack, List.map_cons, Expr.eval,
           u32Max, List.cons_append], hmem, hframes, hadv⟩
 
 -- 5. U32 division (isU32 + nonzero preconditions)
 
 theorem execInstruction_sound_u32DivMod
-    (ss : State) (cs : MidenState)
+    (ss : State) (cs : Concrete.State)
     (σ : Assignment) (rest : List Felt)
     (ss' : State) (preconds : List Precondition)
     (hmodels : ss.models cs σ rest)
@@ -1341,12 +1341,12 @@ theorem execInstruction_sound_u32DivMod
                           tail.map (Expr.eval σ) ++ rest), ?_, ?_⟩
     · change execU32DivMod cs = _
       unfold execU32DivMod
-      rw [hstack]; simp [ha, hb, hbval, MidenState.withStack]
-    · exact ⟨by simp only [MidenState.withStack, List.map_cons, Expr.eval,
+      rw [hstack]; simp [ha, hb, hbval, Concrete.State.withStack]
+    · exact ⟨by simp only [Concrete.State.withStack, List.map_cons, Expr.eval,
           List.cons_append], hmem, hframes, hadv⟩
 
 theorem execInstruction_sound_u32Div
-    (ss : State) (cs : MidenState)
+    (ss : State) (cs : Concrete.State)
     (σ : Assignment) (rest : List Felt)
     (ss' : State) (preconds : List Precondition)
     (hmodels : ss.models cs σ rest)
@@ -1372,12 +1372,12 @@ theorem execInstruction_sound_u32Div
                           tail.map (Expr.eval σ) ++ rest), ?_, ?_⟩
     · change execU32Div cs = _
       unfold execU32Div
-      rw [hstack]; simp [ha, hb, hbval, MidenState.withStack]
-    · exact ⟨by simp only [MidenState.withStack, List.map_cons, Expr.eval,
+      rw [hstack]; simp [ha, hb, hbval, Concrete.State.withStack]
+    · exact ⟨by simp only [Concrete.State.withStack, List.map_cons, Expr.eval,
           List.cons_append], hmem, hframes, hadv⟩
 
 theorem execInstruction_sound_u32Mod
-    (ss : State) (cs : MidenState)
+    (ss : State) (cs : Concrete.State)
     (σ : Assignment) (rest : List Felt)
     (ss' : State) (preconds : List Precondition)
     (hmodels : ss.models cs σ rest)
@@ -1403,14 +1403,14 @@ theorem execInstruction_sound_u32Mod
                           tail.map (Expr.eval σ) ++ rest), ?_, ?_⟩
     · change execU32Mod cs = _
       unfold execU32Mod
-      rw [hstack]; simp [ha, hb, hbval, MidenState.withStack]
-    · exact ⟨by simp only [MidenState.withStack, List.map_cons, Expr.eval,
+      rw [hstack]; simp [ha, hb, hbval, Concrete.State.withStack]
+    · exact ⟨by simp only [Concrete.State.withStack, List.map_cons, Expr.eval,
           List.cons_append], hmem, hframes, hadv⟩
 
 -- 6. U32 bitwise
 
 theorem execInstruction_sound_u32And
-    (ss : State) (cs : MidenState)
+    (ss : State) (cs : Concrete.State)
     (σ : Assignment) (rest : List Felt)
     (ss' : State) (preconds : List Precondition)
     (hmodels : ss.models cs σ rest)
@@ -1433,12 +1433,12 @@ theorem execInstruction_sound_u32And
                           tail.map (Expr.eval σ) ++ rest), ?_, ?_⟩
     · change execU32And cs = _
       unfold execU32And
-      rw [hstack]; simp [ha, hb, MidenState.withStack]
-    · exact ⟨by simp only [MidenState.withStack, List.map_cons, Expr.eval,
+      rw [hstack]; simp [ha, hb, Concrete.State.withStack]
+    · exact ⟨by simp only [Concrete.State.withStack, List.map_cons, Expr.eval,
           List.cons_append]; rfl, hmem, hframes, hadv⟩
 
 theorem execInstruction_sound_u32Or
-    (ss : State) (cs : MidenState)
+    (ss : State) (cs : Concrete.State)
     (σ : Assignment) (rest : List Felt)
     (ss' : State) (preconds : List Precondition)
     (hmodels : ss.models cs σ rest)
@@ -1461,12 +1461,12 @@ theorem execInstruction_sound_u32Or
                           tail.map (Expr.eval σ) ++ rest), ?_, ?_⟩
     · change execU32Or cs = _
       unfold execU32Or
-      rw [hstack]; simp [ha, hb, MidenState.withStack]
-    · exact ⟨by simp only [MidenState.withStack, List.map_cons, Expr.eval,
+      rw [hstack]; simp [ha, hb, Concrete.State.withStack]
+    · exact ⟨by simp only [Concrete.State.withStack, List.map_cons, Expr.eval,
           List.cons_append]; rfl, hmem, hframes, hadv⟩
 
 theorem execInstruction_sound_u32Xor
-    (ss : State) (cs : MidenState)
+    (ss : State) (cs : Concrete.State)
     (σ : Assignment) (rest : List Felt)
     (ss' : State) (preconds : List Precondition)
     (hmodels : ss.models cs σ rest)
@@ -1489,14 +1489,14 @@ theorem execInstruction_sound_u32Xor
                           tail.map (Expr.eval σ) ++ rest), ?_, ?_⟩
     · change execU32Xor cs = _
       unfold execU32Xor
-      rw [hstack]; simp [ha, hb, MidenState.withStack]
-    · exact ⟨by simp only [MidenState.withStack, List.map_cons, Expr.eval,
+      rw [hstack]; simp [ha, hb, Concrete.State.withStack]
+    · exact ⟨by simp only [Concrete.State.withStack, List.map_cons, Expr.eval,
           List.cons_append]; rfl, hmem, hframes, hadv⟩
 
 -- 7. U32 unary (single isU32 precondition)
 
 theorem execInstruction_sound_u32Not
-    (ss : State) (cs : MidenState)
+    (ss : State) (cs : Concrete.State)
     (σ : Assignment) (rest : List Felt)
     (ss' : State) (preconds : List Precondition)
     (hmodels : ss.models cs σ rest)
@@ -1517,12 +1517,12 @@ theorem execInstruction_sound_u32Not
                           tail.map (Expr.eval σ) ++ rest), ?_, ?_⟩
     · change execU32Not cs = _
       unfold execU32Not
-      rw [hstack]; simp [ha, MidenState.withStack]
-    · exact ⟨by simp only [MidenState.withStack, List.map_cons, Expr.eval,
+      rw [hstack]; simp [ha, Concrete.State.withStack]
+    · exact ⟨by simp only [Concrete.State.withStack, List.map_cons, Expr.eval,
           List.cons_append], hmem, hframes, hadv⟩
 
 theorem execInstruction_sound_u32Popcnt
-    (ss : State) (cs : MidenState)
+    (ss : State) (cs : Concrete.State)
     (σ : Assignment) (rest : List Felt)
     (ss' : State) (preconds : List Precondition)
     (hmodels : ss.models cs σ rest)
@@ -1543,12 +1543,12 @@ theorem execInstruction_sound_u32Popcnt
                           tail.map (Expr.eval σ) ++ rest), ?_, ?_⟩
     · change execU32Popcnt cs = _
       unfold execU32Popcnt
-      rw [hstack]; simp [ha, MidenState.withStack]
-    · exact ⟨by simp only [MidenState.withStack, List.map_cons, Expr.eval,
+      rw [hstack]; simp [ha, Concrete.State.withStack]
+    · exact ⟨by simp only [Concrete.State.withStack, List.map_cons, Expr.eval,
           List.cons_append], hmem, hframes, hadv⟩
 
 theorem execInstruction_sound_u32Clz
-    (ss : State) (cs : MidenState)
+    (ss : State) (cs : Concrete.State)
     (σ : Assignment) (rest : List Felt)
     (ss' : State) (preconds : List Precondition)
     (hmodels : ss.models cs σ rest)
@@ -1569,12 +1569,12 @@ theorem execInstruction_sound_u32Clz
                           tail.map (Expr.eval σ) ++ rest), ?_, ?_⟩
     · change execU32Clz cs = _
       unfold execU32Clz
-      rw [hstack]; simp [ha, MidenState.withStack]
-    · exact ⟨by simp only [MidenState.withStack, List.map_cons, Expr.eval,
+      rw [hstack]; simp [ha, Concrete.State.withStack]
+    · exact ⟨by simp only [Concrete.State.withStack, List.map_cons, Expr.eval,
           List.cons_append], hmem, hframes, hadv⟩
 
 theorem execInstruction_sound_u32Ctz
-    (ss : State) (cs : MidenState)
+    (ss : State) (cs : Concrete.State)
     (σ : Assignment) (rest : List Felt)
     (ss' : State) (preconds : List Precondition)
     (hmodels : ss.models cs σ rest)
@@ -1595,12 +1595,12 @@ theorem execInstruction_sound_u32Ctz
                           tail.map (Expr.eval σ) ++ rest), ?_, ?_⟩
     · change execU32Ctz cs = _
       unfold execU32Ctz
-      rw [hstack]; simp [ha, MidenState.withStack]
-    · exact ⟨by simp only [MidenState.withStack, List.map_cons, Expr.eval,
+      rw [hstack]; simp [ha, Concrete.State.withStack]
+    · exact ⟨by simp only [Concrete.State.withStack, List.map_cons, Expr.eval,
           List.cons_append], hmem, hframes, hadv⟩
 
 theorem execInstruction_sound_u32Clo
-    (ss : State) (cs : MidenState)
+    (ss : State) (cs : Concrete.State)
     (σ : Assignment) (rest : List Felt)
     (ss' : State) (preconds : List Precondition)
     (hmodels : ss.models cs σ rest)
@@ -1621,12 +1621,12 @@ theorem execInstruction_sound_u32Clo
                           tail.map (Expr.eval σ) ++ rest), ?_, ?_⟩
     · change execU32Clo cs = _
       unfold execU32Clo
-      rw [hstack]; simp [ha, MidenState.withStack]
-    · exact ⟨by simp only [MidenState.withStack, List.map_cons, Expr.eval,
+      rw [hstack]; simp [ha, Concrete.State.withStack]
+    · exact ⟨by simp only [Concrete.State.withStack, List.map_cons, Expr.eval,
           List.cons_append], hmem, hframes, hadv⟩
 
 theorem execInstruction_sound_u32Cto
-    (ss : State) (cs : MidenState)
+    (ss : State) (cs : Concrete.State)
     (σ : Assignment) (rest : List Felt)
     (ss' : State) (preconds : List Precondition)
     (hmodels : ss.models cs σ rest)
@@ -1647,14 +1647,14 @@ theorem execInstruction_sound_u32Cto
                           tail.map (Expr.eval σ) ++ rest), ?_, ?_⟩
     · change execU32Cto cs = _
       unfold execU32Cto
-      rw [hstack]; simp [ha, MidenState.withStack]
-    · exact ⟨by simp only [MidenState.withStack, List.map_cons, Expr.eval,
+      rw [hstack]; simp [ha, Concrete.State.withStack]
+    · exact ⟨by simp only [Concrete.State.withStack, List.map_cons, Expr.eval,
           List.cons_append], hmem, hframes, hadv⟩
 
 -- 8. U32 shift/rotate (isU32 + valLeq preconditions)
 
 theorem execInstruction_sound_u32Shl
-    (ss : State) (cs : MidenState)
+    (ss : State) (cs : Concrete.State)
     (σ : Assignment) (rest : List Felt)
     (ss' : State) (preconds : List Precondition)
     (hmodels : ss.models cs σ rest)
@@ -1680,12 +1680,12 @@ theorem execInstruction_sound_u32Shl
                           tail.map (Expr.eval σ) ++ rest), ?_, ?_⟩
     · change execU32Shl cs = _
       unfold execU32Shl
-      rw [hstack]; simp [ha, hb, hbguard, MidenState.withStack]
-    · exact ⟨by simp only [MidenState.withStack, List.map_cons, Expr.eval,
+      rw [hstack]; simp [ha, hb, hbguard, Concrete.State.withStack]
+    · exact ⟨by simp only [Concrete.State.withStack, List.map_cons, Expr.eval,
           List.cons_append], hmem, hframes, hadv⟩
 
 theorem execInstruction_sound_u32Shr
-    (ss : State) (cs : MidenState)
+    (ss : State) (cs : Concrete.State)
     (σ : Assignment) (rest : List Felt)
     (ss' : State) (preconds : List Precondition)
     (hmodels : ss.models cs σ rest)
@@ -1711,12 +1711,12 @@ theorem execInstruction_sound_u32Shr
                           tail.map (Expr.eval σ) ++ rest), ?_, ?_⟩
     · change execU32Shr cs = _
       unfold execU32Shr
-      rw [hstack]; simp [ha, hb, hbguard, MidenState.withStack]
-    · exact ⟨by simp only [MidenState.withStack, List.map_cons, Expr.eval,
+      rw [hstack]; simp [ha, hb, hbguard, Concrete.State.withStack]
+    · exact ⟨by simp only [Concrete.State.withStack, List.map_cons, Expr.eval,
           List.cons_append], hmem, hframes, hadv⟩
 
 theorem execInstruction_sound_u32Rotl
-    (ss : State) (cs : MidenState)
+    (ss : State) (cs : Concrete.State)
     (σ : Assignment) (rest : List Felt)
     (ss' : State) (preconds : List Precondition)
     (hmodels : ss.models cs σ rest)
@@ -1742,12 +1742,12 @@ theorem execInstruction_sound_u32Rotl
                           tail.map (Expr.eval σ) ++ rest), ?_, ?_⟩
     · change execU32Rotl cs = _
       unfold execU32Rotl
-      rw [hstack]; simp [ha, hb, hbguard, MidenState.withStack]
-    · exact ⟨by simp only [MidenState.withStack, List.map_cons, Expr.eval,
+      rw [hstack]; simp [ha, hb, hbguard, Concrete.State.withStack]
+    · exact ⟨by simp only [Concrete.State.withStack, List.map_cons, Expr.eval,
           List.cons_append], hmem, hframes, hadv⟩
 
 theorem execInstruction_sound_u32Rotr
-    (ss : State) (cs : MidenState)
+    (ss : State) (cs : Concrete.State)
     (σ : Assignment) (rest : List Felt)
     (ss' : State) (preconds : List Precondition)
     (hmodels : ss.models cs σ rest)
@@ -1773,14 +1773,14 @@ theorem execInstruction_sound_u32Rotr
                           tail.map (Expr.eval σ) ++ rest), ?_, ?_⟩
     · change execU32Rotr cs = _
       unfold execU32Rotr
-      rw [hstack]; simp [ha, hb, hbguard, MidenState.withStack]
-    · exact ⟨by simp only [MidenState.withStack, List.map_cons, Expr.eval,
+      rw [hstack]; simp [ha, hb, hbguard, Concrete.State.withStack]
+    · exact ⟨by simp only [Concrete.State.withStack, List.map_cons, Expr.eval,
           List.cons_append], hmem, hframes, hadv⟩
 
 -- 9. U32 shift/rotate Imm (isU32 + static bound)
 
 theorem execInstruction_sound_u32ShlImm
-    (n : Nat) (ss : State) (cs : MidenState)
+    (n : Nat) (ss : State) (cs : Concrete.State)
     (σ : Assignment) (rest : List Felt)
     (ss' : State) (preconds : List Precondition)
     (hmodels : ss.models cs σ rest)
@@ -1805,13 +1805,13 @@ theorem execInstruction_sound_u32ShlImm
                             tail.map (Expr.eval σ) ++ rest), ?_, ?_⟩
       · change execU32ShlImm n cs = _
         unfold execU32ShlImm
-        rw [hstack]; simp [ha, hnguard, MidenState.withStack]
-      · exact ⟨by simp only [MidenState.withStack, List.map_cons, Expr.eval,
+        rw [hstack]; simp [ha, hnguard, Concrete.State.withStack]
+      · exact ⟨by simp only [Concrete.State.withStack, List.map_cons, Expr.eval,
             List.cons_append, hnval], hmem, hframes, hadv⟩
   · simp [hn] at hexec
 
 theorem execInstruction_sound_u32ShrImm
-    (n : Nat) (ss : State) (cs : MidenState)
+    (n : Nat) (ss : State) (cs : Concrete.State)
     (σ : Assignment) (rest : List Felt)
     (ss' : State) (preconds : List Precondition)
     (hmodels : ss.models cs σ rest)
@@ -1836,13 +1836,13 @@ theorem execInstruction_sound_u32ShrImm
                             tail.map (Expr.eval σ) ++ rest), ?_, ?_⟩
       · change execU32ShrImm n cs = _
         unfold execU32ShrImm
-        rw [hstack]; simp [ha, hnguard, MidenState.withStack]
-      · exact ⟨by simp only [MidenState.withStack, List.map_cons, Expr.eval,
+        rw [hstack]; simp [ha, hnguard, Concrete.State.withStack]
+      · exact ⟨by simp only [Concrete.State.withStack, List.map_cons, Expr.eval,
             List.cons_append, hnval], hmem, hframes, hadv⟩
   · simp [hn] at hexec
 
 theorem execInstruction_sound_u32RotlImm
-    (n : Nat) (ss : State) (cs : MidenState)
+    (n : Nat) (ss : State) (cs : Concrete.State)
     (σ : Assignment) (rest : List Felt)
     (ss' : State) (preconds : List Precondition)
     (hmodels : ss.models cs σ rest)
@@ -1867,13 +1867,13 @@ theorem execInstruction_sound_u32RotlImm
                             tail.map (Expr.eval σ) ++ rest), ?_, ?_⟩
       · change execU32RotlImm n cs = _
         unfold execU32RotlImm
-        rw [hstack]; simp [ha, hnguard, MidenState.withStack]
-      · exact ⟨by simp only [MidenState.withStack, List.map_cons, Expr.eval,
+        rw [hstack]; simp [ha, hnguard, Concrete.State.withStack]
+      · exact ⟨by simp only [Concrete.State.withStack, List.map_cons, Expr.eval,
             List.cons_append, hnval], hmem, hframes, hadv⟩
   · simp [hn] at hexec
 
 theorem execInstruction_sound_u32RotrImm
-    (n : Nat) (ss : State) (cs : MidenState)
+    (n : Nat) (ss : State) (cs : Concrete.State)
     (σ : Assignment) (rest : List Felt)
     (ss' : State) (preconds : List Precondition)
     (hmodels : ss.models cs σ rest)
@@ -1898,15 +1898,15 @@ theorem execInstruction_sound_u32RotrImm
                             tail.map (Expr.eval σ) ++ rest), ?_, ?_⟩
       · change execU32RotrImm n cs = _
         unfold execU32RotrImm
-        rw [hstack]; simp [ha, hnguard, MidenState.withStack]
-      · exact ⟨by simp only [MidenState.withStack, List.map_cons, Expr.eval,
+        rw [hstack]; simp [ha, hnguard, Concrete.State.withStack]
+      · exact ⟨by simp only [Concrete.State.withStack, List.map_cons, Expr.eval,
             List.cons_append, hnval], hmem, hframes, hadv⟩
   · simp [hn] at hexec
 
 -- 10. U32 comparison
 
 theorem execInstruction_sound_u32Lt
-    (ss : State) (cs : MidenState)
+    (ss : State) (cs : Concrete.State)
     (σ : Assignment) (rest : List Felt)
     (ss' : State) (preconds : List Precondition)
     (hmodels : ss.models cs σ rest)
@@ -1929,12 +1929,12 @@ theorem execInstruction_sound_u32Lt
                           tail.map (Expr.eval σ) ++ rest), ?_, ?_⟩
     · change execU32Lt cs = _
       unfold execU32Lt
-      rw [hstack]; simp [ha, hb, MidenState.withStack]
-    · exact ⟨by simp only [MidenState.withStack, List.map_cons, Expr.eval,
+      rw [hstack]; simp [ha, hb, Concrete.State.withStack]
+    · exact ⟨by simp only [Concrete.State.withStack, List.map_cons, Expr.eval,
           List.cons_append], hmem, hframes, hadv⟩
 
 theorem execInstruction_sound_u32Lte
-    (ss : State) (cs : MidenState)
+    (ss : State) (cs : Concrete.State)
     (σ : Assignment) (rest : List Felt)
     (ss' : State) (preconds : List Precondition)
     (hmodels : ss.models cs σ rest)
@@ -1957,12 +1957,12 @@ theorem execInstruction_sound_u32Lte
                           tail.map (Expr.eval σ) ++ rest), ?_, ?_⟩
     · change execU32Lte cs = _
       unfold execU32Lte
-      rw [hstack]; simp [ha, hb, MidenState.withStack]
-    · exact ⟨by simp only [MidenState.withStack, List.map_cons, Expr.eval,
+      rw [hstack]; simp [ha, hb, Concrete.State.withStack]
+    · exact ⟨by simp only [Concrete.State.withStack, List.map_cons, Expr.eval,
           List.cons_append], hmem, hframes, hadv⟩
 
 theorem execInstruction_sound_u32Gt
-    (ss : State) (cs : MidenState)
+    (ss : State) (cs : Concrete.State)
     (σ : Assignment) (rest : List Felt)
     (ss' : State) (preconds : List Precondition)
     (hmodels : ss.models cs σ rest)
@@ -1985,12 +1985,12 @@ theorem execInstruction_sound_u32Gt
                           tail.map (Expr.eval σ) ++ rest), ?_, ?_⟩
     · change execU32Gt cs = _
       unfold execU32Gt
-      rw [hstack]; simp [ha, hb, MidenState.withStack]
-    · exact ⟨by simp only [MidenState.withStack, List.map_cons, Expr.eval,
+      rw [hstack]; simp [ha, hb, Concrete.State.withStack]
+    · exact ⟨by simp only [Concrete.State.withStack, List.map_cons, Expr.eval,
           List.cons_append], hmem, hframes, hadv⟩
 
 theorem execInstruction_sound_u32Gte
-    (ss : State) (cs : MidenState)
+    (ss : State) (cs : Concrete.State)
     (σ : Assignment) (rest : List Felt)
     (ss' : State) (preconds : List Precondition)
     (hmodels : ss.models cs σ rest)
@@ -2013,12 +2013,12 @@ theorem execInstruction_sound_u32Gte
                           tail.map (Expr.eval σ) ++ rest), ?_, ?_⟩
     · change execU32Gte cs = _
       unfold execU32Gte
-      rw [hstack]; simp [ha, hb, MidenState.withStack]
-    · exact ⟨by simp only [MidenState.withStack, List.map_cons, Expr.eval,
+      rw [hstack]; simp [ha, hb, Concrete.State.withStack]
+    · exact ⟨by simp only [Concrete.State.withStack, List.map_cons, Expr.eval,
           List.cons_append], hmem, hframes, hadv⟩
 
 theorem execInstruction_sound_u32Min
-    (ss : State) (cs : MidenState)
+    (ss : State) (cs : Concrete.State)
     (σ : Assignment) (rest : List Felt)
     (ss' : State) (preconds : List Precondition)
     (hmodels : ss.models cs σ rest)
@@ -2041,12 +2041,12 @@ theorem execInstruction_sound_u32Min
                           tail.map (Expr.eval σ) ++ rest), ?_, ?_⟩
     · change execU32Min cs = _
       unfold execU32Min
-      rw [hstack]; simp [ha, hb, MidenState.withStack]
-    · exact ⟨by simp only [MidenState.withStack, List.map_cons, Expr.eval,
+      rw [hstack]; simp [ha, hb, Concrete.State.withStack]
+    · exact ⟨by simp only [Concrete.State.withStack, List.map_cons, Expr.eval,
           List.cons_append], hmem, hframes, hadv⟩
 
 theorem execInstruction_sound_u32Max
-    (ss : State) (cs : MidenState)
+    (ss : State) (cs : Concrete.State)
     (σ : Assignment) (rest : List Felt)
     (ss' : State) (preconds : List Precondition)
     (hmodels : ss.models cs σ rest)
@@ -2069,15 +2069,15 @@ theorem execInstruction_sound_u32Max
                           tail.map (Expr.eval σ) ++ rest), ?_, ?_⟩
     · change execU32Max cs = _
       unfold execU32Max
-      rw [hstack]; simp [ha, hb, MidenState.withStack]
-    · exact ⟨by simp only [MidenState.withStack, List.map_cons, Expr.eval,
+      rw [hstack]; simp [ha, hb, Concrete.State.withStack]
+    · exact ⟨by simp only [Concrete.State.withStack, List.map_cons, Expr.eval,
           List.cons_append], hmem, hframes, hadv⟩
 
 -- Word ops (multi-element indexed access via getElem?)
 
 set_option maxHeartbeats 800000 in
 theorem execInstruction_sound_dupw
-    (n : Fin 4) (ss : State) (cs : MidenState)
+    (n : Fin 4) (ss : State) (cs : Concrete.State)
     (σ : Assignment) (rest : List Felt)
     (ss' : State) (preconds : List Precondition)
     (hmodels : ss.models cs σ rest)
@@ -2107,7 +2107,7 @@ theorem execInstruction_sound_dupw
           getElem?_map_append_left (Expr.eval σ) ss.stack rest (base + 2) hnc,
           getElem?_map_append_left (Expr.eval σ) ss.stack rest (base + 3) hnd]
       rw [hva, hvb, hvc, hvd]
-    · exact ⟨by simp only [MidenState.withStack, List.map_cons, hstack]; rfl, hmem, hframes, hadv⟩
+    · exact ⟨by simp only [Concrete.State.withStack, List.map_cons, hstack]; rfl, hmem, hframes, hadv⟩
   | _, _, _, _ =>
     simp only [hga, hgb, hgc, hgd] at hexec
     split at hexec
@@ -2128,13 +2128,13 @@ theorem execInstruction_sound_dupw
             getElem?_map_append_left (Expr.eval σ) ss.stack rest (base + 2) hnc,
             getElem?_map_append_left (Expr.eval σ) ss.stack rest (base + 3) hnd]
         rw [hva, hvb, hvc, hvd]
-      · exact ⟨by simp only [MidenState.withStack, List.map_cons, hstack]; rfl, hmem, hframes, hadv⟩
+      · exact ⟨by simp only [Concrete.State.withStack, List.map_cons, hstack]; rfl, hmem, hframes, hadv⟩
     next h =>
       exact absurd hexec (by simp)
 
 set_option maxHeartbeats 1600000 in
 theorem execInstruction_sound_swapw
-    (n : Fin 4) (ss : State) (cs : MidenState)
+    (n : Fin 4) (ss : State) (cs : Concrete.State)
     (σ : Assignment) (rest : List Felt)
     (ss' : State) (preconds : List Precondition)
     (hmodels : ss.models cs σ rest)
@@ -2194,7 +2194,7 @@ theorem execInstruction_sound_swapw
               getElem?_map_append_left (Expr.eval σ) ss.stack rest (n.val * 4 + 3) hb3lt]
           rw [hv0, hv1, hv2, hv3, hvb0, hvb1, hvb2, hvb3]
       · refine ⟨?_, hmem, hframes, hadv⟩
-        unfold MidenState.withStack
+        unfold Concrete.State.withStack
         rw [hstack,
             set_map_append_left _ _ _ (n.val * 4 + 3) a3 (by simp [List.length_set]; exact hb3lt),
             set_map_append_left _ _ _ (n.val * 4 + 2) a2 (by simp [List.length_set]; exact hb2lt),
@@ -2209,7 +2209,7 @@ theorem execInstruction_sound_swapw
 
 set_option maxHeartbeats 800000 in
 theorem execInstruction_sound_movupw
-    (n : Nat) (ss : State) (cs : MidenState)
+    (n : Nat) (ss : State) (cs : Concrete.State)
     (σ : Assignment) (rest : List Felt)
     (ss' : State) (preconds : List Precondition)
     (hmodels : ss.models cs σ rest)
@@ -2241,14 +2241,14 @@ theorem execInstruction_sound_movupw
         simp only [hguard]
         rw [hstack]
         have hle' : base + 4 ≤ (ss.stack.map (Expr.eval σ) ++ rest).length := by simp; omega
-        simp only [MidenState.withStack]
+        simp only [Concrete.State.withStack]
         rw [List.take_append_of_le_length (by simp; omega),
             List.drop_append_of_le_length (by simp; omega)]
         rw [List.take_append_of_le_length (by simp [List.length_drop]; omega),
             List.drop_append_of_le_length (by simp; omega)]
         simp only [List.append_assoc, hbase_def]
         simp; omega
-      · exact ⟨by simp only [MidenState.withStack,
+      · exact ⟨by simp only [Concrete.State.withStack,
             List.map_append, List.map_take, List.map_drop, List.append_assoc], hmem, hframes, hadv⟩
   · have hfalse : (decide (2 ≤ n) && decide (n ≤ 3)) = false := by
       simp only [Bool.and_eq_false_iff, decide_eq_false_iff_not]; omega
@@ -2256,7 +2256,7 @@ theorem execInstruction_sound_movupw
 
 set_option maxHeartbeats 800000 in
 theorem execInstruction_sound_movdnw
-    (n : Nat) (ss : State) (cs : MidenState)
+    (n : Nat) (ss : State) (cs : Concrete.State)
     (σ : Assignment) (rest : List Felt)
     (ss' : State) (preconds : List Precondition)
     (hmodels : ss.models cs σ rest)
@@ -2287,14 +2287,14 @@ theorem execInstruction_sound_movdnw
         simp only [hguard]
         rw [hstack]
         have hle' : (n + 1) * 4 ≤ (ss.stack.map (Expr.eval σ) ++ rest).length := by simp; omega
-        simp only [MidenState.withStack]
+        simp only [Concrete.State.withStack]
         rw [List.take_append_of_le_length (by simp; omega),
             List.drop_append_of_le_length (by simp; omega)]
         rw [List.take_append_of_le_length (by simp [List.length_drop]; omega),
             List.drop_append_of_le_length (by simp [List.length_drop]; omega)]
         simp [List.append_assoc]
         omega
-      · exact ⟨by simp only [MidenState.withStack,
+      · exact ⟨by simp only [Concrete.State.withStack,
             List.map_append, List.map_take, List.map_drop, List.append_assoc], hmem, hframes, hadv⟩
   · have hfalse : (decide (2 ≤ n) && decide (n ≤ 3)) = false := by
       simp only [Bool.and_eq_false_iff, decide_eq_false_iff_not]; omega
@@ -2303,7 +2303,7 @@ theorem execInstruction_sound_movdnw
 -- Conditional swap/drop ops (isBool precondition)
 
 theorem execInstruction_sound_cswap
-    (ss : State) (cs : MidenState)
+    (ss : State) (cs : Concrete.State)
     (σ : Assignment) (rest : List Felt)
     (ss' : State) (preconds : List Precondition)
     (hmodels : ss.models cs σ rest)
@@ -2326,22 +2326,22 @@ theorem execInstruction_sound_cswap
       · change execCswap cs = _
         unfold execCswap
         rw [hstack, hc0]
-        simp [ZMod.val_zero, MidenState.withStack]
+        simp [ZMod.val_zero, Concrete.State.withStack]
       · refine ⟨?_, hmem, hframes, hadv⟩
-        simp [MidenState.withStack, Expr.eval, hc0]
+        simp [Concrete.State.withStack, Expr.eval, hc0]
     · -- c.eval σ = 1: concrete takes the "c.val == 1" branch, symbolic ite takes then
       refine ⟨cs.withStack (a.eval σ :: b.eval σ :: tail.map (Expr.eval σ) ++ rest), ?_, ?_⟩
       · change execCswap cs = _
         unfold execCswap
         rw [hstack, hc1]
-        simp [ZMod.val_one, MidenState.withStack]
+        simp [ZMod.val_one, Concrete.State.withStack]
       · refine ⟨?_, hmem, hframes, hadv⟩
-        simp [MidenState.withStack, Expr.eval, hc1, ZMod.val_one]
+        simp [Concrete.State.withStack, Expr.eval, hc1, ZMod.val_one]
   · -- Wildcard case: hexec : none = some ... is contradictory
     exact absurd hexec (by simp)
 
 theorem execInstruction_sound_cdrop
-    (ss : State) (cs : MidenState)
+    (ss : State) (cs : Concrete.State)
     (σ : Assignment) (rest : List Felt)
     (ss' : State) (preconds : List Precondition)
     (hmodels : ss.models cs σ rest)
@@ -2363,23 +2363,23 @@ theorem execInstruction_sound_cdrop
       · change execCdrop cs = _
         unfold execCdrop
         rw [hstack, hc0]
-        simp [ZMod.val_zero, MidenState.withStack]
+        simp [ZMod.val_zero, Concrete.State.withStack]
       · refine ⟨?_, hmem, hframes, hadv⟩
-        simp [MidenState.withStack, Expr.eval, hc0]
+        simp [Concrete.State.withStack, Expr.eval, hc0]
     · -- c.eval σ = 1: concrete drops a, keeps b; symbolic ite c b a → b (then branch)
       refine ⟨cs.withStack (b.eval σ :: tail.map (Expr.eval σ) ++ rest), ?_, ?_⟩
       · change execCdrop cs = _
         unfold execCdrop
         rw [hstack, hc1]
-        simp [ZMod.val_one, MidenState.withStack]
+        simp [ZMod.val_one, Concrete.State.withStack]
       · refine ⟨?_, hmem, hframes, hadv⟩
-        simp [MidenState.withStack, Expr.eval, hc1, ZMod.val_one]
+        simp [Concrete.State.withStack, Expr.eval, hc1, ZMod.val_one]
   · -- Wildcard case
     exact absurd hexec (by simp)
 
 set_option maxHeartbeats 800000 in
 theorem execInstruction_sound_cswapw
-    (ss : State) (cs : MidenState)
+    (ss : State) (cs : Concrete.State)
     (σ : Assignment) (rest : List Felt)
     (ss' : State) (preconds : List Precondition)
     (hmodels : ss.models cs σ rest)
@@ -2388,7 +2388,7 @@ theorem execInstruction_sound_cswapw
     ∃ cs', MidenLean.execInstruction cs .cswapw = some cs' ∧ ss'.models cs' σ rest := by
   obtain ⟨hstack, hmem, hframes, hadv⟩ := hmodels
   simp only [execInstruction] at hexec
-  -- The symbolic exec for cswapw has a let binding; use split to handle the inner match
+  -- The symbolic execProcedure emptyEnv for cswapw has a let binding; use split to handle the inner match
   split at hexec
   swap
   · -- Wildcard case: hexec : none = some ... is contradictory
@@ -2408,9 +2408,9 @@ theorem execInstruction_sound_cswapw
       · change execCswapw cs = _
         unfold execCswapw
         rw [hstack, hc0]
-        simp [ZMod.val_zero, MidenState.withStack]
+        simp [ZMod.val_zero, Concrete.State.withStack]
       · refine ⟨?_, hmem, hframes, hadv⟩
-        simp [MidenState.withStack, Expr.eval, hc0]
+        simp [Concrete.State.withStack, Expr.eval, hc0]
     · -- c.eval σ = 1: concrete swaps to a0..a3 :: b0..b3, symbolic ite takes then
       refine ⟨cs.withStack (a0.eval σ :: a1.eval σ :: a2.eval σ :: a3.eval σ ::
                              b0.eval σ :: b1.eval σ :: b2.eval σ :: b3.eval σ ::
@@ -2418,13 +2418,13 @@ theorem execInstruction_sound_cswapw
       · change execCswapw cs = _
         unfold execCswapw
         rw [hstack, hc1]
-        simp [ZMod.val_one, MidenState.withStack]
+        simp [ZMod.val_one, Concrete.State.withStack]
       · refine ⟨?_, hmem, hframes, hadv⟩
-        simp [MidenState.withStack, Expr.eval, hc1, ZMod.val_one]
+        simp [Concrete.State.withStack, Expr.eval, hc1, ZMod.val_one]
 
 set_option maxHeartbeats 800000 in
 theorem execInstruction_sound_cdropw
-    (ss : State) (cs : MidenState)
+    (ss : State) (cs : Concrete.State)
     (σ : Assignment) (rest : List Felt)
     (ss' : State) (preconds : List Precondition)
     (hmodels : ss.models cs σ rest)
@@ -2433,7 +2433,7 @@ theorem execInstruction_sound_cdropw
     ∃ cs', MidenLean.execInstruction cs .cdropw = some cs' ∧ ss'.models cs' σ rest := by
   obtain ⟨hstack, hmem, hframes, hadv⟩ := hmodels
   simp only [execInstruction] at hexec
-  -- The symbolic exec for cdropw has a let binding; use split to handle the inner match
+  -- The symbolic execProcedure emptyEnv for cdropw has a let binding; use split to handle the inner match
   split at hexec
   swap
   · -- Wildcard case: hexec : none = some ... is contradictory
@@ -2452,23 +2452,23 @@ theorem execInstruction_sound_cdropw
       · change execCdropw cs = _
         unfold execCdropw
         rw [hstack, hc0]
-        simp [ZMod.val_zero, MidenState.withStack]
+        simp [ZMod.val_zero, Concrete.State.withStack]
       · refine ⟨?_, hmem, hframes, hadv⟩
-        simp [MidenState.withStack, Expr.eval, hc0]
+        simp [Concrete.State.withStack, Expr.eval, hc0]
     · -- c.eval σ = 1: concrete keeps b0..b3, symbolic ite takes then
       refine ⟨cs.withStack (b0.eval σ :: b1.eval σ :: b2.eval σ :: b3.eval σ ::
                              tail.map (Expr.eval σ) ++ rest), ?_, ?_⟩
       · change execCdropw cs = _
         unfold execCdropw
         rw [hstack, hc1]
-        simp [ZMod.val_one, MidenState.withStack]
+        simp [ZMod.val_one, Concrete.State.withStack]
       · refine ⟨?_, hmem, hframes, hadv⟩
-        simp [MidenState.withStack, Expr.eval, hc1, ZMod.val_one]
+        simp [Concrete.State.withStack, Expr.eval, hc1, ZMod.val_one]
 
 -- U32 test ops (no preconditions)
 
 theorem execInstruction_sound_u32Test
-    (ss : State) (cs : MidenState)
+    (ss : State) (cs : Concrete.State)
     (σ : Assignment) (rest : List Felt)
     (ss' : State) (preconds : List Precondition)
     (hmodels : ss.models cs σ rest)
@@ -2485,12 +2485,12 @@ theorem execInstruction_sound_u32Test
     refine ⟨cs.withStack ((if (a.eval σ).isU32 then (1 : Felt) else 0) :: a.eval σ :: tail.map (Expr.eval σ) ++ rest), ?_, ?_⟩
     · change execU32Test cs = _
       unfold execU32Test
-      rw [hstack]; simp [MidenState.withStack]
-    · exact ⟨by simp only [MidenState.withStack, List.map_cons, Expr.eval], hmem, hframes, hadv⟩
+      rw [hstack]; simp [Concrete.State.withStack]
+    · exact ⟨by simp only [Concrete.State.withStack, List.map_cons, Expr.eval], hmem, hframes, hadv⟩
   · exact absurd hexec (by simp)
 
 theorem execInstruction_sound_u32TestW
-    (ss : State) (cs : MidenState)
+    (ss : State) (cs : Concrete.State)
     (σ : Assignment) (rest : List Felt)
     (ss' : State) (preconds : List Precondition)
     (hmodels : ss.models cs σ rest)
@@ -2512,7 +2512,7 @@ theorem execInstruction_sound_u32TestW
       rw [hstack]
       rfl
     · refine ⟨?_, hmem, hframes, hadv⟩
-      simp only [MidenState.withStack, List.map_cons, Expr.eval, hstack, List.cons_append]
+      simp only [Concrete.State.withStack, List.map_cons, Expr.eval, hstack, List.cons_append]
   · exact absurd hexec (by simp)
 
 end MidenLean.Symbolic

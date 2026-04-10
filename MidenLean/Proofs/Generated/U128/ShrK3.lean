@@ -17,10 +17,10 @@ set_option maxHeartbeats 4000000 in
     Input stack:  [x0, x1, x2, x3, x4] ++ rest
     Output stack: [sorry] ++ rest -/
 theorem u128_shr_k3_correct
-    (x0 x1 x2 x3 x4 : Felt) (rest : List Felt) (s : MidenState)
+    (x0 x1 x2 x3 x4 : Felt) (rest : List Felt) (s : Concrete.State)
     (hs : s.stack = x0 :: x1 :: x2 :: x3 :: x4 :: rest)
     :
-    exec 12 s Miden.Core.U128.shr_k3 =
+    execProcedure emptyEnv 12 s Miden.Core.U128.shr_k3 =
     some (s.withStack (sorry :: rest))  -- TODO: specify output
     := by
   miden_setup Miden.Core.U128.shr_k3

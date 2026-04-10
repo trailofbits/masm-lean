@@ -45,14 +45,14 @@ private theorem ep_b6_chunk1_correct (a b : U256) (rest : List Felt)
     (h0_2 : mem (frame.localAddr 0 + 2) = b.a6.val)
     (h0_1 : mem (frame.localAddr 0 + 1) = b.a5.val)
     (h0_0 : mem (frame.localAddr 0) = b.a4.val) :
-    execWithEnv u256ProcEnv (fuel + 3)
+    execProcedure u256ProcEnv (fuel + 3)
       ⟨L₇ :: L₆ :: L₅ :: L₄ :: rest, mem, frame :: frames, adv⟩
       (Procedure.ofOps ep_b6_chunk1) =
     some ⟨mulstepCarry 0 a.a0.val b.a6.val L₆ ::
           b.a6.val :: a.a3.val :: a.a2.val :: a.a1.val :: L₇ ::
           mulstepLo 0 a.a0.val b.a6.val L₆ :: L₅ :: L₄ :: rest,
           mem, frame :: frames, adv⟩ := by
-  unfold ep_b6_chunk1 execWithEnv Procedure.ofOps
+  unfold ep_b6_chunk1 execProcedure Procedure.ofOps
   simp only [List.foldlM, u256ProcEnv]
   dsimp only [bind, Bind.bind, Option.bind]
   -- padw + locLoadwBe 12
@@ -77,7 +77,7 @@ private theorem ep_b6_chunk1_correct (a b : U256) (rest : List Felt)
      b.a6.val :: a.a3.val :: a.a2.val :: a.a1.val :: L₇ :: L₅ :: L₄ :: rest,
      mem, frame :: frames, adv⟩
     rfl h0u (U256.a0_isU32 a) (U256.a6_isU32 b) hL₆
-  simp only [MidenState.withStack] at hms
+  simp only [Concrete.State.withStack] at hms
   rw [hms]; clear hms; dsimp only [bind, Bind.bind, Option.bind]
   -- swap 1, movdn 6
   miden_swap; miden_movdn
@@ -94,13 +94,13 @@ private theorem ep_b6_chunk2_correct
     (hcarry : carry.isU32 = true) (ha₁ : a₁.isU32 = true)
     (hb₆ : b₆.isU32 = true) (hL₇ : L₇.isU32 = true)
     (fuel : Nat) :
-    execWithEnv u256ProcEnv (fuel + 2)
+    execProcedure u256ProcEnv (fuel + 2)
       ⟨carry :: b₆ :: a₃ :: a₂ :: a₁ :: L₇ :: lo₁ :: L₅ :: L₄ :: rest,
        mem, frames, adv⟩
       (Procedure.ofOps ep_b6_chunk2) =
     some ⟨mulstepLo carry a₁ b₆ L₇ :: lo₁ :: L₅ :: L₄ :: rest,
           mem, frames, adv⟩ := by
-  unfold ep_b6_chunk2 execWithEnv Procedure.ofOps
+  unfold ep_b6_chunk2 execProcedure Procedure.ofOps
   simp only [List.foldlM, u256ProcEnv]
   dsimp only [bind, Bind.bind, Option.bind]
   miden_swap; miden_movup; miden_movup; miden_swap
@@ -112,7 +112,7 @@ private theorem ep_b6_chunk2_correct
      a₃ :: a₂ :: lo₁ :: L₅ :: L₄ :: rest,
      mem, frames, adv⟩
     rfl hcarry ha₁ hb₆ hL₇
-  simp only [MidenState.withStack] at hms
+  simp only [Concrete.State.withStack] at hms
   rw [hms]; clear hms; dsimp only [bind, Bind.bind, Option.bind]
   -- drop, movdn 2, drop, drop
   rw [stepDrop]; dsimp only [bind, Bind.bind, Option.bind]
@@ -141,7 +141,7 @@ theorem wm_ep_b6_correct (a b : U256) (rest : List Felt)
     (h0_1 : mem (frame.localAddr 0 + 1) = b.a5.val)
     (h0_0 : mem (frame.localAddr 0) = b.a4.val) :
     let c₁ := mulstepCarry 0 a.a0.val b.a6.val L₆
-    execWithEnv u256ProcEnv (fuel + 3)
+    execProcedure u256ProcEnv (fuel + 3)
       ⟨L₇ :: L₆ :: L₅ :: L₄ :: rest, mem, frame :: frames, adv⟩
       (Procedure.ofOps wm_ep_b6) =
     some ⟨mulstepLo c₁ a.a1.val b.a6.val L₇ ::
@@ -149,7 +149,7 @@ theorem wm_ep_b6_correct (a b : U256) (rest : List Felt)
           mem, frame :: frames, adv⟩ := by
   -- Decompose into 2 chunks
   rw [show (wm_ep_b6 : List Op) = ep_b6_chunk1 ++ ep_b6_chunk2 from ep_b6_decomp]
-  rw [execWithEnv_append]
+  rw [execProcedure_append]
   -- Chunk 1: memory load + first mulstep
   rw [ep_b6_chunk1_correct a b rest mem frame frames adv fuel hnl
       L₇ L₆ L₅ L₄ hL₆ h12_3 h12_2 h12_1 h12_0 h0_3 h0_2 h0_1 h0_0]

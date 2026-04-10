@@ -17,10 +17,10 @@ set_option maxHeartbeats 4000000 in
     Input stack:  [x0, x1, x2, x3, x4, x5, x6, x7] ++ rest
     Output stack: [sorry] ++ rest -/
 theorem word_arrange_words_adjacent_le_correct
-    (x0 x1 x2 x3 x4 x5 x6 x7 : Felt) (rest : List Felt) (s : MidenState)
+    (x0 x1 x2 x3 x4 x5 x6 x7 : Felt) (rest : List Felt) (s : Concrete.State)
     (hs : s.stack = x0 :: x1 :: x2 :: x3 :: x4 :: x5 :: x6 :: x7 :: rest)
     :
-    exec 18 s Miden.Core.Word.arrange_words_adjacent_le =
+    execProcedure emptyEnv 18 s Miden.Core.Word.arrange_words_adjacent_le =
     some (s.withStack (sorry :: rest))  -- TODO: specify output
     := by
   miden_setup Miden.Core.Word.arrange_words_adjacent_le

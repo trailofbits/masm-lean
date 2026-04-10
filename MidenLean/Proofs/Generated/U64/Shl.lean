@@ -17,11 +17,11 @@ set_option maxHeartbeats 4000000 in
     Input stack:  [a, b, c] ++ rest
     Output stack: [sorry] ++ rest -/
 theorem u64_shl_correct
-    (a b c : Felt) (rest : List Felt) (s : MidenState)
+    (a b c : Felt) (rest : List Felt) (s : Concrete.State)
     (hs : s.stack = a :: b :: c :: rest)
     (hc_leq63 : c.val ≤ 63)  -- from pow2 at instruction 0
     :
-    execWithEnv u64ProcEnv 43 s Miden.Core.U64.shl =
+    execProcedure u64ProcEnv 43 s Miden.Core.U64.shl =
     some (s.withStack (sorry :: rest))  -- TODO: specify output
     := by
   miden_setup_env Miden.Core.U64.shl
@@ -35,7 +35,7 @@ theorem u64_shl_correct
   try miden_movup
   -- Instruction 5: swap 1
   try miden_swap
-  -- Instruction 6: exec "wrapping_mul"
+  -- Instruction 6: execProcedure emptyEnv "wrapping_mul"
   try (simp only [u64ProcEnv])
   try (miden_call Miden.Core.U64.wrapping_mul)
   try (simp only [pure, Pure.pure])

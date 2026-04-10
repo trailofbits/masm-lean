@@ -15,11 +15,11 @@ set_option maxHeartbeats 8000000 in
     Output stack: [overflow, c_lo, c_hi] ++ rest
     where `(c_hi, c_lo)` is the 64-bit sum and `overflow` is the carry bit. -/
 theorem u64_overflowing_add_exec
-    (a_lo a_hi b_lo b_hi : Felt) (rest : List Felt) (s : MidenState)
+    (a_lo a_hi b_lo b_hi : Felt) (rest : List Felt) (s : Concrete.State)
     (hs : s.stack = b_lo :: b_hi :: a_lo :: a_hi :: rest)
     (ha_lo : a_lo.isU32 = true) (ha_hi : a_hi.isU32 = true)
     (hb_lo : b_lo.isU32 = true) (hb_hi : b_hi.isU32 = true) :
-    exec 10 s Miden.Core.U64.overflowing_add =
+    execProcedure emptyEnv 10 s Miden.Core.U64.overflowing_add =
     some (s.withStack (
       let lo_sum := b_lo.val + a_lo.val
       let carry := lo_sum / 2 ^ 32
@@ -30,7 +30,7 @@ theorem u64_overflowing_add_exec
   miden_vcg
   all_goals miden_finish_reflection
 
-/-- `execWithEnv` form of `u64_overflowing_add_exec`, for callers that compose
+/-- `execProcedure` form of `u64_overflowing_add_exec`, for callers that compose
     `overflowing_add` inside a `ProcEnv` (e.g. `wrapping_add`, `widening_add`). -/
 theorem u64_overflowing_add_run
     (env : ProcEnv) (fuel : Nat)
@@ -38,7 +38,7 @@ theorem u64_overflowing_add_run
     (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (ha_lo : a_lo.isU32 = true) (ha_hi : a_hi.isU32 = true)
     (hb_lo : b_lo.isU32 = true) (hb_hi : b_hi.isU32 = true) :
-    execWithEnv env (fuel + 1) ⟨b_lo :: b_hi :: a_lo :: a_hi :: rest, mem, frames, adv⟩
+    execProcedure env (fuel + 1) ⟨b_lo :: b_hi :: a_lo :: a_hi :: rest, mem, frames, adv⟩
       Miden.Core.U64.overflowing_add =
     some ⟨
       Felt.ofNat ((a_hi.val + b_hi.val + (b_lo.val + a_lo.val) / 2 ^ 32) / 2 ^ 32) ::
@@ -46,7 +46,7 @@ theorem u64_overflowing_add_run
       Felt.ofNat ((a_hi.val + b_hi.val + (b_lo.val + a_lo.val) / 2 ^ 32) % 2 ^ 32) ::
       rest,
       mem, frames, adv⟩ := by
-  unfold Miden.Core.U64.overflowing_add execWithEnv
+  unfold Miden.Core.U64.overflowing_add execProcedure
   simp only [List.foldlM]
   miden_movup
   rw [stepU32WidenAdd (ha := by assumption) (hb := by assumption)]
@@ -64,9 +64,9 @@ theorem u64_overflowing_add_run
     Input stack:  [b.lo, b.hi, a.lo, a.hi] ++ rest
     Output stack: [overflow, (a + b).lo, (a + b).hi] ++ rest
     where overflow = 1 iff the addition overflowed 64 bits. -/
-theorem u64_overflowing_add_correct (a b : U64) (rest : List Felt) (s : MidenState)
+theorem u64_overflowing_add_correct (a b : U64) (rest : List Felt) (s : Concrete.State)
     (hs : s.stack = b.lo.val :: b.hi.val :: a.lo.val :: a.hi.val :: rest) :
-    exec 10 s Miden.Core.U64.overflowing_add =
+    execProcedure emptyEnv 10 s Miden.Core.U64.overflowing_add =
     some (s.withStack (
       (if a.toNat + b.toNat ≥ 2^64 then (1 : Felt) else 0) ::
       (a + b).lo.val :: (a + b).hi.val :: rest)) := by

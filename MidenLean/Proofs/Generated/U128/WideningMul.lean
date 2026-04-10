@@ -17,14 +17,14 @@ set_option maxHeartbeats 4000000 in
     Input stack:  [x0, x1, x2, x3, x4, x5, x6, x7] ++ rest
     Output stack: [sorry] ++ rest -/
 theorem u128_widening_mul_correct
-    (x0 x1 x2 x3 x4 x5 x6 x7 : Felt) (rest : List Felt) (s : MidenState)
+    (x0 x1 x2 x3 x4 x5 x6 x7 : Felt) (rest : List Felt) (s : Concrete.State)
     (hs : s.stack = x0 :: x1 :: x2 :: x3 :: x4 :: x5 :: x6 :: x7 :: rest)
     :
-    execWithEnv u128ProcEnv 31 s Miden.Core.U128.widening_mul =
+    execProcedure u128ProcEnv 31 s Miden.Core.U128.widening_mul =
     some (s.withStack (sorry :: rest))  -- TODO: specify output
     := by
   miden_setup_env Miden.Core.U128.widening_mul
-  -- Instruction 1: exec "overflowing_mul"
+  -- Instruction 1: execProcedure emptyEnv "overflowing_mul"
   try (simp only [u128ProcEnv])
   try (miden_call Miden.Core.U128.overflowing_mul)
   -- Instruction 2: movdn 4

@@ -17,14 +17,14 @@ set_option maxHeartbeats 4000000 in
     Input stack:  [a, b, c, d] ++ rest
     Output stack: [sorry] ++ rest -/
 theorem u64_u32assert4_correct
-    (a b c d : Felt) (rest : List Felt) (s : MidenState)
+    (a b c d : Felt) (rest : List Felt) (s : Concrete.State)
     (hs : s.stack = a :: b :: c :: d :: rest)
     (ha_u32 : a.isU32 = true)  -- from u32Assert2 at instruction 3
     (hb_u32 : b.isU32 = true)  -- from u32Assert2 at instruction 3
     (hc_u32 : c.isU32 = true)  -- from u32Assert2 at instruction 0
     (hd_u32 : d.isU32 = true)  -- from u32Assert2 at instruction 0
     :
-    exec 11 s Miden.Core.U64.u32assert4 =
+    execProcedure emptyEnv 11 s Miden.Core.U64.u32assert4 =
     some (s.withStack (sorry :: rest))  -- TODO: specify output
     := by
   miden_setup Miden.Core.U64.u32assert4

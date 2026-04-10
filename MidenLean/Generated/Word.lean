@@ -1,5 +1,5 @@
 -- MASM source repo commit: a6e57e8e303ff4ab24d0551332fa8f669b058cc1
-import MidenLean.Semantics
+import MidenLean.Concrete.Exec
 
 open MidenLean
 

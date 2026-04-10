@@ -1,8 +1,8 @@
 import MidenLean.Felt
-import MidenLean.State
+import MidenLean.Concrete.State
 import MidenLean.Instruction
 import MidenLean.Op
-import MidenLean.Semantics
+import MidenLean.Concrete.Exec
 import MidenLean.Generated.Word
 import MidenLean.Generated.U64
 import MidenLean.Generated.U128

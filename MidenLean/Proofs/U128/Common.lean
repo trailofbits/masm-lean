@@ -12,7 +12,7 @@ theorem stepU32WrappingSubLocal (mem : Nat → Felt) (frames : List LocalFrame) 
     execInstruction ⟨b :: a :: rest, mem, frames, adv⟩ .u32WrappingSub =
       some ⟨Felt.ofNat (u32OverflowingSub a.val b.val).2 :: rest, mem, frames, adv⟩ := by
   unfold execInstruction execU32WrappingSub
-  simp [ha, hb, MidenState.withStack]
+  simp [ha, hb, Concrete.State.withStack]
 
 theorem stepU32ShrLocal (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (a b : Felt) (rest : List Felt)
@@ -21,7 +21,7 @@ theorem stepU32ShrLocal (mem : Nat → Felt) (frames : List LocalFrame) (adv : L
     execInstruction ⟨b :: a :: rest, mem, frames, adv⟩ .u32Shr =
       some ⟨Felt.ofNat (a.val / 2 ^ b.val) :: rest, mem, frames, adv⟩ := by
   unfold execInstruction execU32Shr
-  simp [ha, hb, show ¬b.val > 31 by omega, MidenState.withStack]
+  simp [ha, hb, show ¬b.val > 31 by omega, Concrete.State.withStack]
 
 /-- Procedure environment for manual u128 proofs that call other u128 procedures. -/
 def u128ProcEnv : ProcEnv := fun name =>

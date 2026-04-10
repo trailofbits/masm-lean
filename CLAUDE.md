@@ -14,7 +14,7 @@ Lean 4 v4.28.0 via elan. A clean build with zero `sorry` means all theorems are 
 ## Key conventions
 
 - **Lean 4 / Mathlib naming**: lowerCamelCase for defs and theorems, UpperCamelCase for types and namespaces.
-- **Dispatch architecture** (`Semantics.lean`): `execInstruction` dispatches each instruction to a dedicated handler (`execDrop`, `execDup`, `execSwap`, `execMovup`, etc.). `execWithEnv` executes `List Op` with a `ProcEnv` for procedure calls.
+- **Dispatch architecture** (`Concrete/Exec.lean`): `execInstruction` dispatches each instruction to a dedicated handler (`execDrop`, `execDup`, `execSwap`, `execMovup`, etc.). `execProcedure` executes `List Op` with a `ProcEnv` for procedure calls. `emptyEnv` is the trivial environment for procedures with no inter-procedure calls.
 - **Step lemmas** (`StepLemmas.lean`): parametric where possible (`stepDup`, `stepSwap`), with explicit range hypotheses for `movup`/`movdn`. Proved by `unfold execInstruction execFoo; rfl` or `simp`.
 - **Proof pattern**: destructure state, unfold procedure, rewrite to monadic `do`-form, step through with exact `rw [stepFoo]`, structural tactics (`miden_swap`, `miden_dup`, `miden_movup`, `miden_movdn`), and `miden_bind`. Use `miden_step` mainly for short residual steps, not as the default for long proofs. See `MidenLean/Proofs/U64/Min.lean`, `MidenLean/Proofs/U64/Max.lean`, and `MidenLean/Proofs/U64/Shr.lean`.
 - **Correctness theorems**: named `<procedure>_correct` in snake_case matching the MASM name (e.g., `u64_wrapping_sub_correct`).

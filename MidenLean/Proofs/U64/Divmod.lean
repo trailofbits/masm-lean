@@ -9,11 +9,11 @@ open MidenLean.StepLemmas
 open MidenLean.Tactics
 
 /-- Execute a concatenation of op lists in two phases. -/
-private theorem execWithEnv_append (env : ProcEnv) (fuel : Nat) (s : MidenState) (xs ys : List Op) :
-    execWithEnv env fuel s (xs ++ ys) = (do
-      let s' ← execWithEnv env fuel s xs
-      execWithEnv env fuel s' ys) := by
-  unfold execWithEnv
+private theorem execProcedure_append (env : ProcEnv) (fuel : Nat) (s : Concrete.State) (xs ys : List Op) :
+    execProcedure env fuel s (xs ++ ys) = (do
+      let s' ← execProcedure env fuel s xs
+      execProcedure env fuel s' ys) := by
+  unfold execProcedure
   cases fuel <;> simp [List.foldlM_append]
 
 private def divmod_chunk1a : List Op := [
@@ -106,7 +106,7 @@ private theorem divmod_chunk1a_correct
         (b_lo.val * q_hi.val) / 2^32) / 2^32) == (0 : Felt)) = true) :
     let cross0_lo := Felt.ofNat ((b_lo.val * q_hi.val) % 2^32)
     let madd1_lo := Felt.ofNat ((b_hi.val * q_hi.val + (b_lo.val * q_hi.val) / 2^32) % 2^32)
-    execWithEnv u64ProcEnv 50
+    execProcedure u64ProcEnv 50
       { stack := b_lo :: b_hi :: a_lo :: a_hi :: rest,
         memory := mem, frames := frames,
         advice := q_lo :: q_hi :: r_lo :: r_hi :: adv_rest }
@@ -114,7 +114,7 @@ private theorem divmod_chunk1a_correct
     some { stack := madd1_lo :: cross0_lo :: q_hi :: q_lo :: b_lo :: b_hi :: a_lo :: a_hi :: rest,
            memory := mem, frames := frames, advice := r_lo :: r_hi :: adv_rest } := by
   simp only []
-  unfold divmod_chunk1a execWithEnv
+  unfold divmod_chunk1a execProcedure
   simp only [List.foldlM]
   have h_cross0_hi_u32 : (Felt.ofNat ((b_lo.val * q_hi.val) / 2^32)).isU32 = true :=
     u32_prod_div_isU32 b_lo q_hi hb_lo_u32 hq_hi_u32
@@ -172,14 +172,14 @@ private theorem divmod_chunk1b_correct
     let madd1_lo := Felt.ofNat ((b_hi.val * q_hi.val + (b_lo.val * q_hi.val) / 2^32) % 2^32)
     let madd2_lo := Felt.ofNat ((b_lo.val * q_lo.val +
       (b_hi.val * q_hi.val + (b_lo.val * q_hi.val) / 2^32) % 2^32) % 2^32)
-    execWithEnv u64ProcEnv 50
+    execProcedure u64ProcEnv 50
       { stack := madd1_lo :: cross0_lo :: q_hi :: q_lo :: b_lo :: b_hi :: a_lo :: a_hi :: rest,
         memory := mem, frames := frames, advice := r_lo :: r_hi :: adv_rest }
       divmod_chunk1b =
     some { stack := madd2_lo :: cross0_lo :: q_hi :: q_lo :: b_lo :: b_hi :: a_lo :: a_hi :: rest,
            memory := mem, frames := frames, advice := r_lo :: r_hi :: adv_rest } := by
   simp only []
-  unfold divmod_chunk1b execWithEnv
+  unfold divmod_chunk1b execProcedure
   simp only [List.foldlM]
   have h_madd1_lo_u32 : (Felt.ofNat ((b_hi.val * q_hi.val +
       (b_lo.val * q_hi.val) / 2^32) % 2^32)).isU32 = true :=
@@ -215,7 +215,7 @@ private theorem divmod_chunk1c_correct
     let cross0_lo := Felt.ofNat ((b_lo.val * q_hi.val) % 2^32)
     let madd2_lo := Felt.ofNat ((b_lo.val * q_lo.val +
       (b_hi.val * q_hi.val + (b_lo.val * q_hi.val) / 2^32) % 2^32) % 2^32)
-    execWithEnv u64ProcEnv 50
+    execProcedure u64ProcEnv 50
       { stack := madd2_lo :: cross0_lo :: q_hi :: q_lo :: b_lo :: b_hi :: a_lo :: a_hi :: rest,
         memory := mem, frames := frames, advice := r_lo :: r_hi :: adv_rest }
       divmod_chunk1c =
@@ -223,7 +223,7 @@ private theorem divmod_chunk1c_correct
                     q_hi :: q_lo :: b_lo :: b_hi :: a_lo :: a_hi :: rest,
            memory := mem, frames := frames, advice := adv_rest } := by
   simp only []
-  unfold divmod_chunk1c execWithEnv
+  unfold divmod_chunk1c execProcedure
   simp only [List.foldlM]
   have h_bhi_qlo_eq : b_hi * q_lo = 0 :=
     LawfulBEq.eq_of_beq h_bhi_qlo_zero
@@ -259,7 +259,7 @@ private theorem divmod_chunk2_correct
     let cross0_lo := Felt.ofNat ((b_lo.val * q_hi.val) % 2^32)
     let madd2_lo := Felt.ofNat ((b_lo.val * q_lo.val +
       (b_hi.val * q_hi.val + (b_lo.val * q_hi.val) / 2^32) % 2^32) % 2^32)
-    execWithEnv u64ProcEnv 50
+    execProcedure u64ProcEnv 50
       { stack := r_hi :: r_lo :: madd2_lo :: cross0_lo ::
                  q_hi :: q_lo :: b_lo :: b_hi :: a_lo :: a_hi :: rest,
         memory := mem, frames := frames, advice := adv_rest }
@@ -268,7 +268,7 @@ private theorem divmod_chunk2_correct
                     q_hi :: q_lo :: a_lo :: a_hi :: rest,
            memory := mem, frames := frames, advice := adv_rest } := by
   simp only []
-  unfold divmod_chunk2 execWithEnv
+  unfold divmod_chunk2 execProcedure
   simp only [List.foldlM]
   miden_movup
   miden_movup
@@ -278,7 +278,7 @@ private theorem divmod_chunk2_correct
   miden_movup
   miden_movup
   simp only [u64ProcEnv]
-  unfold Miden.Core.U64.lt execWithEnv
+  unfold Miden.Core.U64.lt execProcedure
   simp only [List.foldlM]
   miden_movup
   miden_movup
@@ -312,7 +312,7 @@ private theorem divmod_chunk3a_correct
       (b_hi.val * q_hi.val + (b_lo.val * q_hi.val) / 2^32) % 2^32) % 2^32)
     let sum0_lo := Felt.ofNat ((r_hi.val + (b_lo.val * q_hi.val) % 2^32) % 2^32)
     let sum0_hi := Felt.ofNat ((r_hi.val + (b_lo.val * q_hi.val) % 2^32) / 2^32)
-    execWithEnv u64ProcEnv 50
+    execProcedure u64ProcEnv 50
       { stack := r_hi :: r_lo :: madd2_lo :: cross0_lo ::
                  q_hi :: q_lo :: a_lo :: a_hi :: rest,
         memory := mem, frames := frames, advice := adv_rest }
@@ -321,7 +321,7 @@ private theorem divmod_chunk3a_correct
                     q_hi :: q_lo :: a_lo :: a_hi :: rest,
            memory := mem, frames := frames, advice := adv_rest } := by
   simp only []
-  unfold divmod_chunk3a execWithEnv
+  unfold divmod_chunk3a execProcedure
   simp only [List.foldlM]
   have h_cross0_lo_u32 : (Felt.ofNat ((b_lo.val * q_hi.val) % 2^32)).isU32 = true :=
     u32_mod_isU32 _
@@ -360,7 +360,7 @@ private theorem divmod_chunk3b_correct
       (b_hi.val * q_hi.val + (b_lo.val * q_hi.val) / 2^32) % 2^32) % 2^32)
     let sum0_lo := Felt.ofNat ((r_hi.val + (b_lo.val * q_hi.val) % 2^32) % 2^32)
     let sum0_hi := Felt.ofNat ((r_hi.val + (b_lo.val * q_hi.val) % 2^32) / 2^32)
-    execWithEnv u64ProcEnv 50
+    execProcedure u64ProcEnv 50
       { stack := sum0_hi :: sum0_lo :: r_hi :: r_lo :: madd2_lo ::
                  q_hi :: q_lo :: a_lo :: a_hi :: rest,
         memory := mem, frames := frames, advice := adv_rest }
@@ -368,7 +368,7 @@ private theorem divmod_chunk3b_correct
     some { stack := r_hi :: r_lo :: q_hi :: q_lo :: rest,
            memory := mem, frames := frames, advice := adv_rest } := by
   simp only []
-  unfold divmod_chunk3b execWithEnv
+  unfold divmod_chunk3b execProcedure
   simp only [List.foldlM]
   have h_madd2_lo_u32 : (Felt.ofNat ((b_lo.val * q_lo.val +
       (b_hi.val * q_hi.val + (b_lo.val * q_hi.val) / 2^32) % 2^32) % 2^32)).isU32 = true :=
@@ -432,12 +432,12 @@ private theorem divmod_chunk1a_none
     (hb_hi_u32 : b_hi.isU32 = true)
     (h_not : ¬((Felt.ofNat ((b_hi.val * q_hi.val +
         (b_lo.val * q_hi.val) / 2^32) / 2^32) == (0 : Felt)) = true)) :
-    execWithEnv u64ProcEnv 50
+    execProcedure u64ProcEnv 50
       { stack := b_lo :: b_hi :: a_lo :: a_hi :: rest,
         memory := mem, frames := frames,
         advice := q_lo :: q_hi :: r_lo :: r_hi :: adv_rest }
       divmod_chunk1a = none := by
-  unfold divmod_chunk1a execWithEnv
+  unfold divmod_chunk1a execProcedure
   simp only [List.foldlM]
   have h_cross0_hi_u32 : (Felt.ofNat ((b_lo.val * q_hi.val) / 2^32)).isU32 = true :=
     u32_prod_div_isU32 b_lo q_hi hb_lo_u32 hq_hi_u32
@@ -491,12 +491,12 @@ private theorem divmod_chunk1b_none
         (0 : Felt)) = true)) :
     let cross0_lo := Felt.ofNat ((b_lo.val * q_hi.val) % 2^32)
     let madd1_lo := Felt.ofNat ((b_hi.val * q_hi.val + (b_lo.val * q_hi.val) / 2^32) % 2^32)
-    execWithEnv u64ProcEnv 50
+    execProcedure u64ProcEnv 50
       { stack := madd1_lo :: cross0_lo :: q_hi :: q_lo :: b_lo :: b_hi :: a_lo :: a_hi :: rest,
         memory := mem, frames := frames, advice := r_lo :: r_hi :: adv_rest }
       divmod_chunk1b = none := by
   simp only []
-  unfold divmod_chunk1b execWithEnv
+  unfold divmod_chunk1b execProcedure
   simp only [List.foldlM]
   have h_madd1_lo_u32 : (Felt.ofNat ((b_hi.val * q_hi.val +
       (b_lo.val * q_hi.val) / 2^32) % 2^32)).isU32 = true :=
@@ -526,12 +526,12 @@ private theorem divmod_chunk1c_none
     let cross0_lo := Felt.ofNat ((b_lo.val * q_hi.val) % 2^32)
     let madd2_lo := Felt.ofNat ((b_lo.val * q_lo.val +
       (b_hi.val * q_hi.val + (b_lo.val * q_hi.val) / 2^32) % 2^32) % 2^32)
-    execWithEnv u64ProcEnv 50
+    execProcedure u64ProcEnv 50
       { stack := madd2_lo :: cross0_lo :: q_hi :: q_lo :: b_lo :: b_hi :: a_lo :: a_hi :: rest,
         memory := mem, frames := frames, advice := r_lo :: r_hi :: adv_rest }
       divmod_chunk1c = none := by
   simp only []
-  unfold divmod_chunk1c execWithEnv
+  unfold divmod_chunk1c execProcedure
   simp only [List.foldlM]
   miden_dup
   miden_dup
@@ -561,13 +561,13 @@ private theorem divmod_chunk2_none
     let cross0_lo := Felt.ofNat ((b_lo.val * q_hi.val) % 2^32)
     let madd2_lo := Felt.ofNat ((b_lo.val * q_lo.val +
       (b_hi.val * q_hi.val + (b_lo.val * q_hi.val) / 2^32) % 2^32) % 2^32)
-    execWithEnv u64ProcEnv 50
+    execProcedure u64ProcEnv 50
       { stack := r_hi :: r_lo :: madd2_lo :: cross0_lo ::
                  q_hi :: q_lo :: b_lo :: b_hi :: a_lo :: a_hi :: rest,
         memory := mem, frames := frames, advice := adv_rest }
       divmod_chunk2 = none := by
   simp only []
-  unfold divmod_chunk2 execWithEnv
+  unfold divmod_chunk2 execProcedure
   simp only [List.foldlM]
   miden_movup
   miden_movup
@@ -577,7 +577,7 @@ private theorem divmod_chunk2_none
   miden_movup
   miden_movup
   simp only [u64ProcEnv]
-  unfold Miden.Core.U64.lt execWithEnv
+  unfold Miden.Core.U64.lt execProcedure
   simp only [List.foldlM]
   miden_movup
   miden_movup
@@ -628,13 +628,13 @@ private theorem divmod_chunk3b_none_add2
       (b_hi.val * q_hi.val + (b_lo.val * q_hi.val) / 2^32) % 2^32) % 2^32)
     let sum0_lo := Felt.ofNat ((r_hi.val + (b_lo.val * q_hi.val) % 2^32) % 2^32)
     let sum0_hi := Felt.ofNat ((r_hi.val + (b_lo.val * q_hi.val) % 2^32) / 2^32)
-    execWithEnv u64ProcEnv 50
+    execProcedure u64ProcEnv 50
       { stack := sum0_hi :: sum0_lo :: r_hi :: r_lo :: madd2_lo ::
                  q_hi :: q_lo :: a_lo :: a_hi :: rest,
         memory := mem, frames := frames, advice := adv_rest }
       divmod_chunk3b = none := by
   simp only []
-  unfold divmod_chunk3b execWithEnv
+  unfold divmod_chunk3b execProcedure
   simp only [List.foldlM]
   have h_madd2_lo_u32 : (Felt.ofNat ((b_lo.val * q_lo.val +
       (b_hi.val * q_hi.val + (b_lo.val * q_hi.val) / 2^32) % 2^32) % 2^32)).isU32 = true :=
@@ -703,13 +703,13 @@ private theorem divmod_chunk3b_none_ahi
       (b_hi.val * q_hi.val + (b_lo.val * q_hi.val) / 2^32) % 2^32) % 2^32)
     let sum0_lo := Felt.ofNat ((r_hi.val + (b_lo.val * q_hi.val) % 2^32) % 2^32)
     let sum0_hi := Felt.ofNat ((r_hi.val + (b_lo.val * q_hi.val) % 2^32) / 2^32)
-    execWithEnv u64ProcEnv 50
+    execProcedure u64ProcEnv 50
       { stack := sum0_hi :: sum0_lo :: r_hi :: r_lo :: madd2_lo ::
                  q_hi :: q_lo :: a_lo :: a_hi :: rest,
         memory := mem, frames := frames, advice := adv_rest }
       divmod_chunk3b = none := by
   simp only []
-  unfold divmod_chunk3b execWithEnv
+  unfold divmod_chunk3b execProcedure
   simp only [List.foldlM]
   have h_madd2_lo_u32 : (Felt.ofNat ((b_lo.val * q_lo.val +
       (b_hi.val * q_hi.val + (b_lo.val * q_hi.val) / 2^32) % 2^32) % 2^32)).isU32 = true :=
@@ -785,13 +785,13 @@ private theorem divmod_chunk3b_none_alo
       (b_hi.val * q_hi.val + (b_lo.val * q_hi.val) / 2^32) % 2^32) % 2^32)
     let sum0_lo := Felt.ofNat ((r_hi.val + (b_lo.val * q_hi.val) % 2^32) % 2^32)
     let sum0_hi := Felt.ofNat ((r_hi.val + (b_lo.val * q_hi.val) % 2^32) / 2^32)
-    execWithEnv u64ProcEnv 50
+    execProcedure u64ProcEnv 50
       { stack := sum0_hi :: sum0_lo :: r_hi :: r_lo :: madd2_lo ::
                  q_hi :: q_lo :: a_lo :: a_hi :: rest,
         memory := mem, frames := frames, advice := adv_rest }
       divmod_chunk3b = none := by
   simp only []
-  unfold divmod_chunk3b execWithEnv
+  unfold divmod_chunk3b execProcedure
   simp only [List.foldlM]
   have h_madd2_lo_u32 : (Felt.ofNat ((b_lo.val * q_lo.val +
       (b_hi.val * q_hi.val + (b_lo.val * q_hi.val) / 2^32) % 2^32) % 2^32)).isU32 = true :=
@@ -851,7 +851,7 @@ set_option maxHeartbeats 16000000 in
 theorem u64_divmod_exec
     (a_lo a_hi b_lo b_hi : Felt) (rest : List Felt)
     (q_lo q_hi r_lo r_hi : Felt) (adv_rest : List Felt)
-    (s : MidenState)
+    (s : Concrete.State)
     (hs : s.stack = b_lo :: b_hi :: a_lo :: a_hi :: rest)
     (hadv : s.advice = q_lo :: q_hi :: r_lo :: r_hi :: adv_rest)
     (hq_hi_u32 : q_hi.isU32 = true)
@@ -893,7 +893,7 @@ theorem u64_divmod_exec
         (r_hi.val + (b_lo.val * q_hi.val) % 2^32) / 2^32) % 2^32))
     (h_a_lo_eq : a_lo = Felt.ofNat ((r_hi.val +
         (b_lo.val * q_hi.val) % 2^32) % 2^32)) :
-    execWithEnv u64ProcEnv 50 s Miden.Core.U64.divmod =
+    execProcedure u64ProcEnv 50 s Miden.Core.U64.divmod =
     some { stack := r_hi :: r_lo :: q_hi :: q_lo :: rest,
            memory := s.memory,
            frames := s.frames,
@@ -902,23 +902,23 @@ theorem u64_divmod_exec
   simp only [] at hadv
   subst hs
   subst hadv
-  rw [execWithEnv_body_eq _ _ _ _ _ divmod_decomp rfl, execWithEnv_append]
+  rw [execProcedure_body_eq _ _ _ _ _ divmod_decomp rfl, execProcedure_append]
   rw [divmod_chunk1a_correct a_lo a_hi b_lo b_hi rest q_lo q_hi r_lo r_hi adv_rest mem frames
       hq_hi_u32 hq_lo_u32 hb_lo_u32 hb_hi_u32 cross0_hi_val h_madd1_hi_zero]
   miden_bind
-  rw [execWithEnv_append]
+  rw [execProcedure_append]
   rw [divmod_chunk1b_correct a_lo a_hi b_lo b_hi rest q_lo q_hi r_lo r_hi adv_rest mem frames
       hq_lo_u32 hb_lo_u32 madd1_lo_val h_madd2_hi_zero]
   miden_bind
-  rw [execWithEnv_append]
+  rw [execProcedure_append]
   rw [divmod_chunk1c_correct a_lo a_hi b_lo b_hi rest q_lo q_hi r_lo r_hi adv_rest mem frames
       hr_hi_u32 hr_lo_u32 h_bhi_qlo_zero]
   miden_bind
-  rw [execWithEnv_append]
+  rw [execProcedure_append]
   rw [divmod_chunk2_correct a_lo a_hi b_lo b_hi rest q_lo q_hi r_lo r_hi adv_rest mem frames
       hr_hi_u32 hr_lo_u32 hb_lo_u32 hb_hi_u32 h_lt_result]
   miden_bind
-  rw [execWithEnv_append]
+  rw [execProcedure_append]
   rw [divmod_chunk3a_correct a_lo a_hi b_lo b_hi rest q_lo q_hi r_lo r_hi adv_rest mem frames
       hr_hi_u32 cross0_lo_val]
   miden_bind
@@ -1006,10 +1006,10 @@ private theorem divmod_forward_arith (ql qh bl bh rl rh al ah : Nat)
     Execution succeeds iff the advice-supplied quotient q and remainder r
     satisfy q * b + r = a and r < b. -/
 theorem u64_divmod_correct (a b q r : U64) (rest : List Felt) (adv_rest : List Felt)
-    (s : MidenState)
+    (s : Concrete.State)
     (hs : s.stack = b.lo.val :: b.hi.val :: a.lo.val :: a.hi.val :: rest)
     (hadv : s.advice = q.hi.val :: q.lo.val :: r.hi.val :: r.lo.val :: adv_rest) :
-    execWithEnv u64ProcEnv 50 s Miden.Core.U64.divmod =
+    execProcedure u64ProcEnv 50 s Miden.Core.U64.divmod =
     some { stack := r.lo.val :: r.hi.val :: q.lo.val :: q.hi.val :: rest,
            memory := s.memory,
            frames := s.frames,
@@ -1046,17 +1046,17 @@ theorem u64_divmod_correct (a b q r : U64) (rest : List Felt) (adv_rest : List F
       by_contra h_not
       have := divmod_chunk1a_none a.lo.val a.hi.val b.lo.val b.hi.val rest q.hi.val q.lo.val r.hi.val r.lo.val adv_rest
         mem frames q.lo.isU32 q.hi.isU32 b.lo.isU32 b.hi.isU32 h_not
-      rw [execWithEnv_body_eq _ _ _ _ _ divmod_decomp rfl, execWithEnv_append] at hexec
+      rw [execProcedure_body_eq _ _ _ _ _ divmod_decomp rfl, execProcedure_append] at hexec
       rw [this] at hexec
       simp [bind, Bind.bind, Option.bind] at hexec
     -- Use chunk1a_correct to determine the intermediate state
-    rw [execWithEnv_body_eq _ _ _ _ _ divmod_decomp rfl, execWithEnv_append] at hexec
+    rw [execProcedure_body_eq _ _ _ _ _ divmod_decomp rfl, execProcedure_append] at hexec
     rw [divmod_chunk1a_correct a.lo.val a.hi.val b.lo.val b.hi.val rest q.hi.val q.lo.val r.hi.val r.lo.val adv_rest mem frames
         q.lo.isU32 q.hi.isU32 b.lo.isU32 b.hi.isU32
         (felt_ofNat_val_lt _ (u32_prod_div_lt_prime b.lo.val q.lo.val b.lo.isU32 q.lo.isU32))
         h_cond1] at hexec
     simp only [bind, Bind.bind, Option.bind] at hexec
-    rw [execWithEnv_append] at hexec
+    rw [execProcedure_append] at hexec
     -- Extract condition 2: madd2_hi_zero (from chunk1b assertion)
     have h_cond2 : (Felt.ofNat ((bl * qh +
         (bh * ql + (bl * ql) / 2^32) % 2^32) / 2^32) == (0 : Felt)) = true := by
@@ -1067,7 +1067,7 @@ theorem u64_divmod_correct (a b q r : U64) (rest : List Felt) (adv_rest : List F
     rw [divmod_chunk1b_correct a.lo.val a.hi.val b.lo.val b.hi.val rest q.hi.val q.lo.val r.hi.val r.lo.val adv_rest mem frames
         q.hi.isU32 b.lo.isU32 (felt_ofNat_val_lt _ (u32_mod_lt_prime _)) h_cond2] at hexec
     simp only [bind, Bind.bind, Option.bind] at hexec
-    rw [execWithEnv_append] at hexec
+    rw [execProcedure_append] at hexec
     -- Extract condition 3: bhi * qhi = 0 (from chunk1c assertion)
     have h_cond3 : ((b.hi.val * q.hi.val : Felt) == (0 : Felt)) = true := by
       by_contra h_not
@@ -1077,7 +1077,7 @@ theorem u64_divmod_correct (a b q r : U64) (rest : List Felt) (adv_rest : List F
     rw [divmod_chunk1c_correct a.lo.val a.hi.val b.lo.val b.hi.val rest q.hi.val q.lo.val r.hi.val r.lo.val adv_rest mem frames
         r.lo.isU32 r.hi.isU32 h_cond3] at hexec
     simp only [bind, Bind.bind, Option.bind] at hexec
-    rw [execWithEnv_append] at hexec
+    rw [execProcedure_append] at hexec
     -- Extract condition 4: lt_result (from chunk2 assertion)
     have h_cond4 :
         let borrow_lo := decide (r.lo.val.val < b.lo.val.val)
@@ -1091,7 +1091,7 @@ theorem u64_divmod_correct (a b q r : U64) (rest : List Felt) (adv_rest : List F
     rw [divmod_chunk2_correct a.lo.val a.hi.val b.lo.val b.hi.val rest q.hi.val q.lo.val r.hi.val r.lo.val adv_rest mem frames
         r.lo.isU32 r.hi.isU32 b.lo.isU32 b.hi.isU32 h_cond4] at hexec
     simp only [bind, Bind.bind, Option.bind] at hexec
-    rw [execWithEnv_append] at hexec
+    rw [execProcedure_append] at hexec
     -- chunk3a: no assertions
     have cross0_lo_val : (Felt.ofNat ((bl * ql) % 2^32)).val = (bl * ql) % 2^32 :=
       felt_ofNat_val_lt _ (u32_mod_lt_prime _)
@@ -1237,11 +1237,11 @@ theorem u64_divmod_correct (a b q r : U64) (rest : List Felt) (adv_rest : List F
     arbitrary output state, which is needed by `u64_div_correct` and
     `u64_mod_correct` where the divmod output is only partially observable. -/
 theorem divmod_conditions_of_exec (a b q r : U64) (rest : List Felt) (adv_rest : List Felt)
-    (s : MidenState)
+    (s : Concrete.State)
     (hs : s.stack = b.lo.val :: b.hi.val :: a.lo.val :: a.hi.val :: rest)
     (hadv : s.advice = q.hi.val :: q.lo.val :: r.hi.val :: r.lo.val :: adv_rest)
-    {s' : MidenState}
-    (hexec : execWithEnv u64ProcEnv 50 s Miden.Core.U64.divmod = some s') :
+    {s' : Concrete.State}
+    (hexec : execProcedure u64ProcEnv 50 s Miden.Core.U64.divmod = some s') :
     q.toNat * b.toNat + r.toNat = a.toNat ∧ r.toNat < b.toNat := by
   obtain ⟨stk, mem, frames, adv⟩ := s
   simp only [] at hs hadv; subst hs; subst hadv
@@ -1267,16 +1267,16 @@ theorem divmod_conditions_of_exec (a b q r : U64) (rest : List Felt) (adv_rest :
     by_contra h_not
     have := divmod_chunk1a_none a.lo.val a.hi.val b.lo.val b.hi.val rest q.hi.val q.lo.val r.hi.val r.lo.val adv_rest
       mem frames q.lo.isU32 q.hi.isU32 b.lo.isU32 b.hi.isU32 h_not
-    rw [execWithEnv_body_eq _ _ _ _ _ divmod_decomp rfl, execWithEnv_append] at hexec
+    rw [execProcedure_body_eq _ _ _ _ _ divmod_decomp rfl, execProcedure_append] at hexec
     rw [this] at hexec
     simp [bind, Bind.bind, Option.bind] at hexec
-  rw [execWithEnv_body_eq _ _ _ _ _ divmod_decomp rfl, execWithEnv_append] at hexec
+  rw [execProcedure_body_eq _ _ _ _ _ divmod_decomp rfl, execProcedure_append] at hexec
   rw [divmod_chunk1a_correct a.lo.val a.hi.val b.lo.val b.hi.val rest q.hi.val q.lo.val r.hi.val r.lo.val adv_rest mem frames
       q.lo.isU32 q.hi.isU32 b.lo.isU32 b.hi.isU32
       (felt_ofNat_val_lt _ (u32_prod_div_lt_prime b.lo.val q.lo.val b.lo.isU32 q.lo.isU32))
       h_cond1] at hexec
   simp only [bind, Bind.bind, Option.bind] at hexec
-  rw [execWithEnv_append] at hexec
+  rw [execProcedure_append] at hexec
   have h_cond2 : (Felt.ofNat ((bl * qh +
       (bh * ql + (bl * ql) / 2^32) % 2^32) / 2^32) == (0 : Felt)) = true := by
     by_contra h_not
@@ -1286,7 +1286,7 @@ theorem divmod_conditions_of_exec (a b q r : U64) (rest : List Felt) (adv_rest :
   rw [divmod_chunk1b_correct a.lo.val a.hi.val b.lo.val b.hi.val rest q.hi.val q.lo.val r.hi.val r.lo.val adv_rest mem frames
       q.hi.isU32 b.lo.isU32 (felt_ofNat_val_lt _ (u32_mod_lt_prime _)) h_cond2] at hexec
   simp only [bind, Bind.bind, Option.bind] at hexec
-  rw [execWithEnv_append] at hexec
+  rw [execProcedure_append] at hexec
   have h_cond3 : ((b.hi.val * q.hi.val : Felt) == (0 : Felt)) = true := by
     by_contra h_not
     rw [divmod_chunk1c_none a.lo.val a.hi.val b.lo.val b.hi.val rest q.hi.val q.lo.val r.hi.val r.lo.val adv_rest mem frames
@@ -1295,7 +1295,7 @@ theorem divmod_conditions_of_exec (a b q r : U64) (rest : List Felt) (adv_rest :
   rw [divmod_chunk1c_correct a.lo.val a.hi.val b.lo.val b.hi.val rest q.hi.val q.lo.val r.hi.val r.lo.val adv_rest mem frames
       r.lo.isU32 r.hi.isU32 h_cond3] at hexec
   simp only [bind, Bind.bind, Option.bind] at hexec
-  rw [execWithEnv_append] at hexec
+  rw [execProcedure_append] at hexec
   have h_cond4 :
       let borrow_lo := decide (r.lo.val.val < b.lo.val.val)
       let borrow_hi := decide (r.hi.val.val < b.hi.val.val)
@@ -1308,7 +1308,7 @@ theorem divmod_conditions_of_exec (a b q r : U64) (rest : List Felt) (adv_rest :
   rw [divmod_chunk2_correct a.lo.val a.hi.val b.lo.val b.hi.val rest q.hi.val q.lo.val r.hi.val r.lo.val adv_rest mem frames
       r.lo.isU32 r.hi.isU32 b.lo.isU32 b.hi.isU32 h_cond4] at hexec
   simp only [bind, Bind.bind, Option.bind] at hexec
-  rw [execWithEnv_append] at hexec
+  rw [execProcedure_append] at hexec
   have cross0_lo_val : (Felt.ofNat ((bl * ql) % 2^32)).val = (bl * ql) % 2^32 :=
     felt_ofNat_val_lt _ (u32_mod_lt_prime _)
   rw [divmod_chunk3a_correct a.lo.val a.hi.val b.lo.val b.hi.val rest q.hi.val q.lo.val r.hi.val r.lo.val adv_rest mem frames

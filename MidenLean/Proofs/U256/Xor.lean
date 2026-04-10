@@ -59,14 +59,14 @@ private theorem xor_half1_correct
     (ha6 : a6.isU32 = true) (ha7 : a7.isU32 = true)
     (hb4 : b4.isU32 = true) (hb5 : b5.isU32 = true)
     (hb6 : b6.isU32 = true) (hb7 : b7.isU32 = true) :
-    exec 31 ⟨b0 :: b1 :: b2 :: b3 :: b4 :: b5 :: b6 :: b7 ::
+    execProcedure emptyEnv 31 ⟨b0 :: b1 :: b2 :: b3 :: b4 :: b5 :: b6 :: b7 ::
         a0 :: a1 :: a2 :: a3 :: a4 :: a5 :: a6 :: a7 :: rest, mem, frames, adv⟩ xor_half1 =
     some ⟨Felt.ofNat (a4.val ^^^ b4.val) ::
         Felt.ofNat (a5.val ^^^ b5.val) ::
         Felt.ofNat (a6.val ^^^ b6.val) ::
         Felt.ofNat (a7.val ^^^ b7.val) ::
         a0 :: a1 :: a2 :: a3 :: b0 :: b1 :: b2 :: b3 :: rest, mem, frames, adv⟩ := by
-  unfold exec xor_half1 execWithEnv
+  unfold xor_half1 execProcedure
   simp only [List.foldlM]
   rw [stepSwapw3]; miden_bind
   miden_movup; miden_movup
@@ -88,14 +88,14 @@ private theorem xor_half2_correct
     (ha2 : a2.isU32 = true) (ha3 : a3.isU32 = true)
     (hb0 : b0.isU32 = true) (hb1 : b1.isU32 = true)
     (hb2 : b2.isU32 = true) (hb3 : b3.isU32 = true) :
-    exec 31 ⟨r4 :: r5 :: r6 :: r7 ::
+    execProcedure emptyEnv 31 ⟨r4 :: r5 :: r6 :: r7 ::
         a0 :: a1 :: a2 :: a3 :: b0 :: b1 :: b2 :: b3 :: rest, mem, frames, adv⟩ xor_half2 =
     some ⟨Felt.ofNat (b0.val ^^^ a0.val) ::
         Felt.ofNat (b1.val ^^^ a1.val) ::
         Felt.ofNat (b2.val ^^^ a2.val) ::
         Felt.ofNat (b3.val ^^^ a3.val) ::
         r4 :: r5 :: r6 :: r7 :: rest, mem, frames, adv⟩ := by
-  unfold exec xor_half2 execWithEnv
+  unfold xor_half2 execProcedure
   simp only [List.foldlM]
   rw [stepSwapw2]; miden_bind
   miden_movup; miden_movup
@@ -115,7 +115,7 @@ private theorem xor_half2_correct
 set_option maxHeartbeats 8000000 in
 theorem u256_xor_raw
     (a0 a1 a2 a3 a4 a5 a6 a7 b0 b1 b2 b3 b4 b5 b6 b7 : Felt)
-    (rest : List Felt) (s : MidenState)
+    (rest : List Felt) (s : Concrete.State)
     (hs : s.stack = b0 :: b1 :: b2 :: b3 :: b4 :: b5 :: b6 :: b7 ::
                     a0 :: a1 :: a2 :: a3 :: a4 :: a5 :: a6 :: a7 :: rest)
     (ha0 : a0.isU32 = true) (ha1 : a1.isU32 = true)
@@ -126,7 +126,7 @@ theorem u256_xor_raw
     (hb2 : b2.isU32 = true) (hb3 : b3.isU32 = true)
     (hb4 : b4.isU32 = true) (hb5 : b5.isU32 = true)
     (hb6 : b6.isU32 = true) (hb7 : b7.isU32 = true) :
-    exec 31 s Miden.Core.U256.xor =
+    execProcedure emptyEnv 31 s Miden.Core.U256.xor =
     some (s.withStack (
       Felt.ofNat (b0.val ^^^ a0.val) ::
       Felt.ofNat (b1.val ^^^ a1.val) ::
@@ -137,7 +137,7 @@ theorem u256_xor_raw
       Felt.ofNat (a6.val ^^^ b6.val) ::
       Felt.ofNat (a7.val ^^^ b7.val) :: rest)) := by
   obtain ⟨stk, mem, frames, adv⟩ := s
-  simp only [MidenState.withStack] at hs ⊢
+  simp only [Concrete.State.withStack] at hs ⊢
   subst hs
   rw [MidenLean.exec_body_eq _ _ _ _ xor_decomp rfl, MidenLean.exec_append]
   rw [xor_half1_correct (ha4 := ha4) (ha5 := ha5) (ha6 := ha6) (ha7 := ha7)
@@ -149,12 +149,12 @@ theorem u256_xor_raw
 /-- `u256::xor` computes bitwise XOR of two 256-bit values.
     Input stack:  [b.a0, b.a1, ..., b.a7, a.a0, a.a1, ..., a.a7] ++ rest
     Output stack: [(a ^^^ b).a0, (a ^^^ b).a1, ..., (a ^^^ b).a7] ++ rest -/
-theorem u256_xor_correct (a b : U256) (rest : List Felt) (s : MidenState)
+theorem u256_xor_correct (a b : U256) (rest : List Felt) (s : Concrete.State)
     (hs : s.stack = b.a0.val :: b.a1.val :: b.a2.val :: b.a3.val ::
                     b.a4.val :: b.a5.val :: b.a6.val :: b.a7.val ::
                     a.a0.val :: a.a1.val :: a.a2.val :: a.a3.val ::
                     a.a4.val :: a.a5.val :: a.a6.val :: a.a7.val :: rest) :
-    exec 31 s Miden.Core.U256.xor =
+    execProcedure emptyEnv 31 s Miden.Core.U256.xor =
     some (s.withStack (
       (a ^^^ b).a0.val :: (a ^^^ b).a1.val ::
       (a ^^^ b).a2.val :: (a ^^^ b).a3.val ::

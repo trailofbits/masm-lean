@@ -50,7 +50,7 @@ theorem wm_r2a_correct (a b : U256) (rest : List Felt)
     let lo3 := mulstepLo carry2 a.a2.val b.a1.val p₃
     let carry4 := mulstepCarry carry3 a.a3.val b.a1.val q₀
     let lo4 := mulstepLo carry3 a.a3.val b.a1.val q₀
-    execWithEnv u256ProcEnv (fuel + 3)
+    execProcedure u256ProcEnv (fuel + 3)
       ⟨rest, mem, frame :: frames, adv⟩
       (Procedure.ofOps wm_r2a) =
     some ⟨lo4 :: a.a7.val :: a.a6.val :: a.a5.val :: a.a4.val :: carry4 :: b.a1.val :: rest,
@@ -63,19 +63,19 @@ theorem wm_r2a_correct (a b : U256) (rest : List Felt)
           frame :: frames, adv⟩ := by
   -- Split into pre (loads) + post (mulstep4 + store)
   rw [show (wm_r2a : List Op) = wm_r2a_pre ++ wm_r2a_post from rfl]
-  rw [execWithEnv_append]
+  rw [execProcedure_append]
   -- Part A pre: load operands and partial products
   show (do
-    let s ← execWithEnv u256ProcEnv (fuel + 3)
+    let s ← execProcedure u256ProcEnv (fuel + 3)
       ⟨rest, mem, frame :: frames, adv⟩ (Procedure.ofOps wm_r2a_pre)
-    execWithEnv u256ProcEnv (fuel + 3) s (Procedure.ofOps wm_r2a_post)) = _
+    execProcedure u256ProcEnv (fuel + 3) s (Procedure.ofOps wm_r2a_post)) = _
   -- Prove the pre part
-  conv_lhs => rw [show execWithEnv u256ProcEnv (fuel + 3)
+  conv_lhs => rw [show execProcedure u256ProcEnv (fuel + 3)
       ⟨rest, mem, frame :: frames, adv⟩ (Procedure.ofOps wm_r2a_pre) =
     some ⟨b.a1.val :: a.a7.val :: a.a6.val :: a.a5.val :: a.a4.val ::
           a.a3.val :: a.a2.val :: a.a1.val :: a.a0.val :: q₀ :: p₃ :: p₂ :: p₁ :: rest,
           mem, frame :: frames, adv⟩ from by
-    unfold wm_r2a_pre execWithEnv Procedure.ofOps
+    unfold wm_r2a_pre execProcedure Procedure.ofOps
     simp only [List.foldlM]
     dsimp only [bind, Bind.bind, Option.bind]
     rw [stepPadw]; dsimp only [bind, Bind.bind, Option.bind]
@@ -99,10 +99,10 @@ theorem wm_r2a_correct (a b : U256) (rest : List Felt)
     rw [stepDropw]; simp only [pure, Pure.pure]]
   dsimp only [bind, Bind.bind, Option.bind]
   -- Part A post: mulstep4 + post-shuffle + store la(16)
-  unfold wm_r2a_post execWithEnv Procedure.ofOps
+  unfold wm_r2a_post execProcedure Procedure.ofOps
   simp only [List.foldlM, u256ProcEnv]
   dsimp only [bind, Bind.bind, Option.bind]
-  -- exec "mulstep4"
+  -- execProcedure emptyEnv "mulstep4"
   have hmul4 := u256_mulstep4_correct
     b.a1.val a.a7.val a.a6.val a.a5.val a.a4.val
     a.a3.val a.a2.val a.a1.val a.a0.val
@@ -112,7 +112,7 @@ theorem wm_r2a_correct (a b : U256) (rest : List Felt)
      mem, frame :: frames, adv⟩
     rfl (U256.a1_isU32 b) (U256.a3_isU32 a) (U256.a2_isU32 a) (U256.a1_isU32 a) (U256.a0_isU32 a)
     hq₀ hp₃ hp₂ hp₁ fuel
-  simp only [MidenState.withStack] at hmul4
+  simp only [Concrete.State.withStack] at hmul4
   rw [hmul4]; clear hmul4; dsimp only [bind, Bind.bind, Option.bind]
   -- movdn 9, movdn 9
   miden_movdn; miden_movdn
@@ -156,13 +156,13 @@ private theorem wm_r2b1_correct (a b : U256) (rest : List Felt)
     (h20_0 : mem (frame.localAddr 20) = q₀) :
     let c₅ := mulstepCarry carry4 a.a4.val b.a1.val q₁
     let l₅ := mulstepLo carry4 a.a4.val b.a1.val q₁
-    execWithEnv u256ProcEnv (fuel + 3)
+    execProcedure u256ProcEnv (fuel + 3)
       ⟨lo4 :: a.a7.val :: a.a6.val :: a.a5.val :: a.a4.val :: carry4 :: b.a1.val :: rest,
        mem, frame :: frames, adv⟩
       (Procedure.ofOps wm_r2b1) =
     some ⟨c₅ :: b.a1.val :: a.a7.val :: a.a6.val :: a.a5.val :: q₃ :: q₂ :: l₅ :: lo4 :: rest,
           mem, frame :: frames, adv⟩ := by
-  unfold wm_r2b1 execWithEnv Procedure.ofOps
+  unfold wm_r2b1 execProcedure Procedure.ofOps
   simp only [List.foldlM, u256ProcEnv]
   dsimp only [bind, Bind.bind, Option.bind]
   -- padw
@@ -188,7 +188,7 @@ private theorem wm_r2b1_correct (a b : U256) (rest : List Felt)
   miden_movup
   -- swap 3
   miden_swap
-  -- exec "mulstep"
+  -- execProcedure emptyEnv "mulstep"
   have hms := mulstep_execWithEnv u256ProcEnv (fuel + 1)
     carry4 a.a4.val b.a1.val q₁
     (b.a1.val :: a.a7.val :: a.a6.val :: a.a5.val :: q₃ :: q₂ :: lo4 :: rest)
@@ -196,7 +196,7 @@ private theorem wm_r2b1_correct (a b : U256) (rest : List Felt)
      b.a1.val :: a.a7.val :: a.a6.val :: a.a5.val :: q₃ :: q₂ :: lo4 :: rest,
      mem, frame :: frames, adv⟩
     rfl hcarry4 (U256.a4_isU32 a) (U256.a1_isU32 b) hq₁
-  simp only [MidenState.withStack] at hms
+  simp only [Concrete.State.withStack] at hms
   rw [hms]; clear hms; dsimp only [bind, Bind.bind, Option.bind]
   -- swap 1
   miden_swap
@@ -217,7 +217,7 @@ private theorem wm_r2b2_correct (a b : U256) (rest : List Felt)
     let c₆ := mulstepCarry c₅ a.a5.val b.a1.val q₂
     let l₆ := mulstepLo c₅ a.a5.val b.a1.val q₂
     let l₇ := mulstepLo c₆ a.a6.val b.a1.val q₃
-    execWithEnv u256ProcEnv (fuel + 3)
+    execProcedure u256ProcEnv (fuel + 3)
       ⟨c₅ :: b.a1.val :: a.a7.val :: a.a6.val :: a.a5.val :: q₃ :: q₂ :: l₅ :: lo4 :: rest,
        mem, frame :: frames, adv⟩
       (Procedure.ofOps wm_r2b2) =
@@ -229,7 +229,7 @@ private theorem wm_r2b2_correct (a b : U256) (rest : List Felt)
             else if i = la 20 then lo4
             else mem i,
           frame :: frames, adv⟩ := by
-  unfold wm_r2b2 execWithEnv Procedure.ofOps
+  unfold wm_r2b2 execProcedure Procedure.ofOps
   simp only [List.foldlM, u256ProcEnv]
   dsimp only [bind, Bind.bind, Option.bind]
   -- === Mulstep 2: c₅ × a₅ with accumulator q₂ ===
@@ -244,7 +244,7 @@ private theorem wm_r2b2_correct (a b : U256) (rest : List Felt)
      b.a1.val :: a.a7.val :: a.a6.val :: q₃ :: l₅ :: lo4 :: rest,
      mem, frame :: frames, adv⟩
     rfl hc₅ (U256.a5_isU32 a) (U256.a1_isU32 b) hq₂
-  simp only [MidenState.withStack] at hms2
+  simp only [Concrete.State.withStack] at hms2
   rw [hms2]; clear hms2; dsimp only [bind, Bind.bind, Option.bind]
   miden_swap   -- swap 1
   miden_movdn  -- movdn 5
@@ -262,7 +262,7 @@ private theorem wm_r2b2_correct (a b : U256) (rest : List Felt)
      a.a7.val :: mulstepLo c₅ a.a5.val b.a1.val q₂ :: l₅ :: lo4 :: rest,
      mem, frame :: frames, adv⟩
     rfl hc₆u (U256.a6_isU32 a) (U256.a1_isU32 b) hq₃
-  simp only [MidenState.withStack] at hms3
+  simp only [Concrete.State.withStack] at hms3
   rw [hms3]; clear hms3; dsimp only [bind, Bind.bind, Option.bind]
   -- drop (remove carry), swap 1, drop (remove a₇)
   rw [stepDrop]; dsimp only [bind, Bind.bind, Option.bind]
@@ -294,7 +294,7 @@ private theorem wm_r2b_correct (a b : U256) (rest : List Felt)
     let la := frame.localAddr
     let c₅ := mulstepCarry carry4 a.a4.val b.a1.val q₁
     let c₆ := mulstepCarry c₅ a.a5.val b.a1.val q₂
-    execWithEnv u256ProcEnv (fuel + 3)
+    execProcedure u256ProcEnv (fuel + 3)
       ⟨lo4 :: a.a7.val :: a.a6.val :: a.a5.val :: a.a4.val :: carry4 :: b.a1.val :: rest,
        mem, frame :: frames, adv⟩
       (Procedure.ofOps wm_r2b) =
@@ -307,7 +307,7 @@ private theorem wm_r2b_correct (a b : U256) (rest : List Felt)
             else mem i,
           frame :: frames, adv⟩ := by
   rw [show (wm_r2b : List Op) = wm_r2b1 ++ wm_r2b2 from wm_r2b_eq_b1_b2]
-  rw [execWithEnv_append]
+  rw [execProcedure_append]
   have hc₅u : (mulstepCarry carry4 a.a4.val b.a1.val q₁).isU32 = true :=
     mulstep_carry_isU32 carry4 a.a4.val b.a1.val q₁ hcarry4 (U256.a4_isU32 a) (U256.a1_isU32 b) hq₁
   rw [wm_r2b1_correct a b rest mem frame frames adv fuel hnl lo4 carry4 hcarry4
@@ -357,7 +357,7 @@ theorem wm_round2_correct (a b : U256) (rest : List Felt)
     let carry4 := mulstepCarry carry3 a.a3.val b.a1.val q₀
     let c₅ := mulstepCarry carry4 a.a4.val b.a1.val q₁
     let c₆ := mulstepCarry c₅ a.a5.val b.a1.val q₂
-    execWithEnv u256ProcEnv (fuel + 3)
+    execProcedure u256ProcEnv (fuel + 3)
       ⟨rest, mem, frame :: frames, adv⟩
       (Procedure.ofOps wm_round2) =
     some ⟨rest,
@@ -373,7 +373,7 @@ theorem wm_round2_correct (a b : U256) (rest : List Felt)
             else mem i,
           frame :: frames, adv⟩ := by
   rw [show (wm_round2 : List Op) = wm_r2a ++ wm_r2b from wm_round2_eq_r2a_r2b]
-  rw [execWithEnv_append]
+  rw [execProcedure_append]
   -- Apply Part A
   rw [wm_r2a_correct a b rest mem frame frames adv fuel hnl
       p₀ p₁ p₂ p₃ q₀ q₁ q₂ q₃ hp₁ hp₂ hp₃ hq₀

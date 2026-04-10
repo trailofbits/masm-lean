@@ -17,14 +17,14 @@ set_option maxHeartbeats 4000000 in
     Input stack:  [a, b, c, d] ++ rest
     Output stack: [sorry] ++ rest -/
 theorem u64_xor_correct
-    (a b c d : Felt) (rest : List Felt) (s : MidenState)
+    (a b c d : Felt) (rest : List Felt) (s : Concrete.State)
     (hs : s.stack = a :: b :: c :: d :: rest)
     (ha_u32 : a.isU32 = true)  -- from u32Xor at instruction 3
     (hb_u32 : b.isU32 = true)  -- from u32Xor at instruction 1
     (hc_u32 : c.isU32 = true)  -- from u32Xor at instruction 3
     (hd_u32 : d.isU32 = true)  -- from u32Xor at instruction 1
     :
-    exec 10 s Miden.Core.U64.xor =
+    execProcedure emptyEnv 10 s Miden.Core.U64.xor =
     some (s.withStack (sorry :: rest))  -- TODO: specify output
     := by
   miden_setup Miden.Core.U64.xor

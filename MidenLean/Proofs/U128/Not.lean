@@ -14,27 +14,27 @@ private theorem stepU32NotLocal (mem : Nat → Felt) (frames : List LocalFrame) 
     execInstruction ⟨a :: rest, mem, frames, adv⟩ .u32Not =
     some ⟨Felt.ofNat (u32Max - 1 - a.val) :: rest, mem, frames, adv⟩ := by
   unfold execInstruction execU32Not u32Max
-  simp [ha, MidenState.withStack]
+  simp [ha, Concrete.State.withStack]
 
 set_option maxHeartbeats 4000000 in
 /-- `u128::not` computes the bitwise complement of a 128-bit value (raw limb version).
     Input stack:  [a0, a1, a2, a3] ++ rest
     Output stack: [~~~a0, ~~~a1, ~~~a2, ~~~a3] ++ rest, limbwise over u32 values. -/
 theorem u128_not_raw
-    (a0 a1 a2 a3 : Felt) (rest : List Felt) (s : MidenState)
+    (a0 a1 a2 a3 : Felt) (rest : List Felt) (s : Concrete.State)
     (hs : s.stack = a0 :: a1 :: a2 :: a3 :: rest)
     (ha0 : a0.isU32 = true) (ha1 : a1.isU32 = true)
     (ha2 : a2.isU32 = true) (ha3 : a3.isU32 = true) :
-    exec 13 s Miden.Core.U128.not =
+    execProcedure emptyEnv 13 s Miden.Core.U128.not =
     some (s.withStack (
       Felt.ofNat (u32Max - 1 - a0.val) ::
       Felt.ofNat (u32Max - 1 - a1.val) ::
       Felt.ofNat (u32Max - 1 - a2.val) ::
       Felt.ofNat (u32Max - 1 - a3.val) :: rest)) := by
   obtain ⟨stk, mem, frames, adv⟩ := s
-  simp only [MidenState.withStack] at hs ⊢
+  simp only [Concrete.State.withStack] at hs ⊢
   subst hs
-  unfold exec Miden.Core.U128.not execWithEnv
+  unfold Miden.Core.U128.not execProcedure
   simp only [List.foldlM]
   miden_movup
   rw [stepU32NotLocal (ha := ha3)]
@@ -53,9 +53,9 @@ theorem u128_not_raw
 /-- `u128::not` pushes the limbs of `~~~a` (bitwise complement).
     Input stack:  [a.a0, a.a1, a.a2, a.a3] ++ rest
     Output stack: [(~~~a).a0, (~~~a).a1, (~~~a).a2, (~~~a).a3] ++ rest -/
-theorem u128_not_correct (a : U128) (rest : List Felt) (s : MidenState)
+theorem u128_not_correct (a : U128) (rest : List Felt) (s : Concrete.State)
     (hs : s.stack = a.a0.val :: a.a1.val :: a.a2.val :: a.a3.val :: rest) :
-    exec 13 s Miden.Core.U128.not =
+    execProcedure emptyEnv 13 s Miden.Core.U128.not =
     some (s.withStack (
       (~~~a).a0.val :: (~~~a).a1.val ::
       (~~~a).a2.val :: (~~~a).a3.val :: rest)) := by

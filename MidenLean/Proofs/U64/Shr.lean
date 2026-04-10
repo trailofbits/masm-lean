@@ -219,10 +219,10 @@ private theorem shr_chunk1_correct
     let pow_lo := pow.lo32
     let pow_hi := pow.hi32
     let denom := pow_hi + pow_lo
-    exec 42 ⟨shift :: lo :: hi :: rest, mem, frames, adv⟩ shr_chunk1 =
+    execProcedure emptyEnv 42 ⟨shift :: lo :: hi :: rest, mem, frames, adv⟩ shr_chunk1 =
       some ⟨Felt.ofNat (hi.val % denom.val) ::
         Felt.ofNat (hi.val / denom.val) :: pow_lo :: lo :: rest, mem, frames, adv⟩ := by
-  unfold exec shr_chunk1 execWithEnv
+  unfold shr_chunk1 execProcedure
   simp only [List.foldlM]
   miden_movup
   miden_swap
@@ -254,11 +254,11 @@ private theorem shr_chunk2_correct
     let pow_lo_eq0 : Felt := if pow_lo == (0 : Felt) then 1 else 0
     let cond := !decide (pow_lo.val < pow_lo_eq0.val)
     let diff := Felt.ofNat (u32OverflowingSub pow_lo.val pow_lo_eq0.val).2
-    exec 42 ⟨hi_rem :: hi_quot :: pow_lo :: lo :: rest, mem, frames, adv⟩ shr_chunk2 =
+    execProcedure emptyEnv 42 ⟨hi_rem :: hi_quot :: pow_lo :: lo :: rest, mem, frames, adv⟩ shr_chunk2 =
       some ⟨Felt.ofNat (lo.val % diff.val) :: Felt.ofNat (lo.val / diff.val) ::
         hi_quot :: hi_rem :: diff :: (if cond then (1 : Felt) else 0) :: rest,
         mem, frames, adv⟩ := by
-  unfold exec shr_chunk2 execWithEnv
+  unfold shr_chunk2 execProcedure
   simp only [List.foldlM]
   miden_swap
   miden_movup
@@ -291,11 +291,11 @@ private theorem shr_chunk3_correct
     (hdiff_ne_zero : (diff == (0 : Felt)) = false) :
     let cond_felt : Felt := if cond then 1 else 0
     let mix := lo_quot + (((4294967296 : Felt) * cond_felt) * diff⁻¹) * hi_rem
-    exec 42 ⟨lo_rem :: lo_quot :: hi_quot :: hi_rem :: diff :: cond_felt :: rest, mem, frames, adv⟩
+    execProcedure emptyEnv 42 ⟨lo_rem :: lo_quot :: hi_quot :: hi_rem :: diff :: cond_felt :: rest, mem, frames, adv⟩
         shr_chunk3 =
       some ⟨(if cond then hi_quot else mix) :: (if cond then mix else hi_quot) ::
         cond_felt :: rest, mem, frames, adv⟩ := by
-  unfold exec shr_chunk3 execWithEnv
+  unfold shr_chunk3 execProcedure
   simp only [List.foldlM]
   miden_swap
   miden_swap
@@ -322,7 +322,7 @@ private theorem shr_chunk3_correct
 set_option maxHeartbeats 16000000 in
 /-- `u64::shr` raw: result in terms of field arithmetic on limbs. -/
 theorem u64_shr_exec
-    (lo hi shift : Felt) (rest : List Felt) (s : MidenState)
+    (lo hi shift : Felt) (rest : List Felt) (s : Concrete.State)
     (hs : s.stack = shift :: lo :: hi :: rest)
     (hshift : shift.val ≤ 63)
     (hlo : lo.isU32 = true) (hhi : hi.isU32 = true) :
@@ -337,13 +337,13 @@ theorem u64_shr_exec
     let cond := !borrow
     let diff := Felt.ofNat (u32OverflowingSub pow_lo.val pow_lo_eq0.val).2
     let lo_quot := Felt.ofNat (lo.val / diff.val)
-    exec 42 s Miden.Core.U64.shr =
+    execProcedure emptyEnv 42 s Miden.Core.U64.shr =
     some (s.withStack (
       if cond then
         (lo_quot + (4294967296 : Felt) * diff⁻¹ * hi_rem) :: hi_quot :: rest
       else hi_quot :: (0 : Felt) :: rest)) := by
   obtain ⟨stk, mem, frames, adv⟩ := s
-  simp only [MidenState.withStack] at hs ⊢
+  simp only [Concrete.State.withStack] at hs ⊢
   subst hs
   rw [MidenLean.exec_body_eq _ _ _ _ shr_decomp rfl, MidenLean.exec_append]
   rw [shr_chunk1_correct (mem := mem) (adv := adv) (hshift := hshift) (hhi := hhi)]
@@ -378,7 +378,7 @@ theorem u64_shr_exec
     (mem := mem) (adv := adv) (rest := rest)
     (hdiff_ne_zero := h_diff_ne_zero_felt)]
   simp only [bind, Bind.bind, Option.bind]
-  unfold exec shr_chunk4 execWithEnv
+  unfold shr_chunk4 execProcedure
   simp only [List.foldlM]
   cases hcond : !decide
     ((Felt.ofNat (2 ^ shift.val)).lo32.val <
@@ -460,10 +460,10 @@ set_option maxHeartbeats 8000000 in
 /-- `u64::shr` right-shifts a u64 value by `shift` bits.
     Input stack:  [shift, a.lo, a.hi] ++ rest
     Output stack: [(a.shr shift).lo, (a.shr shift).hi] ++ rest -/
-theorem u64_shr_correct (a : U64) (shift : Felt) (rest : List Felt) (s : MidenState)
+theorem u64_shr_correct (a : U64) (shift : Felt) (rest : List Felt) (s : Concrete.State)
     (hs : s.stack = shift :: a.lo.val :: a.hi.val :: rest)
     (hshift : shift.val ≤ 63) :
-    exec 42 s Miden.Core.U64.shr =
+    execProcedure emptyEnv 42 s Miden.Core.U64.shr =
     some (s.withStack ((a.shr shift.val).lo.val :: (a.shr shift.val).hi.val :: rest)) := by
   rw [u64_shr_exec a.lo.val a.hi.val shift rest s hs hshift a.lo.isU32 a.hi.isU32]
   -- Recover key bounds

@@ -17,15 +17,15 @@ set_option maxHeartbeats 8000000 in
     Input stack:  [x0, x1, x2, x3, x4, x5, x6, x7] ++ rest
     Output stack: [sorry] ++ rest -/
 theorem word_gt_correct
-    (x0 x1 x2 x3 x4 x5 x6 x7 : Felt) (rest : List Felt) (s : MidenState)
+    (x0 x1 x2 x3 x4 x5 x6 x7 : Felt) (rest : List Felt) (s : Concrete.State)
     (hs : s.stack = x0 :: x1 :: x2 :: x3 :: x4 :: x5 :: x6 :: x7 :: rest)
     :
-    execWithEnv wordProcEnv 206 s Miden.Core.Word.gt =
+    execProcedure wordProcEnv 206 s Miden.Core.Word.gt =
     some (s.withStack (sorry :: rest))  -- TODO: specify output
     := by
   -- Chunked/manual scaffold: fill chunk lemmas or manual proof here.
   -- chunk1 begin
-  -- Instruction 1: exec "arrange_words_adjacent_le"
+  -- Instruction 1: execProcedure emptyEnv "arrange_words_adjacent_le"
   -- TODO: fill this step inside the chunked/manual scaffold
   -- Instruction 2: push
   -- TODO: fill this step inside the chunked/manual scaffold

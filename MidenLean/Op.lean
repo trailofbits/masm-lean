@@ -30,7 +30,7 @@ abbrev Procedure.ofOps (body : List Op) : Procedure :=
 /-- Wrap a raw op list as a named procedure with an explicit local count.
     This is used by manual proof environments until generated code is regenerated.
     Defined as `def` (not `abbrev`) so that `simp`/`dsimp` do not auto-unfold it;
-    use `execWithEnv_ofNameOps` to normalize `execWithEnv` calls instead. -/
+    use `execProcedure_ofNameOps` to normalize `execProcedure` calls instead. -/
 def Procedure.ofNameOps (name : String) (numLocals : Nat) (body : List Op) : Procedure :=
   { name, numLocals, body }
 

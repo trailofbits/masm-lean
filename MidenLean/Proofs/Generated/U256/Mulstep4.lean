@@ -17,10 +17,10 @@ set_option maxHeartbeats 8000000 in
     Input stack:  [x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12] ++ rest
     Output stack: [sorry] ++ rest -/
 theorem u256_mulstep4_correct
-    (x0 x1 x2 x3 x4 x5 x6 x7 x8 x9 x10 x11 x12 : Felt) (rest : List Felt) (s : MidenState)
+    (x0 x1 x2 x3 x4 x5 x6 x7 x8 x9 x10 x11 x12 : Felt) (rest : List Felt) (s : Concrete.State)
     (hs : s.stack = x0 :: x1 :: x2 :: x3 :: x4 :: x5 :: x6 :: x7 :: x8 :: x9 :: x10 :: x11 :: x12 :: rest)
     :
-    execWithEnv u256ProcEnv 109 s Miden.Core.U256.mulstep4 =
+    execProcedure u256ProcEnv 109 s Miden.Core.U256.mulstep4 =
     some (s.withStack (sorry :: rest))  -- TODO: specify output
     := by
   -- Chunked/manual scaffold: fill chunk lemmas or manual proof here.
@@ -33,7 +33,7 @@ theorem u256_mulstep4_correct
   -- TODO: fill this step inside the chunked/manual scaffold
   -- Instruction 4: push
   -- TODO: fill this step inside the chunked/manual scaffold
-  -- Instruction 5: exec "mulstep"
+  -- Instruction 5: execProcedure emptyEnv "mulstep"
   -- TODO: fill this step inside the chunked/manual scaffold
   -- chunk1 end
   -- chunk2 begin
@@ -49,7 +49,7 @@ theorem u256_mulstep4_correct
   -- TODO: fill this step inside the chunked/manual scaffold
   -- Instruction 11: swap 3
   -- TODO: fill this step inside the chunked/manual scaffold
-  -- Instruction 12: exec "mulstep"
+  -- Instruction 12: execProcedure emptyEnv "mulstep"
   -- TODO: fill this step inside the chunked/manual scaffold
   -- chunk2 end
   -- chunk3 begin
@@ -65,7 +65,7 @@ theorem u256_mulstep4_correct
   -- TODO: fill this step inside the chunked/manual scaffold
   -- Instruction 18: swap 3
   -- TODO: fill this step inside the chunked/manual scaffold
-  -- Instruction 19: exec "mulstep"
+  -- Instruction 19: execProcedure emptyEnv "mulstep"
   -- TODO: fill this step inside the chunked/manual scaffold
   -- chunk3 end
   -- chunk4 begin
@@ -81,7 +81,7 @@ theorem u256_mulstep4_correct
   -- TODO: fill this step inside the chunked/manual scaffold
   -- Instruction 25: swap 3
   -- TODO: fill this step inside the chunked/manual scaffold
-  -- Instruction 26: exec "mulstep"
+  -- Instruction 26: execProcedure emptyEnv "mulstep"
   -- TODO: fill this step inside the chunked/manual scaffold
   -- chunk4 end
   -- chunk5 begin

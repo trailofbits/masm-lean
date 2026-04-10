@@ -1,42 +1,42 @@
-import MidenLean.Semantics
+import MidenLean.Concrete.Exec
 import MidenLean.Proofs.SimpAttrs
 import MidenLean.Symbolic.SimpAttrs
 
 namespace MidenLean
 
--- MidenState projection lemmas
+-- Concrete.State projection lemmas
 
-@[simp, miden_simp] theorem MidenState.withStack_stack (s : MidenState) (stk : List Felt) :
+@[simp, miden_simp] theorem Concrete.State.withStack_stack (s : Concrete.State) (stk : List Felt) :
     (s.withStack stk).stack = stk := rfl
 
-@[simp, miden_simp] theorem MidenState.withStack_memory (s : MidenState) (stk : List Felt) :
+@[simp, miden_simp] theorem Concrete.State.withStack_memory (s : Concrete.State) (stk : List Felt) :
     (s.withStack stk).memory = s.memory := rfl
 
-@[simp, miden_simp] theorem MidenState.withStack_advice (s : MidenState) (stk : List Felt) :
+@[simp, miden_simp] theorem Concrete.State.withStack_advice (s : Concrete.State) (stk : List Felt) :
     (s.withStack stk).advice = s.advice := rfl
 
-@[simp, miden_simp] theorem MidenState.withStack_withStack (s : MidenState) (stk1 stk2 : List Felt) :
+@[simp, miden_simp] theorem Concrete.State.withStack_withStack (s : Concrete.State) (stk1 stk2 : List Felt) :
     (s.withStack stk1).withStack stk2 = s.withStack stk2 := rfl
 
-@[simp, miden_simp, miden_reflect_norm] theorem MidenState.ite_withStack
-    (p : Prop) [Decidable p] (s : MidenState) (stk1 stk2 : List Felt) :
+@[simp, miden_simp, miden_reflect_norm] theorem Concrete.State.ite_withStack
+    (p : Prop) [Decidable p] (s : Concrete.State) (stk1 stk2 : List Felt) :
     (if p then s.withStack stk1 else s.withStack stk2) =
       s.withStack (if p then stk1 else stk2) := by
   by_cases hp : p <;> simp [hp]
 
-@[simp, miden_simp] theorem MidenState.withStack_frames (s : MidenState) (stk : List Felt) :
+@[simp, miden_simp] theorem Concrete.State.withStack_frames (s : Concrete.State) (stk : List Felt) :
     (s.withStack stk).frames = s.frames := rfl
 
-@[simp, miden_simp] theorem MidenState.writeMemory_stack (s : MidenState) (addr : Nat) (v : Felt) :
+@[simp, miden_simp] theorem Concrete.State.writeMemory_stack (s : Concrete.State) (addr : Nat) (v : Felt) :
     (s.writeMemory addr v).stack = s.stack := rfl
 
-@[simp, miden_simp] theorem MidenState.writeMemory_memory (s : MidenState) (addr : Nat) (v : Felt) :
+@[simp, miden_simp] theorem Concrete.State.writeMemory_memory (s : Concrete.State) (addr : Nat) (v : Felt) :
     (s.writeMemory addr v).memory = fun a => if a = addr then v else s.memory a := rfl
 
-@[simp, miden_simp] theorem MidenState.writeMemory_frames (s : MidenState) (addr : Nat) (v : Felt) :
+@[simp, miden_simp] theorem Concrete.State.writeMemory_frames (s : Concrete.State) (addr : Nat) (v : Felt) :
     (s.writeMemory addr v).frames = s.frames := rfl
 
-@[simp, miden_simp] theorem MidenState.writeMemory_advice (s : MidenState) (addr : Nat) (v : Felt) :
+@[simp, miden_simp] theorem Concrete.State.writeMemory_advice (s : Concrete.State) (addr : Nat) (v : Felt) :
     (s.writeMemory addr v).advice = s.advice := rfl
 
 @[simp, miden_simp, miden_reflect_norm] theorem ite_some
@@ -45,91 +45,91 @@ namespace MidenLean
   by_cases hp : p <;> simp [hp]
 
 -- writeMemory reasoning lemmas
-@[simp, miden_simp] theorem MidenState.writeMemory_overwrite (s : MidenState) (addr : Nat) (v w : Felt) :
+@[simp, miden_simp] theorem Concrete.State.writeMemory_overwrite (s : Concrete.State) (addr : Nat) (v w : Felt) :
     (s.writeMemory addr v).writeMemory addr w = s.writeMemory addr w := by
-  simp [MidenState.writeMemory]
+  simp [Concrete.State.writeMemory]
   funext a; split <;> simp
 
-theorem MidenState.writeMemory_comm (s : MidenState) (a b : Nat) (v w : Felt) (hab : a ≠ b) :
+theorem Concrete.State.writeMemory_comm (s : Concrete.State) (a b : Nat) (v w : Felt) (hab : a ≠ b) :
     (s.writeMemory a v).writeMemory b w = (s.writeMemory b w).writeMemory a v := by
-  simp [MidenState.writeMemory]
+  simp [Concrete.State.writeMemory]
   funext k; by_cases hk : k = b <;> by_cases hk2 : k = a <;> simp_all
 
 -- Execution decomposition lemmas
 
 /-- Execute a concatenation of op lists in two phases under a procedure environment. -/
-theorem execWithEnv_append (env : ProcEnv) (fuel : Nat) (s : MidenState) (xs ys : List Op) :
-    execWithEnv env fuel s (xs ++ ys) = (do
-      let s' ← execWithEnv env fuel s xs
-      execWithEnv env fuel s' ys) := by
+theorem execProcedure_append (env : ProcEnv) (fuel : Nat) (s : Concrete.State) (xs ys : List Op) :
+    execProcedure env fuel s (xs ++ ys) = (do
+      let s' ← execProcedure env fuel s xs
+      execProcedure env fuel s' ys) := by
   cases fuel with
   | zero =>
-      unfold execWithEnv
+      unfold execProcedure
       simp
   | succ fuel' =>
-      simp [execWithEnv, Procedure.ofOps]
+      simp [execProcedure, Procedure.ofOps]
 
-/-- Equality-oriented append decomposition for `execWithEnv`. -/
-theorem execWithEnv_append_eq
-    (env : ProcEnv) (fuel : Nat) (s : MidenState)
-    (xs ys : List Op) (s' s'' : MidenState)
-    (hexec₁ : execWithEnv env fuel s xs = some s')
-    (hexec₂ : execWithEnv env fuel s' ys = some s'') :
-    execWithEnv env fuel s (xs ++ ys) = some s'' := by
-  rw [execWithEnv_append, hexec₁]
+/-- Equality-oriented append decomposition for `execProcedure`. -/
+theorem execProcedure_append_eq
+    (env : ProcEnv) (fuel : Nat) (s : Concrete.State)
+    (xs ys : List Op) (s' s'' : Concrete.State)
+    (hexec₁ : execProcedure env fuel s xs = some s')
+    (hexec₂ : execProcedure env fuel s' ys = some s'') :
+    execProcedure env fuel s (xs ++ ys) = some s'' := by
+  rw [execProcedure_append, hexec₁]
   simp [hexec₂]
 
 /-- Execute a singleton `.exec` op by jumping directly to the resolved callee.
     This is the bridge used by theorem-backed call summaries in `miden_reflect`
     and `miden_vcg`. -/
-theorem execWithEnv_singleton_exec_eq
-    (env : ProcEnv) (fuel : Nat) (s : MidenState)
+theorem execProcedure_singleton_exec_eq
+    (env : ProcEnv) (fuel : Nat) (s : Concrete.State)
     (target : String) (callee : Procedure)
     (hlookup : env target = some callee) :
-    execWithEnv env (fuel + 1) s [Op.inst (.exec target)] =
-      execWithEnv env fuel s callee := by
-  simp [execWithEnv, Procedure.ofOps, hlookup]
+    execProcedure env (fuel + 1) s [Op.inst (.exec target)] =
+      execProcedure env fuel s callee := by
+  simp [execProcedure, Procedure.ofOps, hlookup]
 
 /-- Execute a concatenation of op lists in two phases under a procedure environment. -/
-theorem execOpsWithEnv_append (env : ProcEnv) (fuel : Nat) (s : MidenState) (xs ys : List Op) :
-    execOpsWithEnv env fuel s (xs ++ ys) = (do
-      let s' ← execOpsWithEnv env fuel s xs
-      execOpsWithEnv env fuel s' ys) := by
-  simpa [execOpsWithEnv] using execWithEnv_append env fuel s xs ys
+theorem execOps_append (env : ProcEnv) (fuel : Nat) (s : Concrete.State) (xs ys : List Op) :
+    execOps env fuel s (xs ++ ys) = (do
+      let s' ← execOps env fuel s xs
+      execOps env fuel s' ys) := by
+  simpa [execOps] using execProcedure_append env fuel s xs ys
 
 /-- Execute a concatenation of straight-line op lists in two phases. -/
-theorem exec_append (fuel : Nat) (s : MidenState) (xs ys : List Op) :
-    exec fuel s (xs ++ ys) = (do
-      let s' ← exec fuel s xs
-      exec fuel s' ys) := by
-  simpa [exec] using execOpsWithEnv_append (env := fun _ => none) fuel s xs ys
+theorem exec_append (fuel : Nat) (s : Concrete.State) (xs ys : List Op) :
+    execProcedure emptyEnv fuel s (xs ++ ys) = (do
+      let s' ← execProcedure emptyEnv fuel s xs
+      execProcedure emptyEnv fuel s' ys) := by
+  simpa [emptyEnv] using execOps_append (env := fun _ => none) fuel s xs ys
 
-/-- Equality-oriented append decomposition for `exec`. -/
+/-- Equality-oriented append decomposition for `execProcedure emptyEnv`. -/
 theorem exec_append_eq
-    (fuel : Nat) (s : MidenState)
-    (xs ys : List Op) (s' s'' : MidenState)
-    (hexec₁ : exec fuel s xs = some s')
-    (hexec₂ : exec fuel s' ys = some s'') :
-    exec fuel s (xs ++ ys) = some s'' := by
-  simpa [exec] using
-    execWithEnv_append_eq (env := fun _ => none) fuel s xs ys s' s'' hexec₁ hexec₂
+    (fuel : Nat) (s : Concrete.State)
+    (xs ys : List Op) (s' s'' : Concrete.State)
+    (hexec₁ : execProcedure emptyEnv fuel s xs = some s')
+    (hexec₂ : execProcedure emptyEnv fuel s' ys = some s'') :
+    execProcedure emptyEnv fuel s (xs ++ ys) = some s'' := by
+  simpa [emptyEnv] using
+    execProcedure_append_eq (env := fun _ => none) fuel s xs ys s' s'' hexec₁ hexec₂
 
-/-- Rewrite `execWithEnv` on a Procedure whose body equals a given op list.
+/-- Rewrite `execProcedure` on a Procedure whose body equals a given op list.
     Requires `numLocals = 0` so the RHS (via `List Op → Procedure` coercion) has
     the same frame-allocation behavior as the LHS. -/
-theorem execWithEnv_body_eq (env : ProcEnv) (fuel : Nat) (s : MidenState)
+theorem execProcedure_body_eq (env : ProcEnv) (fuel : Nat) (s : Concrete.State)
     (proc : Procedure) (ops : List Op) (h : proc.body = ops) (h0 : proc.numLocals = 0) :
-    execWithEnv env fuel s proc = execWithEnv env fuel s ops := by
+    execProcedure env fuel s proc = execProcedure env fuel s ops := by
   obtain ⟨name, numLocals, body⟩ := proc
   simp only at h h0; subst h; subst h0
-  cases fuel <;> simp [execWithEnv, Procedure.ofOps]
+  cases fuel <;> simp [execProcedure, Procedure.ofOps]
 
-/-- Rewrite `exec` on a Procedure whose body equals a given op list.
+/-- Rewrite `execProcedure emptyEnv` on a Procedure whose body equals a given op list.
     Requires `numLocals = 0`. -/
-theorem exec_body_eq (fuel : Nat) (s : MidenState)
+theorem exec_body_eq (fuel : Nat) (s : Concrete.State)
     (proc : Procedure) (ops : List Op) (h : proc.body = ops) (h0 : proc.numLocals = 0) :
-    exec fuel s proc = exec fuel s ops := by
-  simp [exec, execWithEnv_body_eq _ _ _ _ _ h h0]
+    execProcedure emptyEnv fuel s proc = execProcedure emptyEnv fuel s ops := by
+  simp [execProcedure_body_eq _ _ _ _ _ h h0]
 
 /-- Frame base for a new allocation on top of the current frame stack. -/
 def nextFrameBase (frames : List LocalFrame) : Nat :=
@@ -137,13 +137,13 @@ def nextFrameBase (frames : List LocalFrame) : Nat :=
   | [] => 0
   | f :: _ => f.base + f.alignedNumLocals
 
-/-- Rewrite `execWithEnv` on a Procedure with `numLocals > 0` as:
+/-- Rewrite `execProcedure` on a Procedure with `numLocals > 0` as:
     allocate a frame, run the body ops (via the `numLocals = 0` path), pop the frame.
 
     This is the primary entry point for proofs about procedures that use local memory.
     After applying this lemma, the body execution can be chunked using
-    `execWithEnv_body_eq` and `execWithEnv_append` as usual. -/
-theorem execWithEnv_body_eq_withLocals (env : ProcEnv) (fuel : Nat) (s : MidenState)
+    `execProcedure_body_eq` and `execProcedure_append` as usual. -/
+theorem execProcedure_body_eq_withLocals (env : ProcEnv) (fuel : Nat) (s : Concrete.State)
     (proc : Procedure) (ops : List Op) (n : Nat)
     (hbody : proc.body = ops) (hlocals : proc.numLocals = n + 1) :
     let numLocals := n + 1
@@ -151,16 +151,16 @@ theorem execWithEnv_body_eq_withLocals (env : ProcEnv) (fuel : Nat) (s : MidenSt
     let base := nextFrameBase s.frames
     let frame : LocalFrame := { base, numLocals, alignedNumLocals := aligned }
     let s' := { s with frames := frame :: s.frames }
-    execWithEnv env fuel s proc =
-      match execWithEnv env fuel s' ops with
+    execProcedure env fuel s proc =
+      match execProcedure env fuel s' ops with
       | some r => some { r with frames := s.frames }
       | none => none := by
   obtain ⟨name, numLocals, body⟩ := proc
   simp only at hbody hlocals; subst hbody; subst hlocals
   cases fuel with
-  | zero => simp [execWithEnv]
+  | zero => simp [execProcedure]
   | succ fuel' =>
-    simp only [execWithEnv, Procedure.ofOps, nextFrameBase, alignLocals, Nat.succ_eq_add_one]
+    simp only [execProcedure, Procedure.ofOps, nextFrameBase, alignLocals, Nat.succ_eq_add_one]
     rfl
 
 -- Felt value lemmas

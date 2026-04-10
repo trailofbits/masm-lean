@@ -17,10 +17,10 @@ set_option maxHeartbeats 4000000 in
     Input stack:  [x0, x1, x2, x3, x4, x5, x6, x7] ++ rest
     Output stack: [sorry] ++ rest -/
 theorem u128_min_correct
-    (x0 x1 x2 x3 x4 x5 x6 x7 : Felt) (rest : List Felt) (s : MidenState)
+    (x0 x1 x2 x3 x4 x5 x6 x7 : Felt) (rest : List Felt) (s : Concrete.State)
     (hs : s.stack = x0 :: x1 :: x2 :: x3 :: x4 :: x5 :: x6 :: x7 :: rest)
     :
-    execWithEnv u128ProcEnv 37 s Miden.Core.U128.min =
+    execProcedure u128ProcEnv 37 s Miden.Core.U128.min =
     some (s.withStack (sorry :: rest))  -- TODO: specify output
     := by
   miden_setup_env Miden.Core.U128.min
@@ -28,7 +28,7 @@ theorem u128_min_correct
   -- TODO: manual tactic for this instruction
   -- Instruction 2: dupw 1
   -- TODO: manual tactic for this instruction
-  -- Instruction 3: exec "gt"
+  -- Instruction 3: execProcedure emptyEnv "gt"
   try (simp only [u128ProcEnv])
   try (miden_call Miden.Core.U128.gt)
   -- Instruction 4: cdropw

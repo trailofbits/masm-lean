@@ -16,11 +16,11 @@ set_option maxHeartbeats 16000000 in
     lt is called on [a_lo, a_hi, b_lo, b_hi], computing b < a.
     If b < a, returns a; otherwise returns b. -/
 theorem u64_max_exec
-    (a_lo a_hi b_lo b_hi : Felt) (rest : List Felt) (s : MidenState)
+    (a_lo a_hi b_lo b_hi : Felt) (rest : List Felt) (s : Concrete.State)
     (hs : s.stack = b_lo :: b_hi :: a_lo :: a_hi :: rest)
     (ha_lo : a_lo.isU32 = true) (ha_hi : a_hi.isU32 = true)
     (hb_lo : b_lo.isU32 = true) (hb_hi : b_hi.isU32 = true) :
-    execWithEnv u64ProcEnv 20 s Miden.Core.U64.max =
+    execProcedure u64ProcEnv 20 s Miden.Core.U64.max =
     some (s.withStack (
       let borrow_lo := decide (b_lo.val < a_lo.val)
       let borrow_hi := decide (b_hi.val < a_hi.val)
@@ -30,12 +30,12 @@ theorem u64_max_exec
       (if is_lt then a_hi else b_hi) :: rest)) := by
   -- Setup: unfold max, resolve ProcEnv, unfold lt body
   obtain ⟨stk, mem, frames, adv⟩ := s
-  simp only [MidenState.withStack] at hs ⊢
+  simp only [Concrete.State.withStack] at hs ⊢
   subst hs
-  unfold Miden.Core.U64.max execWithEnv
+  unfold Miden.Core.U64.max execProcedure
   simp only [List.foldlM, u64ProcEnv]
   dsimp only [bind, Bind.bind, Option.bind]
-  unfold Miden.Core.U64.lt execWithEnv
+  unfold Miden.Core.U64.lt execProcedure
   simp only [List.foldlM, bind, Bind.bind, Option.bind, pure, Pure.pure]
   -- Instruction 1: movup 3
   miden_step
@@ -74,9 +74,9 @@ theorem u64_max_exec
   rw [stepCdropIte]
 
 /-- `u64::max` intermediate: uses `decide (b < a)` on individual limbs. -/
-theorem u64_max_ite (a b : U64) (rest : List Felt) (s : MidenState)
+theorem u64_max_ite (a b : U64) (rest : List Felt) (s : Concrete.State)
     (hs : s.stack = b.lo.val :: b.hi.val :: a.lo.val :: a.hi.val :: rest) :
-    execWithEnv u64ProcEnv 20 s Miden.Core.U64.max =
+    execProcedure u64ProcEnv 20 s Miden.Core.U64.max =
     some (s.withStack (
       (if decide (b < a) then a.lo.val else b.lo.val) ::
       (if decide (b < a) then a.hi.val else b.hi.val) :: rest)) := by
@@ -86,9 +86,9 @@ theorem u64_max_ite (a b : U64) (rest : List Felt) (s : MidenState)
 /-- `u64::max` computes the maximum of two u64 values.
     Input stack:  [b.lo, b.hi, a.lo, a.hi] ++ rest
     Output stack: [(max a b).lo, (max a b).hi] ++ rest -/
-theorem u64_max_correct (a b : U64) (rest : List Felt) (s : MidenState)
+theorem u64_max_correct (a b : U64) (rest : List Felt) (s : Concrete.State)
     (hs : s.stack = b.lo.val :: b.hi.val :: a.lo.val :: a.hi.val :: rest) :
-    execWithEnv u64ProcEnv 20 s Miden.Core.U64.max =
+    execProcedure u64ProcEnv 20 s Miden.Core.U64.max =
     some (s.withStack ((max a b).lo.val :: (max a b).hi.val :: rest)) := by
   have h := u64_max_ite a b rest s hs
   simp only [U64.max_def, U64.le_iff_toNat_le]

@@ -11,10 +11,10 @@ open MidenLean.Tactics
 
 set_option maxHeartbeats 8000000 in
 /-- `u64::cto` raw: result in terms of u32CountTrailingZeros on XOR-complemented limbs. -/
-theorem u64_cto_exec (lo hi : Felt) (rest : List Felt) (s : MidenState)
+theorem u64_cto_exec (lo hi : Felt) (rest : List Felt) (s : Concrete.State)
     (hs : s.stack = lo :: hi :: rest)
     (hlo : lo.isU32 = true) (hhi : hi.isU32 = true) :
-    exec 20 s Miden.Core.U64.cto =
+    execProcedure emptyEnv 20 s Miden.Core.U64.cto =
     some (s.withStack (
       (if lo == (4294967295 : Felt)
        then Felt.ofNat (u32CountTrailingZeros (hi.val ^^^ (u32Max - 1))) + 32
@@ -25,9 +25,9 @@ theorem u64_cto_exec (lo hi : Felt) (rest : List Felt) (s : MidenState)
 /-- `u64::cto` counts trailing ones of a u64 value.
     Input stack:  [a.lo, a.hi] ++ rest
     Output stack: [Felt.ofNat a.countTrailingOnes] ++ rest -/
-theorem u64_cto_correct (a : U64) (rest : List Felt) (s : MidenState)
+theorem u64_cto_correct (a : U64) (rest : List Felt) (s : Concrete.State)
     (hs : s.stack = a.lo.val :: a.hi.val :: rest) :
-    exec 20 s Miden.Core.U64.cto =
+    execProcedure emptyEnv 20 s Miden.Core.U64.cto =
     some (s.withStack (Felt.ofNat a.countTrailingOnes :: rest)) := by
   have h := u64_cto_exec a.lo.val a.hi.val rest s hs a.lo.isU32 a.hi.isU32
   unfold U64.countTrailingOnes u32CountTrailingOnes

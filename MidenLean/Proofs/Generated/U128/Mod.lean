@@ -17,14 +17,14 @@ set_option maxHeartbeats 4000000 in
     Input stack:  [x0, x1, x2, x3, x4, x5, x6, x7] ++ rest
     Output stack: [sorry] ++ rest -/
 theorem u128_mod_correct
-    (x0 x1 x2 x3 x4 x5 x6 x7 : Felt) (rest : List Felt) (s : MidenState)
+    (x0 x1 x2 x3 x4 x5 x6 x7 : Felt) (rest : List Felt) (s : Concrete.State)
     (hs : s.stack = x0 :: x1 :: x2 :: x3 :: x4 :: x5 :: x6 :: x7 :: rest)
     :
-    execWithEnv u128ProcEnv 34 s Miden.Core.U128.mod =
+    execProcedure u128ProcEnv 34 s Miden.Core.U128.mod =
     some (s.withStack (sorry :: rest))  -- TODO: specify output
     := by
   miden_setup_env Miden.Core.U128.mod
-  -- Instruction 1: exec "divmod"
+  -- Instruction 1: execProcedure emptyEnv "divmod"
   try (simp only [u128ProcEnv])
   try (miden_call Miden.Core.U128.divmod)
   -- Instruction 2: swapw 1

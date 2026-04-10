@@ -16,7 +16,7 @@ structure BlockResult where
   preconditions : List Precondition
 
 /-- Execute a single instruction symbolically.  Returns none for stack
-    underflow, unsupported instructions (dynamic-address memory, exec),
+    underflow, unsupported instructions (dynamic-address memory, execProcedure emptyEnv),
     or immediate values that violate static guards. Collects preconditions for
     instructions with runtime guards. Supports local memory (locLoad, locStore,
     locStorewBe/Le, locLoadwBe/Le, locaddr), static-address memory
@@ -670,7 +670,7 @@ def execInstruction (s : State) (i : Instruction) :
   -- Events: emitImm (always succeeds, no-op)
   | .emitImm _ => some (s, [])
 
-  -- Unsupported: dynamic-address memory (address from stack), exec
+  -- Unsupported: dynamic-address memory (address from stack), execProcedure emptyEnv
   | .memLoad | .memStore
   | .memLoadwBe | .memStorewBe
   | .memLoadwLe | .memStorewLe
@@ -696,11 +696,6 @@ def extractBlock (ops : List Op) : Option (List Instruction) :=
   ops.mapM fun
     | .inst i => some i
     | _ => none
-
-/-- Concrete execution of a basic block as a foldlM of execInstruction. -/
-def concreteExecBlock (insts : List Instruction) (cs : MidenState) :
-    Option MidenState :=
-  insts.foldlM (fun s i => MidenLean.execInstruction s i) cs
 
 -- ============================================================================
 -- Compositional calls: symbolic procedure environment

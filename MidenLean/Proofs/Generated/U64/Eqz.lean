@@ -17,10 +17,10 @@ set_option maxHeartbeats 4000000 in
     Input stack:  [a, b] ++ rest
     Output stack: [sorry] ++ rest -/
 theorem u64_eqz_correct
-    (a b : Felt) (rest : List Felt) (s : MidenState)
+    (a b : Felt) (rest : List Felt) (s : Concrete.State)
     (hs : s.stack = a :: b :: rest)
     :
-    exec 9 s Miden.Core.U64.eqz =
+    execProcedure emptyEnv 9 s Miden.Core.U64.eqz =
     some (s.withStack (sorry :: rest))  -- TODO: specify output
     := by
   miden_setup Miden.Core.U64.eqz

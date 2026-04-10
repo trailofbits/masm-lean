@@ -14,9 +14,9 @@ set_option maxHeartbeats 4000000 in
     Output stack: [is_zero] ++ rest
     where is_zero = 1 iff all four input elements are zero. -/
 theorem word_eqz_correct
-    (a b c d : Felt) (rest : List Felt) (s : MidenState)
+    (a b c d : Felt) (rest : List Felt) (s : Concrete.State)
     (hs : s.stack = a :: b :: c :: d :: rest) :
-    exec 25 s Miden.Core.Word.eqz =
+    execProcedure emptyEnv 25 s Miden.Core.Word.eqz =
     some (s.withStack (
       (if (a == (0 : Felt)) && (b == (0 : Felt)) && (c == (0 : Felt)) && (d == (0 : Felt))
        then (1 : Felt) else 0) :: rest)) := by

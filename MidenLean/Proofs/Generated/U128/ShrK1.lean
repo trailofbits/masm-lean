@@ -17,12 +17,12 @@ set_option maxHeartbeats 8000000 in
     Input stack:  [x0, x1, x2, x3, x4] ++ rest
     Output stack: [sorry] ++ rest -/
 theorem u128_shr_k1_correct
-    (x0 x1 x2 x3 x4 : Felt) (rest : List Felt) (s : MidenState)
+    (x0 x1 x2 x3 x4 : Felt) (rest : List Felt) (s : Concrete.State)
     (hs : s.stack = x0 :: x1 :: x2 :: x3 :: x4 :: rest)
     (hx0_u32 : x0.isU32 = true)  -- from u32WidenMul at instruction 17
     (hx1_u32 : x1.isU32 = true)  -- from u32WidenMul at instruction 26
     :
-    exec 43 s Miden.Core.U128.shr_k1 =
+    execProcedure emptyEnv 43 s Miden.Core.U128.shr_k1 =
     some (s.withStack (sorry :: rest))  -- TODO: specify output
     := by
   -- Chunked/manual scaffold: fill chunk lemmas or manual proof here.

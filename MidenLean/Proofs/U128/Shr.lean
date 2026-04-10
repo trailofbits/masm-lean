@@ -61,14 +61,14 @@ private theorem and31_val (shift : Felt) :
 -- Environment-irrelevance for pure-inst lists
 -- ============================================================================
 
-private theorem execWithEnv_pure_inst (env1 env2 : ProcEnv) (f1 f2 : Nat)
-    (s : MidenState) (ops : List Op)
+private theorem execProcedure_pure_inst (env1 env2 : ProcEnv) (f1 f2 : Nat)
+    (s : Concrete.State) (ops : List Op)
     (hf1 : f1 > 0) (hf2 : f2 > 0)
     (hpure : ∀ op ∈ ops, ∃ i, op = .inst i ∧ ∀ t, i ≠ .exec t) :
-    execWithEnv env1 f1 s ops = execWithEnv env2 f2 s ops := by
+    execProcedure env1 f1 s ops = execProcedure env2 f2 s ops := by
   obtain ⟨f1', rfl⟩ := Nat.exists_eq_succ_of_ne_zero (show f1 ≠ 0 by omega)
   obtain ⟨f2', rfl⟩ := Nat.exists_eq_succ_of_ne_zero (show f2 ≠ 0 by omega)
-  unfold execWithEnv
+  unfold execProcedure
   induction ops generalizing s with
   | nil => rfl
   | cons op ops ih =>
@@ -86,31 +86,31 @@ private theorem execWithEnv_pure_inst (env1 env2 : ProcEnv) (f1 f2 : Nat)
       | some s' => exact ih s' hpure'
 
 /-- Environment-irrelevance for [ifElse A B] with pure-inst branches. -/
-private theorem execWithEnv_ifElse_pure_inst (env1 env2 : ProcEnv) (f1 f2 : Nat)
-    (s : MidenState) (A B : List Op)
+private theorem execProcedure_ifElse_pure_inst (env1 env2 : ProcEnv) (f1 f2 : Nat)
+    (s : Concrete.State) (A B : List Op)
     (hf1 : f1 ≥ 2) (hf2 : f2 ≥ 2)
     (hA : ∀ op ∈ A, ∃ i, op = .inst i ∧ ∀ t, i ≠ .exec t)
     (hB : ∀ op ∈ B, ∃ i, op = .inst i ∧ ∀ t, i ≠ .exec t) :
-    execWithEnv env1 f1 s ([.ifElse A B] : List Op) = execWithEnv env2 f2 s ([.ifElse A B] : List Op) := by
+    execProcedure env1 f1 s ([.ifElse A B] : List Op) = execProcedure env2 f2 s ([.ifElse A B] : List Op) := by
   obtain ⟨f1', rfl⟩ := Nat.exists_eq_succ_of_ne_zero (show f1 ≠ 0 by omega)
   obtain ⟨f2', rfl⟩ := Nat.exists_eq_succ_of_ne_zero (show f2 ≠ 0 by omega)
-  simp only [execWithEnv, Procedure.ofOps, List.foldlM, MidenState.withStack]
+  simp only [execProcedure, Procedure.ofOps, List.foldlM, Concrete.State.withStack]
   dsimp only [bind, Bind.bind, Option.bind, pure, Pure.pure]
   match hs : s.stack with
   | [] => rfl
   | cond :: rest =>
     -- Both sides have the same condition logic; only the branch body env/fuel differs
-    have hA' := execWithEnv_pure_inst env1 env2 f1' f2'
+    have hA' := execProcedure_pure_inst env1 env2 f1' f2'
       ⟨rest, s.memory, s.frames, s.advice⟩ A (by omega) (by omega) hA
-    have hB' := execWithEnv_pure_inst env1 env2 f1' f2'
+    have hB' := execProcedure_pure_inst env1 env2 f1' f2'
       ⟨rest, s.memory, s.frames, s.advice⟩ B (by omega) (by omega) hB
     simp only [hA', hB']
 
-private theorem execWithEnv_append (env : ProcEnv) (fuel : Nat) (s : MidenState) (xs ys : List Op) :
-    execWithEnv env fuel s (xs ++ ys) = (do
-      let s' ← execWithEnv env fuel s xs
-      execWithEnv env fuel s' ys) := by
-  unfold execWithEnv
+private theorem execProcedure_append (env : ProcEnv) (fuel : Nat) (s : Concrete.State) (xs ys : List Op) :
+    execProcedure env fuel s (xs ++ ys) = (do
+      let s' ← execProcedure env fuel s xs
+      execProcedure env fuel s' ys) := by
+  unfold execProcedure
   cases fuel <;> simp [Procedure.ofOps, List.foldlM_append]
 
 -- ============================================================================
@@ -135,17 +135,17 @@ private theorem shr_k3_pure_inst :
   rcases hmem with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl
   all_goals exact ⟨_, rfl, fun _ h => Instruction.noConfusion h⟩
 
-private theorem shr_k0_env_bridge (fuel : Nat) (s : MidenState) (hfuel : fuel > 0) :
-    execWithEnv u128ProcEnv fuel s Miden.Core.U128.shr_k0 =
-    exec 51 s Miden.Core.U128.shr_k0 := by
-  rw [execWithEnv_body_eq _ _ _ _ _ rfl rfl, exec_body_eq _ _ _ _ rfl rfl]
-  exact execWithEnv_pure_inst u128ProcEnv (fun _ => none) fuel 51 s _ hfuel (by omega) shr_k0_pure_inst
+private theorem shr_k0_env_bridge (fuel : Nat) (s : Concrete.State) (hfuel : fuel > 0) :
+    execProcedure u128ProcEnv fuel s Miden.Core.U128.shr_k0 =
+    execProcedure emptyEnv 51 s Miden.Core.U128.shr_k0 := by
+  rw [execProcedure_body_eq _ _ _ _ _ rfl rfl, exec_body_eq _ _ _ _ rfl rfl]
+  exact execProcedure_pure_inst u128ProcEnv (fun _ => none) fuel 51 s _ hfuel (by omega) shr_k0_pure_inst
 
-private theorem shr_k3_env_bridge (fuel : Nat) (s : MidenState) (hfuel : fuel > 0) :
-    execWithEnv u128ProcEnv fuel s Miden.Core.U128.shr_k3 =
-    exec 12 s Miden.Core.U128.shr_k3 := by
-  rw [execWithEnv_body_eq _ _ _ _ _ rfl rfl, exec_body_eq _ _ _ _ rfl rfl]
-  exact execWithEnv_pure_inst u128ProcEnv (fun _ => none) fuel 12 s _ hfuel (by omega) shr_k3_pure_inst
+private theorem shr_k3_env_bridge (fuel : Nat) (s : Concrete.State) (hfuel : fuel > 0) :
+    execProcedure u128ProcEnv fuel s Miden.Core.U128.shr_k3 =
+    execProcedure emptyEnv 12 s Miden.Core.U128.shr_k3 := by
+  rw [execProcedure_body_eq _ _ _ _ _ rfl rfl, exec_body_eq _ _ _ _ rfl rfl]
+  exact execProcedure_pure_inst u128ProcEnv (fun _ => none) fuel 12 s _ hfuel (by omega) shr_k3_pure_inst
 
 -- shr_k1: decompose into prefix + [ifElse then else], all pure-inst
 private def shr_k1_prefix : List Op := [.inst (.dup 0), .inst (.eqImm 0)]
@@ -189,21 +189,21 @@ private theorem shr_k1_else_pure :
   all_goals exact ⟨_, rfl, fun _ h => Instruction.noConfusion h⟩
 
 set_option maxHeartbeats 4000000 in
-private theorem shr_k1_env_bridge (fuel : Nat) (s : MidenState) (hfuel : fuel ≥ 2) :
-    execWithEnv u128ProcEnv fuel s Miden.Core.U128.shr_k1 =
-    exec 43 s Miden.Core.U128.shr_k1 := by
-  rw [execWithEnv_body_eq _ _ _ _ _ shr_k1_body_decomp rfl, exec_body_eq _ _ _ _ shr_k1_body_decomp rfl]
-  show execWithEnv u128ProcEnv fuel s (shr_k1_prefix ++ ([.ifElse shr_k1_then shr_k1_else] : List Op)) =
-       execWithEnv (fun _ => none) 43 s (shr_k1_prefix ++ ([.ifElse shr_k1_then shr_k1_else] : List Op))
-  rw [execWithEnv_append, execWithEnv_append]
-  have hpre := execWithEnv_pure_inst u128ProcEnv (fun _ => none) fuel 43 s shr_k1_prefix
+private theorem shr_k1_env_bridge (fuel : Nat) (s : Concrete.State) (hfuel : fuel ≥ 2) :
+    execProcedure u128ProcEnv fuel s Miden.Core.U128.shr_k1 =
+    execProcedure emptyEnv 43 s Miden.Core.U128.shr_k1 := by
+  rw [execProcedure_body_eq _ _ _ _ _ shr_k1_body_decomp rfl, exec_body_eq _ _ _ _ shr_k1_body_decomp rfl]
+  show execProcedure u128ProcEnv fuel s (shr_k1_prefix ++ ([.ifElse shr_k1_then shr_k1_else] : List Op)) =
+       execProcedure (fun _ => none) 43 s (shr_k1_prefix ++ ([.ifElse shr_k1_then shr_k1_else] : List Op))
+  rw [execProcedure_append, execProcedure_append]
+  have hpre := execProcedure_pure_inst u128ProcEnv (fun _ => none) fuel 43 s shr_k1_prefix
     (by omega) (by omega) shr_k1_prefix_pure
   rw [hpre]
-  cases execWithEnv (fun _ => none) 43 s shr_k1_prefix with
+  cases execProcedure (fun _ => none) 43 s shr_k1_prefix with
   | none => rfl
   | some s' =>
     dsimp only [bind, Bind.bind, Option.bind]
-    exact execWithEnv_ifElse_pure_inst u128ProcEnv (fun _ => none) fuel 43 s'
+    exact execProcedure_ifElse_pure_inst u128ProcEnv (fun _ => none) fuel 43 s'
       shr_k1_then shr_k1_else (by omega) (by omega) shr_k1_then_pure shr_k1_else_pure
 
 -- shr_k2: same decomposition pattern
@@ -244,59 +244,59 @@ private theorem shr_k2_else_pure :
   all_goals exact ⟨_, rfl, fun _ h => Instruction.noConfusion h⟩
 
 set_option maxHeartbeats 4000000 in
-private theorem shr_k2_env_bridge (fuel : Nat) (s : MidenState) (hfuel : fuel ≥ 2) :
-    execWithEnv u128ProcEnv fuel s Miden.Core.U128.shr_k2 =
-    exec 34 s Miden.Core.U128.shr_k2 := by
-  rw [execWithEnv_body_eq _ _ _ _ _ shr_k2_body_decomp rfl, exec_body_eq _ _ _ _ shr_k2_body_decomp rfl]
-  show execWithEnv u128ProcEnv fuel s (shr_k2_prefix ++ ([.ifElse shr_k2_then shr_k2_else] : List Op)) =
-       execWithEnv (fun _ => none) 34 s (shr_k2_prefix ++ ([.ifElse shr_k2_then shr_k2_else] : List Op))
-  rw [execWithEnv_append, execWithEnv_append]
-  have hpre := execWithEnv_pure_inst u128ProcEnv (fun _ => none) fuel 34 s shr_k2_prefix
+private theorem shr_k2_env_bridge (fuel : Nat) (s : Concrete.State) (hfuel : fuel ≥ 2) :
+    execProcedure u128ProcEnv fuel s Miden.Core.U128.shr_k2 =
+    execProcedure emptyEnv 34 s Miden.Core.U128.shr_k2 := by
+  rw [execProcedure_body_eq _ _ _ _ _ shr_k2_body_decomp rfl, exec_body_eq _ _ _ _ shr_k2_body_decomp rfl]
+  show execProcedure u128ProcEnv fuel s (shr_k2_prefix ++ ([.ifElse shr_k2_then shr_k2_else] : List Op)) =
+       execProcedure (fun _ => none) 34 s (shr_k2_prefix ++ ([.ifElse shr_k2_then shr_k2_else] : List Op))
+  rw [execProcedure_append, execProcedure_append]
+  have hpre := execProcedure_pure_inst u128ProcEnv (fun _ => none) fuel 34 s shr_k2_prefix
     (by omega) (by omega) shr_k2_prefix_pure
   rw [hpre]
-  cases execWithEnv (fun _ => none) 34 s shr_k2_prefix with
+  cases execProcedure (fun _ => none) 34 s shr_k2_prefix with
   | none => rfl
   | some s' =>
     dsimp only [bind, Bind.bind, Option.bind]
-    exact execWithEnv_ifElse_pure_inst u128ProcEnv (fun _ => none) fuel 34 s'
+    exact execProcedure_ifElse_pure_inst u128ProcEnv (fun _ => none) fuel 34 s'
       shr_k2_then shr_k2_else (by omega) (by omega) shr_k2_then_pure shr_k2_else_pure
 
 -- ============================================================================
 -- ifElse dispatch helpers
 -- ============================================================================
 
-private theorem execWithEnv_ifElse_one
+private theorem execProcedure_ifElse_one
     (env : ProcEnv) (fuel : Nat)
     (rest : List Felt) (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (thenBlk elseBlk : List Op) :
-    execWithEnv env (fuel + 2)
+    execProcedure env (fuel + 2)
       ⟨(1 : Felt) :: rest, mem, frames, adv⟩
       ([.ifElse thenBlk elseBlk] : List Op) =
-    execWithEnv env (fuel + 1) ⟨rest, mem, frames, adv⟩ thenBlk := by
-  conv_lhs => unfold execWithEnv
-  simp only [Procedure.ofOps, List.foldlM, MidenState.withStack]
+    execProcedure env (fuel + 1) ⟨rest, mem, frames, adv⟩ thenBlk := by
+  conv_lhs => unfold execProcedure
+  simp only [Procedure.ofOps, List.foldlM, Concrete.State.withStack]
   dsimp only [bind, Bind.bind, Option.bind, pure, Pure.pure]
   have hv1 : (1 : Felt).val = 1 := Felt.val_one'
   have hbeq : ((1 : Nat) == 1) = true := by decide
   simp only [hv1, hbeq, ↓reduceIte]
-  cases execWithEnv env (fuel + 1) ⟨rest, mem, frames, adv⟩ thenBlk <;> rfl
+  cases execProcedure env (fuel + 1) ⟨rest, mem, frames, adv⟩ thenBlk <;> rfl
 
-private theorem execWithEnv_ifElse_zero
+private theorem execProcedure_ifElse_zero
     (env : ProcEnv) (fuel : Nat)
     (rest : List Felt) (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (thenBlk elseBlk : List Op) :
-    execWithEnv env (fuel + 2)
+    execProcedure env (fuel + 2)
       ⟨(0 : Felt) :: rest, mem, frames, adv⟩
       ([.ifElse thenBlk elseBlk] : List Op) =
-    execWithEnv env (fuel + 1) ⟨rest, mem, frames, adv⟩ elseBlk := by
-  conv_lhs => unfold execWithEnv
-  simp only [Procedure.ofOps, List.foldlM, MidenState.withStack]
+    execProcedure env (fuel + 1) ⟨rest, mem, frames, adv⟩ elseBlk := by
+  conv_lhs => unfold execProcedure
+  simp only [Procedure.ofOps, List.foldlM, Concrete.State.withStack]
   dsimp only [bind, Bind.bind, Option.bind, pure, Pure.pure]
   have hv0 : (0 : Felt).val = 0 := Felt.val_zero'
   have hneq : ((0 : Nat) == 1) = false := by decide
   have hbeq : ((0 : Nat) == 0) = true := by decide
   simp only [hv0, hneq, hbeq, ↓reduceIte]
-  cases execWithEnv env (fuel + 1) ⟨rest, mem, frames, adv⟩ elseBlk <;> rfl
+  cases execProcedure env (fuel + 1) ⟨rest, mem, frames, adv⟩ elseBlk <;> rfl
 
 -- ============================================================================
 -- Decomposition of shr
@@ -343,12 +343,12 @@ private theorem shr_prefix_correct (env : ProcEnv) (fuel : Nat)
     (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (hshift_u32 : shift.isU32 = true)
     (hshift_lt128 : shift.val < 128) :
-    execWithEnv env (fuel + 1)
+    execProcedure env (fuel + 1)
       ⟨shift :: a0 :: a1 :: a2 :: a3 :: rest, mem, frames, adv⟩
       shr_prefix =
     some ⟨(if shift == (0 : Felt) then (1 : Felt) else 0) ::
           shift :: a0 :: a1 :: a2 :: a3 :: rest, mem, frames, adv⟩ := by
-  unfold shr_prefix execWithEnv
+  unfold shr_prefix execProcedure
   simp only [List.foldlM]
   dsimp only [bind, Bind.bind, Option.bind]
   miden_dup
@@ -371,12 +371,12 @@ private theorem shr_nonzero_setup_correct (env : ProcEnv) (fuel : Nat)
     (shift a0 a1 a2 a3 : Felt) (rest : List Felt)
     (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (hshift_u32 : shift.isU32 = true) :
-    execWithEnv env (fuel + 1)
+    execProcedure env (fuel + 1)
       ⟨shift :: a0 :: a1 :: a2 :: a3 :: rest, mem, frames, adv⟩
       shr_nonzero_setup =
     some ⟨Felt.ofNat (shift.val / 2 ^ 5) :: Felt.ofNat (shift.val &&& 31) ::
           a0 :: a1 :: a2 :: a3 :: rest, mem, frames, adv⟩ := by
-  unfold shr_nonzero_setup execWithEnv
+  unfold shr_nonzero_setup execProcedure
   simp only [List.foldlM]
   dsimp only [bind, Bind.bind, Option.bind]
   miden_dup
@@ -403,7 +403,7 @@ private theorem shr_branch_k0 (fuel : Nat)
     (ha0 : a0.isU32 = true) (ha1 : a1.isU32 = true)
     (ha2 : a2.isU32 = true) (ha3 : a3.isU32 = true)
     (hb_le31 : b.val ≤ 31) (hb_pos : 0 < b.val) :
-    execWithEnv u128ProcEnv (fuel + 2)
+    execProcedure u128ProcEnv (fuel + 2)
       ⟨k :: b :: a0 :: a1 :: a2 :: a3 :: rest, mem, frames, adv⟩
       shr_k0_ops =
     some ⟨Felt.ofNat ((a0.val / 2 ^ b.val) ||| ((a1.val * 2 ^ (32 - b.val)) % 2 ^ 32)) ::
@@ -411,19 +411,19 @@ private theorem shr_branch_k0 (fuel : Nat)
       Felt.ofNat ((a2.val / 2 ^ b.val) ||| ((a3.val * 2 ^ (32 - b.val)) % 2 ^ 32)) ::
       Felt.ofNat (a3.val / 2 ^ b.val) :: rest, mem, frames, adv⟩ := by
   unfold shr_k0_ops
-  conv_lhs => unfold execWithEnv
+  conv_lhs => unfold execProcedure
   simp only [List.foldlM, u128ProcEnv]
   dsimp only [bind, Bind.bind, Option.bind, pure, Pure.pure]
   rw [stepDrop]
   simp only []
-  -- Now: execWithEnv u128ProcEnv (fuel+1) ⟨b :: a0 :: a1 :: a2 :: a3 :: rest, ...⟩ shr_k0
+  -- Now: execProcedure u128ProcEnv (fuel+1) ⟨b :: a0 :: a1 :: a2 :: a3 :: rest, ...⟩ shr_k0
   rw [shr_k0_env_bridge (fuel + 1) _ (by omega)]
-  -- Now: exec 51 ⟨b :: a0 :: ...⟩ shr_k0
+  -- Now: execProcedure emptyEnv 51 ⟨b :: a0 :: ...⟩ shr_k0
   have h := u128_shr_k0_raw b a0 a1 a2 a3 rest
     ⟨b :: a0 :: a1 :: a2 :: a3 :: rest, mem, frames, adv⟩
     rfl hb_u32 ha0 ha1 ha2 ha3 hb_pos hb_le31
-  simp only [MidenState.withStack] at h
-  -- Goal has the form: match (exec 51 ...), fun s => some s with | ...
+  simp only [Concrete.State.withStack] at h
+  -- Goal has the form: match (execProcedure emptyEnv 51 ...), fun s => some s with | ...
   -- Need to simplify the match-pure pattern
   rw [h]
 
@@ -438,7 +438,7 @@ private theorem shr_branch_k1 (fuel : Nat)
     (hb_u32 : b.isU32 = true)
     (ha1 : a1.isU32 = true) (ha2 : a2.isU32 = true) (ha3 : a3.isU32 = true)
     (hb_le31 : b.val ≤ 31) :
-    execWithEnv u128ProcEnv (fuel + 3)
+    execProcedure u128ProcEnv (fuel + 3)
       ⟨k :: b :: a0 :: a1 :: a2 :: a3 :: rest, mem, frames, adv⟩
       shr_k1_ops =
     some ⟨(if b == (0 : Felt) then
@@ -450,7 +450,7 @@ private theorem shr_branch_k1 (fuel : Nat)
         Felt.ofNat (a3.val / 2 ^ b.val) :: (0 : Felt) :: rest),
       mem, frames, adv⟩ := by
   unfold shr_k1_ops
-  conv_lhs => unfold execWithEnv
+  conv_lhs => unfold execProcedure
   simp only [List.foldlM, u128ProcEnv]
   dsimp only [bind, Bind.bind, Option.bind, pure, Pure.pure]
   rw [stepDrop]
@@ -464,7 +464,7 @@ private theorem shr_branch_k1 (fuel : Nat)
     ((0 : Felt) :: rest)
     ⟨b :: a0 :: a1 :: a2 :: a3 :: (0 : Felt) :: rest, mem, frames, adv⟩
     rfl hb_u32 ha1 ha2 ha3 hb_le31
-  simp only [MidenState.withStack] at h
+  simp only [Concrete.State.withStack] at h
   rw [h]
 
 -- ============================================================================
@@ -478,7 +478,7 @@ private theorem shr_branch_k2 (fuel : Nat)
     (hb_u32 : b.isU32 = true)
     (ha2 : a2.isU32 = true) (ha3 : a3.isU32 = true)
     (hb_le31 : b.val ≤ 31) :
-    execWithEnv u128ProcEnv (fuel + 3)
+    execProcedure u128ProcEnv (fuel + 3)
       ⟨k :: b :: a0 :: a1 :: a2 :: a3 :: rest, mem, frames, adv⟩
       shr_k2_ops =
     some ⟨(if b == (0 : Felt) then
@@ -489,7 +489,7 @@ private theorem shr_branch_k2 (fuel : Nat)
         Felt.ofNat (a3.val / 2 ^ b.val) :: (0 : Felt) :: (0 : Felt) :: rest),
       mem, frames, adv⟩ := by
   unfold shr_k2_ops
-  conv_lhs => unfold execWithEnv
+  conv_lhs => unfold execProcedure
   simp only [List.foldlM, u128ProcEnv]
   dsimp only [bind, Bind.bind, Option.bind, pure, Pure.pure]
   rw [stepDrop]
@@ -506,7 +506,7 @@ private theorem shr_branch_k2 (fuel : Nat)
     ((0 : Felt) :: (0 : Felt) :: rest)
     ⟨b :: a0 :: a1 :: a2 :: a3 :: (0 : Felt) :: (0 : Felt) :: rest, mem, frames, adv⟩
     rfl hb_u32 ha2 ha3 hb_le31
-  simp only [MidenState.withStack] at h
+  simp only [Concrete.State.withStack] at h
   rw [h]
 
 -- ============================================================================
@@ -519,14 +519,14 @@ private theorem shr_branch_k3 (fuel : Nat)
     (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (hb_u32 : b.isU32 = true) (ha3 : a3.isU32 = true)
     (hb_le31 : b.val ≤ 31) :
-    execWithEnv u128ProcEnv (fuel + 2)
+    execProcedure u128ProcEnv (fuel + 2)
       ⟨k :: b :: a0 :: a1 :: a2 :: a3 :: rest, mem, frames, adv⟩
       shr_k3_ops =
     some ⟨Felt.ofNat (a3.val / 2 ^ b.val) ::
       (0 : Felt) :: (0 : Felt) :: (0 : Felt) :: rest,
       mem, frames, adv⟩ := by
   unfold shr_k3_ops
-  conv_lhs => unfold execWithEnv
+  conv_lhs => unfold execProcedure
   simp only [List.foldlM, u128ProcEnv]
   dsimp only [bind, Bind.bind, Option.bind, pure, Pure.pure]
   rw [stepDrop]
@@ -546,7 +546,7 @@ private theorem shr_branch_k3 (fuel : Nat)
     ((0 : Felt) :: (0 : Felt) :: (0 : Felt) :: rest)
     ⟨b :: a0 :: a1 :: a2 :: a3 :: (0 : Felt) :: (0 : Felt) :: (0 : Felt) :: rest, mem, frames, adv⟩
     rfl hb_u32 ha3 hb_le31
-  simp only [MidenState.withStack] at h
+  simp only [Concrete.State.withStack] at h
   rw [h]
 
 -- ============================================================================
@@ -561,10 +561,10 @@ private theorem and31_pos_of_pos_lt32 (n : Nat) (hpos : 0 < n) (hlt : n < 32) :
 
 private theorem dup_eqImm_eval (env : ProcEnv) (fuel : Nat) (v : Felt)
     (a : Felt) (rest : List Felt) (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt) :
-    execWithEnv env (fuel + 1) ⟨a :: rest, mem, frames, adv⟩
+    execProcedure env (fuel + 1) ⟨a :: rest, mem, frames, adv⟩
       ([.inst (.dup 0), .inst (.eqImm v)] : List Op) =
     some ⟨(if a == v then (1 : Felt) else 0) :: a :: rest, mem, frames, adv⟩ := by
-  conv_lhs => unfold execWithEnv
+  conv_lhs => unfold execProcedure
   simp only [List.foldlM]
   dsimp only [bind, Bind.bind, Option.bind, pure, Pure.pure]
   miden_dup
@@ -612,7 +612,7 @@ private theorem u128_shr_run (fuel : Nat)
     (ha2 : a2.isU32 = true) (ha3 : a3.isU32 = true) :
     let b := Felt.ofNat (shift.val &&& 31)
     let k := Felt.ofNat (shift.val / 32)
-    execWithEnv u128ProcEnv (fuel + 7)
+    execProcedure u128ProcEnv (fuel + 7)
       ⟨shift :: a0 :: a1 :: a2 :: a3 :: rest, mem, frames, adv⟩
       Miden.Core.U128.shr =
     (if shift == (0 : Felt) then
@@ -641,7 +641,7 @@ private theorem u128_shr_run (fuel : Nat)
       some ⟨Felt.ofNat (a3.val / 2 ^ b.val) ::
         (0 : Felt) :: (0 : Felt) :: (0 : Felt) :: rest, mem, frames, adv⟩) := by
   -- Step 1: decompose shr
-  rw [execWithEnv_body_eq _ _ _ _ _ shr_decomp rfl, execWithEnv_append]
+  rw [execProcedure_body_eq _ _ _ _ _ shr_decomp rfl, execProcedure_append]
   rw [shr_prefix_correct u128ProcEnv (fuel + 6) shift a0 a1 a2 a3 rest mem frames adv
     hshift_u32 hshift_lt128]
   simp only [bind, Bind.bind, Option.bind]
@@ -649,15 +649,15 @@ private theorem u128_shr_run (fuel : Nat)
   by_cases hzero : shift == (0 : Felt)
   · -- shift == 0: take the true branch (drop)
     simp only [hzero, ↓reduceIte]
-    rw [execWithEnv_ifElse_one]
-    conv_lhs => unfold execWithEnv
+    rw [execProcedure_ifElse_one]
+    conv_lhs => unfold execProcedure
     simp only [List.foldlM]
     dsimp only [bind, Bind.bind, Option.bind, pure, Pure.pure]
     rw [stepDrop]
   · -- shift != 0: take the false branch (nonzero setup + dispatch)
     simp only [hzero, ↓reduceIte, Bool.false_eq_true]
-    rw [execWithEnv_ifElse_zero]
-    rw [execWithEnv_append]
+    rw [execProcedure_ifElse_zero]
+    rw [execProcedure_append]
     rw [shr_nonzero_setup_correct u128ProcEnv (fuel + 5) shift a0 a1 a2 a3 rest mem frames adv
       hshift_u32]
     simp only [bind, Bind.bind, Option.bind]
@@ -673,50 +673,50 @@ private theorem u128_shr_run (fuel : Nat)
       exact hzero (beq_iff_eq.mpr ((ZMod.val_eq_zero shift).mp h0))
     have hk_lt4 : shift.val / 32 < 4 := by omega
     -- Level 0 dispatch: dup 0, eqImm 0, ifElse k0 else1
-    rw [dispatch_decomp_0, execWithEnv_append]
+    rw [dispatch_decomp_0, execProcedure_append]
     rw [dup_eqImm_eval]
     simp only [bind, Bind.bind, Option.bind]
     cases hk0 : (Felt.ofNat (shift.val / 32) == (0 : Felt))
     · -- k != 0, take else branch
       simp only [Bool.false_eq_true, ite_false]
-      rw [execWithEnv_ifElse_zero]
+      rw [execProcedure_ifElse_zero]
       -- Level 1 dispatch: dup 0, eqImm 1, ifElse k1 else2
-      rw [dispatch_decomp_1, execWithEnv_append]
+      rw [dispatch_decomp_1, execProcedure_append]
       rw [dup_eqImm_eval]
       simp only [bind, Bind.bind, Option.bind]
       cases hk1 : (Felt.ofNat (shift.val / 32) == (1 : Felt))
       · -- k != 1, take else branch
         simp only [Bool.false_eq_true, ite_false]
-        rw [execWithEnv_ifElse_zero]
+        rw [execProcedure_ifElse_zero]
         -- Level 2 dispatch: dup 0, eqImm 2, ifElse k2 k3
-        rw [dispatch_decomp_2, execWithEnv_append]
+        rw [dispatch_decomp_2, execProcedure_append]
         rw [dup_eqImm_eval]
         simp only [bind, Bind.bind, Option.bind]
         cases hk2 : (Felt.ofNat (shift.val / 32) == (2 : Felt))
         · -- k != 2, must be k = 3 → take else branch (k3)
           simp only [Bool.false_eq_true, ite_false]
-          rw [execWithEnv_ifElse_zero]
+          rw [execProcedure_ifElse_zero]
           exact shr_branch_k3 (fuel + 1)
             (Felt.ofNat (shift.val / 32)) (Felt.ofNat (shift.val &&& 31))
             a0 a1 a2 a3 rest mem frames adv
             (u32and31_isU32 shift) ha3 (u32and31_le31 shift)
         · -- k == 2 → take true branch (k2)
           simp only [↓reduceIte]
-          rw [execWithEnv_ifElse_one]
+          rw [execProcedure_ifElse_one]
           exact shr_branch_k2 fuel
             (Felt.ofNat (shift.val / 32)) (Felt.ofNat (shift.val &&& 31))
             a0 a1 a2 a3 rest mem frames adv
             (u32and31_isU32 shift) ha2 ha3 (u32and31_le31 shift)
       · -- k == 1 → take true branch (k1)
         simp only [↓reduceIte]
-        rw [execWithEnv_ifElse_one]
+        rw [execProcedure_ifElse_one]
         exact shr_branch_k1 (fuel + 1)
           (Felt.ofNat (shift.val / 32)) (Felt.ofNat (shift.val &&& 31))
           a0 a1 a2 a3 rest mem frames adv
           (u32and31_isU32 shift) ha1 ha2 ha3 (u32and31_le31 shift)
     · -- k == 0 → take true branch (k0)
       simp only [↓reduceIte]
-      rw [execWithEnv_ifElse_one]
+      rw [execProcedure_ifElse_one]
       have hb_pos : 0 < (Felt.ofNat (shift.val &&& 31)).val := by
         rw [and31_val]
         have hk0_nat : shift.val / 32 = 0 := by
@@ -741,7 +741,7 @@ set_option maxHeartbeats 16000000 in
     are u32 limbs low-to-high). Dispatches to shr_k0..k3 based on
     k = shift / 32, with b = shift % 32 as the sub-limb shift. -/
 theorem u128_shr_raw
-    (shift a0 a1 a2 a3 : Felt) (rest : List Felt) (s : MidenState)
+    (shift a0 a1 a2 a3 : Felt) (rest : List Felt) (s : Concrete.State)
     (hs : s.stack = shift :: a0 :: a1 :: a2 :: a3 :: rest)
     (hshift_u32 : shift.isU32 = true)
     (hshift_lt128 : shift.val < 128)
@@ -749,7 +749,7 @@ theorem u128_shr_raw
     (ha2 : a2.isU32 = true) (ha3 : a3.isU32 = true) :
     let b := Felt.ofNat (shift.val &&& 31)
     let k := Felt.ofNat (shift.val / 32)
-    execWithEnv u128ProcEnv 10 s Miden.Core.U128.shr =
+    execProcedure u128ProcEnv 10 s Miden.Core.U128.shr =
     (if shift == (0 : Felt) then
       some (s.withStack (a0 :: a1 :: a2 :: a3 :: rest))
     else if k == (0 : Felt) then
@@ -778,7 +778,7 @@ theorem u128_shr_raw
         Felt.ofNat (a3.val / 2 ^ b.val) ::
         (0 : Felt) :: (0 : Felt) :: (0 : Felt) :: rest))) := by
   obtain ⟨stk, mem, frames, adv⟩ := s
-  simp only [MidenState.withStack] at hs ⊢
+  simp only [Concrete.State.withStack] at hs ⊢
   subst hs
   have h := u128_shr_run 3 shift a0 a1 a2 a3 rest mem frames adv
     hshift_u32 hshift_lt128 ha0 ha1 ha2 ha3
@@ -950,15 +950,15 @@ private theorem shr_bridge_k0 (a : U128) (b_nat : Nat) (hb_pos : 0 < b_nat) (hb 
 -- ============================================================================
 
 set_option maxHeartbeats 16000000 in
-theorem u128_shr_correct_run (fuel : Nat) (a : U128) (shift : U32) (rest : List Felt) (s : MidenState)
+theorem u128_shr_correct_run (fuel : Nat) (a : U128) (shift : U32) (rest : List Felt) (s : Concrete.State)
     (hs : s.stack = shift.val :: a.a0.val :: a.a1.val :: a.a2.val :: a.a3.val :: rest)
     (hshift_lt128 : shift.toNat < 128) :
-    execWithEnv u128ProcEnv (fuel + 7) s Miden.Core.U128.shr =
+    execProcedure u128ProcEnv (fuel + 7) s Miden.Core.U128.shr =
     some (s.withStack (
       (a.shr shift.toNat).a0.val :: (a.shr shift.toNat).a1.val ::
       (a.shr shift.toNat).a2.val :: (a.shr shift.toNat).a3.val :: rest)) := by
   obtain ⟨stk, mem, frames, adv⟩ := s
-  simp only [MidenState.withStack] at hs ⊢
+  simp only [Concrete.State.withStack] at hs ⊢
   subst hs
   have hraw := u128_shr_run fuel shift.val a.a0.val a.a1.val a.a2.val a.a3.val rest
     mem frames adv
@@ -1057,10 +1057,10 @@ set_option maxHeartbeats 16000000 in
 /-- `u128::shr` right-shifts a u128 value by `shift` bits.
     Input stack:  [shift, a.a0, a.a1, a.a2, a.a3] ++ rest
     Output stack: [(a.shr shift).a0, (a.shr shift).a1, (a.shr shift).a2, (a.shr shift).a3] ++ rest -/
-theorem u128_shr_correct (a : U128) (shift : U32) (rest : List Felt) (s : MidenState)
+theorem u128_shr_correct (a : U128) (shift : U32) (rest : List Felt) (s : Concrete.State)
     (hs : s.stack = shift.val :: a.a0.val :: a.a1.val :: a.a2.val :: a.a3.val :: rest)
     (hshift_lt128 : shift.toNat < 128) :
-    execWithEnv u128ProcEnv 10 s Miden.Core.U128.shr =
+    execProcedure u128ProcEnv 10 s Miden.Core.U128.shr =
     some (s.withStack (
       (a.shr shift.toNat).a0.val :: (a.shr shift.toNat).a1.val ::
       (a.shr shift.toNat).a2.val :: (a.shr shift.toNat).a3.val :: rest)) := by

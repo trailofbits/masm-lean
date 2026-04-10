@@ -17,10 +17,10 @@ set_option maxHeartbeats 4000000 in
     Input stack:  [a, b, c, d] ++ rest
     Output stack: [sorry] ++ rest -/
 theorem u64_max_correct
-    (a b c d : Felt) (rest : List Felt) (s : MidenState)
+    (a b c d : Felt) (rest : List Felt) (s : Concrete.State)
     (hs : s.stack = a :: b :: c :: d :: rest)
     :
-    execWithEnv u64ProcEnv 55 s Miden.Core.U64.max =
+    execProcedure u64ProcEnv 55 s Miden.Core.U64.max =
     some (s.withStack (sorry :: rest))  -- TODO: specify output
     := by
   miden_setup_env Miden.Core.U64.max
@@ -30,7 +30,7 @@ theorem u64_max_correct
   try miden_movup
   -- Instruction 3: dupw 0
   try (rw [stepDupw0]; miden_bind)
-  -- Instruction 4: exec "lt"
+  -- Instruction 4: execProcedure emptyEnv "lt"
   try (simp only [u64ProcEnv])
   try (miden_call Miden.Core.U64.lt)
   -- Instruction 5: movup 4

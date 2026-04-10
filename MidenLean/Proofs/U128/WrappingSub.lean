@@ -15,21 +15,21 @@ set_option maxHeartbeats 8000000 in
     Output stack: [d0, d1, d2, d3] ++ rest
     where `d0..d3` are the low-to-high limbs of `(a - b) mod 2^128`. -/
 theorem u128_wrapping_sub_raw
-    (a0 a1 a2 a3 b0 b1 b2 b3 : Felt) (rest : List Felt) (s : MidenState)
+    (a0 a1 a2 a3 b0 b1 b2 b3 : Felt) (rest : List Felt) (s : Concrete.State)
     (hs : s.stack = b0 :: b1 :: b2 :: b3 :: a0 :: a1 :: a2 :: a3 :: rest)
     (ha0 : a0.isU32 = true) (ha1 : a1.isU32 = true)
     (ha2 : a2.isU32 = true) (ha3 : a3.isU32 = true)
     (hb0 : b0.isU32 = true) (hb1 : b1.isU32 = true)
     (hb2 : b2.isU32 = true) (hb3 : b3.isU32 = true) :
-    execWithEnv u128ProcEnv 31 s Miden.Core.U128.wrapping_sub =
+    execProcedure u128ProcEnv 31 s Miden.Core.U128.wrapping_sub =
     some (s.withStack (u128WrappingSubResult a0 a1 a2 a3 b0 b1 b2 b3 rest)) := by
   obtain ⟨stk, mem, frames, adv⟩ := s
-  simp only [MidenState.withStack] at hs ⊢
+  simp only [Concrete.State.withStack] at hs ⊢
   subst hs
-  unfold Miden.Core.U128.wrapping_sub execWithEnv
+  unfold Miden.Core.U128.wrapping_sub execProcedure
   simp only [List.foldlM, u128ProcEnv]
   dsimp only [bind, Bind.bind, Option.bind]
-  rw [show execWithEnv u128ProcEnv 30
+  rw [show execProcedure u128ProcEnv 30
       ⟨b0 :: b1 :: b2 :: b3 :: a0 :: a1 :: a2 :: a3 :: rest, mem, frames, adv⟩
       Miden.Core.U128.overflowing_sub =
       some ⟨u128OverflowingSubResult a0 a1 a2 a3 b0 b1 b2 b3 rest, mem, frames, adv⟩
@@ -43,10 +43,10 @@ theorem u128_wrapping_sub_raw
 /-- `u128::wrapping_sub` computes `(a - b) mod 2^128` for two 128-bit values.
     Input stack:  [b.a0, b.a1, b.a2, b.a3, a.a0, a.a1, a.a2, a.a3] ++ rest
     Output stack: [(a−b).a0, (a−b).a1, (a−b).a2, (a−b).a3] ++ rest -/
-theorem u128_wrapping_sub_correct (a b : U128) (rest : List Felt) (s : MidenState)
+theorem u128_wrapping_sub_correct (a b : U128) (rest : List Felt) (s : Concrete.State)
     (hs : s.stack = b.a0.val :: b.a1.val :: b.a2.val :: b.a3.val ::
                     a.a0.val :: a.a1.val :: a.a2.val :: a.a3.val :: rest) :
-    execWithEnv u128ProcEnv 31 s Miden.Core.U128.wrapping_sub =
+    execProcedure u128ProcEnv 31 s Miden.Core.U128.wrapping_sub =
     some (s.withStack (
       (a - b).a0.val :: (a - b).a1.val :: (a - b).a2.val :: (a - b).a3.val :: rest)) := by
   have h := u128_wrapping_sub_raw a.a0.val a.a1.val a.a2.val a.a3.val

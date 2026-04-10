@@ -15,25 +15,25 @@ set_option maxHeartbeats 8000000 in
     where result = 1 iff a ≤ b (as u64), else 0.
     Computed as !(a > b). -/
 theorem u64_lte_raw
-    (a_lo a_hi b_lo b_hi : Felt) (rest : List Felt) (s : MidenState)
+    (a_lo a_hi b_lo b_hi : Felt) (rest : List Felt) (s : Concrete.State)
     (hs : s.stack = b_lo :: b_hi :: a_lo :: a_hi :: rest)
     (ha_lo : a_lo.isU32 = true) (ha_hi : a_hi.isU32 = true)
     (hb_lo : b_lo.isU32 = true) (hb_hi : b_hi.isU32 = true) :
-    execWithEnv u64ProcEnv 20 s Miden.Core.U64.lte =
+    execProcedure u64ProcEnv 20 s Miden.Core.U64.lte =
     some (s.withStack (
       let borrow_lo := decide (b_lo.val < a_lo.val)
       let borrow_hi := decide (b_hi.val < a_hi.val)
       let hi_eq := Felt.ofNat (u32OverflowingSub b_hi.val a_hi.val).2 == (0 : Felt)
       (if !(borrow_hi || (hi_eq && borrow_lo)) then (1 : Felt) else 0) :: rest)) := by
   obtain ⟨stk, mem, frames, adv⟩ := s
-  simp only [MidenState.withStack] at hs ⊢
+  simp only [Concrete.State.withStack] at hs ⊢
   subst hs
   -- Unfold lte and resolve ProcEnv
-  unfold Miden.Core.U64.lte execWithEnv
+  unfold Miden.Core.U64.lte execProcedure
   simp only [List.foldlM, u64ProcEnv]
   dsimp only [bind, Bind.bind, Option.bind]
   -- Unfold gt body
-  unfold Miden.Core.U64.gt execWithEnv
+  unfold Miden.Core.U64.gt execProcedure
   simp only [List.foldlM, bind, Bind.bind, Option.bind, pure, Pure.pure]
   -- Step through gt body
   miden_movup; miden_movup; miden_movup
@@ -57,9 +57,9 @@ theorem u64_lte_raw
 /-- `u64::lte` pushes 1 iff `a ≤ b` (as u64).
     Input stack:  [b_lo, b_hi, a_lo, a_hi] ++ rest
     Output stack: [(if a ≤ b then 1 else 0)] ++ rest -/
-theorem u64_lte_correct (a b : U64) (rest : List Felt) (s : MidenState)
+theorem u64_lte_correct (a b : U64) (rest : List Felt) (s : Concrete.State)
     (hs : s.stack = b.lo.val :: b.hi.val :: a.lo.val :: a.hi.val :: rest) :
-    execWithEnv u64ProcEnv 20 s Miden.Core.U64.lte =
+    execProcedure u64ProcEnv 20 s Miden.Core.U64.lte =
     some (s.withStack (
       (if a ≤ b then (1 : Felt) else 0) :: rest)) := by
   rw [u64_lte_raw a.lo.val a.hi.val b.lo.val b.hi.val rest s hs a.lo.isU32 a.hi.isU32 b.lo.isU32 b.hi.isU32]

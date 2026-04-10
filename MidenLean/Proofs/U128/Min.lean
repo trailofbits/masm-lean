@@ -18,7 +18,7 @@ theorem u128_min_run
     (ha2 : a2.isU32 = true) (ha3 : a3.isU32 = true)
     (hb0 : b0.isU32 = true) (hb1 : b1.isU32 = true)
     (hb2 : b2.isU32 = true) (hb3 : b3.isU32 = true) :
-    execWithEnv u128ProcEnv (fuel + 3)
+    execProcedure u128ProcEnv (fuel + 3)
       ⟨b0 :: b1 :: b2 :: b3 :: a0 :: a1 :: a2 :: a3 :: rest, mem, frames, adv⟩
       Miden.Core.U128.min =
     some ⟨
@@ -28,7 +28,7 @@ theorem u128_min_run
       (if u128GtBool a0 a1 a2 a3 b0 b1 b2 b3 then b3 else a3) ::
       rest,
       mem, frames, adv⟩ := by
-  unfold Miden.Core.U128.min execWithEnv
+  unfold Miden.Core.U128.min execProcedure
   simp only [List.foldlM, u128ProcEnv]
   dsimp only [bind, Bind.bind, Option.bind]
   rw [stepDupw1]
@@ -48,20 +48,20 @@ set_option maxHeartbeats 8000000 in
     Output stack: [m0, m1, m2, m3] ++ rest
     where `m0..m3` are the low-to-high limbs of `min(a, b)`. -/
 theorem u128_min_raw
-    (a0 a1 a2 a3 b0 b1 b2 b3 : Felt) (rest : List Felt) (s : MidenState)
+    (a0 a1 a2 a3 b0 b1 b2 b3 : Felt) (rest : List Felt) (s : Concrete.State)
     (hs : s.stack = b0 :: b1 :: b2 :: b3 :: a0 :: a1 :: a2 :: a3 :: rest)
     (ha0 : a0.isU32 = true) (ha1 : a1.isU32 = true)
     (ha2 : a2.isU32 = true) (ha3 : a3.isU32 = true)
     (hb0 : b0.isU32 = true) (hb1 : b1.isU32 = true)
     (hb2 : b2.isU32 = true) (hb3 : b3.isU32 = true) :
-    execWithEnv u128ProcEnv 37 s Miden.Core.U128.min =
+    execProcedure u128ProcEnv 37 s Miden.Core.U128.min =
     some (s.withStack (
       (if u128GtBool a0 a1 a2 a3 b0 b1 b2 b3 then b0 else a0) ::
       (if u128GtBool a0 a1 a2 a3 b0 b1 b2 b3 then b1 else a1) ::
       (if u128GtBool a0 a1 a2 a3 b0 b1 b2 b3 then b2 else a2) ::
       (if u128GtBool a0 a1 a2 a3 b0 b1 b2 b3 then b3 else a3) :: rest)) := by
   obtain ⟨stk, mem, frames, adv⟩ := s
-  simp only [MidenState.withStack] at hs ⊢
+  simp only [Concrete.State.withStack] at hs ⊢
   subst hs
   simpa using u128_min_run 34 a0 a1 a2 a3 b0 b1 b2 b3 rest mem frames adv
     ha0 ha1 ha2 ha3 hb0 hb1 hb2 hb3
@@ -69,10 +69,10 @@ theorem u128_min_raw
 /-- `u128::min` pushes the limbs of `min(a, b)`.
     Input stack:  [b.a0, b.a1, b.a2, b.a3, a.a0, a.a1, a.a2, a.a3] ++ rest
     Output stack: [(min a b).a0, (min a b).a1, (min a b).a2, (min a b).a3] ++ rest -/
-theorem u128_min_correct (a b : U128) (rest : List Felt) (s : MidenState)
+theorem u128_min_correct (a b : U128) (rest : List Felt) (s : Concrete.State)
     (hs : s.stack = b.a0.val :: b.a1.val :: b.a2.val :: b.a3.val ::
                     a.a0.val :: a.a1.val :: a.a2.val :: a.a3.val :: rest) :
-    execWithEnv u128ProcEnv 37 s Miden.Core.U128.min =
+    execProcedure u128ProcEnv 37 s Miden.Core.U128.min =
     some (s.withStack (
       (min a b).a0.val :: (min a b).a1.val ::
       (min a b).a2.val :: (min a b).a3.val :: rest)) := by

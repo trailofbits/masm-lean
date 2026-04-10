@@ -17,14 +17,14 @@ set_option maxHeartbeats 4000000 in
     Input stack:  [x0, x1, x2, x3, x4, x5, x6, x7] ++ rest
     Output stack: [sorry] ++ rest -/
 theorem u128_wrapping_sub_correct
-    (x0 x1 x2 x3 x4 x5 x6 x7 : Felt) (rest : List Felt) (s : MidenState)
+    (x0 x1 x2 x3 x4 x5 x6 x7 : Felt) (rest : List Felt) (s : Concrete.State)
     (hs : s.stack = x0 :: x1 :: x2 :: x3 :: x4 :: x5 :: x6 :: x7 :: rest)
     :
-    execWithEnv u128ProcEnv 31 s Miden.Core.U128.wrapping_sub =
+    execProcedure u128ProcEnv 31 s Miden.Core.U128.wrapping_sub =
     some (s.withStack (sorry :: rest))  -- TODO: specify output
     := by
   miden_setup_env Miden.Core.U128.wrapping_sub
-  -- Instruction 1: exec "overflowing_sub"
+  -- Instruction 1: execProcedure emptyEnv "overflowing_sub"
   try (simp only [u128ProcEnv])
   try (miden_call Miden.Core.U128.overflowing_sub)
   -- Instruction 2: drop

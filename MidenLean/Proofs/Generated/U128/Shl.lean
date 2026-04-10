@@ -17,11 +17,11 @@ set_option maxHeartbeats 8000000 in
     Input stack:  [x0, x1, x2, x3, x4] ++ rest
     Output stack: [sorry] ++ rest -/
 theorem u128_shl_correct
-    (x0 x1 x2 x3 x4 : Felt) (rest : List Felt) (s : MidenState)
+    (x0 x1 x2 x3 x4 : Felt) (rest : List Felt) (s : Concrete.State)
     (hs : s.stack = x0 :: x1 :: x2 :: x3 :: x4 :: rest)
     (hx4_leq63 : x4.val ≤ 63)  -- from pow2 at instruction 8
     :
-    execWithEnv u128ProcEnv 88 s Miden.Core.U128.shl =
+    execProcedure u128ProcEnv 88 s Miden.Core.U128.shl =
     some (s.withStack (sorry :: rest))  -- TODO: specify output
     := by
   -- Chunked/manual scaffold: fill chunk lemmas or manual proof here.
@@ -53,7 +53,7 @@ theorem u128_shl_correct
   -- TODO: fill this step inside the chunked/manual scaffold
   -- Instruction 13: movup 3
   -- TODO: fill this step inside the chunked/manual scaffold
-  -- Instruction 14: exec "wrapping_mul"
+  -- Instruction 14: execProcedure emptyEnv "wrapping_mul"
   -- TODO: fill this step inside the chunked/manual scaffold
   -- else
   -- Instruction 15: push
@@ -68,7 +68,7 @@ theorem u128_shl_correct
   -- TODO: fill this step inside the chunked/manual scaffold
   -- Instruction 20: push
   -- TODO: fill this step inside the chunked/manual scaffold
-  -- Instruction 21: exec "wrapping_mul"
+  -- Instruction 21: execProcedure emptyEnv "wrapping_mul"
   -- TODO: fill this step inside the chunked/manual scaffold
   -- if.true end
   try (simp only [pure, Pure.pure])

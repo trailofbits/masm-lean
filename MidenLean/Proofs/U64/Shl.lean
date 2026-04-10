@@ -16,7 +16,7 @@ private def shlProcEnv : ProcEnv := fun name =>
 set_option maxHeartbeats 16000000 in
 /-- `u64::shl` raw: result in terms of schoolbook multiplication of limbs. -/
 theorem u64_shl_exec
-    (lo hi shift : Felt) (rest : List Felt) (s : MidenState)
+    (lo hi shift : Felt) (rest : List Felt) (s : Concrete.State)
     (hs : s.stack = shift :: lo :: hi :: rest)
     (hshift : shift.val ≤ 63)
     (hlo : lo.isU32 = true)
@@ -24,7 +24,7 @@ theorem u64_shl_exec
     let pow := Felt.ofNat (2 ^ shift.val)
     let pow_lo := pow.lo32
     let pow_hi := pow.hi32
-    execWithEnv shlProcEnv 20 s Miden.Core.U64.shl =
+    execProcedure shlProcEnv 20 s Miden.Core.U64.shl =
     some (s.withStack (
       let prod_lo := pow_lo.val * lo.val
       let cross1 := hi.val * pow_lo.val + prod_lo / 2^32
@@ -33,8 +33,8 @@ theorem u64_shl_exec
   miden_setup_env Miden.Core.U64.shl
   -- Resolve the wrapping_mul procedure call
   simp only [shlProcEnv]
-  unfold Miden.Core.U64.wrapping_mul execWithEnv
-  simp only [Procedure.ofOps, List.foldlM, bind, Bind.bind, Option.bind, pure, Pure.pure]
+  unfold Miden.Core.U64.wrapping_mul execProcedure
+  simp only [List.foldlM, bind, Bind.bind, Option.bind, pure, Pure.pure]
   -- shl preamble: pow2; u32Split; movup 2; movup 3; swap 1
   rw [stepPow2 (ha := by assumption)]; miden_bind
   rw [stepU32Split]; miden_bind
@@ -112,10 +112,10 @@ theorem u64_shl_exec
 /-- `u64::shl` left-shifts a u64 value by `shift` bits.
     Input stack:  [shift, a.lo, a.hi] ++ rest
     Output stack: [(a.shl shift).lo, (a.shl shift).hi] ++ rest -/
-theorem u64_shl_correct (a : U64) (shift : Felt) (rest : List Felt) (s : MidenState)
+theorem u64_shl_correct (a : U64) (shift : Felt) (rest : List Felt) (s : Concrete.State)
     (hs : s.stack = shift :: a.lo.val :: a.hi.val :: rest)
     (hshift : shift.val ≤ 63) :
-    execWithEnv shlProcEnv 20 s Miden.Core.U64.shl =
+    execProcedure shlProcEnv 20 s Miden.Core.U64.shl =
     some (s.withStack ((a.shl shift.val).lo.val :: (a.shl shift.val).hi.val :: rest)) := by
   rw [u64_shl_exec a.lo.val a.hi.val shift rest s hs hshift a.lo.isU32 a.hi.isU32]
   -- Recover lo32/hi32 val to natural numbers

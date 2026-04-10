@@ -16,11 +16,11 @@ set_option maxHeartbeats 8000000 in
     where result = 1 iff a > b (as u64), else 0.
     The comparison is: b_hi < a_hi, or (b_hi == a_hi and b_lo < a_lo). -/
 theorem u64_gt_exec
-    (a_lo a_hi b_lo b_hi : Felt) (rest : List Felt) (s : MidenState)
+    (a_lo a_hi b_lo b_hi : Felt) (rest : List Felt) (s : Concrete.State)
     (hs : s.stack = b_lo :: b_hi :: a_lo :: a_hi :: rest)
     (ha_lo : a_lo.isU32 = true) (ha_hi : a_hi.isU32 = true)
     (hb_lo : b_lo.isU32 = true) (hb_hi : b_hi.isU32 = true) :
-    exec 20 s Miden.Core.U64.gt =
+    execProcedure emptyEnv 20 s Miden.Core.U64.gt =
     some (s.withStack (
       let borrow_lo := decide (b_lo.val < a_lo.val)
       let borrow_hi := decide (b_hi.val < a_hi.val)
@@ -32,9 +32,9 @@ theorem u64_gt_exec
 /-- `u64::gt` pushes 1 iff `a > b` (as u64).
     Input stack:  [b_lo, b_hi, a_lo, a_hi] ++ rest
     Output stack: [(if b < a then 1 else 0)] ++ rest -/
-theorem u64_gt_correct (a b : U64) (rest : List Felt) (s : MidenState)
+theorem u64_gt_correct (a b : U64) (rest : List Felt) (s : Concrete.State)
     (hs : s.stack = b.lo.val :: b.hi.val :: a.lo.val :: a.hi.val :: rest) :
-    exec 20 s Miden.Core.U64.gt =
+    execProcedure emptyEnv 20 s Miden.Core.U64.gt =
     some (s.withStack (
       (if decide (b < a) then (1 : Felt) else 0) :: rest)) := by
   rw [u64_gt_exec a.lo.val a.hi.val b.lo.val b.hi.val rest s hs a.lo.isU32 a.hi.isU32 b.lo.isU32 b.hi.isU32]

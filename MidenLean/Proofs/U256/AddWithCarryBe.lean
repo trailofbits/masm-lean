@@ -19,7 +19,7 @@ private theorem stepU32OverflowAdd (mem : Nat → Felt) (frames : List LocalFram
     some ⟨Felt.ofNat ((a.val + b.val) / 2^32) ::
           Felt.ofNat ((a.val + b.val) % 2^32) :: rest, mem, frames, adv⟩ := by
   unfold execInstruction execU32OverflowAdd u32WideAdd u32Max
-  simp [ha, hb, MidenState.withStack]
+  simp [ha, hb, Concrete.State.withStack]
 
 set_option maxHeartbeats 4000000 in
 private theorem stepU32OverflowAdd3 (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
@@ -29,7 +29,7 @@ private theorem stepU32OverflowAdd3 (mem : Nat → Felt) (frames : List LocalFra
     some ⟨Felt.ofNat ((a.val + b.val + c.val) / 2^32) ::
           Felt.ofNat ((a.val + b.val + c.val) % 2^32) :: rest, mem, frames, adv⟩ := by
   unfold execInstruction execU32OverflowAdd3 u32WideAdd3 u32Max
-  simp [ha, hb, hc, MidenState.withStack]
+  simp [ha, hb, hc, Concrete.State.withStack]
 
 -- ============================================================================
 -- Chunk definitions
@@ -82,7 +82,7 @@ private theorem awc_chunk1_correct
     (hb0 : b0.isU32 = true) (hb1 : b1.isU32 = true) :
     let s0 := a0.val + b0.val
     let s1 := s0 / 2^32 + a1.val + b1.val
-    execWithEnv env (fuel + 1)
+    execProcedure env (fuel + 1)
       ⟨b7 :: b6 :: b5 :: b4 :: b3 :: b2 :: b1 :: b0 ::
        a7 :: a6 :: a5 :: a4 :: a3 :: a2 :: a1 :: a0 :: rest, mem, frames, adv⟩
       awc_chunk1 =
@@ -98,7 +98,7 @@ private theorem awc_chunk1_correct
   have hc0_val : (Felt.ofNat ((a0.val + b0.val) / 2^32)).val =
       (a0.val + b0.val) / 2^32 :=
     felt_ofNat_val_lt _ (by unfold GOLDILOCKS_PRIME; omega)
-  unfold awc_chunk1 execWithEnv
+  unfold awc_chunk1 execProcedure
   simp only [List.foldlM]
   rw [stepSwapw3]; miden_bind
   miden_movup; miden_movup
@@ -121,7 +121,7 @@ private theorem awc_chunk2_correct
     (hx3 : x3.isU32 = true) (hy3 : y3.isU32 = true) :
     let s2 := cin.val + x2.val + y2.val
     let s3 := s2 / 2^32 + x3.val + y3.val
-    execWithEnv env (fuel + 1)
+    execProcedure env (fuel + 1)
       ⟨cin :: prev1 :: prev0 :: x3 :: x2 :: y3 :: y2 :: z0 :: z1 :: z2 :: z3 ::
        w0 :: w1 :: w2 :: w3 :: rest, mem, frames, adv⟩
       awc_chunk2 =
@@ -138,7 +138,7 @@ private theorem awc_chunk2_correct
   have hc2_val : (Felt.ofNat ((cin.val + x2.val + y2.val) / 2^32)).val =
       (cin.val + x2.val + y2.val) / 2^32 :=
     felt_ofNat_val_lt _ (by unfold GOLDILOCKS_PRIME; omega)
-  unfold awc_chunk2 execWithEnv
+  unfold awc_chunk2 execProcedure
   simp only [List.foldlM]
   miden_movup; miden_movup
   rw [stepU32OverflowAdd3 (ha := hcin) (hb := hx2) (hc := hy2)]; miden_bind
@@ -160,7 +160,7 @@ private theorem awc_chunk3_correct
     (hw2 : w2.isU32 = true) (hz2 : z2.isU32 = true) :
     let s4 := cin.val + w3.val + z3.val
     let s5 := s4 / 2^32 + w2.val + z2.val
-    execWithEnv env (fuel + 1)
+    execProcedure env (fuel + 1)
       ⟨cin :: prev3 :: prev2 :: prev1 :: prev0 ::
        z0 :: z1 :: z2 :: z3 :: w0 :: w1 :: w2 :: w3 :: rest, mem, frames, adv⟩
       awc_chunk3 =
@@ -176,7 +176,7 @@ private theorem awc_chunk3_correct
   have hc4_val : (Felt.ofNat ((cin.val + w3.val + z3.val) / 2^32)).val =
       (cin.val + w3.val + z3.val) / 2^32 :=
     felt_ofNat_val_lt _ (by unfold GOLDILOCKS_PRIME; omega)
-  unfold awc_chunk3 execWithEnv
+  unfold awc_chunk3 execProcedure
   simp only [List.foldlM]
   miden_movdn
   rw [stepSwapw2]; miden_bind
@@ -200,7 +200,7 @@ private theorem awc_chunk4_correct
     (hw0 : w0.isU32 = true) (hz0 : z0.isU32 = true) :
     let s6 := cin.val + w1.val + z1.val
     let s7 := s6 / 2^32 + w0.val + z0.val
-    execWithEnv env (fuel + 1)
+    execProcedure env (fuel + 1)
       ⟨cin :: prev5 :: prev4 :: w0 :: w1 :: z0 :: z1 ::
        prev3 :: prev2 :: prev1 :: prev0 :: rest, mem, frames, adv⟩
       awc_chunk4 =
@@ -216,7 +216,7 @@ private theorem awc_chunk4_correct
   have hc6_val : (Felt.ofNat ((cin.val + w1.val + z1.val) / 2^32)).val =
       (cin.val + w1.val + z1.val) / 2^32 :=
     felt_ofNat_val_lt _ (by unfold GOLDILOCKS_PRIME; omega)
-  unfold awc_chunk4 execWithEnv
+  unfold awc_chunk4 execProcedure
   simp only [List.foldlM]
   miden_movup; miden_movup
   rw [stepU32OverflowAdd3 (ha := hcin) (hb := hw1) (hc := hz1)]; miden_bind
@@ -327,7 +327,7 @@ private theorem u256_add_with_carry_be_raw
     (a b : U256) (rest : List Felt) (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (fuel : Nat) :
     let s := a.toNat + b.toNat
-    execWithEnv u256ProcEnv (fuel + 1)
+    execProcedure u256ProcEnv (fuel + 1)
       ⟨b.a7.val :: b.a6.val :: b.a5.val :: b.a4.val ::
        b.a3.val :: b.a2.val :: b.a1.val :: b.a0.val ::
        a.a7.val :: a.a6.val :: a.a5.val :: a.a4.val ::
@@ -340,7 +340,7 @@ private theorem u256_add_with_carry_be_raw
           Felt.ofNat ((s / 2^32) % 2^32)  :: Felt.ofNat (s % 2^32) :: rest,
           mem, frames, adv⟩ := by
   -- Decompose procedure into chunks
-  rw [execWithEnv_body_eq _ _ _ _ _ awc_decomp rfl, execWithEnv_append]
+  rw [execProcedure_body_eq _ _ _ _ _ awc_decomp rfl, execProcedure_append]
   -- Chunk 1
   rw [awc_chunk1_correct (ha0 := a.a0_isU32) (ha1 := a.a1_isU32)
       (hb0 := b.a0_isU32) (hb1 := b.a1_isU32)]
@@ -349,7 +349,7 @@ private theorem u256_add_with_carry_be_raw
   set s0 := a.a0.val.val + b.a0.val.val
   set s1 := s0 / 2 ^ 32 + a.a1.val.val + b.a1.val.val
   -- Chunk 2
-  rw [execWithEnv_append]
+  rw [execProcedure_append]
   have hc1_isU32 : (Felt.ofNat (s1 / 2 ^ 32)).isU32 = true := by
     apply felt_ofNat_isU32_of_lt
     have := a.a0.val_lt; have := b.a0.val_lt
@@ -368,7 +368,7 @@ private theorem u256_add_with_carry_be_raw
   set s2 := s1 / 2 ^ 32 + a.a2.val.val + b.a2.val.val
   set s3 := s2 / 2 ^ 32 + a.a3.val.val + b.a3.val.val
   -- Chunk 3
-  rw [execWithEnv_append]
+  rw [execProcedure_append]
   have hc3_isU32 : (Felt.ofNat (s3 / 2 ^ 32)).isU32 = true := by
     apply felt_ofNat_isU32_of_lt
     have := a.a0.val_lt; have := b.a0.val_lt; have := a.a1.val_lt; have := b.a1.val_lt
@@ -436,7 +436,7 @@ private theorem u256_add_with_carry_be_raw
 theorem u256_add_with_carry_be_correct
     (a b : U256) (rest : List Felt) (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (fuel : Nat) :
-    execWithEnv u256ProcEnv (fuel + 1)
+    execProcedure u256ProcEnv (fuel + 1)
       ⟨b.a7.val :: b.a6.val :: b.a5.val :: b.a4.val ::
        b.a3.val :: b.a2.val :: b.a1.val :: b.a0.val ::
        a.a7.val :: a.a6.val :: a.a5.val :: a.a4.val ::

@@ -17,14 +17,14 @@ set_option maxHeartbeats 4000000 in
     Input stack:  [x0, x1, x2, x3, x4, x5, x6, x7] ++ rest
     Output stack: [sorry] ++ rest -/
 theorem word_lte_correct
-    (x0 x1 x2 x3 x4 x5 x6 x7 : Felt) (rest : List Felt) (s : MidenState)
+    (x0 x1 x2 x3 x4 x5 x6 x7 : Felt) (rest : List Felt) (s : Concrete.State)
     (hs : s.stack = x0 :: x1 :: x2 :: x3 :: x4 :: x5 :: x6 :: x7 :: rest)
     :
-    execWithEnv wordProcEnv 31 s Miden.Core.Word.lte =
+    execProcedure wordProcEnv 31 s Miden.Core.Word.lte =
     some (s.withStack (sorry :: rest))  -- TODO: specify output
     := by
   miden_setup_env Miden.Core.Word.lte
-  -- Instruction 1: exec "gt"
+  -- Instruction 1: execProcedure emptyEnv "gt"
   try (simp only [wordProcEnv])
   try (miden_call Miden.Core.Word.gt)
   -- Instruction 2: not

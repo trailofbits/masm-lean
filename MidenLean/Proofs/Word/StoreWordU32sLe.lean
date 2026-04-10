@@ -34,7 +34,7 @@ private theorem stepMemStorewLeLocal
   have hlt : ¬a.val >= u32Max := by
     unfold u32Max
     omega
-  simp [hlt, ha_aligned, MidenState.writeMemory, MidenState.withStack]
+  simp [hlt, ha_aligned, Concrete.State.writeMemory, Concrete.State.withStack]
 
 set_option maxHeartbeats 8000000 in
 /-- `word::store_word_u32s_le` writes a word to memory as eight u32 limbs in
@@ -45,12 +45,12 @@ set_option maxHeartbeats 8000000 in
     [w0.lo32, w0.hi32, w1.lo32, w1.hi32, w2.lo32, w2.hi32, w3.lo32, w3.hi32]
     stored at addresses out_ptr .. out_ptr + 7. -/
 theorem word_store_word_u32s_le_correct
-    (w0 w1 w2 w3 out_ptr : Felt) (rest : List Felt) (s : MidenState)
+    (w0 w1 w2 w3 out_ptr : Felt) (rest : List Felt) (s : Concrete.State)
     (hs : s.stack = w0 :: w1 :: w2 :: w3 :: out_ptr :: rest)
     (hout_ptr_aligned : out_ptr.val % 4 = 0)
     (hout_ptr_room : out_ptr.val + 4 < 2 ^ 32) :
     let addr := out_ptr.val
-    exec 20 s Miden.Core.Word.store_word_u32s_le =
+    execProcedure emptyEnv 20 s Miden.Core.Word.store_word_u32s_le =
       some ((s.writeMemory addr w0.lo32
           |>.writeMemory (addr + 1) w0.hi32
           |>.writeMemory (addr + 2) w1.lo32
@@ -74,7 +74,7 @@ theorem word_store_word_u32s_le_correct
   have h_ptr4_aligned : (out_ptr + 4).val % 4 = 0 := by
     rw [h_ptr4_val]
     omega
-  unfold exec Miden.Core.Word.store_word_u32s_le execWithEnv
+  unfold Miden.Core.Word.store_word_u32s_le execProcedure
   simp only [List.foldlM]
   miden_swap
   rw [stepU32Split]
@@ -102,6 +102,6 @@ theorem word_store_word_u32s_le_correct
   rw [stepDropw]
   simp only [pure, Pure.pure]
   ext a
-  simp [MidenState.writeMemory, MidenState.withStack]
+  simp [Concrete.State.writeMemory, Concrete.State.withStack]
 
 end MidenLean.Proofs

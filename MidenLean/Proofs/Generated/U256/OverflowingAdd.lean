@@ -17,22 +17,22 @@ set_option maxHeartbeats 4000000 in
     Input stack:  [x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12, x13, x14, x15] ++ rest
     Output stack: [sorry] ++ rest -/
 theorem u256_overflowing_add_correct
-    (x0 x1 x2 x3 x4 x5 x6 x7 x8 x9 x10 x11 x12 x13 x14 x15 : Felt) (rest : List Felt) (s : MidenState)
+    (x0 x1 x2 x3 x4 x5 x6 x7 x8 x9 x10 x11 x12 x13 x14 x15 : Felt) (rest : List Felt) (s : Concrete.State)
     (hs : s.stack = x0 :: x1 :: x2 :: x3 :: x4 :: x5 :: x6 :: x7 :: x8 :: x9 :: x10 :: x11 :: x12 :: x13 :: x14 :: x15 :: rest)
     :
-    execWithEnv u256ProcEnv 40 s Miden.Core.U256.overflowing_add =
+    execProcedure u256ProcEnv 40 s Miden.Core.U256.overflowing_add =
     some (s.withStack (sorry :: rest))  -- TODO: specify output
     := by
   miden_setup_env Miden.Core.U256.overflowing_add
-  -- Instruction 1: exec "u256_le_to_be_pair"
+  -- Instruction 1: execProcedure emptyEnv "u256_le_to_be_pair"
   try (simp only [u256ProcEnv])
   try (miden_call Miden.Core.U256.u256_le_to_be_pair)
-  -- Instruction 2: exec "add_with_carry_be"
+  -- Instruction 2: execProcedure emptyEnv "add_with_carry_be"
   try (simp only [u256ProcEnv])
   try (miden_call Miden.Core.U256.add_with_carry_be)
   -- Instruction 3: movdn 8
   try miden_movdn
-  -- Instruction 4: exec "u256_le_to_be"
+  -- Instruction 4: execProcedure emptyEnv "u256_le_to_be"
   try (simp only [u256ProcEnv])
   try (miden_call Miden.Core.U256.u256_le_to_be)
   -- Instruction 5: movup 8
