@@ -411,7 +411,6 @@ theorem u128_rotr_correct (a : U128) (shift : U32) (rest : List Felt) (s : Miden
     have hshiftComp_lt128 : shiftComp.toNat < 128 := by
       dsimp [shiftComp, U32.toNat]
       exact rotr_complement_lt128 shift.val hshift_lt128 hpos
-    -- shr is called first with the original shift
     have hshr :
         execWithEnv u128ProcEnv 70
           ⟨shift.val :: a.a0.val :: a.a1.val :: a.a2.val :: a.a3.val ::
@@ -429,7 +428,6 @@ theorem u128_rotr_correct (a : U128) (shift : U32) (rest : List Felt) (s : Miden
             shift.val :: a.a0.val :: a.a1.val :: a.a2.val :: a.a3.val :: rest,
             mem, frames, adv⟩
           rfl hshift_lt128)
-    -- shl is called second with (128 - shift)
     have hshl :
         execWithEnv u128ProcEnv 70
           ⟨shiftComp.val :: a.a0.val :: a.a1.val :: a.a2.val :: a.a3.val ::

@@ -228,7 +228,7 @@ theorem hi_eq_iff_val_eq (a_hi b_hi : Felt)
 
 /-- The borrow-based comparison formula is equivalent to `a.toNat < b.toNat`.
 
-    This bridges the low-level formula used in `u64_lt_raw` to the
+    This bridges the low-level formula used in `u64_lt_exec` to the
     high-level mathematical comparison. -/
 theorem u64_borrow_iff_lt (a b : U64) :
     let borrow_lo := decide (a.lo.val.val < b.lo.val.val)

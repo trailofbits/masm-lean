@@ -39,6 +39,33 @@ theorem execWithEnv_ifElse
     obtain ⟨s', hexec, hp⟩ := hthen h1
     exact ⟨s', by simp [h1, hexec], hp⟩
 
+/-- Equality-oriented singleton `ifElse` rule. -/
+theorem execWithEnv_ifElse_eq
+    (env : ProcEnv) (fuel : Nat)
+    (thenOps elseOps : List Op)
+    (s s' : MidenState)
+    (cond : Felt) (rest : List Felt)
+    (hs : s.stack = cond :: rest)
+    (hfuel : fuel > 0)
+    (hthen : cond.val = 1 →
+      execWithEnv env (fuel - 1) (s.withStack rest) thenOps = some s')
+    (helse : cond.val = 0 →
+      execWithEnv env (fuel - 1) (s.withStack rest) elseOps = some s')
+    (hbool : cond.val = 0 ∨ cond.val = 1) :
+    execWithEnv env fuel s [Op.ifElse thenOps elseOps] = some s' := by
+  cases fuel with
+  | zero => omega
+  | succ fuel' =>
+      simp only [execWithEnv, Procedure.ofOps, List.foldlM, bind, Bind.bind, Option.bind, pure,
+        Pure.pure, hs]
+      rcases hbool with h0 | h1
+      · have helse' : execWithEnv env fuel' (s.withStack rest) elseOps = some s' := by
+          simpa using helse h0
+        simp [h0, helse']
+      · have hthen' : execWithEnv env fuel' (s.withStack rest) thenOps = some s' := by
+          simpa using hthen h1
+        simp [h1, hthen']
+
 -- repeat composition rule
 
 /-- If an invariant holds initially and each iteration of the body preserves it,
@@ -72,6 +99,33 @@ theorem execWithEnv_repeat
     rw [hexec]
     exact ih (start + 1) s₁ (by omega) hinv₁
       (fun i s₀ hi₁ hi₂ hinv_i => hstep_bounded i s₀ (by omega) hi₂ hinv_i)
+
+/-- Equality-oriented singleton `repeat 0` rule. -/
+theorem execWithEnv_repeat_zero_eq
+    (env : ProcEnv) (fuel : Nat) (body : List Op) (s : MidenState)
+    (hfuel : fuel > 0) :
+    execWithEnv env fuel s [Op.repeat 0 body] = some s := by
+  cases fuel with
+  | zero => omega
+  | succ fuel' =>
+      simp [execWithEnv, Procedure.ofOps, execWithEnv.doRepeat]
+
+/-- Equality-oriented singleton `repeat (n + 1)` rule. -/
+theorem execWithEnv_repeat_succ_eq
+    (env : ProcEnv) (fuel n : Nat) (body : List Op)
+    (s s₁ s₂ : MidenState)
+    (hfuel : fuel > 0)
+    (hbody : execWithEnv env (fuel - 1) s body = some s₁)
+    (hrest : execWithEnv env fuel s₁ [Op.repeat n body] = some s₂) :
+    execWithEnv env fuel s [Op.repeat (n + 1) body] = some s₂ := by
+  cases fuel with
+  | zero => omega
+  | succ fuel' =>
+      have hbody' : execWithEnv env fuel' s body = some s₁ := by
+        simpa using hbody
+      have hrest' : execWithEnv.doRepeat env fuel' n body s₁ = some s₂ := by
+        simpa [execWithEnv, Procedure.ofOps] using hrest
+      simp [execWithEnv, Procedure.ofOps, execWithEnv.doRepeat, hbody', hrest']
 
 -- whileTrue composition rule
 

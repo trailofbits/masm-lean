@@ -848,7 +848,7 @@ set_option maxHeartbeats 16000000 in
     Input stack:  [b_lo, b_hi, a_lo, a_hi] ++ rest
     Advice stack: [q_lo, q_hi, r_lo, r_hi] ++ adv_rest
     Output stack: [r_hi, r_lo, q_hi, q_lo] ++ rest. -/
-theorem u64_divmod_raw
+theorem u64_divmod_exec
     (a_lo a_hi b_lo b_hi : Felt) (rest : List Felt)
     (q_lo q_hi r_lo r_hi : Felt) (adv_rest : List Felt)
     (s : MidenState)
@@ -1184,7 +1184,7 @@ theorem u64_divmod_correct (a b q r : U64) (rest : List Felt) (adv_rest : List F
         hqh_b hbh_b hbq_nat h_madd1_nat h_madd2_nat
         h_add2_nat h_ah_nat h_al_nat
     · exact h_lt
-  · -- Backward: derive raw hypotheses from q*b+r=a ∧ r<b, apply u64_divmod_raw
+  · -- Backward: derive raw hypotheses from q*b+r=a ∧ r<b, apply u64_divmod_exec
     intro ⟨hdiv, hlt⟩
     -- Extract u32 bounds
     have hql := q.lo.isU32; have hqh := q.hi.isU32
@@ -1206,8 +1206,8 @@ theorem u64_divmod_correct (a b q r : U64) (rest : List Felt) (adv_rest : List F
     -- bh * qh = 0 at Nat level
     have hbq_nat := divmod_bh_qh_zero ql qh bl bh rl rh al ah
       hql hqh hbl hbh hal hah hdiv
-    -- Apply u64_divmod_raw (q_lo=q.hi, q_hi=q.lo, r_lo=r.hi, r_hi=r.lo)
-    exact u64_divmod_raw a.lo.val a.hi.val b.lo.val b.hi.val rest q.hi.val q.lo.val r.hi.val r.lo.val adv_rest
+    -- Apply u64_divmod_exec (q_lo=q.hi, q_hi=q.lo, r_lo=r.hi, r_hi=r.lo)
+    exact u64_divmod_exec a.lo.val a.hi.val b.lo.val b.hi.val rest q.hi.val q.lo.val r.hi.val r.lo.val adv_rest
       s hs hadv q.lo.isU32 q.hi.isU32 r.lo.isU32 r.hi.isU32 b.lo.isU32 b.hi.isU32
       -- cross0_hi_val
       (MidenLean.felt_ofNat_val_lt _ (MidenLean.u32_prod_div_lt_prime b.lo.val q.lo.val b.lo.isU32 q.lo.isU32))

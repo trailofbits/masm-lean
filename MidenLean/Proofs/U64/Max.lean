@@ -15,7 +15,7 @@ set_option maxHeartbeats 16000000 in
     Output stack: [max_lo, max_hi] ++ rest
     lt is called on [a_lo, a_hi, b_lo, b_hi], computing b < a.
     If b < a, returns a; otherwise returns b. -/
-theorem u64_max_raw
+theorem u64_max_exec
     (a_lo a_hi b_lo b_hi : Felt) (rest : List Felt) (s : MidenState)
     (hs : s.stack = b_lo :: b_hi :: a_lo :: a_hi :: rest)
     (ha_lo : a_lo.isU32 = true) (ha_hi : a_hi.isU32 = true)
@@ -80,7 +80,7 @@ theorem u64_max_ite (a b : U64) (rest : List Felt) (s : MidenState)
     some (s.withStack (
       (if decide (b < a) then a.lo.val else b.lo.val) ::
       (if decide (b < a) then a.hi.val else b.hi.val) :: rest)) := by
-  rw [u64_max_raw a.lo.val a.hi.val b.lo.val b.hi.val rest s hs a.lo.isU32 a.hi.isU32 b.lo.isU32 b.hi.isU32]
+  rw [u64_max_exec a.lo.val a.hi.val b.lo.val b.hi.val rest s hs a.lo.isU32 a.hi.isU32 b.lo.isU32 b.hi.isU32]
   simp only [u64_borrow_iff_lt b a]; rfl
 
 /-- `u64::max` computes the maximum of two u64 values.

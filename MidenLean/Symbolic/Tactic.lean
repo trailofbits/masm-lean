@@ -672,39 +672,66 @@ private def tryExecOverrideTheorem? (goal : MVarId) : TacticM (Option (List MVar
   let some theoremName ← execOverrideTheoremName? parsed.envExpr targetExpr | return none
   let some calleeExpr ← concreteCalleeExpr? parsed.envExpr targetExpr | return none
 
-  let fuelExpr ← mkFreshExprMVar (Lean.mkConst ``Nat)
+  let directFuelExpr ← mkFreshExprMVar (Lean.mkConst ``Nat)
+  let directCallExpr := Lean.mkAppN (Lean.mkConst ``MidenLean.execWithEnv)
+    #[parsed.envExpr, directFuelExpr, parsed.stateExpr, calleeExpr]
+  let targetTy ← inferType parsed.lhs
+  let eqTransExpr ← mkAppOptM ``Eq.trans
+    #[some targetTy, some parsed.lhs, some directCallExpr, some parsed.rhs]
+  let splitGoals ←
+    try
+      goal.apply eqTransExpr
+    catch ex =>
+      throwError "miden_reflect: failed to insert theorem-backed singleton-call target `{theoremName}`: {ex.toMessageData}"
+  let mut eqGoals : List MVarId := []
+  let mut auxGoals : List MVarId := []
+  for g in splitGoals do
+    unless ← g.isAssigned do
+      let ty ← g.getType
+      if ty.eq?.isSome then
+        eqGoals := eqGoals ++ [g]
+      else
+        auxGoals := auxGoals ++ [g]
+  let [bridgeGoal, callGoal] := eqGoals
+    | throwError "miden_reflect: expected two equality goals for theorem-backed singleton-call summary `{theoremName}`"
+
   let someCalleeExpr ← mkAppM ``Option.some #[calleeExpr]
   let hlookupType ← mkEq (Lean.mkApp parsed.envExpr targetExpr) someCalleeExpr
   let hlookupExpr ← mkFreshExprMVar hlookupType
-  let rewriteExpr := Lean.mkAppN (Lean.mkConst ``MidenLean.execWithEnv_singleton_exec_eq)
-    #[parsed.envExpr, fuelExpr, parsed.stateExpr, targetExpr, calleeExpr, hlookupExpr]
-  let rwResult ←
+  let bridgeGoals ←
     try
-      goal.rewrite (← goal.getType) rewriteExpr
+      bridgeGoal.apply (Lean.mkAppN (Lean.mkConst ``MidenLean.execWithEnv_singleton_exec_eq)
+        #[parsed.envExpr, directFuelExpr, parsed.stateExpr, targetExpr, calleeExpr, hlookupExpr])
     catch ex =>
-      throwError "miden_reflect: failed to rewrite singleton `.exec` leaf via theorem-backed summary `{theoremName}`: {ex.toMessageData}"
-  let callGoal ← goal.replaceTargetEq rwResult.eNew rwResult.eqProof
-
-  let mut rewriteSeeds : List MVarId := [callGoal]
-  for g in rwResult.mvarIds do
+      throwError "miden_reflect: failed to prove theorem-backed singleton-call bridge `{theoremName}`: {ex.toMessageData}"
+  let mut bridgeRemaining : List MVarId := []
+  for g in bridgeGoals do
     unless ← g.isAssigned do
-      let ty ← g.getType
-      match ty.eq? with
-      | some _ =>
-          closeGoalWith g "`hlookup`" (← `(tactic|
-            first
-            | assumption
-            | rfl
-            | simp))
-      | none =>
-          rewriteSeeds := rewriteSeeds ++ [g]
+      let rem ←
+        runOnGoal g (← `(tactic|
+          first
+          | assumption
+          | symm; assumption
+          | rfl
+          | simp))
+      bridgeRemaining := bridgeRemaining ++ rem
 
   let theoremGoals ←
     try
       callGoal.apply (Lean.mkConst theoremName)
     catch ex =>
       throwError "miden_reflect: theorem-backed summary `{theoremName}` did not match the direct callee goal: {ex.toMessageData}"
-  let remaining ← cleanupGoals (theoremGoals ++ rewriteSeeds)
+  let mut remaining : List MVarId := []
+  for g in theoremGoals ++ bridgeRemaining ++ auxGoals do
+    unless ← g.isAssigned do
+      let rem ←
+        runOnGoal g (← `(tactic|
+          first
+          | assumption
+          | symm; assumption
+          | rfl
+          | simp [MidenLean.MidenState.withStack]))
+      remaining := remaining ++ rem
   pure (some remaining)
 
 syntax "miden_reflect" (" using " term)? : tactic

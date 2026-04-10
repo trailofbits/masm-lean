@@ -191,7 +191,7 @@ private theorem rotl_chunk4_correct
 
 set_option maxHeartbeats 16000000 in
 /-- `u64::rotl` raw: result in terms of schoolbook multiplication of limbs. -/
-theorem u64_rotl_raw
+theorem u64_rotl_exec
     (lo hi shift : Felt) (rest : List Felt) (s : MidenState)
     (hs : s.stack = shift :: lo :: hi :: rest)
     (hshift_u32 : shift.isU32 = true)
@@ -320,7 +320,7 @@ theorem u64_rotl_correct (a : U64) (shift : Felt) (rest : List Felt) (s : MidenS
     some (s.withStack ((a.rotl shift.val).lo.val :: (a.rotl shift.val).hi.val :: rest)) := by
   have hshift_u32 : shift.isU32 = true := by
     simp only [Felt.isU32, decide_eq_true_eq]; omega
-  rw [u64_rotl_raw a.lo.val a.hi.val shift rest s hs hshift_u32 a.lo.isU32 a.hi.isU32]
+  rw [u64_rotl_exec a.lo.val a.hi.val shift rest s hs hshift_u32 a.lo.isU32 a.hi.isU32]
   -- Recover u32 bounds
   have hlo_lt : a.lo.val.val < 2 ^ 32 := by
     have h := a.lo.isU32; simp [Felt.isU32, decide_eq_true_eq] at h; exact h

@@ -93,6 +93,56 @@ private theorem map_eval_lit (xs : List Felt) :
       else Expr.eval concreteAssignment b) = Expr.eval concreteAssignment a
   simp
 
+@[simp, miden_reflect_norm] theorem eval_feltEq_lit_concrete_eq_one_iff
+    (a b : Felt) :
+    Expr.eval concreteAssignment ((Expr.lit a).feltEq (Expr.lit b)) = 1 ↔ a = b := by
+  by_cases h : a = b <;> simp [Expr.eval, h]
+
+@[simp, miden_reflect_norm] theorem eval_feltEq_lit_concrete_eq_zero_iff
+    (a b : Felt) :
+    Expr.eval concreteAssignment ((Expr.lit a).feltEq (Expr.lit b)) = 0 ↔ a ≠ b := by
+  by_cases h : a = b <;> simp [Expr.eval, h]
+
+@[simp, miden_reflect_norm] theorem val_eval_feltEq_lit_concrete_eq_one_iff
+    (a b : Felt) :
+    (Expr.eval concreteAssignment ((Expr.lit a).feltEq (Expr.lit b))).val = 1 ↔ a = b := by
+  by_cases h : a = b <;> simp [Expr.eval, h]
+
+@[simp, miden_reflect_norm] theorem val_eval_feltEq_lit_concrete_eq_zero_iff
+    (a b : Felt) :
+    (Expr.eval concreteAssignment ((Expr.lit a).feltEq (Expr.lit b))).val = 0 ↔ a ≠ b := by
+  by_cases h : a = b <;> simp [Expr.eval, h]
+
+@[simp, miden_reflect_norm] theorem eval_feltAnd_lit_concrete
+    (a b : Felt) :
+    Expr.eval concreteAssignment ((Expr.lit a).feltAnd (Expr.lit b)) = a * b := by
+  simp [Expr.eval]
+
+@[simp, miden_reflect_norm] theorem holds_isBool_lit_concrete
+    (a : Felt) :
+    Precondition.holds (.isBool (.lit a)) concreteAssignment ↔ a = 0 ∨ a = 1 := by
+  simp [Precondition.holds, Expr.eval]
+
+@[simp, miden_reflect_norm] theorem holds_isBool_feltAnd_lit_concrete
+    (a b : Felt) :
+    Precondition.holds (.isBool ((Expr.lit a).feltAnd (Expr.lit b))) concreteAssignment ↔
+      a * b = 0 ∨ a * b = 1 := by
+  simp [Precondition.holds, Expr.eval]
+
+@[simp, miden_reflect_norm] theorem u32CountLeadingOnes_eq (n : Nat) :
+    u32CountLeadingOnes n = u32CountLeadingZeros (u32Max - 1 - n) := rfl
+
+@[simp, miden_reflect_norm] theorem u32CountTrailingOnes_eq (n : Nat) :
+    u32CountTrailingOnes n = u32CountTrailingZeros (n ^^^ (u32Max - 1)) := rfl
+
+@[miden_reflect_norm] theorem decidable_rec_const
+    {P : Prop} [inst : Decidable P] {α : Sort*} (e t : α) :
+    @Decidable.rec P (fun _ => α) (fun _ => e) (fun _ => t) inst =
+    if P then t else e := by
+  cases inst with
+  | isFalse h => simp [h]
+  | isTrue h => simp [h]
+
 @[simp, miden_reflect_norm] theorem ite_then_ite_one_zero_and (p q : Prop)
     [Decidable p] [Decidable q] :
     (if p then (if q then (1 : Felt) else 0) else 0) =
@@ -484,6 +534,11 @@ def ReflectEnv.toSymbolic {env : MidenLean.ProcEnv} {minFuel : Nat}
     (Γ : ReflectEnv env minFuel) : MidenLean.Symbolic.ProcEnv :=
   fun name => (Γ name).map fun rs => rs.spec
 
+@[simp] theorem ReflectEnv.toSymbolic_empty
+    {env : MidenLean.ProcEnv} {minFuel : Nat} (name : String) :
+    (ReflectEnv.empty (env := env) (minFuel := minFuel)).toSymbolic name = none := by
+  simp [ReflectEnv.toSymbolic, ReflectEnv.empty]
+
 /-- The callee-soundness premise required by `execOps_sound` follows from a
     `ReflectEnv`. -/
 theorem ReflectEnv.toSymbolic_sound {env : MidenLean.ProcEnv} {minFuel : Nat}
@@ -653,6 +708,18 @@ def ReflectEnv.ofConcrete (env : MidenLean.ProcEnv) : (minFuel : Nat) → Reflec
                 simpa using
                   (procSpec_sound (Γ := ReflectEnv.ofConcrete env n) (proc := proc)) }
       | none => none
+
+@[simp] theorem ReflectEnv.toSymbolic_ofConcrete_zero
+    (env : MidenLean.ProcEnv) (name : String) :
+    (ReflectEnv.ofConcrete env 0).toSymbolic name = none := by
+  simp [ReflectEnv.ofConcrete]
+
+@[simp] theorem ReflectEnv.toSymbolic_ofConcrete_succ
+    (env : MidenLean.ProcEnv) (n : Nat) (name : String) :
+    (ReflectEnv.ofConcrete env (n + 1)).toSymbolic name =
+      Option.map (fun proc => procSpec (ReflectEnv.ofConcrete env n) proc) (env name) := by
+  unfold ReflectEnv.toSymbolic ReflectEnv.ofConcrete
+  split <;> cases n <;> simp [ReflectEnv.ofConcrete, *]
 
 /-- Procedure-level reflection over a fully concrete symbolic state, using an
     explicit `ReflectEnv` for direct callees. -/

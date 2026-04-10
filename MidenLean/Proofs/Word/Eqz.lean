@@ -1,4 +1,5 @@
 import MidenLean.Proofs.Tactics
+import MidenLean.Symbolic.Tactic
 import MidenLean.Generated.Word
 
 namespace MidenLean.Proofs
@@ -19,32 +20,7 @@ theorem word_eqz_correct
     some (s.withStack (
       (if (a == (0 : Felt)) && (b == (0 : Felt)) && (c == (0 : Felt)) && (d == (0 : Felt))
        then (1 : Felt) else 0) :: rest)) := by
-  obtain ⟨stk, mem, frames, adv⟩ := s
-  simp only [MidenState.withStack] at hs ⊢
-  subst hs
-  unfold exec Miden.Core.Word.eqz execWithEnv
-  simp only [List.foldlM]
-  rw [stepEqImm]
-  miden_bind
-  miden_loop
-  miden_swap
-  rw [stepEqImm]
-  miden_bind
-  rw [stepAndIte]
-  miden_bind
-  miden_loop
-  miden_swap
-  rw [stepEqImm]
-  miden_bind
-  rw [stepAndIte]
-  miden_bind
-  miden_loop
-  miden_swap
-  rw [stepEqImm]
-  miden_bind
-  rw [stepAndIte]
-  miden_bind
-  miden_loop
-  simp only [pure, Pure.pure]
+  miden_vcg
+  all_goals miden_finish_reflection
 
 end MidenLean.Proofs

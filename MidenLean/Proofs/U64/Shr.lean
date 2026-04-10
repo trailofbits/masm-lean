@@ -321,7 +321,7 @@ private theorem shr_chunk3_correct
 
 set_option maxHeartbeats 16000000 in
 /-- `u64::shr` raw: result in terms of field arithmetic on limbs. -/
-theorem u64_shr_raw
+theorem u64_shr_exec
     (lo hi shift : Felt) (rest : List Felt) (s : MidenState)
     (hs : s.stack = shift :: lo :: hi :: rest)
     (hshift : shift.val ≤ 63)
@@ -465,7 +465,7 @@ theorem u64_shr_correct (a : U64) (shift : Felt) (rest : List Felt) (s : MidenSt
     (hshift : shift.val ≤ 63) :
     exec 42 s Miden.Core.U64.shr =
     some (s.withStack ((a.shr shift.val).lo.val :: (a.shr shift.val).hi.val :: rest)) := by
-  rw [u64_shr_raw a.lo.val a.hi.val shift rest s hs hshift a.lo.isU32 a.hi.isU32]
+  rw [u64_shr_exec a.lo.val a.hi.val shift rest s hs hshift a.lo.isU32 a.hi.isU32]
   -- Recover key bounds
   have hlo_u32 := a.lo.isU32
   have hlo_lt : a.lo.val.val < 2^32 := by

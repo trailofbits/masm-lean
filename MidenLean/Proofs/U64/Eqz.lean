@@ -1,5 +1,6 @@
 import MidenLean.Proofs.U64.Common
 import MidenLean.Proofs.Tactics
+import MidenLean.Symbolic.Tactic
 import MidenLean.Generated.U64
 
 namespace MidenLean.Proofs
@@ -13,25 +14,15 @@ set_option maxHeartbeats 4000000 in
     Input stack:  [lo, hi] ++ rest
     Output stack: [is_zero] ++ rest
     where is_zero = 1 iff both input limbs are zero. -/
-theorem u64_eqz_raw
+theorem u64_eqz_exec
     (lo hi : Felt) (rest : List Felt) (s : MidenState)
     (hs : s.stack = lo :: hi :: rest) :
     exec 9 s Miden.Core.U64.eqz =
     some (s.withStack (
       (if (lo == (0 : Felt)) && (hi == (0 : Felt))
        then (1 : Felt) else 0) :: rest)) := by
-  obtain ⟨stk, mem, frames, adv⟩ := s
-  simp only [MidenState.withStack] at hs ⊢
-  subst hs
-  unfold exec Miden.Core.U64.eqz execWithEnv
-  simp only [List.foldlM]
-  rw [stepEqImm]
-  miden_bind
-  miden_swap
-  rw [stepEqImm]
-  miden_bind
-  rw [stepAndIte]
-  dsimp only [bind, Bind.bind, Option.bind, pure, Pure.pure]
+  miden_vcg
+  all_goals miden_finish_reflection
 
 /-- `u64::eqz` tests whether a u64 value is zero.
     Input stack:  [a.lo, a.hi] ++ rest
@@ -42,6 +33,6 @@ theorem u64_eqz_correct (a : U64) (rest : List Felt) (s : MidenState)
     some (s.withStack (
       (if a == U64.ofNat 0 then (1 : Felt) else 0) :: rest)) := by
   simp only [U64.beq_iff, U64.ofNat]
-  exact u64_eqz_raw a.lo.val a.hi.val rest s hs
+  exact u64_eqz_exec a.lo.val a.hi.val rest s hs
 
 end MidenLean.Proofs

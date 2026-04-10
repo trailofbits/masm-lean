@@ -16,7 +16,7 @@ set_option maxHeartbeats 4000000 in
     Advice stack: [q_lo, q_hi, r_lo, r_hi] ++ adv_rest
     Output stack: [r_hi, r_lo] ++ rest
     Same preconditions as divmod. -/
-theorem u64_mod_raw
+theorem u64_mod_exec
     (a_lo a_hi b_lo b_hi : Felt) (rest : List Felt)
     (q_lo q_hi r_lo r_hi : Felt) (adv_rest : List Felt)
     (s : MidenState)
@@ -74,7 +74,7 @@ theorem u64_mod_raw
   simp only [List.foldlM, u64ProcEnv]
   dsimp only [bind, Bind.bind, Option.bind]
   -- The exec "divmod" resolves and calls execWithEnv u64ProcEnv 50 s divmod_body
-  rw [u64_divmod_raw a_lo a_hi b_lo b_hi rest q_lo q_hi r_lo r_hi adv_rest
+  rw [u64_divmod_exec a_lo a_hi b_lo b_hi rest q_lo q_hi r_lo r_hi adv_rest
         ⟨b_lo :: b_hi :: a_lo :: a_hi :: rest, mem, frames, q_lo :: q_hi :: r_lo :: r_hi :: adv_rest⟩
         rfl rfl hq_hi_u32 hq_lo_u32 hr_hi_u32 hr_lo_u32 hb_lo_u32 hb_hi_u32
         cross0_hi_val h_madd1_hi_zero madd1_lo_val h_madd2_hi_zero h_bhi_qlo_zero

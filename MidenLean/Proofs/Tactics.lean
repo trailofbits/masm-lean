@@ -1,6 +1,8 @@
 import MidenLean.Proofs.StepLemmas
 import MidenLean.Proofs.ArithLemmas
 import MidenLean.Proofs.Fuel
+import MidenLean.Proofs.Helpers
+import MidenLean.Symbolic.Reflect
 
 namespace MidenLean.Tactics
 
@@ -281,5 +283,132 @@ macro_rules
       | simp only [miden_u32, miden_val, miden_bound, *]
       | omega
       | decide)
+
+/-- Finish residual goals left by `miden_reflect` / `miden_vcg`.
+    This is intentionally proof-facing: generated proofs should be able to rely
+    on one stable cleanup step after symbolic automation. -/
+syntax "miden_finish_reflection" : tactic
+elab_rules : tactic
+  | `(tactic| miden_finish_reflection) => do
+      let tryClose := fun stx => do
+        try
+          Lean.Elab.Tactic.evalTactic stx
+          pure true
+        catch _ =>
+          pure false
+      if ← tryClose (← `(tactic| assumption)) then
+        return
+      if ← tryClose (← `(tactic| rfl)) then
+        return
+      if ← tryClose (← `(tactic| decide)) then
+        return
+      if ← tryClose (← `(tactic| tauto)) then
+        return
+      -- Unfold u32WideMul/u32WideMadd/u32Max so that miden_u32/miden_val lemmas can
+      -- match the unfolded mod/div forms (e.g., u32_mod_isU32, u32_prod_div_isU32).
+      -- Each unfold is separate so failure of one doesn't prevent others.
+      try Lean.Elab.Tactic.evalTactic (← `(tactic| unfold MidenLean.u32WideMul))
+      catch _ => pure ()
+      try Lean.Elab.Tactic.evalTactic (← `(tactic| unfold MidenLean.u32WideMadd))
+      catch _ => pure ()
+      try Lean.Elab.Tactic.evalTactic (← `(tactic| unfold MidenLean.u32Max))
+      catch _ => pure ()
+      -- Normalize: isU32 propagation, boolean preconditions, value recovery.
+      -- Runs unconditionally (simp never throws); check goal closure separately.
+      try
+        Lean.Elab.Tactic.evalTactic (← `(tactic|
+          simp only [true_and, and_true, miden_u32, miden_val, miden_bound, *]))
+      catch _ => pure ()
+      do let goals ← Lean.Elab.Tactic.getGoals
+         if goals.isEmpty then return
+      -- Try norm_num + omega to close residual arithmetic (e.g., 2^32 = 4294967296, mod identity).
+      -- Save/restore state since norm_num may modify the goal without closing it.
+      do
+        let savedState ← Lean.Elab.Tactic.saveState
+        try
+          Lean.Elab.Tactic.evalTactic (← `(tactic| (norm_num; try omega)))
+          let goals ← Lean.Elab.Tactic.getGoals
+          if goals.isEmpty then return
+          else savedState.restore
+        catch _ => savedState.restore
+      -- Handle boolean OR identity from borrow values (e.g., u32OverflowingSub borrows).
+      -- Operates on the simp-normalized goal. Rewrites borrows to if-then-else, splits,
+      -- and closes by computation + omega.
+      if ← tryClose (← `(tactic|
+        (simp only [MidenLean.u32OverflowingSub_borrow_ite];
+         split_ifs <;> simp_all <;> omega))) then
+        return
+      if ← tryClose (← `(tactic|
+        (intros p hp;
+         simp [miden_reflect_norm,
+               and_assoc, and_left_comm, and_comm,
+               MidenLean.MidenState.withStack,
+               MidenLean.Symbolic.Precondition.holds,
+               MidenLean.Symbolic.Expr.eval,
+               MidenLean.Symbolic.Reflect.concreteAssignment,
+               MidenLean.Symbolic.Reflect.concreteState,
+               MidenLean.Symbolic.Reflect.concreteStateWithLocals,
+               MidenLean.LocalFrame.localAddr] at hp;
+         simp [miden_reflect_norm,
+               and_assoc, and_left_comm, and_comm,
+               MidenLean.MidenState.withStack,
+               MidenLean.Symbolic.Precondition.holds,
+               MidenLean.Symbolic.Expr.eval,
+               MidenLean.Symbolic.Reflect.concreteAssignment,
+               MidenLean.Symbolic.Reflect.concreteState,
+               MidenLean.Symbolic.Reflect.concreteStateWithLocals,
+               MidenLean.LocalFrame.localAddr];
+         first | tauto | miden_arith | omega))) then
+        return
+      try
+        Lean.Elab.Tactic.evalTactic (← `(tactic|
+          simp [miden_reflect_norm,
+                and_assoc, and_left_comm, and_comm,
+                MidenLean.MidenState.withStack,
+                MidenLean.Symbolic.Precondition.holds,
+                MidenLean.Symbolic.Expr.eval,
+                MidenLean.Symbolic.Reflect.concreteAssignment,
+                MidenLean.Symbolic.Reflect.concreteState,
+                MidenLean.Symbolic.Reflect.concreteStateWithLocals,
+                MidenLean.LocalFrame.localAddr]))
+      catch _ =>
+        pure ()
+      if ← tryClose (← `(tactic| assumption)) then
+        return
+      if ← tryClose (← `(tactic| rfl)) then
+        return
+      if ← tryClose (← `(tactic| decide)) then
+        return
+      if ← tryClose (← `(tactic| tauto)) then
+        return
+      try
+        Lean.Elab.Tactic.evalTactic (← `(tactic|
+          simp [miden_reflect_norm,
+                MidenLean.Symbolic.Precondition.holds,
+                MidenLean.Symbolic.Expr.eval,
+                MidenLean.Symbolic.Reflect.concreteAssignment,
+                MidenLean.Symbolic.Reflect.concreteState,
+                MidenLean.Symbolic.Reflect.concreteStateWithLocals,
+                MidenLean.MidenState.withStack,
+                MidenLean.LocalFrame.localAddr,
+                and_assoc, and_left_comm, and_comm] at *))
+      catch _ =>
+        pure ()
+      if ← tryClose (← `(tactic| assumption)) then
+        return
+      if ← tryClose (← `(tactic| rfl)) then
+        return
+      if ← tryClose (← `(tactic| decide)) then
+        return
+      if ← tryClose (← `(tactic| tauto)) then
+        return
+      if ← tryClose (← `(tactic| miden_arith)) then
+        return
+      if ← tryClose (← `(tactic| omega)) then
+        return
+      -- Handle residual hpreconds with nested if-then-else (e.g., from Decidable.rec normalization)
+      if ← tryClose (← `(tactic| (split_ifs <;> simp_all <;> tauto))) then
+        return
+      throwError "miden_finish_reflection: failed to close goal"
 
 end MidenLean.Tactics

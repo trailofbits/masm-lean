@@ -213,18 +213,24 @@ private theorem shl_true_branch_correct (fuel : Nat)
   rw [execWithEnv_append]
   rw [shl_true_setup_correct u128ProcEnv (fuel + 1) shift a0 a1 a2 a3 rest mem frames adv hshift_lt64]
   simp only [bind, Bind.bind, Option.bind]
-  -- Now execute [.inst (.exec "wrapping_mul")]
   unfold execWithEnv
   simp only [List.foldlM, u128ProcEnv, bind, Bind.bind, Option.bind, pure, Pure.pure]
-  rw [u128_wrapping_mul_run u128ProcEnv fuel a0 a1 a2 a3
+  rw [u128_wrapping_mul_exec (env := u128ProcEnv) (fuel := fuel)
+    a0 a1 a2 a3
     (Felt.ofNat (2 ^ shift.val)).lo32
     (Felt.ofNat (2 ^ shift.val)).hi32
     0 0
-    rest mem frames adv ha0 ha1 ha2 ha3
+    rest
+    ⟨(Felt.ofNat (2 ^ shift.val)).lo32 ::
+      (Felt.ofNat (2 ^ shift.val)).hi32 :: 0 :: 0 :: a0 :: a1 :: a2 :: a3 :: rest,
+      mem, frames, adv⟩
+    rfl
+    ha0 ha1 ha2 ha3
     (U32.lo32_isU32 _)
     (U32.hi32_isU32_of_val_lt_2_64 _ (pow2_val_lt_2_64 shift.val hshift_lt64))
     (by apply felt_ofNat_isU32_of_lt; norm_num)
     (by apply felt_ofNat_isU32_of_lt; norm_num)]
+  rfl
 
 -- ============================================================================
 -- False branch full correctness
@@ -254,19 +260,27 @@ private theorem shl_false_branch_correct (fuel : Nat)
   rw [shl_false_setup_correct u128ProcEnv (fuel + 1) shift a0 a1 a2 a3 rest mem frames adv
     hshift_u32 hshift_ge64 hshift_lt128]
   simp only [bind, Bind.bind, Option.bind]
-  -- Now execute [.inst (.exec "wrapping_mul")]
   unfold execWithEnv
   simp only [List.foldlM, u128ProcEnv, bind, Bind.bind, Option.bind, pure, Pure.pure]
-  rw [u128_wrapping_mul_run u128ProcEnv fuel a0 a1 a2 a3
+  rw [u128_wrapping_mul_exec (env := u128ProcEnv) (fuel := fuel)
+    a0 a1 a2 a3
     0 0
     (Felt.ofNat (2 ^ (Felt.ofNat (u32OverflowingSub shift.val 64).2).val)).lo32
     (Felt.ofNat (2 ^ (Felt.ofNat (u32OverflowingSub shift.val 64).2).val)).hi32
-    rest mem frames adv ha0 ha1 ha2 ha3
+    rest
+    ⟨0 :: 0 ::
+      (Felt.ofNat (2 ^ (Felt.ofNat (u32OverflowingSub shift.val 64).2).val)).lo32 ::
+      (Felt.ofNat (2 ^ (Felt.ofNat (u32OverflowingSub shift.val 64).2).val)).hi32 ::
+      a0 :: a1 :: a2 :: a3 :: rest,
+      mem, frames, adv⟩
+    rfl
+    ha0 ha1 ha2 ha3
     (by apply felt_ofNat_isU32_of_lt; norm_num)
     (by apply felt_ofNat_isU32_of_lt; norm_num)
     (U32.lo32_isU32 _)
     (U32.hi32_isU32_of_val_lt_2_64 _
       (pow2_val_lt_2_64 _ (sub64_lt64 shift hshift_u32 hshift_ge64 hshift_lt128)))]
+  rfl
 
 -- ============================================================================
 -- ifElse dispatch helpers

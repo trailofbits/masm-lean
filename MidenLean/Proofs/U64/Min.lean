@@ -14,7 +14,7 @@ set_option maxHeartbeats 16000000 in
     Input stack:  [b_lo, b_hi, a_lo, a_hi] ++ rest
     Output stack: [min_lo, min_hi] ++ rest
     If b > a (as u64), returns a; otherwise returns b. -/
-theorem u64_min_raw
+theorem u64_min_exec
     (a_lo a_hi b_lo b_hi : Felt) (rest : List Felt) (s : MidenState)
     (hs : s.stack = b_lo :: b_hi :: a_lo :: a_hi :: rest)
     (ha_lo : a_lo.isU32 = true) (ha_hi : a_hi.isU32 = true)
@@ -79,7 +79,7 @@ theorem u64_min_ite (a b : U64) (rest : List Felt) (s : MidenState)
     some (s.withStack (
       (if decide (a < b) then a.lo.val else b.lo.val) ::
       (if decide (a < b) then a.hi.val else b.hi.val) :: rest)) := by
-  rw [u64_min_raw a.lo.val a.hi.val b.lo.val b.hi.val rest s hs a.lo.isU32 a.hi.isU32 b.lo.isU32 b.hi.isU32]
+  rw [u64_min_exec a.lo.val a.hi.val b.lo.val b.hi.val rest s hs a.lo.isU32 a.hi.isU32 b.lo.isU32 b.hi.isU32]
   simp only [u64_borrow_iff_lt a b]; rfl
 
 /-- `u64::min` computes the minimum of two u64 values.

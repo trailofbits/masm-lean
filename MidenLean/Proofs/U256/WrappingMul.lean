@@ -33,7 +33,7 @@ theorem u256_wrapping_mul_correct
        b.a4.val :: b.a5.val :: b.a6.val :: b.a7.val ::
        a.a0.val :: a.a1.val :: a.a2.val :: a.a3.val ::
        a.a4.val :: a.a5.val :: a.a6.val :: a.a7.val ::
-       d0 :: d1 :: d2 :: d3 :: d4 :: d5 :: d6 :: d7 ::
+       d0 :: d1 :: d2 :: d3 :: d4 :: d5 :: d6 :: d7 ::  -- Because of an issue in the procedure epilogue.
        d8 :: d9 :: d10 :: d11 :: d12 :: d13 :: d14 :: d15 :: rest, mem, frames, adv⟩
       Miden.Core.U256.wrapping_mul =
     some ⟨(a * b).a0.val :: (a * b).a1.val :: (a * b).a2.val :: (a * b).a3.val ::

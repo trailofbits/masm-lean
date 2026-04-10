@@ -202,7 +202,7 @@ private theorem rotr_chunk4_correct
 
 set_option maxHeartbeats 16000000 in
 /-- `u64::rotr` raw: result in terms of field-level multiplication and splitting. -/
-theorem u64_rotr_raw
+theorem u64_rotr_exec
     (lo hi shift : Felt) (rest : List Felt) (s : MidenState)
     (hs : s.stack = shift :: lo :: hi :: rest)
     (hshift_u32 : shift.isU32 = true) :
@@ -410,7 +410,7 @@ theorem u64_rotr_correct (a : U64) (shift : Felt) (rest : List Felt) (s : MidenS
     some (s.withStack ((a.rotr shift.val).lo.val :: (a.rotr shift.val).hi.val :: rest)) := by
   have hshift_u32 : shift.isU32 = true := by
     simp only [Felt.isU32, decide_eq_true_eq]; omega
-  rw [u64_rotr_raw a.lo.val a.hi.val shift rest s hs hshift_u32]
+  rw [u64_rotr_exec a.lo.val a.hi.val shift rest s hs hshift_u32]
   -- Recover u32 bounds
   have hlo_lt : a.lo.val.val < 2 ^ 32 := by
     have h := a.lo.isU32; simp [Felt.isU32, decide_eq_true_eq] at h; exact h

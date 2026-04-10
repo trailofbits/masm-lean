@@ -242,7 +242,7 @@ set_option maxHeartbeats 12000000 in
     Input stack:  [b_lo, b_hi, a_lo, a_hi] ++ rest
     Output stack: [c0, c1, c2, c3] ++ rest
     where (c3, c2, c1, c0) is the 128-bit product a * b. -/
-theorem u64_widening_mul_raw
+theorem u64_widening_mul_exec
     (a_lo a_hi b_lo b_hi : Felt) (rest : List Felt) (s : MidenState)
     (hs : s.stack = b_lo :: b_hi :: a_lo :: a_hi :: rest)
     (ha_lo : a_lo.isU32 = true) (ha_hi : a_hi.isU32 = true)
@@ -310,7 +310,7 @@ theorem u64_widening_mul_correct (a b : U64) (rest : List Felt) (s : MidenState)
       Felt.ofNat ((p / 2^32) % 2^32) ::
       Felt.ofNat ((p / 2^64) % 2^32) ::
       Felt.ofNat ((p / 2^96) % 2^32) :: rest)) := by
-  rw [u64_widening_mul_raw a.lo.val a.hi.val b.lo.val b.hi.val rest s hs a.lo.isU32 a.hi.isU32 b.lo.isU32 b.hi.isU32]
+  rw [u64_widening_mul_exec a.lo.val a.hi.val b.lo.val b.hi.val rest s hs a.lo.isU32 a.hi.isU32 b.lo.isU32 b.hi.isU32]
   simp only [U64.toNat]
   -- Resolve Felt addition in c3: Felt.ofNat x + Felt.ofNat y = Felt.ofNat (x + y)
   have felt_ofNat_add : ∀ (x y : Nat), Felt.ofNat x + Felt.ofNat y = Felt.ofNat (x + y) := by

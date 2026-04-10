@@ -12,16 +12,14 @@ set_option maxHeartbeats 4000000 in
     Input stack:  [b_lo, b_hi, a_lo, a_hi] ++ rest
     Output stack: [result] ++ rest
     where result = 1 iff b_lo == a_lo && b_hi == a_hi, else 0. -/
-theorem u64_eq_raw (b_lo b_hi a_lo a_hi : Felt) (rest : List Felt) (s : MidenState)
+theorem u64_eq_exec (b_lo b_hi a_lo a_hi : Felt) (rest : List Felt) (s : MidenState)
     (hs : s.stack = b_lo :: b_hi :: a_lo :: a_hi :: rest) :
     exec 10 s Miden.Core.U64.eq =
     some (s.withStack (
       (if (b_lo == a_lo) && (b_hi == a_hi)
        then (1 : Felt) else 0) :: rest)) := by
-  miden_reflect
-  · constructor
-    · exact (Classical.em (b_lo = a_lo)).symm
-    · exact (Classical.em (b_hi = a_hi)).symm
+  miden_vcg
+  all_goals miden_finish_reflection
 
 /-- `u64::eq` tests equality of two u64 values.
     Input stack:  [b.lo, b.hi, a.lo, a.hi] ++ rest
@@ -31,7 +29,7 @@ theorem u64_eq_correct (a b : U64) (rest : List Felt) (s : MidenState)
     exec 10 s Miden.Core.U64.eq =
     some (s.withStack (
       (if a == b then (1 : Felt) else 0) :: rest)) := by
-  have h := u64_eq_raw b.lo.val b.hi.val a.lo.val a.hi.val rest s hs
+  have h := u64_eq_exec b.lo.val b.hi.val a.lo.val a.hi.val rest s hs
   rw [U64.beq_comm a b]; exact h
 
 end MidenLean.Proofs

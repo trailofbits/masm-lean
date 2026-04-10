@@ -113,10 +113,6 @@ import MidenLean.Symbolic.Exec
 import MidenLean.Symbolic.Helpers
 import MidenLean.Symbolic.Soundness
 import MidenLean.Symbolic.Reflect
-import MidenLean.Symbolic.ValidateTest
 import MidenLean.Symbolic.Tactic
-import MidenLean.Symbolic.ControlFlowTest
-import MidenLean.Symbolic.SpikeTest
-import MidenLean.Symbolic.TacticTest
 import MidenLean.Tests.Semantics
 import MidenLean.Tests.Procedures
