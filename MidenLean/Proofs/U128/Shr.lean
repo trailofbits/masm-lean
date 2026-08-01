@@ -486,7 +486,7 @@ private theorem shr_branch_k3 (fuel : Nat)
   miden_movdn
   -- Stack: b :: a0 :: a1 :: a2 :: a3 :: 0 :: 0 :: 0 :: rest
   rw [shr_k3_env_bridge (fuel + 1) _ (by omega)]
-  have h := u128_shr_k3_raw b a0 a1 a2 a3
+  have h := u128_shr_k3_exec emptyEnv 11 b a0 a1 a2 a3
     ((0 : Felt) :: (0 : Felt) :: (0 : Felt) :: rest)
     ⟨b :: a0 :: a1 :: a2 :: a3 :: (0 : Felt) :: (0 : Felt) :: (0 : Felt) :: rest, mem, frames, adv⟩
     rfl hb_u32 ha3 hb_le31

@@ -1,11 +1,11 @@
 import MidenLean.Proofs.U128.Common
 import MidenLean.Proofs.Tactics
+import MidenLean.Symbolic.Tactic
 import MidenLean.Generated.U128
 
 namespace MidenLean.Proofs
 
 open MidenLean
-open MidenLean.StepLemmas
 open MidenLean.Tactics
 
 set_option maxHeartbeats 4000000 in
@@ -13,31 +13,20 @@ set_option maxHeartbeats 4000000 in
     leaves any lower-word padding in `rest`.
     Input stack:  [shift, a0, a1, a2, a3] ++ rest
     Output stack: [a3 >> shift] ++ rest
-    Requires `shift` and `a3` to be u32 values, with `shift ≤ 31`. -/
-theorem u128_shr_k3_raw
+    Requires `shift` and `a3` to be u32 values, with `shift ≤ 31`.
+    Parametric in `env` and `fuel` so this lemma serves both as a callee
+    summary for reflective callers and as the basis for `u128_shr_k3_correct`. -/
+@[miden_exec_summary]
+theorem u128_shr_k3_exec
+    (env : ProcEnv) (fuel : Nat)
     (shift a0 a1 a2 a3 : Felt) (rest : List Felt) (s : Concrete.State)
     (hs : s.stack = shift :: a0 :: a1 :: a2 :: a3 :: rest)
     (hshift_u32 : shift.isU32 = true)
     (ha3_u32 : a3.isU32 = true)
     (hshift : shift.val ≤ 31) :
-    execProcedure emptyEnv 12 s Miden.Core.U128.shr_k3 =
+    execProcedure env (fuel + 1) s Miden.Core.U128.shr_k3 =
     some (s.withStack (Felt.ofNat (a3.val / 2 ^ shift.val) :: rest)) := by
-  obtain ⟨stk, mem, frames, adv⟩ := s
-  simp only [Concrete.State.withStack] at hs ⊢
-  subst hs
-  unfold Miden.Core.U128.shr_k3 execProcedure
-  simp only [List.foldlM]
-  miden_movup
-  miden_swap
-  rw [stepU32ShrLocal (ha := ha3_u32) (hb := hshift_u32) (hshift := hshift)]
-  miden_bind
-  miden_movdn
-  rw [stepDrop]
-  miden_bind
-  rw [stepDrop]
-  miden_bind
-  rw [stepDrop]
-  dsimp only [bind, Bind.bind, Option.bind, pure, Pure.pure]
+  miden_vcg
 
 set_option maxHeartbeats 4000000 in
 /-- `u128::shr_k3` returns the low limb of a u128 value shifted right by `96 + shift` bits.
@@ -50,7 +39,7 @@ theorem u128_shr_k3_correct
     execProcedure emptyEnv 12 s Miden.Core.U128.shr_k3 =
     some (s.withStack ((a.shr (96 + shift.toNat)).a0.val :: rest)) := by
   have hshift_le31 : shift.toNat ≤ 31 := Nat.le_pred_of_lt hshift_lt32
-  have hraw := u128_shr_k3_raw shift.val a.a0.val a.a1.val a.a2.val a.a3.val rest s hs
+  have hraw := u128_shr_k3_exec emptyEnv 11 shift.val a.a0.val a.a1.val a.a2.val a.a3.val rest s hs
     shift.isU32 a.a3.isU32 (by simpa [U32.toNat] using hshift_le31)
   obtain ⟨h0, h1, h2, h3⟩ := U128.shr_96_add_limbs a shift.toNat
   clear h1 h2 h3
