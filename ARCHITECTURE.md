@@ -1,6 +1,6 @@
 # Architecture
 
-This document describes the high-level design of the MASM-to-Lean formal verification project. For build instructions and the list of proven theorems, see [README.md](README.md). For the phased implementation roadmap, see [PLAN.md](PLAN.md).
+This document describes the high-level design of the MASM-to-Lean formal verification project. For build instructions and the list of proven theorems, see [README.md](README.md).
 
 ## Overview
 
@@ -35,7 +35,7 @@ The project has two components:
 
 ## Design Decisions
 
-MASM programs are represented as `List Op` values rather than Lean functions, with a separate interpreter defining their semantics (in `Semantics.lean`). This is the same approach used by StarkWare's Cairo formal proofs, the Verified-zkEVM Clean project, and LNSym for ARMv8. The key advantage is that the translator cannot introduce unsoundness. Even if the translator emits a wrong definition, the Lean type-checker will reject any proof that relies on incorrect behavior.
+MASM programs are represented as `List Op` values rather than Lean functions, with a separate interpreter defining their semantics (in `Concrete/Exec.lean`). This is the same approach used by StarkWare's Cairo formal proofs, the Verified-zkEVM Clean project, and LNSym for ARMv8. The key advantage is that the translator cannot introduce unsoundness. Even if the translator emits a wrong definition, the Lean type-checker will reject any proof that relies on incorrect behavior.
 
 ### VM State
 
@@ -69,7 +69,7 @@ Both styles prove the same semantic object: an equation in the executable semant
 
 The target theorem layout for each verified procedure is:
 
-- **`*_exec`**: a low-level, fuel-parameterized execution theorem over `execWithEnv` (or `exec` for empty environments). This theorem states the concrete before/after stack shape, and mentions memory or frame-relevant state only when the procedure externally changes them.
+- **`*_exec`**: a low-level, fuel-parameterized execution theorem over `execProcedure` (with `emptyEnv` for procedures that make no calls). This theorem states the concrete before/after stack shape, and mentions memory or frame-relevant state only when the procedure externally changes them.
 - **`*_correct`**: a high-level semantic corollary derived from `*_exec`, stated in terms of the intended mathematical operation on the corresponding Lean model type (`U64`, `U128`, words, etc.).
 
 Historically many files use a `*_raw` name for the low-level theorem. Those theorems play the same role as `*_exec` and are being migrated incrementally toward the new naming/layout.

@@ -10,7 +10,7 @@ missing features.
 
 ### BUG-1: advLoadW reversed element ordering
 
-**File:** `MidenLean/Semantics.lean:842-849`
+**File:** `MidenLean/Concrete/Exec.lean` (`execAdvLoadW`; found in the pre-restructure `Semantics.lean`)
 **Severity:** High
 
 `execAdvLoadW` applied `.reverse` to the 4 advice elements
@@ -33,7 +33,7 @@ no compensation).
 
 ### BUG-2: 34 u32 operations lacked isU32 precondition checks
 
-**File:** `MidenLean/Semantics.lean:453-695`
+**File:** `MidenLean/Concrete/Exec.lean` (u32 operation handlers; found in the pre-restructure `Semantics.lean`)
 **Severity:** High
 
 Every Rust u32 VM operation uses `require_u32_operands!` to
