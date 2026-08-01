@@ -251,16 +251,6 @@ theorem u64_borrow_iff_lt (a b : U64) :
 -- Arithmetic bridging lemmas
 -- ============================================================================
 
-/-- The carry-based addition formula reconstructs to `a.toNat + b.toNat`. -/
-theorem u64_carry_add_spec (a_lo a_hi b_lo b_hi : Nat) :
-    let lo_sum := a_lo + b_lo
-    let carry := lo_sum / 2^32
-    let hi_sum := a_hi + b_hi + carry
-    let overflow := hi_sum / 2^32
-    overflow * 2^64 + (hi_sum % 2^32) * 2^32 + lo_sum % 2^32 =
-    (a_hi * 2^32 + a_lo) + (b_hi * 2^32 + b_lo) := by
-  omega
-
 /-- The overflowing_sub borrow is equivalent to `a.toNat < b.toNat`. -/
 theorem u64_sub_borrow_iff_lt (a b : U64) :
     let sub_lo := u32OverflowingSub a.lo.val.val b.lo.val.val

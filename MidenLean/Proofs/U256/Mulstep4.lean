@@ -176,31 +176,6 @@ theorem mulstep_val_sum (a b c d : Felt)
   have hmod2 := Nat.div_add_mod ((c.val * b.val + a.val) % 2 ^ 32 + d.val) (2 ^ 32)
   omega
 
-/-- Simplified `.val` of `mulstepLo`: it is `(c*b + a + d) % 2^32`. -/
-theorem mulstepLo_val_sum (a b c d : Felt)
-    (ha : a.isU32 = true) (hb : b.isU32 = true)
-    (hc : c.isU32 = true) (hd : d.isU32 = true) :
-    (mulstepLo a b c d).val = (c.val * b.val + a.val + d.val) % 2 ^ 32 := by
-  have h := mulstep_val_sum a b c d ha hb hc hd
-  have hlo : (mulstepLo a b c d).val < 2 ^ 32 := by
-    have := mulstepLo_isU32 a b c d
-    simp only [Felt.isU32, decide_eq_true_eq] at this; exact this
-  omega
-
-/-- Simplified `.val` of `mulstepCarry`: it is `(c*b + a + d) / 2^32`. -/
-theorem mulstepCarry_val_sum (a b c d : Felt)
-    (ha : a.isU32 = true) (hb : b.isU32 = true)
-    (hc : c.isU32 = true) (hd : d.isU32 = true) :
-    (mulstepCarry a b c d).val = (c.val * b.val + a.val + d.val) / 2 ^ 32 := by
-  have h := mulstep_val_sum a b c d ha hb hc hd
-  have hcarry : (mulstepCarry a b c d).val < 2 ^ 32 := by
-    have := mulstep_carry_isU32 a b c d ha hb hc hd
-    simp only [Felt.isU32, decide_eq_true_eq] at this; exact this
-  have hlo : (mulstepLo a b c d).val < 2 ^ 32 := by
-    have := mulstepLo_isU32 a b c d
-    simp only [Felt.isU32, decide_eq_true_eq] at this; exact this
-  omega
-
 -- ============================================================================
 -- Key Nat identity for carry combining across rounds
 -- ============================================================================

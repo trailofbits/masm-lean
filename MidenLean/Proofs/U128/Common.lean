@@ -45,6 +45,21 @@ def u128ProcEnv : ProcEnv := fun name =>
   | "divmod" => some Miden.Core.U128.divmod
   | _ => none
 
+set_option maxHeartbeats 12000000 in
+set_option maxRecDepth 65536 in
+/-- Executing `u128::divmod` under `u128ProcEnv` at any positive fuel agrees with
+    executing it under `emptyEnv` at fuel 163: the procedure body is straight-line,
+    so the environment and (sufficient) fuel are irrelevant. Shared by the `div`
+    and `mod` proofs. -/
+theorem u128_divmod_execProcedure_eq (fuel : Nat) (s : Concrete.State)
+    (hf : 0 < fuel) :
+    execProcedure u128ProcEnv fuel s Miden.Core.U128.divmod =
+      execProcedure emptyEnv 163 s Miden.Core.U128.divmod := by
+  cases fuel with
+  | zero => cases hf
+  | succ fuel' =>
+      simp (maxSteps := 5000000) [emptyEnv, execProcedure, u128ProcEnv, Miden.Core.U128.divmod]
+
 def u128Sub0 (a0 b0 : Felt) : Nat × Nat :=
   u32OverflowingSub a0.val b0.val
 
@@ -1254,15 +1269,6 @@ theorem u128_four_limb_shr_decomp (a0 a1 a2 a3 n : Nat)
           (((a1 / 2^n) ||| ((a2 * 2^(32 - n)) % 2^32)) * 2^32) +
           ((a0 / 2^n) ||| ((a1 * 2^(32 - n)) % 2^32)) := by
         simp [hl2, hl1, hl0]
-
-/-- Adding a high-order multiple that vanishes modulo `2^32` after dividing by `2^b`:
-    if `2^b | M` and `2^32 | (M / 2^b)`, then `(M + x) / 2^b % 2^32 = x / 2^b % 2^32`. -/
-theorem add_high_div_mod (x M b : Nat) (hdvd_b : 2^b ∣ M) (hdvd_32 : 2^32 ∣ (M / 2^b)) :
-    (M + x) / 2^b % 2^32 = x / 2^b % 2^32 := by
-  have hsplit : (M + x) / 2^b = M / 2^b + x / 2^b := by
-    conv_lhs => rw [Nat.add_comm]
-    rw [Nat.add_div_of_dvd_left hdvd_b, Nat.add_comm]
-  rw [hsplit, Nat.add_mod, Nat.dvd_iff_mod_eq_zero.mp hdvd_32, Nat.zero_add, Nat.mod_mod]
 
 -- ============================================================================
 -- U128 toNat division lemmas (used in shr_correct bridging)

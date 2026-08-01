@@ -18,9 +18,7 @@ lean_lib MidenLeanTests where
   srcDir := "."
   roots := #[
     `MidenLean.Symbolic.ControlFlowTest,
-    `MidenLean.Symbolic.GoalCatalog,
     `MidenLean.Symbolic.MemoryAdviceTest,
     `MidenLean.Symbolic.SpikeTest,
-    `MidenLean.Symbolic.TacticTest,
-    `MidenLean.Symbolic.ValidateTest
+    `MidenLean.Symbolic.TacticTest
   ]

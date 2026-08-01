@@ -701,12 +701,6 @@ def execBlock (ops : List Instruction) (s : State) :
   | some (fs, fp) => some { state := fs, preconditions := fp.reverse }
   | none => none
 
-/-- Extract instructions from a basic block (all ops must be Op.inst). -/
-def extractBlock (ops : List Op) : Option (List Instruction) :=
-  ops.mapM fun
-    | .inst i => some i
-    | _ => none
-
 -- ============================================================================
 -- Compositional calls: symbolic procedure environment
 -- ============================================================================

@@ -307,19 +307,6 @@ theorem a6_isU32 (x : U256) : x.a6.val.isU32 = true := x.a6.isU32
 theorem a7_isU32 (x : U256) : x.a7.val.isU32 = true := x.a7.isU32
 
 -- ============================================================================
--- Eqz helper
--- ============================================================================
-
-/-- A U256 is zero iff all limbs are zero. -/
-theorem eqz_iff (x : U256) :
-    x.toNat = 0 ↔ x.a0.val.val = 0 ∧ x.a1.val.val = 0 ∧ x.a2.val.val = 0 ∧ x.a3.val.val = 0 ∧
-                   x.a4.val.val = 0 ∧ x.a5.val.val = 0 ∧ x.a6.val.val = 0 ∧ x.a7.val.val = 0 := by
-  unfold toNat
-  constructor
-  · intro h; omega
-  · intro ⟨h0, h1, h2, h3, h4, h5, h6, h7⟩; omega
-
--- ============================================================================
 -- High-level arithmetic operations
 -- ============================================================================
 
@@ -335,10 +322,13 @@ def addWithCarry (a b : U256) : Nat × U256 :=
 @[simp] theorem addWithCarry_snd (a b : U256) :
     (a.addWithCarry b).2 = ofNat (a.toNat + b.toNat) := rfl
 
+/-- Specification of the `addWithCarry` helper: carry and result recompose to
+    the exact sum. -/
 theorem addWithCarry_spec (a b : U256) :
     (a.addWithCarry b).1 * 2^256 + (a.addWithCarry b).2.toNat = a.toNat + b.toNat := by
   simp [addWithCarry, ofNat_toNat]; omega
 
+/-- Specification of the `addWithCarry` helper: the carry is at most one. -/
 theorem addWithCarry_carry_le_one (a b : U256) : (a.addWithCarry b).1 ≤ 1 := by
   simp [addWithCarry]; have := a.toNat_lt; have := b.toNat_lt; omega
 

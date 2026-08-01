@@ -1629,6 +1629,86 @@ private def prepareIfElseSlowSplit
       throwError "{tacticName}: could not classify singleton `ifElse` branch goals"
   pure (hthenBodyGoal, helseBodyGoal, hboolGoal, auxGoals)
 
+/-- Result of the shared singleton-`repeat` decomposition front. -/
+private inductive RepeatSplit where
+  /-- `repeat 0`: the goal rewritten past the empty iteration, plus residual
+      non-`Prop` side goals from the rewrite. -/
+  | zero (goal : MVarId) (otherGoals : List MVarId)
+  /-- `repeat (n+1)`: the classified body/rest execution goals plus aux goals.
+      The `hfuel` side goal is already closed. -/
+  | succ (bodyGoal restGoal : MVarId) (auxGoals : List MVarId)
+
+/-- Shared front half of the singleton `repeat` decomposition used by both
+    `miden_vcg` (the `.repeat` case of `decomposeVcgGoal`) and `miden_vcg_step`
+    (`decomposeRepeatStep`): for count 0, rewrite with
+    `execProcedure_repeat_zero` and close the fuel side goals; for count > 0,
+    apply `execProcedure_repeat_succ`, classify the goals into
+    hfuel/body/rest/aux, and close the fuel goal. The recurse-vs-return tail
+    stays with the caller. -/
+private def prepareRepeatSplit
+    (goal : MVarId) (countExpr bodyOps : Lean.Expr) (tacticName : String) :
+    TacticM RepeatSplit := do
+  let parsed ← parseExecGoal goal
+  let some count := countExpr.numeral?
+    | throwError "{tacticName}: `repeat` count must reduce to a Nat literal"
+  if count = 0 then
+    let theoremExpr := Lean.mkAppN (Lean.mkConst ``MidenLean.execProcedure_repeat_zero)
+      #[parsed.envExpr, parsed.fuelExpr, bodyOps, parsed.stateExpr]
+    let rwResult ←
+      try
+        goal.rewrite (← goal.getType) theoremExpr
+      catch ex =>
+        throwError "{tacticName}: failed to decompose singleton `repeat 0`: {ex.toMessageData}"
+    let goal' ← goal.replaceTargetEq rwResult.eNew rwResult.eqProof
+    let mut otherGoals : List MVarId := []
+    for g in rwResult.mvarIds do
+      unless ← g.isAssigned do
+        let ty ← g.getType
+        if ← isProp ty then
+          closeVcgFuelGoal g
+        else
+          otherGoals := otherGoals ++ [g]
+    return .zero goal' otherGoals
+  else
+    let theoremExpr := Lean.mkAppN (Lean.mkConst ``MidenLean.execProcedure_repeat_succ)
+      #[parsed.envExpr, parsed.fuelExpr, Lean.mkNatLit (count - 1), bodyOps]
+    let goals ←
+      try
+        goal.apply theoremExpr
+      catch ex =>
+        throwError "{tacticName}: failed to decompose singleton `repeat`: {ex.toMessageData}"
+    let mut hfuelGoal? : Option MVarId := none
+    let mut execGoals : List MVarId := []
+    let mut auxGoals : List MVarId := []
+    for g in goals do
+      unless ← g.isAssigned do
+        let ty ← g.getType
+        if ← isProp ty then
+          match ty.eq? with
+          | some _ => execGoals := execGoals ++ [g]
+          | none => hfuelGoal? := some g
+        else
+          auxGoals := auxGoals ++ [g]
+    let some hfuelGoal := hfuelGoal?
+      | throwError "{tacticName}: missing `hfuel` goal for singleton `repeat`"
+    let [execGoal1, execGoal2] := execGoals
+      | throwError "{tacticName}: expected two execution goals for singleton `repeat`, got {execGoals.length}"
+    let restOpsExpr ← mkOpListExpr [Lean.mkAppN (Lean.mkConst ``MidenLean.Op.repeat)
+      #[Lean.mkNatLit (count - 1), bodyOps]]
+    let goal1IsBody ← branchBodyMatches execGoal1 bodyOps
+    let goal1IsRest ← branchBodyMatches execGoal1 restOpsExpr
+    let goal2IsBody ← branchBodyMatches execGoal2 bodyOps
+    let goal2IsRest ← branchBodyMatches execGoal2 restOpsExpr
+    let (bodyGoal, restGoal) ←
+      if goal1IsBody && goal2IsRest then
+        pure (execGoal1, execGoal2)
+      else if goal1IsRest && goal2IsBody then
+        pure (execGoal2, execGoal1)
+      else
+        throwError "{tacticName}: could not classify singleton `repeat` goals"
+    closeVcgFuelGoal hfuelGoal
+    return .succ bodyGoal restGoal auxGoals
+
 mutual
 
 private partial def decomposeAppendGoalAt (goal : MVarId) (splitAt : Nat) : TacticM (List MVarId) := do
@@ -1746,84 +1826,19 @@ private partial def decomposeVcgGoal (goal : MVarId) : TacticM (List MVarId) := 
     | .ifElse thenOps elseOps =>
         decomposeIfElse goal thenOps elseOps
     | .repeat countExpr bodyOps =>
-        let some count := countExpr.numeral?
-          | throwError "miden_vcg: `repeat` count must reduce to a Nat literal"
-        if count = 0 then
-          let theoremExpr := Lean.mkAppN (Lean.mkConst ``MidenLean.execProcedure_repeat_zero)
-            #[parsed.envExpr, parsed.fuelExpr, bodyOps, parsed.stateExpr]
-          let rwResult ←
-            try
-              goal.rewrite (← goal.getType) theoremExpr
-            catch ex =>
-              throwError "miden_vcg: failed to decompose singleton `repeat 0`: {ex.toMessageData}"
-          let goal' ← goal.replaceTargetEq rwResult.eNew rwResult.eqProof
-          let mut remaining : List MVarId := [goal']
-          for g in rwResult.mvarIds do
-            unless ← g.isAssigned do
-              let ty ← g.getType
-              if ← isProp ty then
-                closeVcgFuelGoal g
-              else
-                remaining := remaining ++ [g]
-          -- Close bridge goals eagerly so intermediate state metavars are
-          -- assigned before downstream goals (e.g. suffix after append split)
-          -- can mis-unify them with the original state.
-          let mut bridgeSeeds : List MVarId := []
-          let mut otherGoals : List MVarId := []
-          for g in remaining do
-            unless ← g.isAssigned do
-              let ty ← g.getType
-              if ty.eq?.isSome then
-                bridgeSeeds := bridgeSeeds ++ [g]
-              else
-                otherGoals := otherGoals ++ [g]
-          let mut bridgeRemaining : List MVarId := []
-          for g in bridgeSeeds do
-            bridgeRemaining := bridgeRemaining ++ (← closeBridgeGoal g)
-          cleanupGoals (bridgeRemaining ++ otherGoals)
-        else
-          let theoremExpr := Lean.mkAppN (Lean.mkConst ``MidenLean.execProcedure_repeat_succ)
-            #[parsed.envExpr, parsed.fuelExpr, Lean.mkNatLit (count - 1), bodyOps]
-          let goals ←
-            try
-              goal.apply theoremExpr
-            catch ex =>
-              throwError "miden_vcg: failed to decompose singleton `repeat`: {ex.toMessageData}"
-          let mut hfuelGoal? : Option MVarId := none
-          let mut execGoals : List MVarId := []
-          let mut auxGoals : List MVarId := []
-          for g in goals do
-            unless ← g.isAssigned do
-              let ty ← g.getType
-              if ← isProp ty then
-                match ty.eq? with
-                | some _ => execGoals := execGoals ++ [g]
-                | none => hfuelGoal? := some g
-              else
-                auxGoals := auxGoals ++ [g]
-          let some hfuelGoal := hfuelGoal?
-            | throwError "miden_vcg: missing `hfuel` goal for singleton `repeat`"
-          let [execGoal1, execGoal2] := execGoals
-            | throwError "miden_vcg: expected two execution goals for singleton `repeat`, got {execGoals.length}"
-          let restOpsExpr ← mkOpListExpr [Lean.mkAppN (Lean.mkConst ``MidenLean.Op.repeat)
-            #[Lean.mkNatLit (count - 1), bodyOps]]
-          let goal1IsBody ← branchBodyMatches execGoal1 bodyOps
-          let goal1IsRest ← branchBodyMatches execGoal1 restOpsExpr
-          let goal2IsBody ← branchBodyMatches execGoal2 bodyOps
-          let goal2IsRest ← branchBodyMatches execGoal2 restOpsExpr
-          let (bodyGoal, restGoal) ←
-            if goal1IsBody && goal2IsRest then
-              pure (execGoal1, execGoal2)
-            else if goal1IsRest && goal2IsBody then
-              pure (execGoal2, execGoal1)
-            else
-              throwError "miden_vcg: could not classify singleton `repeat` goals"
-          closeVcgFuelGoal hfuelGoal
-          let bodyRemaining ← decomposeVcgGoal bodyGoal
-          Lean.Elab.Term.synthesizeSyntheticMVarsNoPostponing
-          let restRemaining ← decomposeVcgGoal restGoal
-          let auxRemaining ← cleanupGoals auxGoals
-          return bodyRemaining ++ restRemaining ++ auxRemaining
+        match ← prepareRepeatSplit goal countExpr bodyOps "miden_vcg" with
+        | .zero goal' otherGoals =>
+            -- Close the bridge goal eagerly so intermediate state metavars are
+            -- assigned before downstream goals (e.g. suffix after append split)
+            -- can mis-unify them with the original state.
+            let bridgeRemaining ← closeBridgeGoal goal'
+            cleanupGoals (bridgeRemaining ++ otherGoals)
+        | .succ bodyGoal restGoal auxGoals =>
+            let bodyRemaining ← decomposeVcgGoal bodyGoal
+            Lean.Elab.Term.synthesizeSyntheticMVarsNoPostponing
+            let restRemaining ← decomposeVcgGoal restGoal
+            let auxRemaining ← cleanupGoals auxGoals
+            return bodyRemaining ++ restRemaining ++ auxRemaining
     | .whileTrue _ =>
         throwError "miden_vcg: `whileTrue` is not yet supported. Use manual proofs with invariants."
 
@@ -1887,83 +1902,21 @@ private partial def decomposeIfElseStep
 
 private partial def decomposeRepeatStep
     (goal : MVarId) (countExpr bodyOps : Lean.Expr) : TacticM (List MVarId) := do
-  let parsed ← parseExecGoal goal
-  let some count := countExpr.numeral?
-    | throwError "miden_vcg_step: `repeat` count must reduce to a Nat literal"
-  if count = 0 then
-    let theoremExpr := Lean.mkAppN (Lean.mkConst ``MidenLean.execProcedure_repeat_zero)
-      #[parsed.envExpr, parsed.fuelExpr, bodyOps, parsed.stateExpr]
-    let rwResult ←
-      try
-        goal.rewrite (← goal.getType) theoremExpr
-      catch ex =>
-        throwError "miden_vcg_step: failed to decompose singleton `repeat 0`: {ex.toMessageData}"
-    let goal' ← goal.replaceTargetEq rwResult.eNew rwResult.eqProof
-    let mut remaining : List MVarId := []
-    unless ← goal'.isAssigned do
-      remaining := remaining ++ [goal']
-    let mut bridgeSeeds : List MVarId := []
-    let mut otherGoals : List MVarId := []
-    for g in rwResult.mvarIds do
-      unless ← g.isAssigned do
-        let ty ← g.getType
-        if ← isProp ty then
-          closeVcgFuelGoal g
-        else if ty.eq?.isSome then
-          bridgeSeeds := bridgeSeeds ++ [g]
-        else
-          otherGoals := otherGoals ++ [g]
-    let mut bridgeRemaining : List MVarId := []
-    for g in bridgeSeeds do
-      bridgeRemaining := bridgeRemaining ++ (← closeBridgeGoal g)
-    let otherRemaining ← cleanupGoals otherGoals
-    let bridgeCleanup ← cleanupGoals bridgeRemaining
-    return remaining ++ otherRemaining ++ bridgeCleanup
-  else
-    let theoremExpr := Lean.mkAppN (Lean.mkConst ``MidenLean.execProcedure_repeat_succ)
-      #[parsed.envExpr, parsed.fuelExpr, Lean.mkNatLit (count - 1), bodyOps]
-    let goals ←
-      try
-        goal.apply theoremExpr
-      catch ex =>
-        throwError "miden_vcg_step: failed to decompose singleton `repeat`: {ex.toMessageData}"
-    let mut hfuelGoal? : Option MVarId := none
-    let mut execGoals : List MVarId := []
-    let mut auxGoals : List MVarId := []
-    for g in goals do
-      unless ← g.isAssigned do
-        let ty ← g.getType
-        if ← isProp ty then
-          match ty.eq? with
-          | some _ => execGoals := execGoals ++ [g]
-          | none => hfuelGoal? := some g
-        else
-          auxGoals := auxGoals ++ [g]
-    let some hfuelGoal := hfuelGoal?
-      | throwError "miden_vcg_step: missing `hfuel` goal for singleton `repeat`"
-    let [execGoal1, execGoal2] := execGoals
-      | throwError "miden_vcg_step: expected two execution goals for singleton `repeat`, got {execGoals.length}"
-    let restOpsExpr ← mkOpListExpr [Lean.mkAppN (Lean.mkConst ``MidenLean.Op.repeat)
-      #[Lean.mkNatLit (count - 1), bodyOps]]
-    let goal1IsBody ← branchBodyMatches execGoal1 bodyOps
-    let goal1IsRest ← branchBodyMatches execGoal1 restOpsExpr
-    let goal2IsBody ← branchBodyMatches execGoal2 bodyOps
-    let goal2IsRest ← branchBodyMatches execGoal2 restOpsExpr
-    let (bodyGoal, restGoal) ←
-      if goal1IsBody && goal2IsRest then
-        pure (execGoal1, execGoal2)
-      else if goal1IsRest && goal2IsBody then
-        pure (execGoal2, execGoal1)
-      else
-        throwError "miden_vcg_step: could not classify singleton `repeat` goals"
-    closeVcgFuelGoal hfuelGoal
-    let auxRemaining ← cleanupGoals auxGoals
-    let mut remaining : List MVarId := []
-    unless ← bodyGoal.isAssigned do
-      remaining := remaining ++ [bodyGoal]
-    unless ← restGoal.isAssigned do
-      remaining := remaining ++ [restGoal]
-    return remaining ++ auxRemaining
+  match ← prepareRepeatSplit goal countExpr bodyOps "miden_vcg_step" with
+  | .zero goal' otherGoals =>
+      let mut remaining : List MVarId := []
+      unless ← goal'.isAssigned do
+        remaining := remaining ++ [goal']
+      let otherRemaining ← cleanupGoals otherGoals
+      return remaining ++ otherRemaining
+  | .succ bodyGoal restGoal auxGoals =>
+      let auxRemaining ← cleanupGoals auxGoals
+      let mut remaining : List MVarId := []
+      unless ← bodyGoal.isAssigned do
+        remaining := remaining ++ [bodyGoal]
+      unless ← restGoal.isAssigned do
+        remaining := remaining ++ [restGoal]
+      return remaining ++ auxRemaining
 
 private partial def decomposeVcgStepGoal (goal : MVarId) : TacticM (List MVarId) := do
   if ← goal.isAssigned then

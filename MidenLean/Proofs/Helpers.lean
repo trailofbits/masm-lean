@@ -6,54 +6,49 @@ namespace MidenLean
 
 -- Concrete.State projection lemmas
 
-@[simp, miden_simp] theorem Concrete.State.withStack_stack (s : Concrete.State) (stk : List Felt) :
+@[simp] theorem Concrete.State.withStack_stack (s : Concrete.State) (stk : List Felt) :
     (s.withStack stk).stack = stk := rfl
 
-@[simp, miden_simp] theorem Concrete.State.withStack_memory (s : Concrete.State) (stk : List Felt) :
+@[simp] theorem Concrete.State.withStack_memory (s : Concrete.State) (stk : List Felt) :
     (s.withStack stk).memory = s.memory := rfl
 
-@[simp, miden_simp] theorem Concrete.State.withStack_advice (s : Concrete.State) (stk : List Felt) :
+@[simp] theorem Concrete.State.withStack_advice (s : Concrete.State) (stk : List Felt) :
     (s.withStack stk).advice = s.advice := rfl
 
-@[simp, miden_simp] theorem Concrete.State.withStack_withStack (s : Concrete.State) (stk1 stk2 : List Felt) :
+@[simp] theorem Concrete.State.withStack_withStack (s : Concrete.State) (stk1 stk2 : List Felt) :
     (s.withStack stk1).withStack stk2 = s.withStack stk2 := rfl
 
-@[simp, miden_simp, miden_reflect_norm] theorem Concrete.State.ite_withStack
+@[simp, miden_reflect_norm] theorem Concrete.State.ite_withStack
     (p : Prop) [Decidable p] (s : Concrete.State) (stk1 stk2 : List Felt) :
     (if p then s.withStack stk1 else s.withStack stk2) =
       s.withStack (if p then stk1 else stk2) := by
   by_cases hp : p <;> simp [hp]
 
-@[simp, miden_simp] theorem Concrete.State.withStack_frames (s : Concrete.State) (stk : List Felt) :
+@[simp] theorem Concrete.State.withStack_frames (s : Concrete.State) (stk : List Felt) :
     (s.withStack stk).frames = s.frames := rfl
 
-@[simp, miden_simp] theorem Concrete.State.writeMemory_stack (s : Concrete.State) (addr : Nat) (v : Felt) :
+@[simp] theorem Concrete.State.writeMemory_stack (s : Concrete.State) (addr : Nat) (v : Felt) :
     (s.writeMemory addr v).stack = s.stack := rfl
 
-@[simp, miden_simp] theorem Concrete.State.writeMemory_memory (s : Concrete.State) (addr : Nat) (v : Felt) :
+@[simp] theorem Concrete.State.writeMemory_memory (s : Concrete.State) (addr : Nat) (v : Felt) :
     (s.writeMemory addr v).memory = fun a => if a = addr then v else s.memory a := rfl
 
-@[simp, miden_simp] theorem Concrete.State.writeMemory_frames (s : Concrete.State) (addr : Nat) (v : Felt) :
+@[simp] theorem Concrete.State.writeMemory_frames (s : Concrete.State) (addr : Nat) (v : Felt) :
     (s.writeMemory addr v).frames = s.frames := rfl
 
-@[simp, miden_simp] theorem Concrete.State.writeMemory_advice (s : Concrete.State) (addr : Nat) (v : Felt) :
+@[simp] theorem Concrete.State.writeMemory_advice (s : Concrete.State) (addr : Nat) (v : Felt) :
     (s.writeMemory addr v).advice = s.advice := rfl
 
-@[simp, miden_simp, miden_reflect_norm] theorem ite_some
+@[simp, miden_reflect_norm] theorem ite_some
     {α : Type} (p : Prop) [Decidable p] (x y : α) :
     (if p then some x else some y : Option α) = some (if p then x else y) := by
   by_cases hp : p <;> simp [hp]
 
 -- writeMemory reasoning lemmas
-@[simp, miden_simp] theorem Concrete.State.writeMemory_overwrite (s : Concrete.State) (addr : Nat) (v w : Felt) :
+@[simp] theorem Concrete.State.writeMemory_overwrite (s : Concrete.State) (addr : Nat) (v w : Felt) :
     (s.writeMemory addr v).writeMemory addr w = s.writeMemory addr w := by
   simp [Concrete.State.writeMemory]
   funext a; split <;> simp
-
-theorem Concrete.State.writeMemory_comm (s : Concrete.State) (a b : Nat) (v w : Felt) (hab : a ≠ b) :
-    (s.writeMemory a v).writeMemory b w = (s.writeMemory b w).writeMemory a v := by
-  simp [Concrete.State.writeMemory]
-  funext k; by_cases hk : k = b <;> by_cases hk2 : k = a <;> simp_all
 
 -- Execution decomposition lemmas
 
@@ -123,9 +118,9 @@ theorem exec_append (fuel : Nat) (s : Concrete.State) (xs ys : List Op) :
 
 -- Felt value lemmas (used below for ifElse decomposition)
 
-@[simp, miden_simp] theorem Felt.val_zero' : (0 : Felt).val = 0 := rfl
+@[simp] theorem Felt.val_zero' : (0 : Felt).val = 0 := rfl
 
-@[simp, miden_simp] theorem Felt.val_one' : (1 : Felt).val = 1 := ZMod.val_one _
+@[simp] theorem Felt.val_one' : (1 : Felt).val = 1 := ZMod.val_one _
 
 /-- Reduce a singleton `.ifElse` op when the condition on the stack is `1`. -/
 theorem execProcedure_ifElse_one
@@ -292,31 +287,31 @@ theorem execProcedure_body_eq_withLocals (env : ProcEnv) (fuel : Nat) (s : Concr
 
 -- Felt boolean lemmas
 
-@[simp, miden_simp] theorem Felt.isBool_ite_bool (p : Bool) :
+@[simp] theorem Felt.isBool_ite_bool (p : Bool) :
     Felt.isBool (if p then (1 : Felt) else 0) = true := by
   cases p <;> simp [Felt.isBool, Felt.val_one']
 
-@[simp, miden_simp] theorem Felt.ite_mul_ite (p q : Bool) :
+@[simp] theorem Felt.ite_mul_ite (p q : Bool) :
     (if p then (1 : Felt) else 0) * (if q then (1 : Felt) else 0) =
     if (p && q) then (1 : Felt) else 0 := by
   cases p <;> cases q <;> simp
 
-@[simp, miden_simp, miden_reflect_norm] theorem Felt.ite_prop_eq_one_iff
+@[simp, miden_reflect_norm] theorem Felt.ite_prop_eq_one_iff
     (p : Prop) [Decidable p] :
     (if p then (1 : Felt) else 0) = 1 ↔ p := by
   by_cases hp : p <;> simp [hp]
 
-@[simp, miden_simp, miden_reflect_norm] theorem Felt.ite_prop_eq_zero_iff
+@[simp, miden_reflect_norm] theorem Felt.ite_prop_eq_zero_iff
     (p : Prop) [Decidable p] :
     (if p then (1 : Felt) else 0) = 0 ↔ ¬p := by
   by_cases hp : p <;> simp [hp]
 
-@[simp, miden_simp, miden_reflect_norm] theorem Felt.val_ite_prop_eq_one_iff
+@[simp, miden_reflect_norm] theorem Felt.val_ite_prop_eq_one_iff
     (p : Prop) [Decidable p] :
     (if p then (1 : Felt) else 0).val = 1 ↔ p := by
   by_cases hp : p <;> simp [hp]
 
-@[simp, miden_simp, miden_reflect_norm] theorem Felt.val_ite_prop_eq_zero_iff
+@[simp, miden_reflect_norm] theorem Felt.val_ite_prop_eq_zero_iff
     (p : Prop) [Decidable p] :
     (if p then (1 : Felt) else 0).val = 0 ↔ ¬p := by
   by_cases hp : p <;> simp [hp]
@@ -461,11 +456,6 @@ theorem u32OverflowingSub_snd_eq_zero_iff (a b : Nat)
     (ha : a < 2^32) (hb : b < 2^32) :
     (u32OverflowingSub a b).2 = 0 ↔ a = b := by
   unfold u32OverflowingSub u32Max; split <;> (constructor <;> intro h <;> omega)
-
-/-- u32OverflowingSub borrow is 1 iff a < b. -/
-theorem u32OverflowingSub_fst_eq_one_iff (a b : Nat) :
-    (u32OverflowingSub a b).1 = 1 ↔ a < b := by
-  unfold u32OverflowingSub; split <;> (constructor <;> intro h <;> omega)
 
 /-- Two Felt values are equal when they have the same val. -/
 theorem felt_eq_ofNat_of_val_eq (a : Felt) (n : Nat) (h : a.val = n)

@@ -264,28 +264,4 @@ theorem execProcedure_fuel_mono {env : ProcEnv} {n m : Nat} {s : Concrete.State}
     execProcedure env m s proc = some s' :=
   (fuel_mono_core env n).1 m s proc s' hm h
 
-/-- If `doRepeat env n count body st = some st'` and `n ≤ m`, then
-    `doRepeat env m count body st = some st'`. -/
-theorem doRepeat_fuel_mono {env : ProcEnv} {n m : Nat} {count : Nat}
-    {body : List Op} {st st' : Concrete.State} (hm : n ≤ m)
-    (h : execProcedure.doRepeat env n count body st = some st') :
-    execProcedure.doRepeat env m count body st = some st' :=
-  (fuel_mono_core env n).2.1 m count body st st' hm h
-
-/-- If `doWhile env n fn body st = some st'` and `n ≤ m` and `fn ≤ fm`, then
-    `doWhile env m fm body st = some st'`. -/
-theorem doWhile_fuel_mono {env : ProcEnv} {n m : Nat} {fn fm : Nat}
-    {body : List Op} {st st' : Concrete.State} (hm : n ≤ m) (hfn : fn ≤ fm)
-    (h : execProcedure.doWhile env n fn body st = some st') :
-    execProcedure.doWhile env m fm body st = some st' :=
-  (fuel_mono_core env n).2.2 m fn fm body st st' hm hfn h
-
-/-- Corollary: if execution succeeds at fuel `n`, it succeeds at fuel `n + k`
-    with the same result. -/
-theorem execProcedure_fuel_mono_add {env : ProcEnv} {n : Nat} {s : Concrete.State}
-    {proc : Procedure} {s' : Concrete.State} (k : Nat)
-    (h : execProcedure env n s proc = some s') :
-    execProcedure env (n + k) s proc = some s' :=
-  execProcedure_fuel_mono (Nat.le_add_right n k) h
-
 end MidenLean

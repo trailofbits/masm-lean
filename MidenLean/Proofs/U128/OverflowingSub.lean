@@ -36,12 +36,6 @@ private def sub3 (a3 b3 : Felt) : Nat × Nat :=
 private def sub3Adj (a0 a1 a2 a3 b0 b1 b2 b3 : Felt) : Nat × Nat :=
   u32OverflowingSub (sub3 a3 b3).2 (borrow2 a0 a1 a2 b0 b1 b2).val
 
-private def borrow3 (a0 a1 a2 a3 b0 b1 b2 b3 : Felt) : Felt :=
-  if decide ((sub3 a3 b3).2 < (borrow2 a0 a1 a2 b0 b1 b2).val) || decide (a3.val < b3.val) then
-    1
-  else
-    0
-
 private theorem boolFelt_isU32 (p : Bool) : (if p then (1 : Felt) else 0).isU32 = true := by
   cases p <;> simp [Felt.isU32]
 

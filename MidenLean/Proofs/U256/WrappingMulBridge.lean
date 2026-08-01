@@ -14,93 +14,6 @@ open MidenLean
 -- These lemmas show that if c_i * 2^32 + l_i = q_i + c_{i-1} + d_i for each step,
 -- then the weighted sum of l_i (plus the final carry) equals the sum of q_i plus d_i.
 
-theorem carry_chain_with_acc_1
-    (c₀ : Nat) (l₀ : Nat) (q₀ : Nat) (d₀ : Nat)
-    (h₀ : c₀ * 2^32 + l₀ = q₀ + 0 + d₀) :
-    c₀ * 2^32 + l₀ = q₀ + d₀ := by omega
-
-theorem carry_chain_with_acc_2
-    (c₀ c₁ : Nat) (l₀ l₁ : Nat) (q₀ q₁ : Nat) (d₀ d₁ : Nat)
-    (h₀ : c₀ * 2^32 + l₀ = q₀ + 0 + d₀)
-    (h₁ : c₁ * 2^32 + l₁ = q₁ + c₀ + d₁) :
-    c₁ * 2^64 + l₁ * 2^32 + l₀ =
-    q₁ * 2^32 + q₀ + d₁ * 2^32 + d₀ := by omega
-
-theorem carry_chain_with_acc_3
-    (c₀ c₁ c₂ : Nat)
-    (l₀ l₁ l₂ : Nat)
-    (q₀ q₁ q₂ : Nat)
-    (d₀ d₁ d₂ : Nat)
-    (h₀ : c₀ * 2^32 + l₀ = q₀ + 0 + d₀)
-    (h₁ : c₁ * 2^32 + l₁ = q₁ + c₀ + d₁)
-    (h₂ : c₂ * 2^32 + l₂ = q₂ + c₁ + d₂) :
-    c₂ * 2^96 + l₂ * 2^64 + l₁ * 2^32 + l₀ =
-    q₂ * 2^64 + q₁ * 2^32 + q₀ +
-    d₂ * 2^64 + d₁ * 2^32 + d₀ := by omega
-
-theorem carry_chain_with_acc_4
-    (c₀ c₁ c₂ c₃ : Nat)
-    (l₀ l₁ l₂ l₃ : Nat)
-    (q₀ q₁ q₂ q₃ : Nat)
-    (d₀ d₁ d₂ d₃ : Nat)
-    (h₀ : c₀ * 2^32 + l₀ = q₀ + 0 + d₀)
-    (h₁ : c₁ * 2^32 + l₁ = q₁ + c₀ + d₁)
-    (h₂ : c₂ * 2^32 + l₂ = q₂ + c₁ + d₂)
-    (h₃ : c₃ * 2^32 + l₃ = q₃ + c₂ + d₃) :
-    c₃ * 2^128 + l₃ * 2^96 + l₂ * 2^64 + l₁ * 2^32 + l₀ =
-    q₃ * 2^96 + q₂ * 2^64 + q₁ * 2^32 + q₀ +
-    d₃ * 2^96 + d₂ * 2^64 + d₁ * 2^32 + d₀ := by omega
-
-theorem carry_chain_with_acc_5
-    (c₀ c₁ c₂ c₃ c₄ : Nat)
-    (l₀ l₁ l₂ l₃ l₄ : Nat)
-    (q₀ q₁ q₂ q₃ q₄ : Nat)
-    (d₀ d₁ d₂ d₃ d₄ : Nat)
-    (h₀ : c₀ * 2^32 + l₀ = q₀ + 0 + d₀)
-    (h₁ : c₁ * 2^32 + l₁ = q₁ + c₀ + d₁)
-    (h₂ : c₂ * 2^32 + l₂ = q₂ + c₁ + d₂)
-    (h₃ : c₃ * 2^32 + l₃ = q₃ + c₂ + d₃)
-    (h₄ : c₄ * 2^32 + l₄ = q₄ + c₃ + d₄) :
-    c₄ * 2^160 + l₄ * 2^128 + l₃ * 2^96 + l₂ * 2^64 + l₁ * 2^32 + l₀ =
-    q₄ * 2^128 + q₃ * 2^96 + q₂ * 2^64 + q₁ * 2^32 + q₀ +
-    d₄ * 2^128 + d₃ * 2^96 + d₂ * 2^64 + d₁ * 2^32 + d₀ := by omega
-
-theorem carry_chain_with_acc_6
-    (c₀ c₁ c₂ c₃ c₄ c₅ : Nat)
-    (l₀ l₁ l₂ l₃ l₄ l₅ : Nat)
-    (q₀ q₁ q₂ q₃ q₄ q₅ : Nat)
-    (d₀ d₁ d₂ d₃ d₄ d₅ : Nat)
-    (h₀ : c₀ * 2^32 + l₀ = q₀ + 0 + d₀)
-    (h₁ : c₁ * 2^32 + l₁ = q₁ + c₀ + d₁)
-    (h₂ : c₂ * 2^32 + l₂ = q₂ + c₁ + d₂)
-    (h₃ : c₃ * 2^32 + l₃ = q₃ + c₂ + d₃)
-    (h₄ : c₄ * 2^32 + l₄ = q₄ + c₃ + d₄)
-    (h₅ : c₅ * 2^32 + l₅ = q₅ + c₄ + d₅) :
-    c₅ * 2^192 + l₅ * 2^160 + l₄ * 2^128 +
-    l₃ * 2^96 + l₂ * 2^64 + l₁ * 2^32 + l₀ =
-    q₅ * 2^160 + q₄ * 2^128 + q₃ * 2^96 + q₂ * 2^64 + q₁ * 2^32 + q₀ +
-    d₅ * 2^160 + d₄ * 2^128 + d₃ * 2^96 + d₂ * 2^64 + d₁ * 2^32 + d₀ := by
-  omega
-
-theorem carry_chain_with_acc_7
-    (c₀ c₁ c₂ c₃ c₄ c₅ c₆ : Nat)
-    (l₀ l₁ l₂ l₃ l₄ l₅ l₆ : Nat)
-    (q₀ q₁ q₂ q₃ q₄ q₅ q₆ : Nat)
-    (d₀ d₁ d₂ d₃ d₄ d₅ d₆ : Nat)
-    (h₀ : c₀ * 2^32 + l₀ = q₀ + 0 + d₀)
-    (h₁ : c₁ * 2^32 + l₁ = q₁ + c₀ + d₁)
-    (h₂ : c₂ * 2^32 + l₂ = q₂ + c₁ + d₂)
-    (h₃ : c₃ * 2^32 + l₃ = q₃ + c₂ + d₃)
-    (h₄ : c₄ * 2^32 + l₄ = q₄ + c₃ + d₄)
-    (h₅ : c₅ * 2^32 + l₅ = q₅ + c₄ + d₅)
-    (h₆ : c₆ * 2^32 + l₆ = q₆ + c₅ + d₆) :
-    c₆ * 2^224 + l₆ * 2^192 + l₅ * 2^160 + l₄ * 2^128 +
-    l₃ * 2^96 + l₂ * 2^64 + l₁ * 2^32 + l₀ =
-    q₆ * 2^192 + q₅ * 2^160 + q₄ * 2^128 +
-    q₃ * 2^96 + q₂ * 2^64 + q₁ * 2^32 + q₀ +
-    d₆ * 2^192 + d₅ * 2^160 + d₄ * 2^128 +
-    d₃ * 2^96 + d₂ * 2^64 + d₁ * 2^32 + d₀ := by omega
-
 theorem carry_chain_with_acc_8
     (c₀ c₁ c₂ c₃ c₄ c₅ c₆ c₇ : Nat)
     (l₀ l₁ l₂ l₃ l₄ l₅ l₆ l₇ : Nat)
@@ -126,11 +39,6 @@ theorem carry_chain_with_acc_8
 -- ============================================================================
 -- These are the same pattern but the first step has carry-in c_prev instead of 0.
 -- Used for rounds 1-7 where the accumulator chain starts with a previous carry.
-
-theorem carry_chain_with_cin_1
-    (c₀ : Nat) (l₀ : Nat) (q₀ : Nat) (d₀ : Nat) (cin : Nat)
-    (h₀ : c₀ * 2^32 + l₀ = q₀ + cin + d₀) :
-    c₀ * 2^32 + l₀ = q₀ + cin + d₀ := h₀
 
 theorem carry_chain_with_cin_2
     (c₀ c₁ : Nat) (l₀ l₁ : Nat) (q₀ q₁ : Nat) (d₀ d₁ : Nat) (cin : Nat)
@@ -385,75 +293,7 @@ theorem round7_val
     c₀ * 2^32 + l₀ = b₇ * a₀ + cin + d₀ := h₀
 
 -- ============================================================================
--- Section 3: Schoolbook column sums
--- ============================================================================
--- The product A * B, where A = Sigma a_i * 2^(32i) and B = Sigma b_j * 2^(32j),
--- equals Sigma_{k=0}^{14} S_k * 2^(32k) where S_k = Sigma_{i+j=k} a_i * b_j.
--- We split this into low (columns 0-7, which give the mod 2^256 part)
--- and high (columns 8-14, the overflow).
-
-/-- Column sum S_k = Sigma_{i+j=k} a_i * b_j for the schoolbook product. -/
-def colSum (a : Fin 8 → Nat) (b : Fin 8 → Nat) (k : Nat) : Nat :=
-  Finset.sum (Finset.filter (fun p => p.1.val + p.2.val = k) Finset.univ)
-    (fun p : Fin 8 × Fin 8 => a p.1 * b p.2)
-
-/-- The schoolbook identity: A * B = Sigma_{k=0}^{14} S_k * 2^(32k).
-    We express this by direct expansion. -/
-theorem schoolbook_expand (a₀ a₁ a₂ a₃ a₄ a₅ a₆ a₇
-                           b₀ b₁ b₂ b₃ b₄ b₅ b₆ b₇ : Nat) :
-    (a₇ * 2^224 + a₆ * 2^192 + a₅ * 2^160 + a₄ * 2^128 +
-     a₃ * 2^96 + a₂ * 2^64 + a₁ * 2^32 + a₀) *
-    (b₇ * 2^224 + b₆ * 2^192 + b₅ * 2^160 + b₄ * 2^128 +
-     b₃ * 2^96 + b₂ * 2^64 + b₁ * 2^32 + b₀) =
-    -- Column 0
-    (a₀*b₀) +
-    -- Column 1
-    (a₁*b₀ + a₀*b₁) * 2^32 +
-    -- Column 2
-    (a₂*b₀ + a₁*b₁ + a₀*b₂) * 2^64 +
-    -- Column 3
-    (a₃*b₀ + a₂*b₁ + a₁*b₂ + a₀*b₃) * 2^96 +
-    -- Column 4
-    (a₄*b₀ + a₃*b₁ + a₂*b₂ + a₁*b₃ + a₀*b₄) * 2^128 +
-    -- Column 5
-    (a₅*b₀ + a₄*b₁ + a₃*b₂ + a₂*b₃ + a₁*b₄ + a₀*b₅) * 2^160 +
-    -- Column 6
-    (a₆*b₀ + a₅*b₁ + a₄*b₂ + a₃*b₃ + a₂*b₄ + a₁*b₅ + a₀*b₆) * 2^192 +
-    -- Column 7
-    (a₇*b₀ + a₆*b₁ + a₅*b₂ + a₄*b₃ + a₃*b₄ + a₂*b₅ + a₁*b₆ + a₀*b₇) * 2^224 +
-    -- Column 8
-    (a₇*b₁ + a₆*b₂ + a₅*b₃ + a₄*b₄ + a₃*b₅ + a₂*b₆ + a₁*b₇) * 2^256 +
-    -- Column 9
-    (a₇*b₂ + a₆*b₃ + a₅*b₄ + a₄*b₅ + a₃*b₆ + a₂*b₇) * 2^288 +
-    -- Column 10
-    (a₇*b₃ + a₆*b₄ + a₅*b₅ + a₄*b₆ + a₃*b₇) * 2^320 +
-    -- Column 11
-    (a₇*b₄ + a₆*b₅ + a₅*b₆ + a₄*b₇) * 2^352 +
-    -- Column 12
-    (a₇*b₅ + a₆*b₆ + a₅*b₇) * 2^384 +
-    -- Column 13
-    (a₇*b₆ + a₆*b₇) * 2^416 +
-    -- Column 14
-    (a₇*b₇) * 2^448 := by ring
-
--- ============================================================================
--- Section 4: Mod 2^256 reduction
--- ============================================================================
-
-/-- If `v + D * 2^256 = A * B` and `v < 2^256`, then `v = (A * B) % 2^256`. -/
-theorem val_eq_mod_of_sum (v D A B : Nat) (hv : v < 2^256)
-    (hsum : v + D * 2^256 = A * B) :
-    v = (A * B) % 2^256 := by omega
-
-/-- Given total value `totalVal < 2^256` and an overflow part,
-    if `totalVal + overflow * 2^256 = product`, then `totalVal = product % 2^256`. -/
-theorem total_val_mod_eq (totalVal overflow product : Nat)
-    (hlt : totalVal < 2^256)
-    (hsum : totalVal + overflow * 2^256 = product) :
-    totalVal = product % 2^256 := by omega
-
--- ============================================================================
--- Section 5: Limb extraction from a weighted sum
+-- Section 3: Limb extraction from a weighted sum
 -- ============================================================================
 
 /-- If `l₇ * 2^224 + ... + l₀ = N` and each `l_i < 2^32`, then each limb
@@ -482,18 +322,7 @@ theorem limb_sum_lt_2_256
     l₃ * 2^96 + l₂ * 2^64 + l₁ * 2^32 + l₀ < 2^256 := by omega
 
 -- ============================================================================
--- Section 6: Round accumulation
--- ============================================================================
--- These combine per-round results to show that the wrapping_mul procedure
--- computes (A * B) % 2^256.
-
-/-- Combining rounds: adding overflow * 2^256 does not change
-    the value mod 2^256. -/
-theorem combine_rounds_mod (v overflow : Nat) :
-    (v + overflow * 2^256) % 2^256 = v % 2^256 := by omega
-
--- ============================================================================
--- Section 7: Column-sum reorganization
+-- Section 4: Column-sum reorganization
 -- ============================================================================
 -- The schoolbook product, when reduced mod 2^256, only depends on columns 0-7.
 -- Columns 8-14 contribute to the overflow.
@@ -534,18 +363,8 @@ theorem schoolbook_split (a₀ a₁ a₂ a₃ a₄ a₅ a₆ a₇
     schoolbook_high a₀ a₁ a₂ a₃ a₄ a₅ a₆ a₇ b₀ b₁ b₂ b₃ b₄ b₅ b₆ b₇ := by
   unfold schoolbook_low schoolbook_high; ring
 
-/-- The product mod 2^256 depends only on the low columns. -/
-theorem schoolbook_mod_eq (a₀ a₁ a₂ a₃ a₄ a₅ a₆ a₇
-                           b₀ b₁ b₂ b₃ b₄ b₅ b₆ b₇ : Nat) :
-    ((a₇ * 2^224 + a₆ * 2^192 + a₅ * 2^160 + a₄ * 2^128 +
-      a₃ * 2^96 + a₂ * 2^64 + a₁ * 2^32 + a₀) *
-     (b₇ * 2^224 + b₆ * 2^192 + b₅ * 2^160 + b₄ * 2^128 +
-      b₃ * 2^96 + b₂ * 2^64 + b₁ * 2^32 + b₀)) % 2^256 =
-    schoolbook_low a₀ a₁ a₂ a₃ a₄ a₅ a₆ a₇ b₀ b₁ b₂ b₃ b₄ b₅ b₆ b₇ % 2^256 := by
-  rw [schoolbook_split]; unfold schoolbook_high; omega
-
 -- ============================================================================
--- Section 8: Row-to-column reorganization
+-- Section 5: Row-to-column reorganization
 -- ============================================================================
 -- The MASM procedure computes the product row-by-row (round r = b_r * a[...]).
 -- We need to reorganize from row sums to column sums.
@@ -583,7 +402,7 @@ theorem row_to_column (a₀ a₁ a₂ a₃ a₄ a₅ a₆ a₇
   unfold schoolbook_low; ring
 
 -- ============================================================================
--- Section 9: Final assembly theorem
+-- Section 6: Final assembly theorem
 -- ============================================================================
 
 /-- The main bridge theorem: if 8 rounds of mulstep4/mulstep calls produce
@@ -617,7 +436,7 @@ theorem wrapping_mul_bridge
   omega
 
 -- ============================================================================
--- Section 10: Round combination (linear telescoping)
+-- Section 7: Round combination (linear telescoping)
 -- ============================================================================
 
 set_option maxHeartbeats 800000 in
@@ -678,7 +497,7 @@ theorem combine_rounds
     P₅ * 2^160 + P₆ * 2^192 + P₇ * 2^224 := by omega
 
 -- ============================================================================
--- Section 11: Full chain correctness
+-- Section 8: Full chain correctness
 -- ============================================================================
 
 set_option maxHeartbeats 3200000 in
@@ -788,7 +607,7 @@ theorem chain_rounds_eq_product
   linarith [h12, hsplit, hdist]
 
 -- ============================================================================
--- Section 12: Per-limb Nat equalities from chain
+-- Section 9: Per-limb Nat equalities from chain
 -- ============================================================================
 
 set_option maxHeartbeats 1600000 in
@@ -866,7 +685,7 @@ theorem chain_rounds_to_limb_eq
          by omega, by omega, by omega, by omega⟩
 
 -- ============================================================================
--- Section 13: Concrete wrapping_mul limb correctness
+-- Section 10: Concrete wrapping_mul limb correctness
 -- ============================================================================
 
 set_option maxHeartbeats 8000000 in

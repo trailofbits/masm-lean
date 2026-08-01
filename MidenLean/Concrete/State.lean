@@ -5,9 +5,6 @@ namespace MidenLean
 /-- Base address of the local-memory region. -/
 def LOCAL_MEM_BASE : Nat := 2 ^ 31
 
-/-- Address of the frame pointer cell (VM-reserved). -/
-def FMP_ADDR : Nat := 2 ^ 32 - 1
-
 /-- A local-memory frame tracking one procedure's allocation within the local-memory region. -/
 structure LocalFrame where
   /-- Offset of this frame within the local-memory region (word-aligned). -/

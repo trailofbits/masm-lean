@@ -10,17 +10,6 @@ open MidenLean.StepLemmas
 open MidenLean.Tactics
 
 set_option maxHeartbeats 12000000 in
-set_option maxRecDepth 65536 in
-private theorem divmod_execWithEnv_eq_exec (fuel : Nat) (s : Concrete.State)
-    (hf : 0 < fuel) :
-    execProcedure u128ProcEnv fuel s Miden.Core.U128.divmod =
-      execProcedure emptyEnv 163 s Miden.Core.U128.divmod := by
-  cases fuel with
-  | zero => cases hf
-  | succ fuel' =>
-      simp (maxSteps := 5000000) [emptyEnv, execProcedure, u128ProcEnv, Miden.Core.U128.divmod]
-
-set_option maxHeartbeats 12000000 in
 /-- `u128::div` verifies an advice-supplied quotient and remainder for u128 division,
     then drops the remainder word and returns the quotient limbs.
     Execution succeeds iff the advice-supplied q and r satisfy q * b + r = a and r < b.
@@ -69,7 +58,7 @@ theorem u128_div_correct
                 advice := r.a0.val :: r.a1.val :: r.a2.val :: r.a3.val ::
                           q.a0.val :: q.a1.val :: q.a2.val :: q.a3.val :: adv_rest }
               Miden.Core.U128.divmod = some val := by
-          rw [← divmod_execWithEnv_eq_exec 30 _ (by decide)]
+          rw [← u128_divmod_execProcedure_eq 30 _ (by decide)]
           exact h_dm
         exact u128_divmod_conditions_of_exec a b q r rest adv_rest _ rfl rfl h_dm_exec
   · intro ⟨hdiv, hlt⟩
@@ -98,7 +87,7 @@ theorem u128_div_correct
     unfold Miden.Core.U128.div execProcedure
     simp only [List.foldlM, u128ProcEnv]
     dsimp only [bind, Bind.bind, Option.bind]
-    rw [divmod_execWithEnv_eq_exec 30 _ (by decide)]
+    rw [u128_divmod_execProcedure_eq 30 _ (by decide)]
     rw [h_divmod]
     miden_bind
     rw [stepDropw]

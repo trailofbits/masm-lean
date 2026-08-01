@@ -42,20 +42,4 @@ def State.ofInputs (n : Nat) : State :=
     frames := []
     advice := [] }
 
-/-- Construct initial symbolic state for `n` input variables and an advice
-    list. -/
-def State.ofInputsWithAdvice (n : Nat) (adv : List Expr) : State :=
-  { stack := (List.range n).map Expr.var
-    memory := fun _ => .lit 0
-    frames := []
-    advice := adv }
-
-/-- Construct initial symbolic state for `n` input variables and a list of
-    local frames. -/
-def State.ofInputsWithFrames (n : Nat) (fr : List LocalFrame) : State :=
-  { stack := (List.range n).map Expr.var
-    memory := fun _ => .lit 0
-    frames := fr
-    advice := [] }
-
 end MidenLean.Symbolic

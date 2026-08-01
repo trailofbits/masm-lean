@@ -34,9 +34,6 @@ def Felt.isBool (a : Felt) : Bool :=
 /-- Convert a natural number to a felt. -/
 def Felt.ofNat (n : Nat) : Felt := (n : Felt)
 
-/-- The u32 value of a felt, as a natural number. Assumes the felt is a valid u32. -/
-def Felt.toU32 (a : Felt) : Nat := a.val % 2^32
-
 /-- The low 32 bits of a felt's canonical representative. -/
 def Felt.lo32 (a : Felt) : Felt := Felt.ofNat (a.val % 2^32)
 

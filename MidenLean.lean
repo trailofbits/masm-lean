@@ -16,6 +16,8 @@ import MidenLean.Proofs.Fuel
 import MidenLean.Proofs.ControlFlow
 import MidenLean.Proofs.U64.Common
 import MidenLean.Proofs.U64.Eq
+import MidenLean.Proofs.U64.Eqz
+import MidenLean.Proofs.U64.WrappingAdd
 import MidenLean.Proofs.U64.WrappingSub
 import MidenLean.Proofs.U64.OverflowingSub
 import MidenLean.Proofs.U64.Lt
@@ -89,12 +91,15 @@ import MidenLean.Proofs.U256.Mulstep
 import MidenLean.Proofs.U256.Mulstep4
 import MidenLean.Proofs.U256.Or
 import MidenLean.Proofs.U256.OverflowingAdd
+import MidenLean.Proofs.U256.OverflowingSub
+import MidenLean.Proofs.U256.SubWithBorrowBe
 import MidenLean.Proofs.U256.U256LeToBe
 import MidenLean.Proofs.U256.U256LeToBePair
 import MidenLean.Proofs.U256.WideningAdd
 import MidenLean.Proofs.U256.WrappingAdd
 import MidenLean.Proofs.U256.WrappingMul
 import MidenLean.Proofs.U256.WrappingMulBridge
+import MidenLean.Proofs.U256.WrappingSub
 import MidenLean.Proofs.U256.Xor
 import MidenLean.Proofs.Word.Testz
 import MidenLean.Proofs.Word.Eqz

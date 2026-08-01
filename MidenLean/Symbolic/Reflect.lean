@@ -465,64 +465,6 @@ theorem reflect_proc_with_env_locals_stack
     stackPrefix rest mem frames adv k result
     hbody hlocals hops hfuel hnoexec hresult hpreconds
 
-/-- Proc-generic zero-locals wrapper for theorem goals stated with a concrete
-    `s : Concrete.State` plus a stack decomposition hypothesis `s.stack = ...`. -/
-theorem reflect_proc_with_env_zero_state
-    (proc : Procedure) (insts : List Instruction) (ops : List MidenLean.Op)
-    (env : MidenLean.ProcEnv) (fuel : Nat)
-    (s : MidenLean.Concrete.State) (stackPrefix rest : List Felt)
-    (result : BlockResult)
-    (hstack : s.stack = stackPrefix ++ rest)
-    (hbody : proc.body = ops)
-    (hlocals : proc.numLocals = 0)
-    (hops : ops = insts.map MidenLean.Op.inst)
-    (hfuel : fuel > 0)
-    (hnoexec : insts.all (fun i => !isExecInst i) = true)
-    (hresult : execBlock insts (concreteState stackPrefix s.memory s.frames s.advice) = some result)
-    (hpreconds : ∀ p ∈ result.preconditions, p.holds (fun _ => 0)) :
-    MidenLean.execProcedure env fuel s proc =
-    some ⟨result.state.stack.map (Expr.eval (fun _ => 0)) ++ rest,
-          fun addr => (result.state.memory addr).eval (fun _ => 0),
-          s.frames,
-          result.state.advice.map (Expr.eval (fun _ => 0))⟩ := by
-  cases s with
-  | mk stack mem frames adv =>
-      simp only at hstack ⊢
-      subst hstack
-      exact reflect_proc_with_env_zero_stack proc insts ops env fuel
-        (stack := stackPrefix ++ rest)
-        stackPrefix rest mem frames adv result
-        rfl hbody hlocals hops hfuel hnoexec hresult hpreconds
-
-/-- Proc-generic positive-locals wrapper for theorem goals stated with a
-    concrete `s : Concrete.State` plus a stack decomposition hypothesis. -/
-theorem reflect_proc_with_env_locals_state
-    (proc : Procedure) (insts : List Instruction) (ops : List MidenLean.Op)
-    (env : MidenLean.ProcEnv) (fuel : Nat)
-    (s : MidenLean.Concrete.State) (stackPrefix rest : List Felt)
-    (k : Nat) (result : BlockResult)
-    (hstack : s.stack = stackPrefix ++ rest)
-    (hbody : proc.body = ops)
-    (hlocals : proc.numLocals = k + 1)
-    (hops : ops = insts.map MidenLean.Op.inst)
-    (hfuel : fuel > 0)
-    (hnoexec : insts.all (fun i => !isExecInst i) = true)
-    (hresult : execBlock insts (concreteStateWithLocals stackPrefix s.memory s.frames s.advice (k + 1)) = some result)
-    (hpreconds : ∀ p ∈ result.preconditions, p.holds (fun _ => 0)) :
-    MidenLean.execProcedure env fuel s proc =
-    some ⟨result.state.stack.map (Expr.eval (fun _ => 0)) ++ rest,
-          fun addr => (result.state.memory addr).eval (fun _ => 0),
-          s.frames,
-          result.state.advice.map (Expr.eval (fun _ => 0))⟩ := by
-  cases s with
-  | mk stack mem frames adv =>
-      simp only at hstack ⊢
-      subst hstack
-      exact reflect_proc_with_env_locals_stack proc insts ops env fuel
-        (stack := stackPrefix ++ rest)
-        stackPrefix rest mem frames adv k result
-        rfl hbody hlocals hops hfuel hnoexec hresult hpreconds
-
 /-!
 Generic straight-line reflection over `execProcedure`, with optional call
 summaries carried by `ReflectEnv`.
@@ -751,53 +693,6 @@ def ReflectEnv.ofConcrete (env : MidenLean.ProcEnv) (maxDepth : Nat) :
       Option.map (fun proc => procSpec (ReflectEnv.ofConcrete env maxDepth n) proc) (env name) := by
   dsimp only [ReflectEnv.toSymbolic, ReflectEnv.ofConcrete]
   split <;> simp [*]
-
-/-- Build a proof-carrying reflection environment that only reflects the named
-    procedures from a concrete `ProcEnv`. Callees not in the list resolve to
-    `none`, falling back to `ReflectEnv.empty` for their own callees.
-
-    This is the preferred entry point when the caller already knows which
-    callees it needs (e.g., via the `@[miden_exec_summary]` registry). It
-    avoids the deep recursive expansion of `ofConcrete` on large environments. -/
-def ReflectEnv.withProcedures (env : MidenLean.ProcEnv) (names : List String) :
-    (minFuel : Nat) → ReflectEnv env minFuel
-  | 0 => ReflectEnv.empty
-  | n + 1 => fun name =>
-      if names.contains name then
-        match hlookup : env name with
-        | some proc =>
-            some
-              { callee := proc
-                spec := procSpec (ReflectEnv.empty (env := env) (minFuel := n)) proc
-                hlookup := hlookup
-                sound := by
-                  simpa using
-                    (procSpec_sound
-                      (Γ := ReflectEnv.empty (env := env) (minFuel := n)) (proc := proc)) }
-        | none => none
-      else
-        none
-
-@[simp] theorem ReflectEnv.toSymbolic_withProcedures_zero
-    (env : MidenLean.ProcEnv) (names : List String) (name : String) :
-    (ReflectEnv.withProcedures env names 0).toSymbolic name = none := by
-  simp [ReflectEnv.withProcedures]
-
-@[simp] theorem ReflectEnv.toSymbolic_withProcedures_succ
-    (env : MidenLean.ProcEnv) (names : List String) (n : Nat) (name : String) :
-    (ReflectEnv.withProcedures env names (n + 1)).toSymbolic name =
-      if names.contains name then
-        Option.map
-          (fun proc => procSpec (ReflectEnv.empty (env := env) (minFuel := n)) proc)
-          (env name)
-      else
-        none := by
-  dsimp only [ReflectEnv.toSymbolic, ReflectEnv.withProcedures]
-  by_cases hcontains : names.contains name
-  · rw [if_pos hcontains, if_pos hcontains]
-    split <;> simp [*]
-  · rw [if_neg hcontains, if_neg hcontains]
-    rfl
 
 /-- Procedure-level reflection over a fully concrete symbolic state, using an
     explicit `ReflectEnv` for direct callees. -/

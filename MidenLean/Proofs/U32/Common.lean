@@ -33,11 +33,6 @@ def ofNat (n : Nat) : U32 where
   val := Felt.ofNat (n % 2^32)
   isU32 := u32_mod_isU32 n
 
-/-- Construct a U32 from a natural number known to be < 2^32. -/
-def ofNat_lt (n : Nat) (h : n < 2^32) : U32 where
-  val := Felt.ofNat n
-  isU32 := felt_ofNat_isU32_of_lt n h
-
 /-- `Felt.ofNat` round-trips through the underlying natural value of a `U32`. -/
 @[simp] theorem ofNat_val (x : U32) : Felt.ofNat x.val.val = x.val := by
   apply ZMod.val_injective
@@ -122,13 +117,6 @@ theorem u32_madd_sum_le (a b c : Felt)
   simp only [Felt.isU32, decide_eq_true_eq] at ha hb hc
   exact Nat.add_le_add (Nat.mul_le_mul (by omega) (by omega)) (by omega)
 
-/-- The sum `a*b + c` for u32 values fits below the Goldilocks prime. -/
-theorem u32_madd_sum_lt_prime (a b c : Felt)
-    (ha : a.isU32 = true) (hb : b.isU32 = true) (hc : c.isU32 = true) :
-    a.val * b.val + c.val < GOLDILOCKS_PRIME := by
-  have := u32_madd_sum_le a b c ha hb hc
-  unfold GOLDILOCKS_PRIME; omega
-
 /-- The high 32 bits of `a*b + c` (for u32 a, b, c) fit in 32 bits. -/
 @[miden_bound] theorem u32_madd_div_lt_2_32 (a b c : Felt)
     (ha : a.isU32 = true) (hb : b.isU32 = true) (hc : c.isU32 = true) :
@@ -210,20 +198,6 @@ theorem u32_madd_sum_lt_prime (a b c : Felt)
 -- ============================================================================
 -- For the addition-based carry accumulation steps in multiplication carry chains.
 
-/-- The sum of two u32 values fits below the Goldilocks prime. -/
-theorem u32_add_sum_lt_prime (a b : Felt)
-    (ha : a.isU32 = true) (hb : b.isU32 = true) :
-    a.val + b.val < GOLDILOCKS_PRIME := by
-  simp only [Felt.isU32, decide_eq_true_eq] at ha hb
-  unfold GOLDILOCKS_PRIME; omega
-
-/-- The sum of three u32 values fits below the Goldilocks prime. -/
-theorem u32_add3_sum_lt_prime (a b c : Felt)
-    (ha : a.isU32 = true) (hb : b.isU32 = true) (hc : c.isU32 = true) :
-    a.val + b.val + c.val < GOLDILOCKS_PRIME := by
-  simp only [Felt.isU32, decide_eq_true_eq] at ha hb hc
-  unfold GOLDILOCKS_PRIME; omega
-
 /-- `Felt.ofNat` of `(a + b) / 2^32` round-trips through `.val` for u32 a, b. -/
 @[miden_bound] theorem u32_add_div_val (a b : Felt)
     (ha : a.isU32 = true) (hb : b.isU32 = true) :
@@ -243,7 +217,8 @@ theorem u32_add3_sum_lt_prime (a b c : Felt)
 -- Recomposition lemmas for widening u32 operations
 -- ============================================================================
 
-/-- Recompose a widening u32 addition into the original sum. -/
+/-- Specification of the `u32WideAdd` helper: recomposing the widening u32
+    addition yields the original sum. -/
 theorem u32WideAdd_spec (a b : Nat) :
     (u32WideAdd a b).1 + (u32WideAdd a b).2 * 2 ^ 32 = a + b := by
   unfold u32WideAdd u32Max
@@ -251,7 +226,8 @@ theorem u32WideAdd_spec (a b : Nat) :
   rw [Nat.mul_comm]
   exact Nat.mod_add_div (a + b) (2 ^ 32)
 
-/-- Recompose a widening u32 addition of three values into the original sum. -/
+/-- Specification of the `u32WideAdd3` helper: recomposing the widening u32
+    addition of three values yields the original sum. -/
 theorem u32WideAdd3_spec (a b c : Nat) :
     (u32WideAdd3 a b c).1 + (u32WideAdd3 a b c).2 * 2 ^ 32 = a + b + c := by
   unfold u32WideAdd3 u32Max
@@ -259,7 +235,8 @@ theorem u32WideAdd3_spec (a b c : Nat) :
   rw [Nat.mul_comm]
   exact Nat.mod_add_div (a + b + c) (2 ^ 32)
 
-/-- Recompose a widening u32 multiplication into the original product. -/
+/-- Specification of the `u32WideMul` helper: recomposing the widening u32
+    multiplication yields the original product. -/
 theorem u32WideMul_spec (a b : Nat) :
     (u32WideMul a b).1 + (u32WideMul a b).2 * 2 ^ 32 = a * b := by
   unfold u32WideMul u32Max
@@ -267,26 +244,13 @@ theorem u32WideMul_spec (a b : Nat) :
   have h := Nat.mod_add_div prod (2 ^ 32)
   simpa [prod, Nat.mul_comm] using h
 
-/-- Recompose a widening u32 multiply-add into the original result. -/
+/-- Specification of the `u32WideMadd` helper: recomposing the widening u32
+    multiply-add yields the original result. -/
 theorem u32WideMadd_spec (a b c : Nat) :
     (u32WideMadd a b c).1 + (u32WideMadd a b c).2 * 2 ^ 32 = a * b + c := by
   unfold u32WideMadd u32Max
   let result := b * a + c
   have h := Nat.mod_add_div result (2 ^ 32)
   simpa [result, Nat.mul_comm, Nat.add_comm, Nat.add_left_comm, Nat.add_assoc] using h
-
-/-- A widening multiplication has zero low-and-high-word sum iff the product is zero. -/
-theorem u32WideMul_sum_eq_zero_iff (a b : Nat) :
-    (u32WideMul a b).1 + (u32WideMul a b).2 = 0 ↔ a * b = 0 := by
-  unfold u32WideMul u32Max
-  change (a * b) % 2 ^ 32 + (a * b) / 2 ^ 32 = 0 ↔ a * b = 0
-  constructor
-  · intro h
-    have hlo : a * b % 2 ^ 32 = 0 := by omega
-    have hhi : a * b / 2 ^ 32 = 0 := by omega
-    have hrecomp := Nat.mod_add_div (a * b) (2 ^ 32)
-    omega
-  · intro h
-    simp [h]
 
 end MidenLean.Proofs
