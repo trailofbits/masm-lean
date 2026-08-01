@@ -131,9 +131,9 @@ The current checked manual proofs cover 95 procedures: 31 in `u64`, 36 in `u128`
 | `word::arrange_words_adjacent_le` | `word_arrange_words_adjacent_le_correct` | `word::arrange_words_adjacent_le` interleaves two words for comparison. | `MidenLean/Proofs/Word/Arrange.lean` |
 | `word::eq` | `word_eq_correct` | `word::eq` tests equality of two words. | `MidenLean/Proofs/Word/Eq.lean` |
 | `word::eqz` | `word_eqz_correct` | `word::eqz` tests whether a word is zero. | `MidenLean/Proofs/Word/Eqz.lean` |
-| `word::gt` | `word_gt_correct` | `word::gt` compares two words lexicographically. | `MidenLean/Proofs/Word/Gt.lean` |
+| `word::gt` | `word_gt_correct` | `word::gt` pushes 1 iff the deeper word (pushed first, limbs `b0..b3`) is lexicographically greater than the top word, comparing limbs from the most significant (index 3) downward. | `MidenLean/Proofs/Word/Gt.lean` |
 | `word::gte` | `word_gte_correct` | `word::gte` checks whether one word is greater than or equal to another. | `MidenLean/Proofs/Word/Gte.lean` |
-| `word::lt` | `word_lt_correct` | `word::lt` compares two words lexicographically. | `MidenLean/Proofs/Word/Lt.lean` |
+| `word::lt` | `word_lt_correct` | `word::lt` pushes 1 iff the deeper word (pushed first, limbs `b0..b3`) is lexicographically less than the top word, comparing limbs from the most significant (index 3) downward. | `MidenLean/Proofs/Word/Lt.lean` |
 | `word::lte` | `word_lte_correct` | `word::lte` checks whether one word is less than or equal to another. | `MidenLean/Proofs/Word/Lte.lean` |
 | `word::reverse` | `word_reverse_correct` | `word::reverse` reverses the first four stack elements. | `MidenLean/Proofs/Word/Reverse.lean` |
 | `word::store_word_u32s_le` | `word_store_word_u32s_le_correct` | `word::store_word_u32s_le` writes a word to memory as eight u32 limbs in little-endian order. | `MidenLean/Proofs/Word/StoreWordU32sLe.lean` |
