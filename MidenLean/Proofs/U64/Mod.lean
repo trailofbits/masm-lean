@@ -1,6 +1,7 @@
 import MidenLean.Proofs.U64.Common
 import MidenLean.Proofs.U64.Divmod
 import MidenLean.Proofs.Tactics
+import MidenLean.Symbolic.Tactic
 import MidenLean.Generated.U64
 
 namespace MidenLean.Proofs
@@ -15,7 +16,10 @@ set_option maxHeartbeats 4000000 in
     Input stack:  [b_lo, b_hi, a_lo, a_hi] ++ rest
     Advice stack: [q_lo, q_hi, r_lo, r_hi] ++ adv_rest
     Output stack: [r_hi, r_lo] ++ rest
-    Same preconditions as divmod. -/
+    Same preconditions as divmod.
+    Registered as a fixed-fuel callee summary; parametrizing over fuel is
+    future work (the proof builds on the fixed-fuel `u64_divmod_exec`). -/
+@[miden_exec_summary]
 theorem u64_mod_exec
     (a_lo a_hi b_lo b_hi : Felt) (rest : List Felt)
     (q_lo q_hi r_lo r_hi : Felt) (adv_rest : List Felt)

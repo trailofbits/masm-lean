@@ -11,13 +11,18 @@ set_option maxHeartbeats 4000000 in
 /-- `u64::widening_add` computes widening addition of two u64 values.
     Input stack:  [b_lo, b_hi, a_lo, a_hi] ++ rest
     Output stack: [c_lo, c_hi, overflow] ++ rest
-    where (c_hi, c_lo) is the 64-bit sum and overflow is the carry bit. -/
+    where (c_hi, c_lo) is the 64-bit sum and overflow is the carry bit.
+    Parametric in `fuel` so this lemma serves both as a callee summary for
+    reflective callers and as the basis for `u64_widening_add_correct`. The
+    env is fixed to `u64ProcEnv` to resolve the `exec overflowing_add` call. -/
+@[miden_exec_summary]
 theorem u64_widening_add_exec
+    (fuel : Nat)
     (a_lo a_hi b_lo b_hi : Felt) (rest : List Felt) (s : Concrete.State)
     (hs : s.stack = b_lo :: b_hi :: a_lo :: a_hi :: rest)
     (ha_lo : a_lo.isU32 = true) (ha_hi : a_hi.isU32 = true)
     (hb_lo : b_lo.isU32 = true) (hb_hi : b_hi.isU32 = true) :
-    execProcedure u64ProcEnv 10 s Miden.Core.U64.widening_add =
+    execProcedure u64ProcEnv (fuel + 2) s Miden.Core.U64.widening_add =
     some (s.withStack (
       let lo_sum := b_lo.val + a_lo.val
       let carry := lo_sum / 2^32
@@ -37,7 +42,7 @@ theorem u64_widening_add_correct (a b : U64) (rest : List Felt) (s : Concrete.St
     some (s.withStack (
       (a + b).lo.val :: (a + b).hi.val ::
       (if a.toNat + b.toNat ≥ 2^64 then (1 : Felt) else 0) :: rest)) := by
-  rw [u64_widening_add_exec a.lo.val a.hi.val b.lo.val b.hi.val rest s hs a.lo.isU32 a.hi.isU32 b.lo.isU32 b.hi.isU32]
+  rw [u64_widening_add_exec 8 a.lo.val a.hi.val b.lo.val b.hi.val rest s hs a.lo.isU32 a.hi.isU32 b.lo.isU32 b.hi.isU32]
   show _ = some (s.withStack (
     Felt.ofNat ((a.toNat + b.toNat) % 2^32) ::
     Felt.ofNat (((a.toNat + b.toNat) / 2^32) % 2^32) ::

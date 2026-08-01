@@ -12,11 +12,15 @@ set_option maxHeartbeats 4000000 in
 /-- `u64::eqz` tests whether a u64 value is zero, limb by limb.
     Input stack:  [lo, hi] ++ rest
     Output stack: [is_zero] ++ rest
-    where is_zero = 1 iff both input limbs are zero. -/
+    where is_zero = 1 iff both input limbs are zero.
+    Parametric in `env` and `fuel` so this lemma serves both as a callee
+    summary for reflective callers and as the basis for `u64_eqz_correct`. -/
+@[miden_exec_summary]
 theorem u64_eqz_exec
+    (env : ProcEnv) (fuel : Nat)
     (lo hi : Felt) (rest : List Felt) (s : Concrete.State)
     (hs : s.stack = lo :: hi :: rest) :
-    execProcedure emptyEnv 9 s Miden.Core.U64.eqz =
+    execProcedure env (fuel + 1) s Miden.Core.U64.eqz =
     some (s.withStack (
       (if (lo == (0 : Felt)) && (hi == (0 : Felt))
        then (1 : Felt) else 0) :: rest)) := by
@@ -32,6 +36,6 @@ theorem u64_eqz_correct (a : U64) (rest : List Felt) (s : Concrete.State)
     some (s.withStack (
       (if a == U64.ofNat 0 then (1 : Felt) else 0) :: rest)) := by
   simp only [U64.beq_iff, U64.ofNat]
-  exact u64_eqz_exec a.lo.val a.hi.val rest s hs
+  exact u64_eqz_exec emptyEnv 8 a.lo.val a.hi.val rest s hs
 
 end MidenLean.Proofs

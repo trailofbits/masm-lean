@@ -11,10 +11,14 @@ set_option maxHeartbeats 4000000 in
 /-- `u64::eq` tests equality of two u64 values, limb by limb.
     Input stack:  [b_lo, b_hi, a_lo, a_hi] ++ rest
     Output stack: [result] ++ rest
-    where result = 1 iff b_lo == a_lo && b_hi == a_hi, else 0. -/
-theorem u64_eq_exec (b_lo b_hi a_lo a_hi : Felt) (rest : List Felt) (s : Concrete.State)
+    where result = 1 iff b_lo == a_lo && b_hi == a_hi, else 0.
+    Parametric in `env` and `fuel` so this lemma serves both as a callee
+    summary for reflective callers and as the basis for `u64_eq_correct`. -/
+@[miden_exec_summary]
+theorem u64_eq_exec (env : ProcEnv) (fuel : Nat)
+    (b_lo b_hi a_lo a_hi : Felt) (rest : List Felt) (s : Concrete.State)
     (hs : s.stack = b_lo :: b_hi :: a_lo :: a_hi :: rest) :
-    execProcedure emptyEnv 10 s Miden.Core.U64.eq =
+    execProcedure env (fuel + 1) s Miden.Core.U64.eq =
     some (s.withStack (
       (if (b_lo == a_lo) && (b_hi == a_hi)
        then (1 : Felt) else 0) :: rest)) := by
@@ -29,7 +33,7 @@ theorem u64_eq_correct (a b : U64) (rest : List Felt) (s : Concrete.State)
     execProcedure emptyEnv 10 s Miden.Core.U64.eq =
     some (s.withStack (
       (if a == b then (1 : Felt) else 0) :: rest)) := by
-  have h := u64_eq_exec b.lo.val b.hi.val a.lo.val a.hi.val rest s hs
+  have h := u64_eq_exec emptyEnv 9 b.lo.val b.hi.val a.lo.val a.hi.val rest s hs
   rw [U64.beq_comm a b]; exact h
 
 end MidenLean.Proofs

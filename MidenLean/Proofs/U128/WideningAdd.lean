@@ -12,16 +12,19 @@ set_option maxHeartbeats 8000000 in
 /-- `u128::widening_add` computes widening addition of two 128-bit values (raw limb version).
     Input stack:  [b0, b1, b2, b3, a0, a1, a2, a3] ++ rest
     Output stack: [c0, c1, c2, c3, overflow] ++ rest
-    where `c0..c3` are the low-to-high limbs of `a + b` and `overflow` is the carry-out. -/
+    where `c0..c3` are the low-to-high limbs of `a + b` and `overflow` is the carry-out.
+    Parametric in `fuel` so this lemma serves both as a callee summary for
+    reflective callers and as the basis for `u128_widening_add_correct`. -/
 @[miden_exec_summary]
 theorem u128_widening_add_exec
+    (fuel : Nat)
     (a0 a1 a2 a3 b0 b1 b2 b3 : Felt) (rest : List Felt) (s : Concrete.State)
     (hs : s.stack = b0 :: b1 :: b2 :: b3 :: a0 :: a1 :: a2 :: a3 :: rest)
     (ha0 : a0.isU32 = true) (ha1 : a1.isU32 = true)
     (ha2 : a2.isU32 = true) (ha3 : a3.isU32 = true)
     (hb0 : b0.isU32 = true) (hb1 : b1.isU32 = true)
     (hb2 : b2.isU32 = true) (hb3 : b3.isU32 = true) :
-    execProcedure u128ProcEnv 31 s Miden.Core.U128.widening_add =
+    execProcedure u128ProcEnv (fuel + 2) s Miden.Core.U128.widening_add =
     some (s.withStack (
       let sum0 := b0.val + a0.val
       let carry0 := sum0 / 2 ^ 32
@@ -48,7 +51,7 @@ theorem u128_widening_add_correct (a b : U128) (rest : List Felt) (s : Concrete.
     some (s.withStack (
       (a + b).a0.val :: (a + b).a1.val :: (a + b).a2.val :: (a + b).a3.val ::
       Felt.ofNat ((a.toNat + b.toNat) / 2^128) :: rest)) := by
-  have h := u128_widening_add_exec a.a0.val a.a1.val a.a2.val a.a3.val
+  have h := u128_widening_add_exec 29 a.a0.val a.a1.val a.a2.val a.a3.val
     b.a0.val b.a1.val b.a2.val b.a3.val rest s hs
     a.a0.isU32 a.a1.isU32 a.a2.isU32 a.a3.isU32
     b.a0.isU32 b.a1.isU32 b.a2.isU32 b.a3.isU32

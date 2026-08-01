@@ -1,6 +1,7 @@
 import MidenLean.Proofs.U64.Common
 import MidenLean.Proofs.U128.Common
 import MidenLean.Proofs.Tactics
+import MidenLean.Symbolic.Tactic
 import MidenLean.Generated.U64
 
 namespace MidenLean.Proofs
@@ -241,7 +242,10 @@ set_option maxHeartbeats 12000000 in
 /-- Raw version of `u64::widening_mul` with explicit Felt arguments.
     Input stack:  [b_lo, b_hi, a_lo, a_hi] ++ rest
     Output stack: [c0, c1, c2, c3] ++ rest
-    where (c3, c2, c1, c0) is the 128-bit product a * b. -/
+    where (c3, c2, c1, c0) is the 128-bit product a * b.
+    Registered as a fixed-fuel callee summary; parametrizing over fuel is
+    future work (the manual proof unfolds at the concrete fuel). -/
+@[miden_exec_summary]
 theorem u64_widening_mul_exec
     (a_lo a_hi b_lo b_hi : Felt) (rest : List Felt) (s : Concrete.State)
     (hs : s.stack = b_lo :: b_hi :: a_lo :: a_hi :: rest)

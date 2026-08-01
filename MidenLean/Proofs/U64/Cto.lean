@@ -9,17 +9,34 @@ open MidenLean
 open MidenLean.Tactics
 
 set_option maxHeartbeats 8000000 in
-/-- `u64::cto` raw: result in terms of u32CountTrailingZeros on XOR-complemented limbs. -/
-theorem u64_cto_exec (lo hi : Felt) (rest : List Felt) (s : Concrete.State)
+private theorem u64_cto_exec_concrete (env : ProcEnv)
+    (lo hi : Felt) (rest : List Felt) (s : Concrete.State)
     (hs : s.stack = lo :: hi :: rest)
     (hlo : lo.isU32 = true) (hhi : hi.isU32 = true) :
-    execProcedure emptyEnv 20 s Miden.Core.U64.cto =
+    execProcedure env 2 s Miden.Core.U64.cto =
     some (s.withStack (
       (if lo == (4294967295 : Felt)
        then Felt.ofNat (u32CountTrailingZeros (hi.val ^^^ (u32Max - 1))) + 32
        else Felt.ofNat (u32CountTrailingZeros (lo.val ^^^ (u32Max - 1)))) :: rest)) := by
   miden_vcg
   all_goals miden_finish_reflection
+
+/-- `u64::cto` raw: result in terms of u32CountTrailingZeros on XOR-complemented limbs.
+    Parametric in `env` and `fuel` (derived from the concrete-fuel proof by
+    fuel monotonicity) so this lemma serves both as a callee summary for
+    reflective callers and as the basis for `u64_cto_correct`. -/
+@[miden_exec_summary]
+theorem u64_cto_exec (env : ProcEnv) (fuel : Nat)
+    (lo hi : Felt) (rest : List Felt) (s : Concrete.State)
+    (hs : s.stack = lo :: hi :: rest)
+    (hlo : lo.isU32 = true) (hhi : hi.isU32 = true) :
+    execProcedure env (fuel + 2) s Miden.Core.U64.cto =
+    some (s.withStack (
+      (if lo == (4294967295 : Felt)
+       then Felt.ofNat (u32CountTrailingZeros (hi.val ^^^ (u32Max - 1))) + 32
+       else Felt.ofNat (u32CountTrailingZeros (lo.val ^^^ (u32Max - 1)))) :: rest)) :=
+  execProcedure_fuel_mono (by omega)
+    (u64_cto_exec_concrete env lo hi rest s hs hlo hhi)
 
 /-- `u64::cto` counts trailing ones of a u64 value.
     Input stack:  [a.lo, a.hi] ++ rest
@@ -28,7 +45,7 @@ theorem u64_cto_correct (a : U64) (rest : List Felt) (s : Concrete.State)
     (hs : s.stack = a.lo.val :: a.hi.val :: rest) :
     execProcedure emptyEnv 20 s Miden.Core.U64.cto =
     some (s.withStack (Felt.ofNat a.countTrailingOnes :: rest)) := by
-  have h := u64_cto_exec a.lo.val a.hi.val rest s hs a.lo.isU32 a.hi.isU32
+  have h := u64_cto_exec emptyEnv 18 a.lo.val a.hi.val rest s hs a.lo.isU32 a.hi.isU32
   unfold U64.countTrailingOnes u32CountTrailingOnes
   by_cases hlo : a.lo.val.val = 2^32 - 1
   · rw [if_pos hlo, felt_ofNat_add]

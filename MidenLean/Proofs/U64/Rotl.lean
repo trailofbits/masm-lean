@@ -1,5 +1,6 @@
 import MidenLean.Proofs.U64.Common
 import MidenLean.Proofs.Tactics
+import MidenLean.Symbolic.Tactic
 
 namespace MidenLean.Proofs
 
@@ -190,7 +191,10 @@ private theorem rotl_chunk4_correct
   cases decide (31 < shift.val) <;> simp only [pure, Pure.pure]
 
 set_option maxHeartbeats 16000000 in
-/-- `u64::rotl` raw: result in terms of schoolbook multiplication of limbs. -/
+/-- `u64::rotl` raw: result in terms of schoolbook multiplication of limbs.
+    Registered as a fixed-fuel callee summary; parametrizing over fuel is
+    future work (the manual proof unfolds at the concrete fuel). -/
+@[miden_exec_summary]
 theorem u64_rotl_exec
     (lo hi shift : Felt) (rest : List Felt) (s : Concrete.State)
     (hs : s.stack = shift :: lo :: hi :: rest)

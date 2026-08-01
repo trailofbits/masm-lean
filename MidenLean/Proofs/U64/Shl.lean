@@ -7,12 +7,6 @@ open MidenLean
 open MidenLean.StepLemmas
 open MidenLean.Tactics
 
-/-- Procedure environment for shl that includes wrapping_mul. -/
-private def shlProcEnv : ProcEnv := fun name =>
-  match name with
-  | "wrapping_mul" => some Miden.Core.U64.wrapping_mul
-  | _ => none
-
 set_option maxHeartbeats 16000000 in
 /-- `u64::shl` raw: result in terms of schoolbook multiplication of limbs. -/
 theorem u64_shl_exec
@@ -24,7 +18,7 @@ theorem u64_shl_exec
     let pow := Felt.ofNat (2 ^ shift.val)
     let pow_lo := pow.lo32
     let pow_hi := pow.hi32
-    execProcedure shlProcEnv 20 s Miden.Core.U64.shl =
+    execProcedure u64ProcEnv 20 s Miden.Core.U64.shl =
     some (s.withStack (
       let prod_lo := pow_lo.val * lo.val
       let cross1 := hi.val * pow_lo.val + prod_lo / 2^32
@@ -32,7 +26,7 @@ theorem u64_shl_exec
       Felt.ofNat (prod_lo % 2^32) :: Felt.ofNat (cross2 % 2^32) :: rest)) := by
   miden_setup_env Miden.Core.U64.shl
   -- Resolve the wrapping_mul procedure call
-  simp only [shlProcEnv]
+  simp only [u64ProcEnv]
   unfold Miden.Core.U64.wrapping_mul execProcedure
   simp only [List.foldlM, bind, Bind.bind, Option.bind, pure, Pure.pure]
   -- shl preamble: pow2; u32Split; movup 2; movup 3; swap 1
@@ -115,7 +109,7 @@ theorem u64_shl_exec
 theorem u64_shl_correct (a : U64) (shift : Felt) (rest : List Felt) (s : Concrete.State)
     (hs : s.stack = shift :: a.lo.val :: a.hi.val :: rest)
     (hshift : shift.val ≤ 63) :
-    execProcedure shlProcEnv 20 s Miden.Core.U64.shl =
+    execProcedure u64ProcEnv 20 s Miden.Core.U64.shl =
     some (s.withStack ((a.shl shift.val).lo.val :: (a.shl shift.val).hi.val :: rest)) := by
   rw [u64_shl_exec a.lo.val a.hi.val shift rest s hs hshift a.lo.isU32 a.hi.isU32]
   -- Recover lo32/hi32 val to natural numbers

@@ -1,5 +1,6 @@
 import MidenLean.Proofs.U64.Common
 import MidenLean.Proofs.Tactics
+import MidenLean.Symbolic.Tactic
 
 namespace MidenLean.Proofs
 
@@ -320,7 +321,10 @@ private theorem shr_chunk3_correct
   rfl
 
 set_option maxHeartbeats 16000000 in
-/-- `u64::shr` raw: result in terms of field arithmetic on limbs. -/
+/-- `u64::shr` raw: result in terms of field arithmetic on limbs.
+    Registered as a fixed-fuel callee summary; parametrizing over fuel is
+    future work (the manual proof unfolds at the concrete fuel). -/
+@[miden_exec_summary]
 theorem u64_shr_exec
     (lo hi shift : Felt) (rest : List Felt) (s : Concrete.State)
     (hs : s.stack = shift :: lo :: hi :: rest)
