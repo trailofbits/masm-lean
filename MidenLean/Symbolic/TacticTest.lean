@@ -109,44 +109,36 @@ theorem locaddr_test (rest : List Felt)
       rest, mem, [], []⟩ := by
   miden_reflect
 
-/- NOTE(known-broken): the two `numLocals > 0` local-memory reflection tests
-below fail with `(kernel) deep recursion detected` while kernel-checking the
-reflected proof term (independent of the driving tactic and of `maxRecDepth`).
-The defect predates the QA-cleanup branch and was masked while this file
-failed to elaborate after the `Concrete/` restructure. Re-enable once the
-locals reflection path produces kernel-friendly terms. -/
--- set_option maxRecDepth 8192 in
--- set_option maxHeartbeats 1600000 in
--- /-- Test `miden_reflect` with `locStorewBe` + `locLoadwBe`. -/
--- theorem locStorewBeLoadwBe_test (w0 w1 w2 w3 tail : Felt) (rest : List Felt)
---     :
---     MidenLean.execProcedure MidenLean.emptyEnv 10
---       ⟨w0 :: w1 :: w2 :: w3 :: tail :: rest, fun _ => (0 : Felt), [], []⟩
---       ⟨"test_locstorewbeloadwbe", 4, [.inst (.locStorewBe 0), .inst (.locLoadwBe 0)]⟩ =
---     some ⟨w0 :: w1 :: w2 :: w3 :: tail :: rest,
---           fun addr =>
---             if addr = MidenLean.LOCAL_MEM_BASE then w3
---             else if addr = MidenLean.LOCAL_MEM_BASE + 1 then w2
---             else if addr = MidenLean.LOCAL_MEM_BASE + 2 then w1
---             else if addr = MidenLean.LOCAL_MEM_BASE + 3 then w0
---             else (0 : Felt),
---           [],
---           []⟩ := by
---   miden_reflect
---
--- set_option maxRecDepth 8192 in
--- set_option maxHeartbeats 800000 in
--- /-- Test `miden_reflect` on the `numLocals > 0` path with `locStore` + `locLoad`. -/
--- theorem locStoreLoad_test (a b : Felt) (rest : List Felt)
---     :
---     MidenLean.execProcedure MidenLean.emptyEnv 10
---       ⟨a :: b :: rest, fun _ => (0 : Felt), [], []⟩
---       ⟨"test_locstoreload", 2, [.inst (.locStore 0), .inst (.locLoad 0)]⟩ =
---     some ⟨a :: b :: rest,
---           fun addr => if addr = MidenLean.LOCAL_MEM_BASE then a else (0 : Felt),
---           [],
---           []⟩ := by
---   miden_reflect
+set_option maxHeartbeats 1600000 in
+/-- Test `miden_reflect` with `locStorewBe` + `locLoadwBe`. -/
+theorem locStorewBeLoadwBe_test (w0 w1 w2 w3 tail : Felt) (rest : List Felt)
+    :
+    MidenLean.execProcedure MidenLean.emptyEnv 10
+      ⟨w0 :: w1 :: w2 :: w3 :: tail :: rest, fun _ => (0 : Felt), [], []⟩
+      ⟨"test_locstorewbeloadwbe", 4, [.inst (.locStorewBe 0), .inst (.locLoadwBe 0)]⟩ =
+    some ⟨w0 :: w1 :: w2 :: w3 :: tail :: rest,
+          fun addr =>
+            if addr = MidenLean.LOCAL_MEM_BASE then w3
+            else if addr = MidenLean.LOCAL_MEM_BASE + 1 then w2
+            else if addr = MidenLean.LOCAL_MEM_BASE + 2 then w1
+            else if addr = MidenLean.LOCAL_MEM_BASE + 3 then w0
+            else (0 : Felt),
+          [],
+          []⟩ := by
+  miden_reflect
+
+set_option maxHeartbeats 800000 in
+/-- Test `miden_reflect` on the `numLocals > 0` path with `locStore` + `locLoad`. -/
+theorem locStoreLoad_test (a b : Felt) (rest : List Felt)
+    :
+    MidenLean.execProcedure MidenLean.emptyEnv 10
+      ⟨a :: b :: rest, fun _ => (0 : Felt), [], []⟩
+      ⟨"test_locstoreload", 2, [.inst (.locStore 0), .inst (.locLoad 0)]⟩ =
+    some ⟨a :: b :: rest,
+          fun addr => if addr = MidenLean.LOCAL_MEM_BASE then a else (0 : Felt),
+          [],
+          []⟩ := by
+  miden_reflect
 
 /--
 error: miden_reflect: `.exec` target "lt" is missing from the concrete `ProcEnv`. Use `execProcedure` with a reducible environment or pass `using Γ`.

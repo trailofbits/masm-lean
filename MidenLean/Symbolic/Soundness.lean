@@ -1192,10 +1192,8 @@ theorem execProcedure_basic_block_locals
     (hnoexec : insts.all (fun i => !isExecInst i) = true) :
     MidenLean.execProcedure env fuel s ⟨name, k + 1, ops⟩ =
     let aligned := MidenLean.alignLocals (k + 1)
-    let base := match s.frames with
-      | [] => 0
-      | f :: _ => f.base + f.alignedNumLocals
-    let frame : MidenLean.LocalFrame := { base, numLocals := k + 1,
+    let frame : MidenLean.LocalFrame := { base := MidenLean.localsBase s.frames,
+                                           numLocals := k + 1,
                                            alignedNumLocals := aligned }
     let s' := { s with frames := frame :: s.frames }
     match Concrete.execBlock insts s' with

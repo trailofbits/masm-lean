@@ -885,6 +885,16 @@ def execMemLoadwLeImm (addr : Nat) (s : Concrete.State) : Option Concrete.State 
 def alignLocals (n : Nat) : Nat :=
   (n + 3) / 4 * 4
 
+/-- Base address (relative to `LOCAL_MEM_BASE`) of a fresh local frame pushed
+    on top of `frames`. Mirrors the inline allocation in `execProcedure`.
+    Statement-level mentions of frame allocation should use this named
+    function rather than an inline `match`: unreduced copies of the match
+    inside reflected proof terms get duplicated per local-memory address and
+    blow the kernel's recursion limit during defeq checking. -/
+def localsBase : List LocalFrame → Nat
+  | [] => 0
+  | f :: _ => f.base + f.alignedNumLocals
+
 /-- Get the current (topmost) local frame, if any. -/
 def currentFrame (frames : List LocalFrame) : Option LocalFrame :=
   frames.head?

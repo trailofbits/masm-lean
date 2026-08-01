@@ -30,20 +30,46 @@ def concreteState (stackPrefix : List Felt) (mem : Nat → Felt)
     frames := frames
     advice := adv.map Expr.lit }
 
+@[simp, miden_reflect_norm] theorem localsBase_nil : MidenLean.localsBase [] = 0 := rfl
+
+@[simp, miden_reflect_norm] theorem localsBase_cons
+    (f : MidenLean.LocalFrame) (fs : List MidenLean.LocalFrame) :
+    MidenLean.localsBase (f :: fs) = f.base + f.alignedNumLocals := rfl
+
 /-- Concrete literal symbolic state for the `numLocals > 0` reflection path.
     It pre-pushes the fresh local frame that `execProcedure` would allocate. -/
 def concreteStateWithLocals (stackPrefix : List Felt) (mem : Nat → Felt)
     (frames : List MidenLean.LocalFrame) (adv : List Felt)
     (numLocals : Nat) : State :=
   let aligned := MidenLean.alignLocals numLocals
-  let base := match frames with
-    | [] => 0
-    | f :: _ => f.base + f.alignedNumLocals
-  let frame : MidenLean.LocalFrame := { base, numLocals, alignedNumLocals := aligned }
+  let frame : MidenLean.LocalFrame :=
+    { base := MidenLean.localsBase frames, numLocals, alignedNumLocals := aligned }
   { stack := stackPrefix.map Expr.lit
     memory := fun addr => Expr.lit (mem addr)
     frames := frame :: frames
     advice := adv.map Expr.lit }
+
+@[simp, miden_reflect_norm] theorem concreteState_frames
+    (stackPrefix : List Felt) (mem : Nat → Felt)
+    (frames : List MidenLean.LocalFrame) (adv : List Felt) :
+    (concreteState stackPrefix mem frames adv).frames = frames := rfl
+
+@[simp, miden_reflect_norm] theorem concreteState_stack
+    (stackPrefix : List Felt) (mem : Nat → Felt)
+    (frames : List MidenLean.LocalFrame) (adv : List Felt) :
+    (concreteState stackPrefix mem frames adv).stack = stackPrefix.map Expr.lit := rfl
+
+@[simp, miden_reflect_norm] theorem concreteState_advice
+    (stackPrefix : List Felt) (mem : Nat → Felt)
+    (frames : List MidenLean.LocalFrame) (adv : List Felt) :
+    (concreteState stackPrefix mem frames adv).advice = adv.map Expr.lit := rfl
+
+@[simp, miden_reflect_norm] theorem concreteStateWithLocals_frames
+    (stackPrefix : List Felt) (mem : Nat → Felt)
+    (frames : List MidenLean.LocalFrame) (adv : List Felt) (numLocals : Nat) :
+    (concreteStateWithLocals stackPrefix mem frames adv numLocals).frames =
+      { base := MidenLean.localsBase frames, numLocals,
+        alignedNumLocals := MidenLean.alignLocals numLocals } :: frames := rfl
 
 @[simp, miden_reflect_norm] theorem map_eval_lit_comp_zero (xs : List Felt) :
     List.map ((Expr.eval (fun _ => 0)) ∘ Expr.lit) xs = xs := by
@@ -164,10 +190,8 @@ def concreteStateWithLocals (stackPrefix : List Felt) (mem : Nat → Felt)
     (numLocals : Nat) :
     (concreteStateWithLocals stackPrefix mem frames adv numLocals).models
       (let aligned := MidenLean.alignLocals numLocals
-       let base := match frames with
-         | [] => 0
-         | f :: _ => f.base + f.alignedNumLocals
-       let frame : MidenLean.LocalFrame := { base, numLocals, alignedNumLocals := aligned }
+       let frame : MidenLean.LocalFrame :=
+         { base := MidenLean.localsBase frames, numLocals, alignedNumLocals := aligned }
        ⟨stackPrefix ++ rest, mem, frame :: frames, adv⟩) (fun _ => 0) rest := by
   refine ⟨?_, ?_, rfl, ?_⟩
   · simp [concreteStateWithLocals]
@@ -226,8 +250,8 @@ theorem reflect_with_env_locals
     (hnoexec : insts.all (fun i => !isExecInst i) = true)
     (hmodels : initSS.models
       (let aligned := MidenLean.alignLocals (k + 1)
-       let base := match frames with | [] => 0 | f :: _ => f.base + f.alignedNumLocals
-       let frame : MidenLean.LocalFrame := { base, numLocals := k + 1, alignedNumLocals := aligned }
+       let frame : MidenLean.LocalFrame :=
+         { base := MidenLean.localsBase frames, numLocals := k + 1, alignedNumLocals := aligned }
        ⟨stack, mem, frame :: frames, adv⟩) σ rest)
     (hresult : execBlock insts initSS = some result)
     (hpreconds : ∀ p ∈ result.preconditions, p.holds σ) :
@@ -556,10 +580,8 @@ def execProcedure (senv : MidenLean.Symbolic.ProcEnv) (proc : Procedure) (s : St
       execOps senv proc.body s
   | k + 1 =>
       let aligned := MidenLean.alignLocals (k + 1)
-      let base := match s.frames with
-        | [] => 0
-        | f :: _ => f.base + f.alignedNumLocals
-      let frame : MidenLean.LocalFrame := { base, numLocals := k + 1, alignedNumLocals := aligned }
+      let frame : MidenLean.LocalFrame := { base := MidenLean.localsBase s.frames,
+                                            numLocals := k + 1, alignedNumLocals := aligned }
       let s' := { s with frames := frame :: s.frames }
       match execOps senv proc.body s' with
       | some result =>
@@ -620,17 +642,13 @@ theorem execProcedure_sound
           exact ⟨cs', hconc', hmod⟩
       | succ k =>
           let aligned := MidenLean.alignLocals (k + 1)
-          let base := match ss.frames with
-            | [] => 0
-            | f :: _ => f.base + f.alignedNumLocals
+          let base := MidenLean.localsBase ss.frames
           let frame : MidenLean.LocalFrame := { base, numLocals := k + 1, alignedNumLocals := aligned }
           let ss' : State := { ss with frames := frame :: ss.frames }
           have hframes0 : cs.frames = ss.frames := by
             rcases hmodels with ⟨_, _, hframes0, _⟩
             exact hframes0
-          let cbase := match cs.frames with
-            | [] => 0
-            | f :: _ => f.base + f.alignedNumLocals
+          let cbase := MidenLean.localsBase cs.frames
           let cframe : MidenLean.LocalFrame :=
             { base := cbase, numLocals := k + 1, alignedNumLocals := MidenLean.alignLocals (k + 1) }
           let cs' : Concrete.State := { cs with frames := cframe :: cs.frames }
