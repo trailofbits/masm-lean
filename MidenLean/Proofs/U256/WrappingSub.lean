@@ -1,13 +1,12 @@
 import MidenLean.Proofs.U256.Common
 import MidenLean.Proofs.U256.U256LeToBePair
 import MidenLean.Proofs.U256.SubWithBorrowBe
-import MidenLean.Proofs.Tactics
+import MidenLean.Proofs.StepLemmas
 
 namespace MidenLean.Proofs
 
 open MidenLean
 open MidenLean.StepLemmas
-open MidenLean.Tactics
 
 set_option maxHeartbeats 4000000 in
 /-- `u256::wrapping_sub` computes `(a - b) mod 2^256` for two 256-bit values.

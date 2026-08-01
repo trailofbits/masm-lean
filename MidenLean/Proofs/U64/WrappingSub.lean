@@ -1,11 +1,9 @@
 import MidenLean.Proofs.U64.Common
-import MidenLean.Proofs.Tactics
 import MidenLean.Symbolic.Tactic
 
 namespace MidenLean.Proofs
 
 open MidenLean
-open MidenLean.StepLemmas
 open MidenLean.Tactics
 
 set_option maxHeartbeats 8000000 in

@@ -3,14 +3,11 @@ import MidenLean.Proofs.U256.U256LeToBePair
 import MidenLean.Proofs.U256.Mulstep
 import MidenLean.Proofs.U256.Mulstep4
 import MidenLean.Proofs.U256.WrappingMulBridge
-import MidenLean.Proofs.Tactics
 import MidenLean.Proofs.Helpers
 
 namespace MidenLean.Proofs
 
 open MidenLean
-open MidenLean.StepLemmas
-open MidenLean.Tactics
 
 -- ============================================================================
 -- Precomputed alignment/bounds proofs

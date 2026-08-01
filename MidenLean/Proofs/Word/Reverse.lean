@@ -1,11 +1,10 @@
-import MidenLean.Proofs.Tactics
 import MidenLean.Generated.Word
+import MidenLean.Proofs.StepLemmas
 
 namespace MidenLean.Proofs
 
 open MidenLean
 open MidenLean.StepLemmas
-open MidenLean.Tactics
 
 /-- `word::reverse` reverses the first four stack elements.
     Input stack:  [a, b, c, d] ++ rest

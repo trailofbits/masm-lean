@@ -1,5 +1,14 @@
 import MidenLean.Felt
 
+/-!
+# Concrete VM State
+
+`Concrete.State`: the Miden VM state as an operand stack (head = top),
+total-function memory (`Nat → Felt`, zero-initialized, following LNSym /
+eth-isabelle / Cairo practice), a stack of local frames for procedure
+locals, and the nondeterministic advice stack.
+-/
+
 namespace MidenLean
 
 /-- Base address of the local-memory region. -/

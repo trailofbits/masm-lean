@@ -59,7 +59,9 @@ private theorem lt_iteration_init
   lt_iteration false true b_i a_i tail mem frames adv
 
 set_option maxHeartbeats 16000000 in
-/-- `word::lt` compares two words lexicographically. -/
+/-- `word::lt` pushes 1 iff the deeper word (pushed first, limbs `b0..b3`) is
+    lexicographically less than the top word, comparing limbs from the most
+    significant (index 3) downward. -/
 theorem word_lt_correct
     (a0 a1 a2 a3 b0 b1 b2 b3 : Felt) (rest : List Felt) (s : Concrete.State)
     (hs : s.stack = a0 :: a1 :: a2 :: a3 :: b0 :: b1 :: b2 :: b3 :: rest) :

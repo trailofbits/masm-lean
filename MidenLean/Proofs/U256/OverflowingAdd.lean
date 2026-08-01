@@ -1,13 +1,12 @@
 import MidenLean.Proofs.U256.Common
 import MidenLean.Proofs.U256.U256LeToBePair
 import MidenLean.Proofs.U256.AddWithCarryBe
-import MidenLean.Proofs.Tactics
+import MidenLean.Proofs.StepLemmas
 
 namespace MidenLean.Proofs
 
 open MidenLean
 open MidenLean.StepLemmas
-open MidenLean.Tactics
 
 -- ============================================================================
 -- Main theorem

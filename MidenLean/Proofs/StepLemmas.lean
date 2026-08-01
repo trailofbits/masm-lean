@@ -1,26 +1,39 @@
 import MidenLean.Proofs.Helpers
 
+/-!
+# Step Lemmas
+
+One lemma per instruction pre-computing the effect of a single
+`execInstruction` call (`stepDrop`, `stepDup`, ...), parametric where
+possible with explicit range hypotheses for `movup`/`movdn`. These are the
+building blocks of the manual proof style; `miden_vcg`-style proofs go
+through the symbolic executor instead and do not use them.
+-/
+
 namespace MidenLean.StepLemmas
+
+/- One file-level heartbeat budget instead of a copy-pasted per-lemma
+   override on all 82 lemmas: at that density the annotations carried no
+   information about which lemma is actually expensive. The word-width step
+   lemmas (dupw/swapw/movupw) are the reason for the size. -/
+set_option maxHeartbeats 4000000
 
 open MidenLean
 
 -- Stack manipulation
 
-set_option maxHeartbeats 400000 in
 theorem stepDrop (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (a : Felt) (rest : List Felt) :
     execInstruction ⟨a :: rest, mem, frames, adv⟩ .drop =
     some ⟨rest, mem, frames, adv⟩ := by
   unfold execInstruction execDrop; rfl
 
-set_option maxHeartbeats 400000 in
 theorem stepDropw (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (a b c d : Felt) (rest : List Felt) :
     execInstruction ⟨a :: b :: c :: d :: rest, mem, frames, adv⟩ .dropw =
     some ⟨rest, mem, frames, adv⟩ := by
   unfold execInstruction execDropw; rfl
 
-set_option maxHeartbeats 800000 in
 /-- Parametric dup: copies the element at index `n` to the top of the stack. -/
 theorem stepDup (n : Fin 16) (stk : List Felt) (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (v : Felt) (h : stk[n.val]? = some v) :
@@ -29,7 +42,6 @@ theorem stepDup (n : Fin 16) (stk : List Felt) (mem : Nat → Felt) (frames : Li
   unfold execInstruction execDup
   simp [h, Concrete.State.withStack]
 
-set_option maxHeartbeats 4000000 in
 /-- Parametric swap: swaps the top element with the element at index `n`.
     After the rewrite, the result stack contains `List.set` operations;
     use `dsimp only [List.set]` to normalize on concrete lists. -/
@@ -43,7 +55,6 @@ theorem stepSwap (n : Fin 16) (stk : List Felt) (mem : Nat → Felt) (frames : L
 
 -- movup and movdn: parametric forms
 
-set_option maxHeartbeats 4000000 in
 /-- Parametric movup: removes element at index `n` and places it on top.
     After the rewrite, the result stack contains `List.eraseIdx`;
     use `dsimp only [List.eraseIdx]` to normalize on concrete lists. -/
@@ -54,7 +65,6 @@ theorem stepMovup (n : Nat) (stk : List Felt) (mem : Nat → Felt) (frames : Lis
   unfold execInstruction execMovup removeNth
   simp [hn, hv, Concrete.State.withStack]
 
-set_option maxHeartbeats 4000000 in
 /-- Parametric movdn: pops the top element and inserts it at position `n`.
     After the rewrite, the result stack contains `insertAt`;
     use `dsimp only [insertAt, List.take, List.drop, List.append]` to normalize. -/
@@ -65,14 +75,12 @@ theorem stepMovdn (n : Nat) (mem : Nat → Felt) (frames : List LocalFrame) (adv
   unfold execInstruction execMovdn
   simp [hn, Concrete.State.withStack]
 
-set_option maxHeartbeats 400000 in
 theorem stepReversew (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (a b c d : Felt) (rest : List Felt) :
     execInstruction ⟨a :: b :: c :: d :: rest, mem, frames, adv⟩ .reversew =
     some ⟨d :: c :: b :: a :: rest, mem, frames, adv⟩ := by
   unfold execInstruction execReversew; rfl
 
-set_option maxHeartbeats 800000 in
 theorem stepDupw0 (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (a b c d : Felt) (rest : List Felt) :
     execInstruction ⟨a :: b :: c :: d :: rest, mem, frames, adv⟩ (.dupw 0) =
@@ -80,7 +88,6 @@ theorem stepDupw0 (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Fe
   unfold execInstruction execDupw
   simp [Concrete.State.withStack]
 
-set_option maxHeartbeats 800000 in
 theorem stepDupw1 (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (a0 a1 a2 a3 b0 b1 b2 b3 : Felt) (rest : List Felt) :
     execInstruction ⟨a0 :: a1 :: a2 :: a3 :: b0 :: b1 :: b2 :: b3 :: rest, mem, frames, adv⟩ (.dupw 1) =
@@ -88,7 +95,6 @@ theorem stepDupw1 (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Fe
   unfold execInstruction execDupw
   simp [Concrete.State.withStack]
 
-set_option maxHeartbeats 800000 in
 theorem stepSwapw1 (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (a0 a1 a2 a3 b0 b1 b2 b3 : Felt) (rest : List Felt) :
     execInstruction ⟨a0 :: a1 :: a2 :: a3 :: b0 :: b1 :: b2 :: b3 :: rest, mem, frames, adv⟩ (.swapw 1) =
@@ -96,7 +102,6 @@ theorem stepSwapw1 (mem : Nat → Felt) (frames : List LocalFrame) (adv : List F
   unfold execInstruction execSwapw
   simp [Concrete.State.withStack]
 
-set_option maxHeartbeats 800000 in
 theorem stepSwapw2 (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (a0 a1 a2 a3 b0 b1 b2 b3 c0 c1 c2 c3 : Felt) (rest : List Felt) :
     execInstruction ⟨a0 :: a1 :: a2 :: a3 :: b0 :: b1 :: b2 :: b3 ::
@@ -105,7 +110,6 @@ theorem stepSwapw2 (mem : Nat → Felt) (frames : List LocalFrame) (adv : List F
         a0 :: a1 :: a2 :: a3 :: rest, mem, frames, adv⟩ := by
   unfold execInstruction execSwapw; simp [Concrete.State.withStack]
 
-set_option maxHeartbeats 800000 in
 theorem stepSwapw3 (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (a0 a1 a2 a3 b0 b1 b2 b3 c0 c1 c2 c3 d0 d1 d2 d3 : Felt) (rest : List Felt) :
     execInstruction ⟨a0 :: a1 :: a2 :: a3 :: b0 :: b1 :: b2 :: b3 ::
@@ -114,7 +118,6 @@ theorem stepSwapw3 (mem : Nat → Felt) (frames : List LocalFrame) (adv : List F
         c0 :: c1 :: c2 :: c3 :: a0 :: a1 :: a2 :: a3 :: rest, mem, frames, adv⟩ := by
   unfold execInstruction execSwapw; simp [Concrete.State.withStack]
 
-set_option maxHeartbeats 1600000 in
 /-- movdnw 2: move the top word down by 2 word positions.
     Stack: [a0..a3, b0..b3, c0..c3, rest] → [b0..b3, c0..c3, a0..a3, rest] -/
 theorem stepMovdnw2 (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
@@ -126,7 +129,6 @@ theorem stepMovdnw2 (mem : Nat → Felt) (frames : List LocalFrame) (adv : List 
   unfold execInstruction execMovdnw
   simp [Concrete.State.withStack]
 
-set_option maxHeartbeats 1600000 in
 /-- movdnw 3: move the top word down by 3 word positions.
     Stack: [a0..a3, b0..b3, c0..c3, d0..d3, rest] → [b0..b3, c0..c3, d0..d3, a0..a3, rest] -/
 theorem stepMovdnw3 (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
@@ -138,7 +140,6 @@ theorem stepMovdnw3 (mem : Nat → Felt) (frames : List LocalFrame) (adv : List 
   unfold execInstruction execMovdnw
   simp [Concrete.State.withStack]
 
-set_option maxHeartbeats 800000 in
 /-- swapdw: swap the first two words with the second two words.
     Stack: [a0..a3, b0..b3, c0..c3, d0..d3, rest] → [c0..c3, d0..d3, a0..a3, b0..b3, rest] -/
 theorem stepSwapdw (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
@@ -150,7 +151,6 @@ theorem stepSwapdw (mem : Nat → Felt) (frames : List LocalFrame) (adv : List F
   unfold execInstruction execSwapdw
   simp [Concrete.State.withStack]
 
-set_option maxHeartbeats 800000 in
 /-- movdn 8: move the top element down by 8 positions.
     Stack: [a0, a1..a8, rest] → [a1..a8, a0, rest] -/
 theorem stepMovdn8 (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
@@ -160,7 +160,6 @@ theorem stepMovdn8 (mem : Nat → Felt) (frames : List LocalFrame) (adv : List F
     some ⟨a1 :: a2 :: a3 :: a4 :: a5 :: a6 :: a7 :: a8 :: a0 :: rest, mem, frames, adv⟩ := by
   unfold execInstruction execMovdn; simp [Concrete.State.withStack]; rfl
 
-set_option maxHeartbeats 800000 in
 /-- movup 8: move element at position 8 to the top.
     Stack: [a0..a7, a8, rest] → [a8, a0..a7, rest] -/
 theorem stepMovup8 (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
@@ -172,7 +171,6 @@ theorem stepMovup8 (mem : Nat → Felt) (frames : List LocalFrame) (adv : List F
 
 -- Assertions
 
-set_option maxHeartbeats 400000 in
 /-- assert succeeds when top of stack is 1, pops it. -/
 theorem stepAssert (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (a : Felt) (rest : List Felt) (h : a.val = 1) :
@@ -181,7 +179,6 @@ theorem stepAssert (mem : Nat → Felt) (frames : List LocalFrame) (adv : List F
   unfold execInstruction execAssert
   simp [h, Concrete.State.withStack]
 
-set_option maxHeartbeats 400000 in
 /-- assertWithError behaves identically to assert (error string is for debugging). -/
 theorem stepAssertWithError (msg : String) (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (a : Felt) (rest : List Felt) (h : a.val = 1) :
@@ -190,7 +187,6 @@ theorem stepAssertWithError (msg : String) (mem : Nat → Felt) (frames : List L
   unfold execInstruction execAssert
   simp [h, Concrete.State.withStack]
 
-set_option maxHeartbeats 400000 in
 /-- assertz succeeds when top of stack is 0, pops it. -/
 theorem stepAssertz (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (a : Felt) (rest : List Felt)
@@ -200,7 +196,6 @@ theorem stepAssertz (mem : Nat → Felt) (frames : List LocalFrame) (adv : List 
   unfold execInstruction execAssertz
   simp [ha, Concrete.State.withStack]
 
-set_option maxHeartbeats 400000 in
 /-- assertEq succeeds when top two elements are equal, pops both. -/
 theorem stepAssertEq (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (a : Felt) (rest : List Felt) :
@@ -209,7 +204,6 @@ theorem stepAssertEq (mem : Nat → Felt) (frames : List LocalFrame) (adv : List
   unfold execInstruction execAssertEq
   simp [Concrete.State.withStack]
 
-set_option maxHeartbeats 400000 in
 /-- assertEqWithError behaves identically to assertEq. -/
 theorem stepAssertEqWithError (msg : String) (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (a : Felt) (rest : List Felt) :
@@ -220,7 +214,6 @@ theorem stepAssertEqWithError (msg : String) (mem : Nat → Felt) (frames : List
 
 -- Assertion failure lemmas (for forward-direction proofs)
 
-set_option maxHeartbeats 400000 in
 /-- assertWithError returns none when the top value is not 1. -/
 theorem stepAssertWithError_none (msg : String) (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (a : Felt) (rest : List Felt) (h : a.val ≠ 1) :
@@ -228,7 +221,6 @@ theorem stepAssertWithError_none (msg : String) (mem : Nat → Felt) (frames : L
   unfold execInstruction execAssert
   simp [show ¬(a.val == 1) = true from by simp [h]]
 
-set_option maxHeartbeats 400000 in
 /-- assertEqWithError returns none when the top two values differ. -/
 theorem stepAssertEqWithError_none (msg : String) (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (a b : Felt) (rest : List Felt) (h : a ≠ b) :
@@ -238,7 +230,6 @@ theorem stepAssertEqWithError_none (msg : String) (mem : Nat → Felt) (frames :
 
 -- U32 assertions
 
-set_option maxHeartbeats 4000000 in
 theorem stepU32Assert2 (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (a b : Felt) (rest : List Felt)
     (ha : a.isU32 = true) (hb : b.isU32 = true) :
@@ -249,35 +240,30 @@ theorem stepU32Assert2 (mem : Nat → Felt) (frames : List LocalFrame) (adv : Li
 
 -- Field comparison
 
-set_option maxHeartbeats 400000 in
 theorem stepEqImm (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (v a : Felt) (rest : List Felt) :
     execInstruction ⟨a :: rest, mem, frames, adv⟩ (.eqImm v) =
     some ⟨(if a == v then (1 : Felt) else 0) :: rest, mem, frames, adv⟩ := by
   unfold execInstruction execEqImm; rfl
 
-set_option maxHeartbeats 400000 in
 theorem stepEq (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (a b : Felt) (rest : List Felt) :
     execInstruction ⟨b :: a :: rest, mem, frames, adv⟩ .eq =
     some ⟨(if a == b then (1 : Felt) else 0) :: rest, mem, frames, adv⟩ := by
   unfold execInstruction execEq; rfl
 
-set_option maxHeartbeats 400000 in
 theorem stepNeq (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (a b : Felt) (rest : List Felt) :
     execInstruction ⟨b :: a :: rest, mem, frames, adv⟩ .neq =
     some ⟨(if a != b then (1 : Felt) else 0) :: rest, mem, frames, adv⟩ := by
   unfold execInstruction execNeq; rfl
 
-set_option maxHeartbeats 400000 in
 theorem stepNeqImm (v : Felt) (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (a : Felt) (rest : List Felt) :
     execInstruction ⟨a :: rest, mem, frames, adv⟩ (.neqImm v) =
     some ⟨(if a != v then (1 : Felt) else 0) :: rest, mem, frames, adv⟩ := by
   unfold execInstruction execNeqImm; rfl
 
-set_option maxHeartbeats 800000 in
 /-- eqw: compare two words element-wise, push 1 if all equal, 0 otherwise.
     Stack: [b0..b3, a0..a3, rest] → [result, b0..b3, a0..a3, rest] -/
 theorem stepEqw (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
@@ -287,28 +273,24 @@ theorem stepEqw (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt
         b0 :: b1 :: b2 :: b3 :: a0 :: a1 :: a2 :: a3 :: rest, mem, frames, adv⟩ := by
   unfold execInstruction execEqw; simp [Concrete.State.withStack]
 
-set_option maxHeartbeats 400000 in
 theorem stepLt (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (a b : Felt) (rest : List Felt) :
     execInstruction ⟨b :: a :: rest, mem, frames, adv⟩ .lt =
     some ⟨(if a.val < b.val then (1 : Felt) else 0) :: rest, mem, frames, adv⟩ := by
   unfold execInstruction execLt; rfl
 
-set_option maxHeartbeats 400000 in
 theorem stepGt (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (a b : Felt) (rest : List Felt) :
     execInstruction ⟨b :: a :: rest, mem, frames, adv⟩ .gt =
     some ⟨(if a.val > b.val then (1 : Felt) else 0) :: rest, mem, frames, adv⟩ := by
   unfold execInstruction execGt; rfl
 
-set_option maxHeartbeats 400000 in
 theorem stepLte (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (a b : Felt) (rest : List Felt) :
     execInstruction ⟨b :: a :: rest, mem, frames, adv⟩ .lte =
     some ⟨(if a.val ≤ b.val then (1 : Felt) else 0) :: rest, mem, frames, adv⟩ := by
   unfold execInstruction execLte; rfl
 
-set_option maxHeartbeats 400000 in
 theorem stepGte (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (a b : Felt) (rest : List Felt) :
     execInstruction ⟨b :: a :: rest, mem, frames, adv⟩ .gte =
@@ -317,7 +299,6 @@ theorem stepGte (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt
 
 -- Field boolean
 
-set_option maxHeartbeats 800000 in
 theorem stepAndIte (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (rest : List Felt) (p q : Bool) :
     execInstruction
@@ -328,7 +309,6 @@ theorem stepAndIte (mem : Nat → Felt) (frames : List LocalFrame) (adv : List F
   simp only [Felt.isBool_ite_bool, Concrete.State.withStack]
   cases p <;> cases q <;> simp
 
-set_option maxHeartbeats 800000 in
 theorem stepOrIte (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (rest : List Felt) (p q : Bool) :
     execInstruction
@@ -339,7 +319,6 @@ theorem stepOrIte (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Fe
   simp only [Felt.isBool_ite_bool, Concrete.State.withStack]
   cases p <;> cases q <;> simp
 
-set_option maxHeartbeats 800000 in
 theorem stepNotIte (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (rest : List Felt) (p : Bool) :
     execInstruction
@@ -352,7 +331,6 @@ theorem stepNotIte (mem : Nat → Felt) (frames : List LocalFrame) (adv : List F
 
 -- Conditional stack manipulation
 
-set_option maxHeartbeats 800000 in
 /-- cswap on a boolean condition (as ite): if true, swap the two elements below. -/
 theorem stepCswapIte (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (rest : List Felt) (a b : Felt) (p : Bool) :
@@ -364,7 +342,6 @@ theorem stepCswapIte (mem : Nat → Felt) (frames : List LocalFrame) (adv : List
   simp only [Concrete.State.withStack]
   cases p <;> simp
 
-set_option maxHeartbeats 800000 in
 /-- cdrop on a boolean condition (as ite): if true, keep b; if false, keep a. -/
 theorem stepCdropIte (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (rest : List Felt) (a b : Felt) (p : Bool) :
@@ -376,7 +353,6 @@ theorem stepCdropIte (mem : Nat → Felt) (frames : List LocalFrame) (adv : List
   simp only [Concrete.State.withStack]
   cases p <;> simp
 
-set_option maxHeartbeats 800000 in
 /-- cdropw on a boolean condition (as ite): if true, keep the word `b`; if false, keep the word `a`. -/
 theorem stepCdropwIte (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (rest : List Felt)
@@ -398,56 +374,48 @@ theorem stepCdropwIte (mem : Nat → Felt) (frames : List LocalFrame) (adv : Lis
 
 -- Field arithmetic
 
-set_option maxHeartbeats 400000 in
 theorem stepAdd (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (a b : Felt) (rest : List Felt) :
     execInstruction ⟨b :: a :: rest, mem, frames, adv⟩ .add =
     some ⟨(a + b) :: rest, mem, frames, adv⟩ := by
   unfold execInstruction execAdd; rfl
 
-set_option maxHeartbeats 400000 in
 theorem stepAddImm (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (v a : Felt) (rest : List Felt) :
     execInstruction ⟨a :: rest, mem, frames, adv⟩ (.addImm v) =
     some ⟨(a + v) :: rest, mem, frames, adv⟩ := by
   unfold execInstruction execAddImm; rfl
 
-set_option maxHeartbeats 400000 in
 theorem stepSub (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (a b : Felt) (rest : List Felt) :
     execInstruction ⟨b :: a :: rest, mem, frames, adv⟩ .sub =
     some ⟨(a - b) :: rest, mem, frames, adv⟩ := by
   unfold execInstruction execSub; rfl
 
-set_option maxHeartbeats 400000 in
 theorem stepMul (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (a b : Felt) (rest : List Felt) :
     execInstruction ⟨b :: a :: rest, mem, frames, adv⟩ .mul =
     some ⟨(a * b) :: rest, mem, frames, adv⟩ := by
   unfold execInstruction execMul; rfl
 
-set_option maxHeartbeats 400000 in
 theorem stepNeg (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (a : Felt) (rest : List Felt) :
     execInstruction ⟨a :: rest, mem, frames, adv⟩ .neg =
     some ⟨(-a) :: rest, mem, frames, adv⟩ := by
   unfold execInstruction execNeg; rfl
 
-set_option maxHeartbeats 400000 in
 theorem stepIncr (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (a : Felt) (rest : List Felt) :
     execInstruction ⟨a :: rest, mem, frames, adv⟩ .incr =
     some ⟨(a + 1) :: rest, mem, frames, adv⟩ := by
   unfold execInstruction execIncr; rfl
 
-set_option maxHeartbeats 400000 in
 theorem stepPush (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (v : Felt) (stk : List Felt) :
     execInstruction ⟨stk, mem, frames, adv⟩ (.push v) =
     some ⟨v :: stk, mem, frames, adv⟩ := by
   unfold execInstruction execPush; rfl
 
-set_option maxHeartbeats 400000 in
 theorem stepPadw (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (stk : List Felt) :
     execInstruction ⟨stk, mem, frames, adv⟩ .padw =
@@ -456,7 +424,6 @@ theorem stepPadw (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Fel
 
 -- Pow2
 
-set_option maxHeartbeats 400000 in
 theorem stepPow2 (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (a : Felt) (rest : List Felt)
     (ha : a.val ≤ 63) :
@@ -467,7 +434,6 @@ theorem stepPow2 (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Fel
 
 -- U32 arithmetic
 
-set_option maxHeartbeats 4000000 in
 theorem stepU32WidenAdd (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (a b : Felt) (rest : List Felt)
     (ha : a.isU32 = true) (hb : b.isU32 = true) :
@@ -477,7 +443,6 @@ theorem stepU32WidenAdd (mem : Nat → Felt) (frames : List LocalFrame) (adv : L
   unfold execInstruction execU32WidenAdd u32WideAdd u32Max
   simp [ha, hb, Concrete.State.withStack]
 
-set_option maxHeartbeats 4000000 in
 theorem stepU32OverflowAdd (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (a b : Felt) (rest : List Felt)
     (ha : a.isU32 = true) (hb : b.isU32 = true) :
@@ -487,7 +452,6 @@ theorem stepU32OverflowAdd (mem : Nat → Felt) (frames : List LocalFrame) (adv 
   unfold execInstruction execU32OverflowAdd u32WideAdd u32Max
   simp [ha, hb, Concrete.State.withStack]
 
-set_option maxHeartbeats 4000000 in
 theorem stepU32WidenAdd3 (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (a b c : Felt) (rest : List Felt)
     (ha : a.isU32 = true) (hb : b.isU32 = true) (hc : c.isU32 = true) :
@@ -497,7 +461,6 @@ theorem stepU32WidenAdd3 (mem : Nat → Felt) (frames : List LocalFrame) (adv : 
   unfold execInstruction execU32WidenAdd3 u32WideAdd3 u32Max
   simp [ha, hb, hc, Concrete.State.withStack]
 
-set_option maxHeartbeats 4000000 in
 theorem stepU32OverflowSub (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (a b : Felt) (rest : List Felt)
     (ha : a.isU32 = true) (hb : b.isU32 = true) :
@@ -508,7 +471,6 @@ theorem stepU32OverflowSub (mem : Nat → Felt) (frames : List LocalFrame) (adv 
   unfold execInstruction execU32OverflowSub
   simp [ha, hb, Concrete.State.withStack]
 
-set_option maxHeartbeats 4000000 in
 theorem stepU32WidenMul (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (a b : Felt) (rest : List Felt)
     (ha : a.isU32 = true) (hb : b.isU32 = true) :
@@ -518,7 +480,6 @@ theorem stepU32WidenMul (mem : Nat → Felt) (frames : List LocalFrame) (adv : L
   unfold execInstruction execU32WidenMul u32WideMul u32Max
   simp [ha, hb, Concrete.State.withStack]
 
-set_option maxHeartbeats 4000000 in
 theorem stepU32WidenMadd (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (a b c : Felt) (rest : List Felt)
     (ha : a.isU32 = true) (hb : b.isU32 = true) (hc : c.isU32 = true) :
@@ -528,7 +489,6 @@ theorem stepU32WidenMadd (mem : Nat → Felt) (frames : List LocalFrame) (adv : 
   unfold execInstruction execU32WidenMadd u32WideMadd u32Max
   simp [ha, hb, hc, Concrete.State.withStack]
 
-set_option maxHeartbeats 4000000 in
 theorem stepU32WrappingMadd (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (a b c : Felt) (rest : List Felt)
     (ha : a.isU32 = true) (hb : b.isU32 = true) (hc : c.isU32 = true) :
@@ -539,7 +499,6 @@ theorem stepU32WrappingMadd (mem : Nat → Felt) (frames : List LocalFrame) (adv
 
 -- U32 bitwise (require isU32 preconditions)
 
-set_option maxHeartbeats 4000000 in
 theorem stepU32And (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (a b : Felt) (rest : List Felt)
     (ha : a.isU32 = true) (hb : b.isU32 = true) :
@@ -548,7 +507,6 @@ theorem stepU32And (mem : Nat → Felt) (frames : List LocalFrame) (adv : List F
   unfold execInstruction execU32And
   simp [ha, hb, Concrete.State.withStack]
 
-set_option maxHeartbeats 4000000 in
 theorem stepU32Or (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (a b : Felt) (rest : List Felt)
     (ha : a.isU32 = true) (hb : b.isU32 = true) :
@@ -557,7 +515,6 @@ theorem stepU32Or (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Fe
   unfold execInstruction execU32Or
   simp [ha, hb, Concrete.State.withStack]
 
-set_option maxHeartbeats 4000000 in
 theorem stepU32Xor (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (a b : Felt) (rest : List Felt)
     (ha : a.isU32 = true) (hb : b.isU32 = true) :
@@ -566,7 +523,6 @@ theorem stepU32Xor (mem : Nat → Felt) (frames : List LocalFrame) (adv : List F
   unfold execInstruction execU32Xor
   simp [ha, hb, Concrete.State.withStack]
 
-set_option maxHeartbeats 4000000 in
 theorem stepU32Not (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (a : Felt) (rest : List Felt)
     (ha : a.isU32 = true) :
@@ -577,7 +533,6 @@ theorem stepU32Not (mem : Nat → Felt) (frames : List LocalFrame) (adv : List F
 
 -- U32 comparison (require isU32 preconditions)
 
-set_option maxHeartbeats 4000000 in
 theorem stepU32Lt (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (a b : Felt) (rest : List Felt)
     (ha : a.isU32 = true) (hb : b.isU32 = true) :
@@ -586,7 +541,6 @@ theorem stepU32Lt (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Fe
   unfold execInstruction execU32Lt
   simp [ha, hb, Concrete.State.withStack]
 
-set_option maxHeartbeats 4000000 in
 theorem stepU32Gt (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (a b : Felt) (rest : List Felt)
     (ha : a.isU32 = true) (hb : b.isU32 = true) :
@@ -595,7 +549,6 @@ theorem stepU32Gt (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Fe
   unfold execInstruction execU32Gt
   simp [ha, hb, Concrete.State.withStack]
 
-set_option maxHeartbeats 4000000 in
 theorem stepU32Lte (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (a b : Felt) (rest : List Felt)
     (ha : a.isU32 = true) (hb : b.isU32 = true) :
@@ -604,7 +557,6 @@ theorem stepU32Lte (mem : Nat → Felt) (frames : List LocalFrame) (adv : List F
   unfold execInstruction execU32Lte
   simp [ha, hb, Concrete.State.withStack]
 
-set_option maxHeartbeats 4000000 in
 theorem stepU32Gte (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (a b : Felt) (rest : List Felt)
     (ha : a.isU32 = true) (hb : b.isU32 = true) :
@@ -615,7 +567,6 @@ theorem stepU32Gte (mem : Nat → Felt) (frames : List LocalFrame) (adv : List F
 
 -- U32 bit counting
 
-set_option maxHeartbeats 4000000 in
 theorem stepU32Clz (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (a : Felt) (rest : List Felt)
     (ha : a.isU32 = true) :
@@ -624,7 +575,6 @@ theorem stepU32Clz (mem : Nat → Felt) (frames : List LocalFrame) (adv : List F
   unfold execInstruction execU32Clz
   simp [ha, Concrete.State.withStack]
 
-set_option maxHeartbeats 4000000 in
 theorem stepU32Ctz (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (a : Felt) (rest : List Felt)
     (ha : a.isU32 = true) :
@@ -633,7 +583,6 @@ theorem stepU32Ctz (mem : Nat → Felt) (frames : List LocalFrame) (adv : List F
   unfold execInstruction execU32Ctz
   simp [ha, Concrete.State.withStack]
 
-set_option maxHeartbeats 4000000 in
 /-- u32Clo: count leading ones, expressed via u32CountLeadingZeros on the bitwise complement.
     (u32CountLeadingOnes is private in Semantics.) -/
 theorem stepU32Clo (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
@@ -644,7 +593,6 @@ theorem stepU32Clo (mem : Nat → Felt) (frames : List LocalFrame) (adv : List F
   unfold execInstruction execU32Clo u32CountLeadingOnes
   simp [ha, Concrete.State.withStack]
 
-set_option maxHeartbeats 4000000 in
 /-- u32Cto: count trailing ones, expressed via u32CountTrailingZeros on the XOR complement.
     (u32CountTrailingOnes is private in Semantics.) -/
 theorem stepU32Cto (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
@@ -657,7 +605,6 @@ theorem stepU32Cto (mem : Nat → Felt) (frames : List LocalFrame) (adv : List F
 
 -- U32 split
 
-set_option maxHeartbeats 400000 in
 theorem stepU32Split (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (a : Felt) (rest : List Felt) :
     execInstruction ⟨a :: rest, mem, frames, adv⟩ .u32Split =
@@ -666,7 +613,6 @@ theorem stepU32Split (mem : Nat → Felt) (frames : List LocalFrame) (adv : List
 
 -- Field div (requires nonzero divisor)
 
-set_option maxHeartbeats 400000 in
 theorem stepDiv (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (a b : Felt) (rest : List Felt)
     (hb : (b == (0 : Felt)) = false) :
@@ -677,7 +623,6 @@ theorem stepDiv (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt
 
 -- U32 divmod (requires isU32 and nonzero divisor)
 
-set_option maxHeartbeats 4000000 in
 theorem stepU32DivMod (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (a b : Felt) (rest : List Felt)
     (ha : a.isU32 = true) (hb : b.isU32 = true)
@@ -689,7 +634,6 @@ theorem stepU32DivMod (mem : Nat → Felt) (frames : List LocalFrame) (adv : Lis
 
 -- Emit (no-op)
 
-set_option maxHeartbeats 400000 in
 theorem stepEmitImm (n : Nat) (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (stk : List Felt) :
     execInstruction ⟨stk, mem, frames, adv⟩ (.emitImm n) =
@@ -698,7 +642,6 @@ theorem stepEmitImm (n : Nat) (mem : Nat → Felt) (frames : List LocalFrame) (a
 
 -- Advice stack
 
-set_option maxHeartbeats 800000 in
 theorem stepAdvPush (n : Nat) (mem : Nat → Felt)
     (frames : List LocalFrame) (adv : List Felt) (stk : List Felt)
     (hlen : adv.length ≥ n) :
@@ -710,7 +653,6 @@ theorem stepAdvPush (n : Nat) (mem : Nat → Felt)
   · omega
   · rfl
 
-set_option maxHeartbeats 800000 in
 theorem stepAdvPush1 (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (v : Felt) (stk : List Felt) (adv' : List Felt)
     (hadv : adv = v :: adv') :
@@ -720,7 +662,6 @@ theorem stepAdvPush1 (mem : Nat → Felt) (frames : List LocalFrame) (adv : List
   subst hadv
   simp [Concrete.State.withStack, Concrete.State.withAdvice]
 
-set_option maxHeartbeats 800000 in
 theorem stepAdvPush2 (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (v1 v2 : Felt) (stk : List Felt) (adv' : List Felt)
     (hadv : adv = v1 :: v2 :: adv') :
@@ -732,7 +673,6 @@ theorem stepAdvPush2 (mem : Nat → Felt) (frames : List LocalFrame) (adv : List
 
 -- Local memory (frame-aware)
 
-set_option maxHeartbeats 800000 in
 /-- locLoad: push the value of local slot `idx` onto the stack. -/
 theorem stepLocLoad (idx : Nat) (frame : LocalFrame) (frames_rest : List LocalFrame)
     (mem : Nat → Felt) (adv : List Felt)
@@ -742,7 +682,6 @@ theorem stepLocLoad (idx : Nat) (frame : LocalFrame) (frames_rest : List LocalFr
   unfold execInstruction execLocLoad
   simp [Concrete.State.readLocal?, Concrete.State.localAddr?, hidx, Concrete.State.withStack]
 
-set_option maxHeartbeats 800000 in
 /-- locStore: pop the top of the stack and write it to local slot `idx`. -/
 theorem stepLocStore (idx : Nat) (frame : LocalFrame) (frames_rest : List LocalFrame)
     (mem : Nat → Felt) (adv : List Felt)
@@ -752,7 +691,6 @@ theorem stepLocStore (idx : Nat) (frame : LocalFrame) (frames_rest : List LocalF
   unfold execInstruction execLocStore
   simp [Concrete.State.writeLocal?, Concrete.State.localAddr?, hidx, Concrete.State.writeMemory, Concrete.State.withStack]
 
-set_option maxHeartbeats 1600000 in
 /-- locStorewBe: store the top word to local memory at `idx` in big-endian order.
     The word remains on the stack. The resulting memory function is a nested
     if-then-else chain reflecting the four writes. -/
@@ -772,7 +710,6 @@ theorem stepLocStorewBe (idx : Nat) (frame : LocalFrame) (frames_rest : List Loc
   unfold execInstruction execLocStorewBe currentFrame
   simp [halign, Nat.not_lt_of_le hbound, Concrete.State.writeMemory, Concrete.State.withStack]
 
-set_option maxHeartbeats 1600000 in
 /-- locStorewLe: store the top word to local memory at `idx` in little-endian order.
     The word remains on the stack. The resulting memory function is a nested
     if-then-else chain reflecting the four writes. -/
@@ -792,7 +729,6 @@ theorem stepLocStorewLe (idx : Nat) (frame : LocalFrame) (frames_rest : List Loc
   unfold execInstruction execLocStorewLe currentFrame
   simp [halign, Nat.not_lt_of_le hbound, Concrete.State.writeMemory, Concrete.State.withStack]
 
-set_option maxHeartbeats 800000 in
 /-- locLoadwBe: load a word from local memory at `idx` in big-endian order,
     replacing the top four stack elements. -/
 theorem stepLocLoadwBe (idx : Nat) (frame : LocalFrame) (frames_rest : List LocalFrame)
@@ -806,7 +742,6 @@ theorem stepLocLoadwBe (idx : Nat) (frame : LocalFrame) (frames_rest : List Loca
   unfold execInstruction execLocLoadwBe currentFrame
   simp [halign, Nat.not_lt_of_le hbound, Concrete.State.withStack]
 
-set_option maxHeartbeats 800000 in
 /-- locLoadwLe: load a word from local memory at `idx` in little-endian order,
     replacing the top four stack elements. -/
 theorem stepLocLoadwLe (idx : Nat) (frame : LocalFrame) (frames_rest : List LocalFrame)
@@ -820,7 +755,6 @@ theorem stepLocLoadwLe (idx : Nat) (frame : LocalFrame) (frames_rest : List Loca
   unfold execInstruction execLocLoadwLe currentFrame
   simp [halign, Nat.not_lt_of_le hbound, Concrete.State.withStack]
 
-set_option maxHeartbeats 800000 in
 /-- locaddr: push the absolute address of local slot `idx` onto the stack. -/
 theorem stepLocAddr (idx : Nat) (frame : LocalFrame) (frames_rest : List LocalFrame)
     (mem : Nat → Felt) (adv : List Felt)

@@ -12,8 +12,6 @@ import MidenLean.Proofs.U256.WrappingMulEpB7Final
 namespace MidenLean.Proofs
 
 open MidenLean
-open MidenLean.StepLemmas
-open MidenLean.Tactics
 
 -- ============================================================================
 -- Main theorem

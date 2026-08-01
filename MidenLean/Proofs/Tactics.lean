@@ -4,6 +4,18 @@ import MidenLean.Proofs.Fuel
 import MidenLean.Proofs.Helpers
 import MidenLean.Symbolic.Reflect
 
+/-!
+# Proof-Facing Tactics
+
+The tactic layer for manual step-by-step proofs (`miden_bind`,
+`miden_swap`, `miden_dup`, `miden_movup`, `miden_movdn`, `miden_step`,
+`miden_steps`, `miden_arith`) and the shared finisher
+`miden_finish_reflection` that closes residual goals left by
+`miden_reflect`/`miden_vcg`. Generated and manual proofs alike are expected
+to rely on `miden_finish_reflection` as one stable cleanup step after
+symbolic automation.
+-/
+
 namespace MidenLean.Tactics
 
 open MidenLean.StepLemmas

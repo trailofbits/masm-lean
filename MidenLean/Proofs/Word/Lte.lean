@@ -4,7 +4,6 @@ namespace MidenLean.Proofs
 
 open MidenLean
 open MidenLean.StepLemmas
-open MidenLean.Tactics
 
 set_option maxHeartbeats 16000000 in
 /-- `word::lte` checks whether one word is less than or equal to another. -/

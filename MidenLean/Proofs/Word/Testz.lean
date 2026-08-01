@@ -5,7 +5,6 @@ import MidenLean.Generated.Word
 namespace MidenLean.Proofs
 
 open MidenLean
-open MidenLean.StepLemmas
 open MidenLean.Tactics
 
 set_option maxHeartbeats 8000000 in

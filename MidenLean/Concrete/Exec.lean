@@ -1,6 +1,25 @@
 import MidenLean.Concrete.State
 import MidenLean.Op
 
+/-!
+# Concrete Executor
+
+The executable semantics of the Miden VM — the trust root of this
+development: every correctness theorem is ultimately a statement about the
+functions in this file. Fidelity to the Rust VM is tracked in
+`COMPARISON.md`.
+
+Conventions:
+- Every instruction has a dedicated handler (`execDrop`, `execDup`, ...);
+  `execInstruction` is a thin dispatch over them.
+- All failure conditions — failed assertions, stack underflow, division by
+  zero, out-of-bounds memory — return `none`. A theorem of the form
+  `execProcedure env fuel s ops = some s'` therefore asserts successful,
+  fault-free termination with result `s'`.
+- `execProcedure` is fuel-bounded: `fuel` bounds procedure-call/loop depth,
+  giving structural termination without well-founded recursion.
+-/
+
 namespace MidenLean
 
 open Instruction

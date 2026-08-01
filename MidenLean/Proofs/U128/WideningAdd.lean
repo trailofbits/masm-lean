@@ -1,13 +1,11 @@
 import MidenLean.Proofs.U128.Common
 import MidenLean.Proofs.U128.OverflowingAdd
-import MidenLean.Proofs.Tactics
 import MidenLean.Symbolic.Tactic
 import MidenLean.Generated.U128
 
 namespace MidenLean.Proofs
 
 open MidenLean
-open MidenLean.StepLemmas
 open MidenLean.Tactics
 
 set_option maxHeartbeats 8000000 in
