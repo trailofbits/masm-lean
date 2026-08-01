@@ -5,8 +5,9 @@ Formal verification of Miden Assembly (MASM) core library procedures in Lean 4. 
 ## Build
 
 ```bash
-lake build            # full build (includes Mathlib — slow first time)
-lake build MidenLean  # just the Lean library and proofs
+lake build                 # full build (includes Mathlib — slow first time)
+lake build MidenLean       # just the Lean library and proofs
+lake build MidenLeanTests  # symbolic-framework regression tests (not in the default target)
 ```
 
 Lean 4 v4.28.0 via elan. A clean build with zero `sorry` means all theorems are machine-checked.

@@ -13,6 +13,12 @@ Three-tier soundness stack:
 * `execOps_sound` — extends it to op lists containing `exec` calls, given
   `Spec.sound` witnesses for every callee in the symbolic `ProcEnv`.
 
+Both block-level theorems share a single fold induction over `execOp`
+(`foldlM_execOp_sound`): `execBlock_sound` is derived from it through the
+executor bridge `execOps_map_inst_eq_execBlock`, which identifies `execBlock`
+with `execOps` on instruction-only op lists under the empty symbolic
+environment.
+
 Direction of the guarantee: symbolic success implies concrete success with a
 matching (`models`) state, provided all collected preconditions hold. A
 symbolic `some` result can therefore never diverge silently from the concrete
@@ -1098,82 +1104,8 @@ theorem execInstruction_sound
   | .exec _ =>
     simp [execInstruction] at hexec
 
--- Block-level soundness
-
-private theorem foldlM_preconds_subset
-    (insts : List Instruction) (ss : State) (acc : List Precondition)
-    (final_ss : State) (final_preconds : List Precondition)
-    (hfold : insts.foldlM execBlockStep (ss, acc) = some (final_ss, final_preconds))
-    (p : Precondition) (hp : p ∈ acc) : p ∈ final_preconds := by
-  induction insts generalizing ss acc with
-  | nil =>
-    simp [List.foldlM] at hfold
-    rw [← hfold.2]; exact hp
-  | cons i rest ih =>
-    simp only [List.foldlM, bind, Bind.bind, Option.bind] at hfold
-    unfold execBlockStep at hfold
-    match hstep : execInstruction ss i with
-    | none => simp [hstep] at hfold
-    | some (ss1, pc1) =>
-      simp only [hstep] at hfold
-      exact ih ss1 (pc1.reverse ++ acc) hfold (List.mem_append_right _ hp)
-
-private theorem foldlM_sound
-    (insts : List Instruction) (ss : State) (cs : Concrete.State)
-    (σ : Assignment) (rest : List Felt) (acc : List Precondition)
-    (final_ss : State) (final_preconds : List Precondition)
-    (hmodels : ss.models cs σ rest)
-    (hfold : insts.foldlM execBlockStep (ss, acc) = some (final_ss, final_preconds))
-    (hpreconds : ∀ p ∈ final_preconds, p.holds σ) :
-    ∃ cs', Concrete.execBlock insts cs = some cs'
-      ∧ final_ss.models cs' σ rest := by
-  induction insts generalizing ss cs acc with
-  | nil =>
-    simp [List.foldlM] at hfold
-    obtain ⟨rfl, _⟩ := hfold
-    exact ⟨cs, rfl, hmodels⟩
-  | cons i rest_insts ih =>
-    simp only [List.foldlM, bind, Bind.bind, Option.bind] at hfold
-    unfold execBlockStep at hfold
-    match hstep : execInstruction ss i with
-    | none => simp [hstep] at hfold
-    | some (ss1, pc1) =>
-      simp only [hstep] at hfold
-      have hpc1 : ∀ p ∈ pc1, p.holds σ := by
-        intro p hp
-        apply hpreconds
-        exact foldlM_preconds_subset rest_insts ss1 (pc1.reverse ++ acc)
-          final_ss final_preconds hfold p
-          (List.mem_append_left _ (List.mem_reverse.mpr hp))
-      obtain ⟨cs1, hconc1, hmod1⟩ :=
-        execInstruction_sound i ss cs σ rest ss1 pc1 hmodels hstep hpc1
-      obtain ⟨cs', hconc', hmod'⟩ :=
-        ih ss1 cs1 (pc1.reverse ++ acc) hmod1 hfold
-      refine ⟨cs', ?_, hmod'⟩
-      unfold Concrete.execBlock at hconc' ⊢
-      simp only [List.foldlM, bind, Bind.bind, Option.bind, hconc1]
-      exact hconc'
-
-theorem execBlock_sound
-    (insts : List Instruction) (ss : State) (cs : Concrete.State)
-    (σ : Assignment) (rest : List Felt) (result : BlockResult)
-    (hmodels : ss.models cs σ rest)
-    (hresult : execBlock insts ss = some result)
-    (hpreconds : ∀ p ∈ result.preconditions, p.holds σ) :
-    ∃ cs', Concrete.execBlock insts cs = some cs'
-      ∧ result.state.models cs' σ rest := by
-  unfold execBlock at hresult
-  match hfold : insts.foldlM execBlockStep (ss, []) with
-  | none => simp [hfold] at hresult
-  | some (final_ss, final_preconds) =>
-    simp only [hfold, Option.some.injEq] at hresult
-    have hstate : result.state = final_ss :=
-      (congrArg BlockResult.state hresult).symm
-    have hpc : result.preconditions = final_preconds.reverse :=
-      (congrArg BlockResult.preconditions hresult).symm
-    rw [hstate]
-    exact foldlM_sound insts ss cs σ rest [] final_ss final_preconds hmodels
-      hfold (fun p hp => hpreconds p (hpc ▸ List.mem_reverse.mpr hp))
+-- Block-level soundness: `execBlock_sound` is stated below, after the
+-- `execOp` fold induction it is derived from (see `execOps_map_inst_eq_execBlock`).
 
 -- ============================================================================
 -- Bridge: execProcedure → Concrete.execBlock (generalized)
@@ -1194,28 +1126,45 @@ private theorem opStep_inst_non_exec
   | exec _ => simp [isExecInst] at hi
   | _ => rfl
 
+/-- Under the empty concrete environment, `opStep` agrees with the concrete
+    `execInstruction` on every instruction — including `exec`, where both
+    fail with `none`. -/
+private theorem opStep_inst_emptyEnv
+    (fuel : Nat) (s : Concrete.State) (i : Instruction) :
+    MidenLean.opStep MidenLean.emptyEnv fuel s (.inst i) =
+    MidenLean.execInstruction s i := by
+  cases i <;> rfl
+
 /-- foldlM of opStep over (insts.map Op.inst) equals Concrete.execBlock
-    when no instruction is an `exec` call. -/
+    whenever opStep agrees with the concrete execInstruction on every listed
+    instruction (e.g. no `exec` calls, or the empty environment). -/
 private theorem foldlM_opStep_eq_concreteExecBlock
     (env : MidenLean.ProcEnv) (fuel : Nat)
     (insts : List Instruction) (s : Concrete.State)
-    (hnoexec : insts.all (fun i => !isExecInst i) = true) :
+    (hagree : ∀ i ∈ insts, ∀ st, MidenLean.opStep env fuel st (.inst i) =
+      MidenLean.execInstruction st i) :
     (insts.map Op.inst).foldlM (MidenLean.opStep env fuel) s =
     Concrete.execBlock insts s := by
   induction insts generalizing s with
   | nil => rfl
   | cons i rest ih =>
-    simp [List.all_cons] at hnoexec
-    obtain ⟨hi, hrest⟩ := hnoexec
     simp only [List.map_cons, List.foldlM, bind, Bind.bind, Option.bind,
                Concrete.execBlock]
-    rw [opStep_inst_non_exec env fuel s i hi]
+    rw [hagree i (List.mem_cons_self ..) s]
     match MidenLean.execInstruction s i with
     | none => rfl
     | some s' =>
-      apply ih s'
-      simp [List.all_eq_true]
-      exact hrest
+      exact ih s' (fun j hj st => hagree j (List.mem_cons_of_mem _ hj) st)
+
+/-- The pointwise-agreement premise of `foldlM_opStep_eq_concreteExecBlock`,
+    discharged from a no-`exec` hypothesis. -/
+private theorem opStep_agree_of_noexec
+    (env : MidenLean.ProcEnv) (fuel : Nat) (insts : List Instruction)
+    (hnoexec : insts.all (fun i => !isExecInst i) = true) :
+    ∀ i ∈ insts, ∀ st, MidenLean.opStep env fuel st (.inst i) =
+      MidenLean.execInstruction st i := fun i hi st =>
+  opStep_inst_non_exec env fuel st i
+    (Bool.not_eq_true' _ ▸ List.all_eq_true.mp hnoexec i hi)
 
 /-- For a basic block with numLocals = 0,
     execProcedure reduces to Concrete.execBlock. -/
@@ -1230,7 +1179,8 @@ theorem execProcedure_basic_block_zero
   obtain ⟨n, rfl⟩ : ∃ n, fuel = n + 1 := ⟨fuel - 1, by omega⟩
   rw [MidenLean.execProcedure_succ_zero]
   rw [hops]
-  exact foldlM_opStep_eq_concreteExecBlock env n insts s hnoexec
+  exact foldlM_opStep_eq_concreteExecBlock env n insts s
+    (opStep_agree_of_noexec env n insts hnoexec)
 
 /-- For a basic block with numLocals > 0,
     execProcedure reduces to frame-push + Concrete.execBlock + frame-pop. -/
@@ -1256,7 +1206,8 @@ theorem execProcedure_basic_block_locals
   rw [MidenLean.execProcedure_succ_locals]
   simp only []
   rw [hops]
-  rw [foldlM_opStep_eq_concreteExecBlock env n insts _ hnoexec]
+  rw [foldlM_opStep_eq_concreteExecBlock env n insts _
+    (opStep_agree_of_noexec env n insts hnoexec)]
   rfl
 
 /-- Symbolic execInstruction never modifies the frames field. -/
@@ -1509,6 +1460,74 @@ private theorem foldlM_execOp_sound
           hmodels hstep hpc_mid hcallees
       rw [hconc_mid]
       exact ih acc_mid cs_mid hmod_mid hfold
+
+-- ============================================================================
+-- Executor bridge: execBlock is execOps on instruction-only ops with no
+-- symbolic callees.  This lets `execBlock_sound` reuse the `execOp` fold
+-- induction instead of a second, parallel induction over `execBlockStep`.
+-- ============================================================================
+
+/-- Fold correspondence between the two symbolic executors: folding `execOp`
+    under the empty symbolic environment over `insts.map Op.inst` matches
+    folding `execBlockStep` over `insts`, up to the reversed-precondition
+    accumulator encoding used by `execBlock`. -/
+private theorem foldlM_execOp_eq_foldlM_execBlockStep
+    (insts : List Instruction) (st : State) (pcs : List Precondition) :
+    (insts.map Op.inst).foldlM (execOp fun _ => none)
+        { state := st, preconditions := pcs.reverse } =
+      (insts.foldlM execBlockStep (st, pcs)).map
+        (fun acc => { state := acc.1, preconditions := acc.2.reverse }) := by
+  induction insts generalizing st pcs with
+  | nil => rfl
+  | cons i rest ih =>
+    simp only [List.map_cons, List.foldlM, bind, Bind.bind, Option.bind, execBlockStep]
+    by_cases hi : ∃ t, i = .exec t
+    · -- Both executors fail on `exec` under the empty environment.
+      obtain ⟨t, rfl⟩ := hi
+      rfl
+    · push_neg at hi
+      rw [execOp_inst_non_exec (fun _ => none) _ i hi]
+      match hexec : execInstruction st i with
+      | none => rfl
+      | some (s', pc) =>
+        simp only [Option.bind]
+        have hrev : pcs.reverse ++ pc = (pc.reverse ++ pcs).reverse := by
+          simp
+        rw [hrev]
+        exact ih s' (pc.reverse ++ pcs)
+
+/-- On instruction-only op lists with no symbolic procedure environment,
+    `execOps` coincides with the primitive block executor `execBlock`. -/
+theorem execOps_map_inst_eq_execBlock (insts : List Instruction) (s : State) :
+    execOps (fun _ => none) (insts.map .inst) s = execBlock insts s := by
+  unfold execOps execBlock
+  have h := foldlM_execOp_eq_foldlM_execBlockStep insts s []
+  simp only [List.reverse_nil] at h
+  rw [h]
+  cases insts.foldlM execBlockStep (s, []) <;> rfl
+
+/-- Block-level soundness: if symbolic execution of a straight-line block
+    succeeds with all collected preconditions satisfied, then concrete
+    execution also succeeds and the result models the symbolic state.
+    Derived from the `execOp` fold induction via the executor bridge. -/
+theorem execBlock_sound
+    (insts : List Instruction) (ss : State) (cs : Concrete.State)
+    (σ : Assignment) (rest : List Felt) (result : BlockResult)
+    (hmodels : ss.models cs σ rest)
+    (hresult : execBlock insts ss = some result)
+    (hpreconds : ∀ p ∈ result.preconditions, p.holds σ) :
+    ∃ cs', Concrete.execBlock insts cs = some cs'
+      ∧ result.state.models cs' σ rest := by
+  rw [← execOps_map_inst_eq_execBlock] at hresult
+  unfold execOps at hresult
+  obtain ⟨cs', hfold, hmod⟩ :=
+    foldlM_execOp_sound (fun _ => none) MidenLean.emptyEnv 0
+      (insts.map .inst) { state := ss, preconditions := [] } result cs σ rest
+      hmodels hresult hpreconds (fun _ _ h => nomatch h)
+  refine ⟨cs', ?_, hmod⟩
+  rw [← foldlM_opStep_eq_concreteExecBlock MidenLean.emptyEnv 0 insts cs
+    (fun i _ st => opStep_inst_emptyEnv 0 st i)]
+  exact hfold
 
 /-- Extended soundness: if all callees in the symbolic ProcEnv are sound
     (and every symbolic callee has a concrete counterpart),

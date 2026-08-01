@@ -175,49 +175,6 @@ private def getStateStackDecomposition (stateExpr : Lean.Expr) : TacticM (Array 
     else
       findStackDecomposition stateExpr
 
-private inductive IfElseCondShape where
-  | constOne (restExpr : Lean.Expr)
-  | constZero (restExpr : Lean.Expr)
-  | iteOneZero (propExpr : Lean.Expr) (restExpr : Lean.Expr)
-  | iteZeroOne (propExpr : Lean.Expr) (restExpr : Lean.Expr)
-
-private def lambdaBodyExpr (e : Lean.Expr) : Lean.Expr :=
-  match e with
-  | .lam _ _ body _ => body
-  | _ => e
-
-private def classifyIfElseCondShape
-    (stateExpr : Lean.Expr) : TacticM (Option IfElseCondShape) := do
-  let (stackElems, tailExpr) ← getStateStackDecomposition stateExpr
-  if stackElems.isEmpty then
-    return none
-  let condExpr := stackElems[0]!
-  let restExpr ← mkListExprWithTail (stackElems.toList.drop 1) tailExpr
-  let zeroExpr ← Lean.Elab.Term.elabTerm (← `((0 : MidenLean.Felt))) none
-  let oneExpr ← Lean.Elab.Term.elabTerm (← `((1 : MidenLean.Felt))) none
-  let condWhnf ← withTransparency TransparencyMode.all <| reduce (← instantiateMVars condExpr)
-  if ← isDefEq condWhnf oneExpr then
-    return some (.constOne restExpr)
-  if ← isDefEq condWhnf zeroExpr then
-    return some (.constZero restExpr)
-  match_expr condWhnf with
-  | ite p t f =>
-      if (← isDefEq t oneExpr) && (← isDefEq f zeroExpr) then
-        return some (.iteOneZero p restExpr)
-      if (← isDefEq t zeroExpr) && (← isDefEq f oneExpr) then
-        return some (.iteZeroOne p restExpr)
-      return none
-  | dite p t f =>
-      let tBody := lambdaBodyExpr t
-      let fBody := lambdaBodyExpr f
-      if (← isDefEq tBody oneExpr) && (← isDefEq fBody zeroExpr) then
-        return some (.iteOneZero p restExpr)
-      if (← isDefEq tBody zeroExpr) && (← isDefEq fBody oneExpr) then
-        return some (.iteZeroOne p restExpr)
-      return none
-  | _ =>
-      return none
-
 /-- Run a tactic against a single goal and return the remaining goals. -/
 private def runOnGoal (goal : MVarId) (stx : TSyntax `tactic) : TacticM (List MVarId) := do
   if ← goal.isAssigned then
@@ -1025,8 +982,8 @@ private def applyExecOverrideTheorem
     falling back to a convention-based `*_exec` theorem. This is the preferred
     path for large callee leaves, with symbolic reflection kept as the
     fallback. -/
-private def tryExecOverrideTheorem?
-    (goal : MVarId) (explicitThm? : Option Lean.Name := none) :
+private def tryExecOverrideTheoremCore?
+    (goal : MVarId) (explicitThm? : Option Lean.Name) :
     TacticM (Option (List MVarId)) := do
   let parsed0 ← parseExecGoal goal
   if !isNatZero parsed0.numLocalsExpr then return none
@@ -1051,6 +1008,21 @@ private def tryExecOverrideTheorem?
     catch _ =>
       restoreState savedState
   return none
+
+private def tryExecOverrideTheorem?
+    (goal : MVarId) (explicitThm? : Option Lean.Name := none) :
+    TacticM (Option (List MVarId)) := do
+  -- The core rewrites the goal (assigning the original metavariable) before
+  -- several of its `none` early-exits. Restore on `none` so a failed attempt
+  -- is side-effect-free — otherwise callers like `miden_reflect` continue
+  -- with an already-assigned main goal and fail with an internal-error
+  -- `apply` message far from the cause.
+  let saved ← saveState
+  match ← tryExecOverrideTheoremCore? goal explicitThm? with
+  | some remaining => return some remaining
+  | none =>
+      restoreState saved
+      return none
 
 -- ============================================================================
 -- miden_exec_step: resolve a single exec call
@@ -1169,8 +1141,8 @@ elab_rules : tactic
   let goals ←
     try
       mainGoal.apply eqTransExpr
-    catch _ =>
-      throwError "miden_reflect: failed to insert canonical target"
+    catch ex =>
+      throwError "miden_reflect: failed to insert canonical target: {ex.toMessageData}"
   let mut eqGoals : List MVarId := []
   let mut auxGoals : List MVarId := []
   for goal in goals do
@@ -1380,37 +1352,69 @@ private def prepareAppendSplit
       throwError "{tacticName}: could not classify append decomposition goals"
   pure (prefixGoal, suffixGoal, auxGoals, bridgeSeeds)
 
-mutual
+/-- Shared core of the fast `ifElse` split used by both `miden_vcg`
+    (`splitIfElseFastGoal`) and `miden_vcg_step` (`splitIfElseFastGoalStep`):
+    case-split on the branch condition, discharge each side's `ite` residue,
+    classify the two surviving `execProcedure` goals into then/else, and clean
+    up the administrative rest. Returns `(thenGoal, elseGoal, auxRemaining)`.
 
-private partial def decomposeAppendGoalAt (goal : MVarId) (splitAt : Nat) : TacticM (List MVarId) := do
-  let (prefixGoal, suffixGoal, auxGoals, bridgeSeeds) ←
-    prepareAppendSplit goal splitAt "miden_vcg" (canonicalize := true)
-  let prefixRemaining ← decomposeVcgGoal prefixGoal
-  Lean.Elab.Term.synthesizeSyntheticMVarsNoPostponing
-  -- Eagerly close bridge goals from the prefix (especially the repeat base
-  -- case `some ?s₄ = some ?midState`) so that the intermediate state metavar
-  -- is assigned before the suffix's `miden_reflect` can mis-unify it with the
-  -- original state via the `hs` hypothesis.
-  let mut prefixBridges : List MVarId := []
-  let mut prefixOther : List MVarId := []
-  for g in prefixRemaining do
+    The branch-discharge ladder below was chosen empirically over the whole
+    proof suite: the tactics previously diverged (`simp [h]` for `miden_vcg`,
+    `split_ifs`/`simp_all` for `miden_vcg_step`), and the `simp [h]` variant
+    fails on step-style chunked proofs (U128 `shl`), while this one passes
+    everywhere at a ~1s/module elaboration cost on ifElse-heavy proofs. -/
+private def prepareIfElseFastSplit
+    (goal : MVarId) (propExpr : Lean.Expr) (thenOps elseOps : Lean.Expr)
+    (tacticName : String) :
+    TacticM (MVarId × MVarId × List MVarId) := do
+  let (posGoal, negGoal) ← goal.byCases propExpr `h
+  let discharge (g : MVarId) (label : String) : TacticM (List MVarId) := do
+    try
+      runTacticSeqOnGoal g (← `(tacticSeq|
+        try (split_ifs at *)
+        simp_all))
+    catch ex =>
+      let ty ← g.getType
+      throwError "{tacticName}.splitIfElseFast.{label} failed on goal:{indentExpr ty}\n{ex.toMessageData}"
+  let posGoals ← discharge posGoal.mvarId "true"
+  let negGoals ← discharge negGoal.mvarId "false"
+  let splitGoals := posGoals ++ negGoals
+  let mut execGoals : List MVarId := []
+  let mut auxGoals : List MVarId := []
+  for g in splitGoals do
     unless ← g.isAssigned do
       let ty ← g.getType
-      if ty.eq?.isSome then
-        prefixBridges := prefixBridges ++ [g]
-      else
-        prefixOther := prefixOther ++ [g]
-  let mut prefixBridgeRemaining : List MVarId := []
-  for g in prefixBridges do
-    prefixBridgeRemaining := prefixBridgeRemaining ++ (← closeBridgeGoal g)
-  Lean.Elab.Term.synthesizeSyntheticMVarsNoPostponing
-  let suffixRemaining ← decomposeVcgGoal suffixGoal
+      match ty.eq? with
+      | some (_, lhs, _) =>
+          if lhs.isAppOf ``MidenLean.execProcedure then
+            execGoals := execGoals ++ [g]
+          else
+            auxGoals := auxGoals ++ [g]
+      | none =>
+          auxGoals := auxGoals ++ [g]
+  let [execGoal1, execGoal2] := execGoals
+    | do
+        let goalTypes ← splitGoals.mapM (fun g => do
+          let fmt ← Meta.ppExpr (← g.getType)
+          pure <| MessageData.ofFormat fmt)
+        let joined := MessageData.joinSep goalTypes " | "
+        throwError "{tacticName}: expected two execution goals after fast `ifElse` split, got {execGoals.length}: {joined}"
+  let goal1IsThen ← branchBodyMatches execGoal1 thenOps
+  let goal1IsElse ← branchBodyMatches execGoal1 elseOps
+  let goal2IsThen ← branchBodyMatches execGoal2 thenOps
+  let goal2IsElse ← branchBodyMatches execGoal2 elseOps
+  let (thenGoal, elseGoal) ←
+    if goal1IsThen && goal2IsElse then
+      pure (execGoal1, execGoal2)
+    else if goal1IsElse && goal2IsThen then
+      pure (execGoal2, execGoal1)
+    else
+      throwError "{tacticName}: could not classify fast `ifElse` branch goals"
   let auxRemaining ← cleanupGoals auxGoals
-  let bridgeRemaining ← cleanupGoals bridgeSeeds
-  return prefixOther ++ prefixBridgeRemaining ++ suffixRemaining ++ auxRemaining ++ bridgeRemaining
+  pure (thenGoal, elseGoal, auxRemaining)
 
 /-- Classify `ifElse` subgoals into hs, hfuel, branch (forall), hbool (Or), and aux goals. -/
-private partial def classifyIfElseGoals (goals : List MVarId) :
+private def classifyIfElseGoals (goals : List MVarId) :
     TacticM (MVarId × MVarId × List MVarId × MVarId × List MVarId) := do
   let mut hsGoal? : Option MVarId := none
   let mut hfuelGoal? : Option MVarId := none
@@ -1441,7 +1445,7 @@ private partial def classifyIfElseGoals (goals : List MVarId) :
   let some hboolGoal := hboolGoal? | throwError "miden_vcg: missing `hbool` goal for singleton `ifElse`"
   pure (hsGoal, hfuelGoal, branchGoals, hboolGoal, auxGoals)
 
-private partial def closeIfElseFastRewriteGoals (goals : List MVarId) : TacticM (List MVarId) := do
+private def closeIfElseFastRewriteGoals (goals : List MVarId) : TacticM (List MVarId) := do
   let mut remaining : List MVarId := []
   for g in goals do
     unless ← g.isAssigned do
@@ -1472,101 +1476,203 @@ private partial def closeIfElseFastRewriteGoals (goals : List MVarId) : TacticM 
         remaining := remaining ++ rem
   cleanupGoals remaining
 
-/-- NOTE: `splitIfElseFastGoalStep` (the `miden_vcg_step` twin) intentionally
-    uses a different branch-discharge ladder (`split_ifs at *; simp_all` vs
-    `simp [h]` here). Keep divergences deliberate — if you fix a bug in one,
-    check whether the twin needs the same fix. -/
-private partial def splitIfElseFastGoal
-    (goal : MVarId) (propExpr : Lean.Expr) (thenOps elseOps : Lean.Expr) : TacticM (List MVarId) := do
-  let (posGoal, negGoal) ← goal.byCases propExpr `h
-  let posGoals ← runNamedOnGoal "miden_vcg.splitIfElseFastGoal.true" posGoal.mvarId (← `(tactic|
-    simp [h]))
-  let negGoals ← runNamedOnGoal "miden_vcg.splitIfElseFastGoal.false" negGoal.mvarId (← `(tactic|
-    simp [h]))
-  let splitGoals := posGoals ++ negGoals
-  let mut execGoals : List MVarId := []
-  let mut auxGoals : List MVarId := []
-  for g in splitGoals do
+/-- Shared core of the fast singleton `ifElse` decomposition used by both
+    `miden_vcg` (`tryDecomposeIfElseFast`) and `miden_vcg_step`
+    (`tryDecomposeIfElseFastStep`): enumerate fast rewrite theorem candidates
+    for the branch condition and attempt each in turn — insert an `Eq.trans`
+    bridge with a fresh middle metavariable, apply the candidate theorem to the
+    execution side, and discharge the rewrite side goals. On success returns
+    `(theoremRemaining, bridgeGoal, splitProp?)`; the caller finishes the
+    bridge goal (recursively for `miden_vcg`, single-step for
+    `miden_vcg_step`), case-splitting on `splitProp?` when present.
+
+    Candidates, in order: constant `1`/`0` conditions (after reduction), then
+    `ite`/`dite` conditions with a synthesized `Decidable` instance, trying the
+    positive theorem before the negative one. The `ite`/`dite` condition is
+    read from the syntactic condition first (the historical `miden_vcg_step`
+    behavior, `tryApplyFastIfElseTheoremStep?`) and from the reduced condition
+    as a fallback (the historical `miden_vcg` behavior); the `dite` and
+    try-both-polarities paths were originally step-only and are now available
+    to both tactics. -/
+private def prepareIfElseFastDecompose
+    (goal : MVarId) (thenOps elseOps : Lean.Expr) (tacticName : String) :
+    TacticM (Option (List MVarId × MVarId × Option Lean.Expr)) := do
+  let parsed ← parseExecGoal goal
+  let (stackElems, tailExpr) ← getStateStackDecomposition parsed.stateExpr
+  if stackElems.isEmpty then
+    return none
+  let condExpr := stackElems[0]!
+  let restExpr ← mkListExprWithTail (stackElems.toList.drop 1) tailExpr
+  let zeroExpr ← Lean.Elab.Term.elabTerm (← `((0 : MidenLean.Felt))) none
+  let oneExpr ← Lean.Elab.Term.elabTerm (← `((1 : MidenLean.Felt))) none
+  let condInst ← instantiateMVars condExpr
+  let condWhnf ← withTransparency TransparencyMode.all <| reduce condInst
+  let baseArgs := #[parsed.envExpr, parsed.fuelExpr, parsed.stateExpr, restExpr, thenOps, elseOps]
+  let mut candidates : List (Lean.Expr × Option Lean.Expr) := []
+  if ← isDefEq condWhnf oneExpr then
+    candidates := candidates ++
+      [(Lean.mkAppN (Lean.mkConst ``MidenLean.execProcedure_ifElse_state_one) baseArgs, none)]
+  if ← isDefEq condWhnf zeroExpr then
+    candidates := candidates ++
+      [(Lean.mkAppN (Lean.mkConst ``MidenLean.execProcedure_ifElse_state_zero) baseArgs, none)]
+  let iteProp? (e : Lean.Expr) : Option Lean.Expr :=
+    if (e.isAppOf ``ite || e.isAppOf ``dite) && e.getAppNumArgs = 5 then
+      some (e.getArg! 1)
+    else
+      none
+  let mut propExprs : List Lean.Expr := []
+  if let some p := iteProp? condInst then
+    propExprs := propExprs ++ [p]
+  if let some p := iteProp? condWhnf then
+    unless propExprs.contains p do
+      propExprs := propExprs ++ [p]
+  for propExpr in propExprs do
+    try
+      let decInst ← synthInstance (Lean.mkApp (Lean.mkConst ``Decidable) propExpr)
+      let iteArgs := (baseArgs.push propExpr).push decInst
+      candidates := candidates ++
+        [(Lean.mkAppN (Lean.mkConst ``MidenLean.execProcedure_ifElse_bool_ite) iteArgs,
+            some propExpr),
+          (Lean.mkAppN (Lean.mkConst ``MidenLean.execProcedure_ifElse_bool_ite_neg) iteArgs,
+            some propExpr)]
+    catch _ =>
+      pure ()
+  for (theoremExpr, splitProp?) in candidates do
+    let savedState ← saveState
+    try
+      let eqTransExpr ← goal.withContext do
+        let targetTy ← inferType parsed.lhs
+        let middleExpr ← mkFreshExprMVar targetTy
+        mkAppOptM ``Eq.trans
+          #[some targetTy, some parsed.lhs, some middleExpr, some parsed.rhs]
+      let splitGoals ← goal.apply eqTransExpr
+      let mut execGoal? : Option MVarId := none
+      let mut bridgeGoal? : Option MVarId := none
+      let mut auxGoals : List MVarId := []
+      for g in splitGoals do
+        unless ← g.isAssigned do
+          let ty ← g.getType
+          match ty.eq? with
+          | some (_, lhs, _) =>
+              if lhs.isAppOf ``MidenLean.execProcedure then
+                execGoal? := some g
+              else
+                bridgeGoal? := some g
+          | none =>
+              auxGoals := auxGoals ++ [g]
+      let some theoremGoal := execGoal?
+        | throwError "{tacticName}: missing execution goal for fast `ifElse` decomposition"
+      let some bridgeGoal := bridgeGoal?
+        | throwError "{tacticName}: missing bridge goal for fast `ifElse` decomposition"
+      let theoremGoals ← theoremGoal.apply theoremExpr
+      let theoremRemaining ← closeIfElseFastRewriteGoals (theoremGoals ++ auxGoals)
+      return some (theoremRemaining, bridgeGoal, splitProp?)
+    catch _ =>
+      restoreState savedState
+  return none
+
+/-- Shared core of the slow singleton `ifElse` decomposition used by both
+    `miden_vcg` (`decomposeIfElse`) and `miden_vcg_step`
+    (`decomposeIfElseStep`): apply `execProcedure_ifElse` (ite form, tried
+    first), falling back to `execProcedure_ifElse_same` (same-output form),
+    close the stack and fuel side goals, and classify the two introduced
+    branch goals into then/else. Returns
+    `(thenBodyGoal, elseBodyGoal, hboolGoal, auxGoals)`; the caller recurses
+    into the branch bodies (`miden_vcg`) or returns them (`miden_vcg_step`)
+    and closes the bool/aux goals. -/
+private def prepareIfElseSlowSplit
+    (goal : MVarId) (thenOps elseOps : Lean.Expr) (tacticName : String) :
+    TacticM (MVarId × MVarId × MVarId × List MVarId) := do
+  let parsed ← parseExecGoal goal
+  let condExpr ← mkFreshExprMVar (Lean.mkConst ``MidenLean.Felt)
+  let restExpr ← mkFreshExprMVar
+    (Lean.mkApp (Lean.mkConst ``List [Lean.levelZero]) (Lean.mkConst ``MidenLean.Felt))
+  -- Try the ite form first (produces `if cond.val = 1 then s_then else s_else`)
+  let savedState ← saveState
+  let goals ← do
+    let sThenExpr ← mkFreshExprMVar (Lean.mkConst ``MidenLean.Concrete.State)
+    let sElseExpr ← mkFreshExprMVar (Lean.mkConst ``MidenLean.Concrete.State)
+    let theoremExpr := Lean.mkAppN (Lean.mkConst ``MidenLean.execProcedure_ifElse)
+      #[parsed.envExpr, parsed.fuelExpr, thenOps, elseOps,
+        parsed.stateExpr, sThenExpr, sElseExpr, condExpr, restExpr]
+    try
+      goal.apply theoremExpr
+    catch _ =>
+      restoreState savedState
+      -- Fallback: same-output form (both branches produce the same state)
+      let sExpr ← mkFreshExprMVar (Lean.mkConst ``MidenLean.Concrete.State)
+      let theoremExpr := Lean.mkAppN (Lean.mkConst ``MidenLean.execProcedure_ifElse_same)
+        #[parsed.envExpr, parsed.fuelExpr, thenOps, elseOps,
+          parsed.stateExpr, sExpr, condExpr, restExpr]
+      try
+        goal.apply theoremExpr
+      catch ex =>
+        throwError "{tacticName}: failed to decompose singleton `ifElse`: {ex.toMessageData}"
+  let (hsGoal, hfuelGoal, branchGoals, hboolGoal, auxGoals) ← classifyIfElseGoals goals
+  let [branchGoal1, branchGoal2] := branchGoals
+    | throwError "{tacticName}: expected two branch goals for singleton `ifElse`, got {branchGoals.length}"
+  closeVcgStackGoal hsGoal
+  closeVcgFuelGoal hfuelGoal
+  Lean.Elab.Term.synthesizeSyntheticMVarsNoPostponing
+  let (_, branchBodyGoal1) ← branchGoal1.intro1
+  let (_, branchBodyGoal2) ← branchGoal2.intro1
+  let branch1IsThen ← branchBodyMatches branchBodyGoal1 thenOps
+  let branch1IsElse ← branchBodyMatches branchBodyGoal1 elseOps
+  let branch2IsThen ← branchBodyMatches branchBodyGoal2 thenOps
+  let branch2IsElse ← branchBodyMatches branchBodyGoal2 elseOps
+  let (hthenBodyGoal, helseBodyGoal) ←
+    if branch1IsThen && branch2IsElse then
+      pure (branchBodyGoal1, branchBodyGoal2)
+    else if branch1IsElse && branch2IsThen then
+      pure (branchBodyGoal2, branchBodyGoal1)
+    else
+      throwError "{tacticName}: could not classify singleton `ifElse` branch goals"
+  pure (hthenBodyGoal, helseBodyGoal, hboolGoal, auxGoals)
+
+mutual
+
+private partial def decomposeAppendGoalAt (goal : MVarId) (splitAt : Nat) : TacticM (List MVarId) := do
+  let (prefixGoal, suffixGoal, auxGoals, bridgeSeeds) ←
+    prepareAppendSplit goal splitAt "miden_vcg" (canonicalize := true)
+  let prefixRemaining ← decomposeVcgGoal prefixGoal
+  Lean.Elab.Term.synthesizeSyntheticMVarsNoPostponing
+  -- Eagerly close bridge goals from the prefix (especially the repeat base
+  -- case `some ?s₄ = some ?midState`) so that the intermediate state metavar
+  -- is assigned before the suffix's `miden_reflect` can mis-unify it with the
+  -- original state via the `hs` hypothesis.
+  let mut prefixBridges : List MVarId := []
+  let mut prefixOther : List MVarId := []
+  for g in prefixRemaining do
     unless ← g.isAssigned do
       let ty ← g.getType
-      match ty.eq? with
-      | some (_, lhs, _) =>
-          if lhs.isAppOf ``MidenLean.execProcedure then
-            execGoals := execGoals ++ [g]
-          else
-            auxGoals := auxGoals ++ [g]
-      | none =>
-          auxGoals := auxGoals ++ [g]
-  let [execGoal1, execGoal2] := execGoals
-    | throwError "miden_vcg: expected two execution goals after fast `ifElse` split, got {execGoals.length}"
-  let goal1IsThen ← branchBodyMatches execGoal1 thenOps
-  let goal1IsElse ← branchBodyMatches execGoal1 elseOps
-  let goal2IsThen ← branchBodyMatches execGoal2 thenOps
-  let goal2IsElse ← branchBodyMatches execGoal2 elseOps
-  let (thenGoal, elseGoal) ←
-    if goal1IsThen && goal2IsElse then
-      pure (execGoal1, execGoal2)
-    else if goal1IsElse && goal2IsThen then
-      pure (execGoal2, execGoal1)
-    else
-      throwError "miden_vcg: could not classify fast `ifElse` branch goals"
+      if ty.eq?.isSome then
+        prefixBridges := prefixBridges ++ [g]
+      else
+        prefixOther := prefixOther ++ [g]
+  let mut prefixBridgeRemaining : List MVarId := []
+  for g in prefixBridges do
+    prefixBridgeRemaining := prefixBridgeRemaining ++ (← closeBridgeGoal g)
+  Lean.Elab.Term.synthesizeSyntheticMVarsNoPostponing
+  let suffixRemaining ← decomposeVcgGoal suffixGoal
+  let auxRemaining ← cleanupGoals auxGoals
+  let bridgeRemaining ← cleanupGoals bridgeSeeds
+  return prefixOther ++ prefixBridgeRemaining ++ suffixRemaining ++ auxRemaining ++ bridgeRemaining
+
+private partial def splitIfElseFastGoal
+    (goal : MVarId) (propExpr : Lean.Expr) (thenOps elseOps : Lean.Expr) : TacticM (List MVarId) := do
+  let (thenGoal, elseGoal, auxRemaining) ←
+    prepareIfElseFastSplit goal propExpr thenOps elseOps "miden_vcg"
   let thenRemaining ← decomposeVcgGoal thenGoal
   Lean.Elab.Term.synthesizeSyntheticMVarsNoPostponing
   let elseRemaining ← decomposeVcgGoal elseGoal
-  let auxRemaining ← cleanupGoals auxGoals
   pure (thenRemaining ++ elseRemaining ++ auxRemaining)
 
 private partial def tryDecomposeIfElseFast
     (goal : MVarId) (thenOps elseOps : Lean.Expr) : TacticM (Option (List MVarId)) := do
   let (goal, bridgeSeeds) ← canonicalizeVcgGoal goal (closeBridges := false)
-  let parsed ← parseExecGoal goal
-  let some condShape ← classifyIfElseCondShape parsed.stateExpr | return none
-  let (theoremExpr, splitProp?) ← match condShape with
-    | .constOne restExpr =>
-        pure
-          (Lean.mkAppN (Lean.mkConst ``MidenLean.execProcedure_ifElse_state_one)
-            #[parsed.envExpr, parsed.fuelExpr, parsed.stateExpr, restExpr, thenOps, elseOps],
-            none)
-    | .constZero restExpr =>
-        pure
-          (Lean.mkAppN (Lean.mkConst ``MidenLean.execProcedure_ifElse_state_zero)
-            #[parsed.envExpr, parsed.fuelExpr, parsed.stateExpr, restExpr, thenOps, elseOps],
-            none)
-    | .iteOneZero propExpr restExpr =>
-        pure
-          (Lean.mkAppN (Lean.mkConst ``MidenLean.execProcedure_ifElse_bool_ite)
-            #[parsed.envExpr, parsed.fuelExpr, parsed.stateExpr, restExpr, thenOps, elseOps, propExpr],
-            some propExpr)
-    | .iteZeroOne propExpr restExpr =>
-        pure
-          (Lean.mkAppN (Lean.mkConst ``MidenLean.execProcedure_ifElse_bool_ite_neg)
-            #[parsed.envExpr, parsed.fuelExpr, parsed.stateExpr, restExpr, thenOps, elseOps, propExpr],
-            some propExpr)
-  let targetTy ← inferType parsed.lhs
-  let middleExpr ← mkFreshExprMVar targetTy
-  let eqTransExpr ← mkAppOptM ``Eq.trans
-    #[some targetTy, some parsed.lhs, some middleExpr, some parsed.rhs]
-  let splitGoals ← goal.apply eqTransExpr
-  let mut execGoal? : Option MVarId := none
-  let mut bridgeGoal? : Option MVarId := none
-  let mut auxGoals : List MVarId := []
-  for g in splitGoals do
-    unless ← g.isAssigned do
-      let ty ← g.getType
-      match ty.eq? with
-      | some (_, lhs, _) =>
-          if lhs.isAppOf ``MidenLean.execProcedure then
-            execGoal? := some g
-          else
-            bridgeGoal? := some g
-      | none =>
-          auxGoals := auxGoals ++ [g]
-  let some theoremGoal := execGoal?
-    | throwError "miden_vcg: missing execution goal for fast `ifElse` decomposition"
-  let some bridgeGoal := bridgeGoal?
-    | throwError "miden_vcg: missing bridge goal for fast `ifElse` decomposition"
-  let theoremGoals ← theoremGoal.apply theoremExpr
-  let theoremRemaining ← closeIfElseFastRewriteGoals (theoremGoals ++ auxGoals)
+  let some (theoremRemaining, bridgeGoal, splitProp?) ←
+      prepareIfElseFastDecompose goal thenOps elseOps "miden_vcg"
+    | return none
   let branchRemaining ←
     match splitProp? with
     | some propExpr => splitIfElseFastGoal bridgeGoal propExpr thenOps elseOps
@@ -1591,52 +1697,8 @@ private partial def decomposeIfElse
   | some remaining => return remaining
   | none => restoreState savedFastState
   let (goal, bridgeSeeds) ← canonicalizeVcgGoal goal (closeBridges := false)
-  let parsed ← parseExecGoal goal
-  let condExpr ← mkFreshExprMVar (Lean.mkConst ``MidenLean.Felt)
-  let restExpr ← mkFreshExprMVar
-    (Lean.mkApp (Lean.mkConst ``List [Lean.levelZero]) (Lean.mkConst ``MidenLean.Felt))
-  -- Try the ite form first (produces `if cond.val = 1 then s_then else s_else`)
-  let savedState ← saveState
-  let (goals, _) ← do
-    let sThenExpr ← mkFreshExprMVar (Lean.mkConst ``MidenLean.Concrete.State)
-    let sElseExpr ← mkFreshExprMVar (Lean.mkConst ``MidenLean.Concrete.State)
-    let theoremExpr := Lean.mkAppN (Lean.mkConst ``MidenLean.execProcedure_ifElse)
-      #[parsed.envExpr, parsed.fuelExpr, thenOps, elseOps,
-        parsed.stateExpr, sThenExpr, sElseExpr, condExpr, restExpr]
-    try
-      let goals ← goal.apply theoremExpr
-      pure (goals, true)
-    catch _ =>
-      restoreState savedState
-      -- Fallback: same-output form (both branches produce the same state)
-      let sExpr ← mkFreshExprMVar (Lean.mkConst ``MidenLean.Concrete.State)
-      let theoremExpr := Lean.mkAppN (Lean.mkConst ``MidenLean.execProcedure_ifElse_same)
-        #[parsed.envExpr, parsed.fuelExpr, thenOps, elseOps,
-          parsed.stateExpr, sExpr, condExpr, restExpr]
-      try
-        let goals ← goal.apply theoremExpr
-        pure (goals, false)
-      catch ex =>
-        throwError "miden_vcg: failed to decompose singleton `ifElse`: {ex.toMessageData}"
-  let (hsGoal, hfuelGoal, branchGoals, hboolGoal, auxGoals) ← classifyIfElseGoals goals
-  let [branchGoal1, branchGoal2] := branchGoals
-    | throwError "miden_vcg: expected two branch goals for singleton `ifElse`, got {branchGoals.length}"
-  closeVcgStackGoal hsGoal
-  closeVcgFuelGoal hfuelGoal
-  Lean.Elab.Term.synthesizeSyntheticMVarsNoPostponing
-  let (_, branchBodyGoal1) ← branchGoal1.intro1
-  let (_, branchBodyGoal2) ← branchGoal2.intro1
-  let branch1IsThen ← branchBodyMatches branchBodyGoal1 thenOps
-  let branch1IsElse ← branchBodyMatches branchBodyGoal1 elseOps
-  let branch2IsThen ← branchBodyMatches branchBodyGoal2 thenOps
-  let branch2IsElse ← branchBodyMatches branchBodyGoal2 elseOps
-  let (hthenBodyGoal, helseBodyGoal) ←
-    if branch1IsThen && branch2IsElse then
-      pure (branchBodyGoal1, branchBodyGoal2)
-    else if branch1IsElse && branch2IsThen then
-      pure (branchBodyGoal2, branchBodyGoal1)
-    else
-      throwError "miden_vcg: could not classify singleton `ifElse` branch goals"
+  let (hthenBodyGoal, helseBodyGoal, hboolGoal, auxGoals) ←
+    prepareIfElseSlowSplit goal thenOps elseOps "miden_vcg"
   let thenRemaining ← decomposeVcgGoal hthenBodyGoal
   Lean.Elab.Term.synthesizeSyntheticMVarsNoPostponing
   let elseRemaining ← decomposeVcgGoal helseBodyGoal
@@ -1782,56 +1844,8 @@ private partial def decomposeAppendGoalAtStep (goal : MVarId) (splitAt : Nat) : 
 
 private partial def splitIfElseFastGoalStep
     (goal : MVarId) (propExpr : Lean.Expr) (thenOps elseOps : Lean.Expr) : TacticM (List MVarId) := do
-  let (posGoal, negGoal) ← goal.byCases propExpr `h
-  let posGoals ←
-    try
-      runTacticSeqOnGoal posGoal.mvarId (← `(tacticSeq|
-        try (split_ifs at *)
-        simp_all))
-    catch ex =>
-      let ty ← posGoal.mvarId.getType
-      throwError "miden_vcg_step.splitIfElseFastGoal.true failed on goal:{indentExpr ty}\n{ex.toMessageData}"
-  let negGoals ←
-    try
-      runTacticSeqOnGoal negGoal.mvarId (← `(tacticSeq|
-        try (split_ifs at *)
-        simp_all))
-    catch ex =>
-      let ty ← negGoal.mvarId.getType
-      throwError "miden_vcg_step.splitIfElseFastGoal.false failed on goal:{indentExpr ty}\n{ex.toMessageData}"
-  let splitGoals := posGoals ++ negGoals
-  let mut execGoals : List MVarId := []
-  let mut auxGoals : List MVarId := []
-  for g in splitGoals do
-    unless ← g.isAssigned do
-      let ty ← g.getType
-      match ty.eq? with
-      | some (_, lhs, _) =>
-          if lhs.isAppOf ``MidenLean.execProcedure then
-            execGoals := execGoals ++ [g]
-          else
-            auxGoals := auxGoals ++ [g]
-      | none =>
-          auxGoals := auxGoals ++ [g]
-  let [execGoal1, execGoal2] := execGoals
-    | do
-        let goalTypes ← splitGoals.mapM (fun g => do
-          let fmt ← Meta.ppExpr (← g.getType)
-          pure <| MessageData.ofFormat fmt)
-        let joined := MessageData.joinSep goalTypes " | "
-        throwError "miden_vcg_step: expected two execution goals after fast `ifElse` split, got {execGoals.length}: {joined}"
-  let goal1IsThen ← branchBodyMatches execGoal1 thenOps
-  let goal1IsElse ← branchBodyMatches execGoal1 elseOps
-  let goal2IsThen ← branchBodyMatches execGoal2 thenOps
-  let goal2IsElse ← branchBodyMatches execGoal2 elseOps
-  let (thenGoal, elseGoal) ←
-    if goal1IsThen && goal2IsElse then
-      pure (execGoal1, execGoal2)
-    else if goal1IsElse && goal2IsThen then
-      pure (execGoal2, execGoal1)
-    else
-      throwError "miden_vcg_step: could not classify fast `ifElse` branch goals"
-  let auxRemaining ← cleanupGoals auxGoals
+  let (thenGoal, elseGoal, auxRemaining) ←
+    prepareIfElseFastSplit goal propExpr thenOps elseOps "miden_vcg_step"
   let mut remaining : List MVarId := []
   unless ← thenGoal.isAssigned do
     remaining := remaining ++ [thenGoal]
@@ -1839,103 +1853,20 @@ private partial def splitIfElseFastGoalStep
     remaining := remaining ++ [elseGoal]
   return remaining ++ auxRemaining
 
-private partial def tryApplyFastIfElseTheoremStep?
-    (goal : MVarId) (theoremExpr : Lean.Expr) (splitProp? : Option Lean.Expr)
-    (thenOps elseOps : Lean.Expr) : TacticM (Option (List MVarId)) := do
-  let savedState ← saveState
-  try
-    let parsed ← parseExecGoal goal
-    let targetTy ← inferType parsed.lhs
-    let theoremTy ← inferType theoremExpr
-    let middleExpr ← forallTelescopeReducing theoremTy fun _ body => do
-      let some (_, _, theoremRhs) := body.eq?
-        | throwError "miden_vcg_step: fast `ifElse` theorem does not conclude with an equality"
-      instantiateMVars theoremRhs
-    let eqTransExpr ← mkAppOptM ``Eq.trans
-      #[some targetTy, some parsed.lhs, some middleExpr, some parsed.rhs]
-    let splitGoals ← goal.apply eqTransExpr
-    let mut execGoal? : Option MVarId := none
-    let mut bridgeGoal? : Option MVarId := none
-    let mut auxGoals : List MVarId := []
-    for g in splitGoals do
-      unless ← g.isAssigned do
-        let ty ← g.getType
-        match ty.eq? with
-        | some (_, lhs, _) =>
-            if lhs.isAppOf ``MidenLean.execProcedure then
-              execGoal? := some g
-            else
-              bridgeGoal? := some g
-        | none =>
-            auxGoals := auxGoals ++ [g]
-    let some theoremGoal := execGoal?
-      | throwError "miden_vcg_step: missing execution goal for fast `ifElse` decomposition"
-    let some bridgeGoal := bridgeGoal?
-      | throwError "miden_vcg_step: missing bridge goal for fast `ifElse` decomposition"
-    let theoremGoals ← theoremGoal.apply theoremExpr
-    let theoremRemaining ← closeIfElseFastRewriteGoals (theoremGoals ++ auxGoals)
-    let branchRemaining ←
-      match splitProp? with
-      | some propExpr => splitIfElseFastGoalStep bridgeGoal propExpr thenOps elseOps
-      | none =>
-          if ← bridgeGoal.isAssigned then
-            pure []
-          else
-            pure [bridgeGoal]
-    pure (some (theoremRemaining ++ branchRemaining))
-  catch _ =>
-    restoreState savedState
-    pure none
-
 private partial def tryDecomposeIfElseFastStep
     (goal : MVarId) (thenOps elseOps : Lean.Expr) : TacticM (Option (List MVarId)) := do
-  let parsed ← parseExecGoal goal
-  let (stackElems, tailExpr) ← getStateStackDecomposition parsed.stateExpr
-  if stackElems.isEmpty then
-    return none
-  let condExpr := stackElems[0]!
-  let restExpr ← mkListExprWithTail (stackElems.toList.drop 1) tailExpr
-  let zeroExpr ← Lean.Elab.Term.elabTerm (← `((0 : MidenLean.Felt))) none
-  let oneExpr ← Lean.Elab.Term.elabTerm (← `((1 : MidenLean.Felt))) none
-  let condInst ← instantiateMVars condExpr
-  let condWhnf ← withTransparency TransparencyMode.all <| reduce condInst
-  if ← isDefEq condWhnf oneExpr then
-    let theoremExpr := Lean.mkAppN (Lean.mkConst ``MidenLean.execProcedure_ifElse_state_one)
-      #[parsed.envExpr, parsed.fuelExpr, parsed.stateExpr, restExpr, thenOps, elseOps]
-    if let some remaining ← tryApplyFastIfElseTheoremStep? goal theoremExpr none thenOps elseOps then
-      return some remaining
-  if ← isDefEq condWhnf zeroExpr then
-    let theoremExpr := Lean.mkAppN (Lean.mkConst ``MidenLean.execProcedure_ifElse_state_zero)
-      #[parsed.envExpr, parsed.fuelExpr, parsed.stateExpr, restExpr, thenOps, elseOps]
-    if let some remaining ← tryApplyFastIfElseTheoremStep? goal theoremExpr none thenOps elseOps then
-      return some remaining
-  if condInst.isAppOf ``ite && condInst.getAppNumArgs = 5 then
-    let propExpr := condInst.getArg! 1
-    let decInst ← synthInstance (Lean.mkApp (Lean.mkConst ``Decidable) propExpr)
-    let posTheoremExpr := Lean.mkAppN (Lean.mkConst ``MidenLean.execProcedure_ifElse_bool_ite)
-      #[parsed.envExpr, parsed.fuelExpr, parsed.stateExpr, restExpr, thenOps, elseOps, propExpr, decInst]
-    if let some remaining ←
-        tryApplyFastIfElseTheoremStep? goal posTheoremExpr (some propExpr) thenOps elseOps then
-      return some remaining
-    let negTheoremExpr := Lean.mkAppN (Lean.mkConst ``MidenLean.execProcedure_ifElse_bool_ite_neg)
-      #[parsed.envExpr, parsed.fuelExpr, parsed.stateExpr, restExpr, thenOps, elseOps, propExpr, decInst]
-      if let some remaining ←
-        tryApplyFastIfElseTheoremStep? goal negTheoremExpr (some propExpr) thenOps elseOps then
-      return some remaining
-  else if condInst.isAppOf ``dite && condInst.getAppNumArgs = 5 then
-    let propExpr := condInst.getArg! 1
-    let decInst ← synthInstance (Lean.mkApp (Lean.mkConst ``Decidable) propExpr)
-    let posTheoremExpr := Lean.mkAppN (Lean.mkConst ``MidenLean.execProcedure_ifElse_bool_ite)
-      #[parsed.envExpr, parsed.fuelExpr, parsed.stateExpr, restExpr, thenOps, elseOps, propExpr, decInst]
-    if let some remaining ←
-        tryApplyFastIfElseTheoremStep? goal posTheoremExpr (some propExpr) thenOps elseOps then
-      return some remaining
-    let negTheoremExpr := Lean.mkAppN (Lean.mkConst ``MidenLean.execProcedure_ifElse_bool_ite_neg)
-      #[parsed.envExpr, parsed.fuelExpr, parsed.stateExpr, restExpr, thenOps, elseOps, propExpr, decInst]
-    if let some remaining ←
-        tryApplyFastIfElseTheoremStep? goal negTheoremExpr (some propExpr) thenOps elseOps then
-      return some remaining
-  return none
+  let some (theoremRemaining, bridgeGoal, splitProp?) ←
+      prepareIfElseFastDecompose goal thenOps elseOps "miden_vcg_step"
+    | return none
+  let branchRemaining ←
+    match splitProp? with
+    | some propExpr => splitIfElseFastGoalStep bridgeGoal propExpr thenOps elseOps
+    | none =>
+        if ← bridgeGoal.isAssigned then
+          pure []
+        else
+          pure [bridgeGoal]
+  pure (some (theoremRemaining ++ branchRemaining))
 
 private partial def decomposeIfElseStep
     (goal : MVarId) (thenOps elseOps : Lean.Expr) : TacticM (List MVarId) := do
@@ -1943,48 +1874,8 @@ private partial def decomposeIfElseStep
   match ← tryDecomposeIfElseFastStep goal thenOps elseOps with
   | some remaining => return remaining
   | none => restoreState savedFastState
-  let parsed ← parseExecGoal goal
-  let condExpr ← mkFreshExprMVar (Lean.mkConst ``MidenLean.Felt)
-  let restExpr ← mkFreshExprMVar
-    (Lean.mkApp (Lean.mkConst ``List [Lean.levelZero]) (Lean.mkConst ``MidenLean.Felt))
-  let savedState ← saveState
-  let goals ← do
-    let sThenExpr ← mkFreshExprMVar (Lean.mkConst ``MidenLean.Concrete.State)
-    let sElseExpr ← mkFreshExprMVar (Lean.mkConst ``MidenLean.Concrete.State)
-    let theoremExpr := Lean.mkAppN (Lean.mkConst ``MidenLean.execProcedure_ifElse)
-      #[parsed.envExpr, parsed.fuelExpr, thenOps, elseOps,
-        parsed.stateExpr, sThenExpr, sElseExpr, condExpr, restExpr]
-    try
-      goal.apply theoremExpr
-    catch _ =>
-      restoreState savedState
-      let sExpr ← mkFreshExprMVar (Lean.mkConst ``MidenLean.Concrete.State)
-      let theoremExpr := Lean.mkAppN (Lean.mkConst ``MidenLean.execProcedure_ifElse_same)
-        #[parsed.envExpr, parsed.fuelExpr, thenOps, elseOps,
-          parsed.stateExpr, sExpr, condExpr, restExpr]
-      try
-        goal.apply theoremExpr
-      catch ex =>
-        throwError "miden_vcg_step: failed to decompose singleton `ifElse`: {ex.toMessageData}"
-  let (hsGoal, hfuelGoal, branchGoals, hboolGoal, auxGoals) ← classifyIfElseGoals goals
-  let [branchGoal1, branchGoal2] := branchGoals
-    | throwError "miden_vcg_step: expected two branch goals for singleton `ifElse`, got {branchGoals.length}"
-  closeVcgStackGoal hsGoal
-  closeVcgFuelGoal hfuelGoal
-  Lean.Elab.Term.synthesizeSyntheticMVarsNoPostponing
-  let (_, branchBodyGoal1) ← branchGoal1.intro1
-  let (_, branchBodyGoal2) ← branchGoal2.intro1
-  let branch1IsThen ← branchBodyMatches branchBodyGoal1 thenOps
-  let branch1IsElse ← branchBodyMatches branchBodyGoal1 elseOps
-  let branch2IsThen ← branchBodyMatches branchBodyGoal2 thenOps
-  let branch2IsElse ← branchBodyMatches branchBodyGoal2 elseOps
-  let (hthenBodyGoal, helseBodyGoal) ←
-    if branch1IsThen && branch2IsElse then
-      pure (branchBodyGoal1, branchBodyGoal2)
-    else if branch1IsElse && branch2IsThen then
-      pure (branchBodyGoal2, branchBodyGoal1)
-    else
-      throwError "miden_vcg_step: could not classify singleton `ifElse` branch goals"
+  let (hthenBodyGoal, helseBodyGoal, hboolGoal, auxGoals) ←
+    prepareIfElseSlowSplit goal thenOps elseOps "miden_vcg_step"
   let boolRemaining ← closeVcgBoolGoal hboolGoal
   let auxRemaining ← cleanupGoals auxGoals
   let mut remaining : List MVarId := []
