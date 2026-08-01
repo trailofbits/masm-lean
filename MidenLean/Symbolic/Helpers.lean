@@ -18,11 +18,15 @@ namespace MidenLean.Symbolic
 
 -- Shared helper lemmas
 
-theorem getElem?_some_lt {α : Type} (l : List α) (n : Nat) (v : α)
+/-- File-local convenience wrapper around Mathlib's
+    `List.getElem?_eq_some_iff` (use that lemma directly outside this file). -/
+private theorem getElem?_some_lt {α : Type} (l : List α) (n : Nat) (v : α)
     (h : l[n]? = some v) : n < l.length :=
   List.getElem?_eq_some_iff.mp h |>.1
 
-theorem getElem_of_getElem?_some {α : Type} (l : List α) (n : Nat) (v : α)
+/-- File-local convenience wrapper around Mathlib's
+    `List.getElem?_eq_some_iff` (use that lemma directly outside this file). -/
+private theorem getElem_of_getElem?_some {α : Type} (l : List α) (n : Nat) (v : α)
     (h : l[n]? = some v) : l[n]'(getElem?_some_lt l n v h) = v := by
   have := List.getElem?_eq_getElem (getElem?_some_lt l n v h) (α := α)
   rw [this] at h; exact Option.some.inj h
@@ -2388,7 +2392,7 @@ theorem execInstruction_sound_cswapw
     ∃ cs', MidenLean.execInstruction cs .cswapw = some cs' ∧ ss'.models cs' σ rest := by
   obtain ⟨hstack, hmem, hframes, hadv⟩ := hmodels
   simp only [execInstruction] at hexec
-  -- The symbolic execProcedure emptyEnv for cswapw has a let binding; use split to handle the inner match
+  -- The symbolic executor's cswapw case has a let binding; use split to handle the inner match
   split at hexec
   swap
   · -- Wildcard case: hexec : none = some ... is contradictory
@@ -2433,7 +2437,7 @@ theorem execInstruction_sound_cdropw
     ∃ cs', MidenLean.execInstruction cs .cdropw = some cs' ∧ ss'.models cs' σ rest := by
   obtain ⟨hstack, hmem, hframes, hadv⟩ := hmodels
   simp only [execInstruction] at hexec
-  -- The symbolic execProcedure emptyEnv for cdropw has a let binding; use split to handle the inner match
+  -- The symbolic executor's cdropw case has a let binding; use split to handle the inner match
   split at hexec
   swap
   · -- Wildcard case: hexec : none = some ... is contradictory

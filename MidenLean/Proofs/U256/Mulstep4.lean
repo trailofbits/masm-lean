@@ -48,14 +48,14 @@ private theorem mulstep_carry_nat_lt (a b c d : Nat)
   have h1 : (c * b + a) / 2 ^ 32 ≤ 2 ^ 32 - 1 := by
     calc (c * b + a) / 2 ^ 32
         ≤ ((2 ^ 32 - 1) * (2 ^ 32 - 1) + (2 ^ 32 - 1)) / 2 ^ 32 := Nat.div_le_div_right hcba
-      _ ≤ 2 ^ 32 - 1 := by native_decide
+      _ ≤ 2 ^ 32 - 1 := by decide
   have h2 : ((c * b + a) % 2 ^ 32 + d) / 2 ^ 32 ≤ 1 := by
     calc ((c * b + a) % 2 ^ 32 + d) / 2 ^ 32
         ≤ ((2 ^ 32 - 1) + (2 ^ 32 - 1)) / 2 ^ 32 := by
           apply Nat.div_le_div_right
           have : (c * b + a) % 2 ^ 32 < 2 ^ 32 := Nat.mod_lt _ (by positivity)
           omega
-      _ ≤ 1 := by native_decide
+      _ ≤ 1 := by decide
   omega
 
 /-- The Felt-level carry from mulstep is isU32. -/
@@ -71,27 +71,27 @@ theorem mulstep_carry_isU32 (a b c d : Felt)
   have h1_lt : (c.val * b.val + a.val) / 2 ^ 32 < GOLDILOCKS_PRIME := by
     calc (c.val * b.val + a.val) / 2 ^ 32
         ≤ ((2 ^ 32 - 1) * (2 ^ 32 - 1) + (2 ^ 32 - 1)) / 2 ^ 32 := Nat.div_le_div_right hcba
-      _ < GOLDILOCKS_PRIME := by unfold GOLDILOCKS_PRIME; native_decide
+      _ < GOLDILOCKS_PRIME := by unfold GOLDILOCKS_PRIME; decide
   have h2_lt : ((c.val * b.val + a.val) % 2 ^ 32 + d.val) / 2 ^ 32 < GOLDILOCKS_PRIME := by
     calc ((c.val * b.val + a.val) % 2 ^ 32 + d.val) / 2 ^ 32
         ≤ ((2 ^ 32 - 1) + (2 ^ 32 - 1)) / 2 ^ 32 := by
           apply Nat.div_le_div_right
           have : (c.val * b.val + a.val) % 2 ^ 32 < 2 ^ 32 := Nat.mod_lt _ (by positivity)
           omega
-      _ < GOLDILOCKS_PRIME := by unfold GOLDILOCKS_PRIME; native_decide
+      _ < GOLDILOCKS_PRIME := by unfold GOLDILOCKS_PRIME; decide
   have hsum_lt : ((c.val * b.val + a.val) % 2 ^ 32 + d.val) / 2 ^ 32 +
       (c.val * b.val + a.val) / 2 ^ 32 < GOLDILOCKS_PRIME := by
     have h1 : (c.val * b.val + a.val) / 2 ^ 32 ≤ 2 ^ 32 - 1 := by
       calc (c.val * b.val + a.val) / 2 ^ 32
           ≤ ((2 ^ 32 - 1) * (2 ^ 32 - 1) + (2 ^ 32 - 1)) / 2 ^ 32 := Nat.div_le_div_right hcba
-        _ ≤ 2 ^ 32 - 1 := by native_decide
+        _ ≤ 2 ^ 32 - 1 := by decide
     have h2 : ((c.val * b.val + a.val) % 2 ^ 32 + d.val) / 2 ^ 32 ≤ 1 := by
       calc ((c.val * b.val + a.val) % 2 ^ 32 + d.val) / 2 ^ 32
           ≤ ((2 ^ 32 - 1) + (2 ^ 32 - 1)) / 2 ^ 32 := by
             apply Nat.div_le_div_right
             have : (c.val * b.val + a.val) % 2 ^ 32 < 2 ^ 32 := Nat.mod_lt _ (by positivity)
             omega
-        _ ≤ 1 := by native_decide
+        _ ≤ 1 := by decide
     unfold GOLDILOCKS_PRIME; omega
   rw [felt_add_val_no_wrap _ _
     (by rw [felt_ofNat_val_lt _ h2_lt, felt_ofNat_val_lt _ h1_lt]; exact hsum_lt)]
@@ -134,27 +134,27 @@ theorem mulstepCarry_val (a b c d : Felt)
   have h1_lt : (c.val * b.val + a.val) / 2 ^ 32 < GOLDILOCKS_PRIME := by
     calc (c.val * b.val + a.val) / 2 ^ 32
         ≤ ((2 ^ 32 - 1) * (2 ^ 32 - 1) + (2 ^ 32 - 1)) / 2 ^ 32 := Nat.div_le_div_right hcba
-      _ < GOLDILOCKS_PRIME := by unfold GOLDILOCKS_PRIME; native_decide
+      _ < GOLDILOCKS_PRIME := by unfold GOLDILOCKS_PRIME; decide
   have h2_lt : ((c.val * b.val + a.val) % 2 ^ 32 + d.val) / 2 ^ 32 < GOLDILOCKS_PRIME := by
     calc ((c.val * b.val + a.val) % 2 ^ 32 + d.val) / 2 ^ 32
         ≤ ((2 ^ 32 - 1) + (2 ^ 32 - 1)) / 2 ^ 32 := by
           apply Nat.div_le_div_right
           have : (c.val * b.val + a.val) % 2 ^ 32 < 2 ^ 32 := Nat.mod_lt _ (by positivity)
           omega
-      _ < GOLDILOCKS_PRIME := by unfold GOLDILOCKS_PRIME; native_decide
+      _ < GOLDILOCKS_PRIME := by unfold GOLDILOCKS_PRIME; decide
   have hsum_lt : ((c.val * b.val + a.val) % 2 ^ 32 + d.val) / 2 ^ 32 +
       (c.val * b.val + a.val) / 2 ^ 32 < GOLDILOCKS_PRIME := by
     have h1 : (c.val * b.val + a.val) / 2 ^ 32 ≤ 2 ^ 32 - 1 := by
       calc (c.val * b.val + a.val) / 2 ^ 32
           ≤ ((2 ^ 32 - 1) * (2 ^ 32 - 1) + (2 ^ 32 - 1)) / 2 ^ 32 := Nat.div_le_div_right hcba
-        _ ≤ 2 ^ 32 - 1 := by native_decide
+        _ ≤ 2 ^ 32 - 1 := by decide
     have h2 : ((c.val * b.val + a.val) % 2 ^ 32 + d.val) / 2 ^ 32 ≤ 1 := by
       calc ((c.val * b.val + a.val) % 2 ^ 32 + d.val) / 2 ^ 32
           ≤ ((2 ^ 32 - 1) + (2 ^ 32 - 1)) / 2 ^ 32 := by
             apply Nat.div_le_div_right
             have : (c.val * b.val + a.val) % 2 ^ 32 < 2 ^ 32 := Nat.mod_lt _ (by positivity)
             omega
-        _ ≤ 1 := by native_decide
+        _ ≤ 1 := by decide
     unfold GOLDILOCKS_PRIME; omega
   rw [felt_add_val_no_wrap _ _
     (by rw [felt_ofNat_val_lt _ h2_lt, felt_ofNat_val_lt _ h1_lt]; exact hsum_lt)]

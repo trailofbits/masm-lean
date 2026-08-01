@@ -9,13 +9,6 @@ open MidenLean
 open MidenLean.StepLemmas
 open MidenLean.Tactics
 
-/-- Execute a concatenation of op lists in two phases. -/
-private theorem exec_append (fuel : Nat) (s : Concrete.State) (xs ys : List Op) :
-    execProcedure emptyEnv fuel s (xs ++ ys) = (do
-      let s' ← execProcedure emptyEnv fuel s xs
-      execProcedure emptyEnv fuel s' ys) := by
-  simpa [emptyEnv] using execProcedure_append (env := fun _ => none) fuel s xs ys
-
 private theorem stepU32AssertWLocal (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (a b c d : Felt) (rest : List Felt)
     (ha : a.isU32 = true) (hb : b.isU32 = true) (hc : c.isU32 = true) (hd : d.isU32 = true) :
@@ -62,7 +55,7 @@ private theorem felt_ite_val_local (p : Prop) [Decidable p] :
   split <;> simp [Felt.val_one']
 
 private theorem two_pow_32 : (2 ^ 32 : Nat) = 4294967296 := by
-  native_decide
+  decide
 
 private theorem felt_ofNat_eq_zero_iff {n : Nat} (hn : n < GOLDILOCKS_PRIME) :
     Felt.ofNat n = 0 ↔ n = 0 := by
@@ -341,7 +334,7 @@ private theorem divmodCol0Carry_lt
     u128DivmodCol0 q0.val b0.val r0.val / 2 ^ 32
         ≤ ((2 ^ 32 - 1) * (2 ^ 32 - 1) + (2 ^ 32 - 1)) / 2 ^ 32 := by
             exact Nat.div_le_div_right hsum
-    _ < 2 ^ 32 := by native_decide
+    _ < 2 ^ 32 := by decide
 
 private theorem divmodCol0Lo_eq
     (q0 b0 r0 : Felt) :
@@ -373,7 +366,7 @@ private theorem divmodCol0Carry_eq
               congr 1
               omega
       _ = prod / base + (prod % base + r0.val) / base := by
-            rw [Nat.mul_add_div (show 0 < base by native_decide)]
+            rw [Nat.mul_add_div (show 0 < base by decide)]
       _ = (b0.val * q0.val) / 2 ^ 32 +
             (((b0.val * q0.val) % 2 ^ 32 + r0.val) / 2 ^ 32) := by
             simp [prod, base]
@@ -395,7 +388,7 @@ private theorem divmodCol0Carry_eq
           apply Nat.div_le_div_right
           simp [Felt.isU32, decide_eq_true_eq] at hq0 hb0
           exact Nat.mul_le_mul (Nat.le_pred_of_lt hb0) (Nat.le_pred_of_lt hq0)
-        _ ≤ 2 ^ 32 - 2 := by native_decide
+        _ ≤ 2 ^ 32 - 2 := by decide
     have h2 : (((b0.val * q0.val) % 2 ^ 32 + r0.val) / 2 ^ 32) ≤ 1 := by
       simpa [Nat.mul_comm] using u32_prod_mod_add_div_le_one b0 q0 r0 hb0 hq0 hr0
     omega
@@ -2460,7 +2453,7 @@ private theorem divmodOverflow1_run
   miden_bind
   rw [show Felt.ofNat ((b1.val * q3.val) / 2 ^ 32) + Felt.ofNat ((b1.val * q3.val) % 2 ^ 32) = 0 by
     rw [hq3b1_zero']
-    native_decide]
+    decide]
   rw [show execInstruction
       ⟨(0 : Felt) :: (0 : Felt) :: q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 ::
         b0 :: b1 :: b2 :: b3 :: rest,
@@ -2483,7 +2476,7 @@ private theorem divmodOverflow1_run
   miden_bind
   rw [show Felt.ofNat ((b2.val * q2.val) / 2 ^ 32) + Felt.ofNat ((b2.val * q2.val) % 2 ^ 32) = 0 by
     rw [hq2b2_zero']
-    native_decide]
+    decide]
   rw [show execInstruction
       ⟨(0 : Felt) :: (0 : Felt) :: q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 ::
         b0 :: b1 :: b2 :: b3 :: rest,
@@ -2525,7 +2518,7 @@ private theorem divmodOverflow2_run
   miden_bind
   rw [show Felt.ofNat ((b3.val * q1.val) / 2 ^ 32) + Felt.ofNat ((b3.val * q1.val) % 2 ^ 32) = 0 by
     rw [hq1b3_zero']
-    native_decide]
+    decide]
   rw [show execInstruction
       ⟨(0 : Felt) :: (0 : Felt) :: q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 ::
         b0 :: b1 :: b2 :: b3 :: rest,
@@ -2548,7 +2541,7 @@ private theorem divmodOverflow2_run
   miden_bind
   rw [show Felt.ofNat ((b2.val * q3.val) / 2 ^ 32) + Felt.ofNat ((b2.val * q3.val) % 2 ^ 32) = 0 by
     rw [hq3b2_zero']
-    native_decide]
+    decide]
   rw [show execInstruction
       ⟨(0 : Felt) :: (0 : Felt) :: q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 ::
         b0 :: b1 :: b2 :: b3 :: rest,
@@ -2588,7 +2581,7 @@ private theorem divmodOverflow3_run
   miden_bind
   rw [show Felt.ofNat ((b3.val * q2.val) / 2 ^ 32) + Felt.ofNat ((b3.val * q2.val) % 2 ^ 32) = 0 by
     rw [hq2b3_zero']
-    native_decide]
+    decide]
   rw [show execInstruction
       ⟨(0 : Felt) :: (0 : Felt) :: q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 ::
         b0 :: b1 :: b2 :: b3 :: rest,
@@ -2613,7 +2606,7 @@ private theorem divmodOverflow3_run
     simpa [Nat.mul_comm] using hq3b3_zero
   rw [show Felt.ofNat ((b3.val * q3.val) / 2 ^ 32) + Felt.ofNat ((b3.val * q3.val) % 2 ^ 32) = 0 by
     rw [hq3b3_zero']
-    native_decide]
+    decide]
   rw [show execInstruction
       ⟨(0 : Felt) :: (0 : Felt) :: q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 ::
         b0 :: b1 :: b2 :: b3 :: rest,
@@ -3810,7 +3803,7 @@ private theorem divmodCol1CarryCarry_lt
       exact Nat.div_le_div_right (Nat.le_of_lt hcarry_lt)
     _ < base := by
           dsimp [base]
-          native_decide
+          decide
 
 private theorem divmodCol2CarryCarry_lt
     (q0 q1 q2 b0 b1 b2 r0 r1 r2 : Felt)
@@ -3925,7 +3918,7 @@ private theorem divmodCol2CarryCarry_lt
       exact Nat.div_le_div_right (Nat.le_of_lt hcarry_lt)
     _ < base := by
           dsimp [base]
-          native_decide
+          decide
 
 private theorem divmod_forward_arith
     (q0 q1 q2 q3 b0 b1 b2 b3 r0 r1 r2 r3 a0 a1 a2 a3 : Nat)

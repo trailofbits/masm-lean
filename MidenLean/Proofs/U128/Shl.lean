@@ -1,5 +1,7 @@
 import MidenLean.Proofs.U128.WrappingMul
+import MidenLean.Proofs.Helpers
 import MidenLean.Proofs.Tactics
+import MidenLean.Symbolic.Tactic
 import MidenLean.Generated.U128
 
 namespace MidenLean.Proofs
@@ -39,7 +41,7 @@ private theorem u32OverflowingSub_snd_of_ge (a b : Nat) (h : a ≥ b) :
 
 private theorem sub64_val (shift : Felt)
     (hshift_u32 : shift.isU32 = true)
-    (hge : ¬(shift.val < 64)) :
+    (hshift_ge64 : ¬(shift.val < 64)) :
     (Felt.ofNat (u32OverflowingSub shift.val 64).2).val =
     shift.val - 64 := by
   rw [u32OverflowingSub_snd_of_ge _ _ (by omega)]
@@ -49,15 +51,19 @@ private theorem sub64_val (shift : Felt)
 
 private theorem sub64_le63 (shift : Felt)
     (hshift_u32 : shift.isU32 = true)
-    (hge : ¬(shift.val < 64)) (hlt : shift.val < 128) :
+    (hshift_ge64 : ¬(shift.val < 64))
+    (hshift_lt128 : shift.val < 128) :
     (Felt.ofNat (u32OverflowingSub shift.val 64).2).val ≤ 63 := by
-  rw [sub64_val shift hshift_u32 hge]; omega
+  rw [sub64_val shift hshift_u32 hshift_ge64]
+  omega
 
 private theorem sub64_lt64 (shift : Felt)
     (hshift_u32 : shift.isU32 = true)
-    (hge : ¬(shift.val < 64)) (hlt : shift.val < 128) :
+    (hshift_ge64 : ¬(shift.val < 64))
+    (hshift_lt128 : shift.val < 128) :
     (Felt.ofNat (u32OverflowingSub shift.val 64).2).val < 64 := by
-  rw [sub64_val shift hshift_u32 hge]; omega
+  rw [sub64_val shift hshift_u32 hshift_ge64]
+  omega
 
 -- ============================================================================
 -- Chunk definitions
@@ -197,7 +203,7 @@ set_option maxHeartbeats 8000000 in
 private theorem shl_true_branch_correct (fuel : Nat)
     (shift a0 a1 a2 a3 : Felt) (rest : List Felt)
     (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
-    (hshift_lt64 : shift.val < 64)
+  (hshift_lt64 : shift.val < 64)
     (ha0 : a0.isU32 = true) (ha1 : a1.isU32 = true)
     (ha2 : a2.isU32 = true) (ha3 : a3.isU32 = true) :
     let p := Felt.ofNat (2 ^ shift.val)
@@ -209,9 +215,18 @@ private theorem shl_true_branch_correct (fuel : Nat)
           u128MulC2 a0 a1 a2 p.lo32 p.hi32 0 ::
           u128MulC3 a0 a1 a2 a3 p.lo32 p.hi32 0 0 ::
           rest, mem, frames, adv⟩ := by
-  show execProcedure u128ProcEnv (fuel + 2) _ (shl_true_setup ++ ([.inst (.exec "wrapping_mul")] : List Op)) = _
+  let p := Felt.ofNat (2 ^ shift.val)
+  show execProcedure u128ProcEnv (fuel + 2)
+      ⟨shift :: a0 :: a1 :: a2 :: a3 :: rest, mem, frames, adv⟩
+      (shl_true_setup ++ ([.inst (.exec "wrapping_mul")] : List Op)) =
+    some ⟨u128MulC0 a0 p.lo32 ::
+          u128MulC1 a0 a1 p.lo32 p.hi32 ::
+          u128MulC2 a0 a1 a2 p.lo32 p.hi32 0 ::
+          u128MulC3 a0 a1 a2 a3 p.lo32 p.hi32 0 0 ::
+          rest, mem, frames, adv⟩
   rw [execProcedure_append]
-  rw [shl_true_setup_correct u128ProcEnv (fuel + 1) shift a0 a1 a2 a3 rest mem frames adv hshift_lt64]
+  rw [shl_true_setup_correct u128ProcEnv (fuel + 1) shift a0 a1 a2 a3 rest mem frames adv
+    hshift_lt64]
   simp only [bind, Bind.bind, Option.bind]
   unfold execProcedure
   simp only [List.foldlM, u128ProcEnv, bind, Bind.bind, Option.bind, pure, Pure.pure]
@@ -255,7 +270,16 @@ private theorem shl_false_branch_correct (fuel : Nat)
           u128MulC2 a0 a1 a2 0 0 q.lo32 ::
           u128MulC3 a0 a1 a2 a3 0 0 q.lo32 q.hi32 ::
           rest, mem, frames, adv⟩ := by
-  show execProcedure u128ProcEnv (fuel + 2) _ (shl_false_setup ++ ([.inst (.exec "wrapping_mul")] : List Op)) = _
+  let s64 := Felt.ofNat (u32OverflowingSub shift.val 64).2
+  let q := Felt.ofNat (2 ^ s64.val)
+  show execProcedure u128ProcEnv (fuel + 2)
+      ⟨shift :: a0 :: a1 :: a2 :: a3 :: rest, mem, frames, adv⟩
+      (shl_false_setup ++ ([.inst (.exec "wrapping_mul")] : List Op)) =
+    some ⟨u128MulC0 a0 0 ::
+          u128MulC1 a0 a1 0 0 ::
+          u128MulC2 a0 a1 a2 0 0 q.lo32 ::
+          u128MulC3 a0 a1 a2 a3 0 0 q.lo32 q.hi32 ::
+          rest, mem, frames, adv⟩
   rw [execProcedure_append]
   rw [shl_false_setup_correct u128ProcEnv (fuel + 1) shift a0 a1 a2 a3 rest mem frames adv
     hshift_u32 hshift_ge64 hshift_lt128]
@@ -278,136 +302,66 @@ private theorem shl_false_branch_correct (fuel : Nat)
     (by apply felt_ofNat_isU32_of_lt; norm_num)
     (by apply felt_ofNat_isU32_of_lt; norm_num)
     (U32.lo32_isU32 _)
-    (U32.hi32_isU32_of_val_lt_2_64 _
-      (pow2_val_lt_2_64 _ (sub64_lt64 shift hshift_u32 hshift_ge64 hshift_lt128)))]
+    (by
+      have hq_lt2_64 : q.val < 2 ^ 64 := by
+        rw [show q = Felt.ofNat (2 ^ s64.val) by rfl]
+        exact pow2_val_lt_2_64 s64.val
+          (sub64_lt64 shift hshift_u32 hshift_ge64 hshift_lt128)
+      exact U32.hi32_isU32_of_val_lt_2_64 q hq_lt2_64)]
   rfl
 
 -- ============================================================================
--- ifElse dispatch helpers
+-- Low-level exec theorem
 -- ============================================================================
 
-private theorem execProcedure_ifElse_one
-    (env : ProcEnv) (fuel : Nat)
-    (rest : List Felt) (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
-    (thenBlk elseBlk : List Op) :
-    execProcedure env (fuel + 2)
-      ⟨(1 : Felt) :: rest, mem, frames, adv⟩
-      ([.ifElse thenBlk elseBlk] : List Op) =
-    execProcedure env (fuel + 1) ⟨rest, mem, frames, adv⟩ thenBlk := by
-  conv_lhs => unfold execProcedure
-  simp only [Procedure.ofOps, List.foldlM, Concrete.State.withStack]
-  dsimp only [bind, Bind.bind, Option.bind, pure, Pure.pure]
-  have hv1 : (1 : Felt).val = 1 := Felt.val_one'
-  have hbeq : ((1 : Nat) == 1) = true := by decide
-  simp only [hv1, hbeq, ↓reduceIte]
-  cases execProcedure env (fuel + 1) ⟨rest, mem, frames, adv⟩ thenBlk <;> rfl
-
-private theorem execProcedure_ifElse_zero
-    (env : ProcEnv) (fuel : Nat)
-    (rest : List Felt) (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
-    (thenBlk elseBlk : List Op) :
-    execProcedure env (fuel + 2)
-      ⟨(0 : Felt) :: rest, mem, frames, adv⟩
-      ([.ifElse thenBlk elseBlk] : List Op) =
-    execProcedure env (fuel + 1) ⟨rest, mem, frames, adv⟩ elseBlk := by
-  conv_lhs => unfold execProcedure
-  simp only [Procedure.ofOps, List.foldlM, Concrete.State.withStack]
-  dsimp only [bind, Bind.bind, Option.bind, pure, Pure.pure]
-  have hv0 : (0 : Felt).val = 0 := Felt.val_zero'
-  have hneq : ((0 : Nat) == 1) = false := by decide
-  have hbeq : ((0 : Nat) == 0) = true := by decide
-  simp only [hv0, hneq, hbeq, ↓reduceIte]
-  cases execProcedure env (fuel + 1) ⟨rest, mem, frames, adv⟩ elseBlk <;> rfl
-
--- ============================================================================
--- Composition: u128_shl_run
--- ============================================================================
-
-set_option maxHeartbeats 8000000 in
-theorem u128_shl_run
-    (fuel : Nat)
-    (shift a0 a1 a2 a3 : Felt) (rest : List Felt)
-    (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
-    (hshift_u32 : shift.isU32 = true)
-    (hshift_lt128 : shift.val < 128)
-    (ha0 : a0.isU32 = true) (ha1 : a1.isU32 = true)
-    (ha2 : a2.isU32 = true) (ha3 : a3.isU32 = true) :
-    execProcedure u128ProcEnv (fuel + 3)
-      ⟨shift :: a0 :: a1 :: a2 :: a3 :: rest, mem, frames, adv⟩
-      Miden.Core.U128.shl =
-    (if shift.val < 64 then
-      let p := Felt.ofNat (2 ^ shift.val)
-      some ⟨u128MulC0 a0 p.lo32 ::
-            u128MulC1 a0 a1 p.lo32 p.hi32 ::
-            u128MulC2 a0 a1 a2 p.lo32 p.hi32 0 ::
-            u128MulC3 a0 a1 a2 a3 p.lo32 p.hi32 0 0 ::
-            rest, mem, frames, adv⟩
-    else
-      let s64 := Felt.ofNat (u32OverflowingSub shift.val 64).2
-      let q := Felt.ofNat (2 ^ s64.val)
-      some ⟨u128MulC0 a0 0 ::
-            u128MulC1 a0 a1 0 0 ::
-            u128MulC2 a0 a1 a2 0 0 q.lo32 ::
-            u128MulC3 a0 a1 a2 a3 0 0 q.lo32 q.hi32 ::
-            rest, mem, frames, adv⟩) := by
-  rw [execProcedure_body_eq _ _ _ _ _ shl_decomp rfl, execProcedure_append]
-  rw [shl_prefix_correct u128ProcEnv (fuel + 2) shift a0 a1 a2 a3 rest mem frames adv
-    hshift_u32 hshift_lt128]
-  simp only [bind, Bind.bind, Option.bind]
-  -- Case split on shift < 64
-  by_cases hlt : shift.val < 64
-  · -- shift < 64: condition is 1, take true branch
-    simp only [hlt, ↓reduceIte]
-    rw [execProcedure_ifElse_one]
-    exact shl_true_branch_correct fuel shift a0 a1 a2 a3 rest mem frames adv
-      hlt ha0 ha1 ha2 ha3
-  · -- shift >= 64: condition is 0, take false branch
-    simp only [hlt, ↓reduceIte]
-    rw [execProcedure_ifElse_zero]
-    exact shl_false_branch_correct fuel shift a0 a1 a2 a3 rest mem frames adv
-      hshift_u32 hlt hshift_lt128 ha0 ha1 ha2 ha3
-
--- ============================================================================
--- Main correctness theorem
--- ============================================================================
-
-set_option maxHeartbeats 8000000 in
-/-- `u128::shl` computes the left shift of a 128-bit value by a given amount.
+set_option maxHeartbeats 16000000 in
+/-- `u128::shl` computes the left shift of a 128-bit value by a given amount (raw limb version).
     Input stack:  [shift, a0, a1, a2, a3] ++ rest  (shift < 128, a0..a3 are u32 limbs)
     Output stack: [r0, r1, r2, r3] ++ rest
     where `r0..r3` are the u32 limbs of `(a << shift) mod 2^128`, computed via
-    multiplication by `2^shift` using `wrapping_mul`. -/
-theorem u128_shl_raw
+    multiplication by `2^shift` using `wrapping_mul`.
+    Parametric in `fuel` so this lemma serves both as a callee summary for
+    reflective callers and as the basis for `u128_shl_correct`. -/
+@[miden_exec_summary]
+theorem u128_shl_exec
+    (fuel : Nat)
     (shift a0 a1 a2 a3 : Felt) (rest : List Felt) (s : Concrete.State)
     (hs : s.stack = shift :: a0 :: a1 :: a2 :: a3 :: rest)
     (hshift_u32 : shift.isU32 = true)
     (hshift_lt128 : shift.val < 128)
     (ha0 : a0.isU32 = true) (ha1 : a1.isU32 = true)
     (ha2 : a2.isU32 = true) (ha3 : a3.isU32 = true) :
-    execProcedure u128ProcEnv 70 s Miden.Core.U128.shl =
-    (if shift.val < 64 then
+    execProcedure u128ProcEnv (fuel + 3) s Miden.Core.U128.shl =
+    some (if shift.val < 64 then
       let p := Felt.ofNat (2 ^ shift.val)
-      some (s.withStack (
+      s.withStack (
         u128MulC0 a0 p.lo32 ::
         u128MulC1 a0 a1 p.lo32 p.hi32 ::
         u128MulC2 a0 a1 a2 p.lo32 p.hi32 0 ::
         u128MulC3 a0 a1 a2 a3 p.lo32 p.hi32 0 0 ::
-        rest))
+        rest)
     else
       let s64 := Felt.ofNat (u32OverflowingSub shift.val 64).2
       let q := Felt.ofNat (2 ^ s64.val)
-      some (s.withStack (
+      s.withStack (
         u128MulC0 a0 0 ::
         u128MulC1 a0 a1 0 0 ::
         u128MulC2 a0 a1 a2 0 0 q.lo32 ::
         u128MulC3 a0 a1 a2 a3 0 0 q.lo32 q.hi32 ::
-        rest))) := by
-  obtain ⟨stk, mem, frames, adv⟩ := s
+        rest)) := by
+  rcases s with ⟨stack, mem, frames, adv⟩
   simp only [Concrete.State.withStack] at hs ⊢
   subst hs
-  have h := u128_shl_run 67 shift a0 a1 a2 a3 rest mem frames adv
-    hshift_u32 hshift_lt128 ha0 ha1 ha2 ha3
-  simpa using h
+  rw [execProcedure_body_eq _ _ _ _ _ shl_decomp rfl, execProcedure_append]
+  rw [shl_prefix_correct u128ProcEnv (fuel + 2) shift a0 a1 a2 a3 rest mem frames adv
+    hshift_u32 hshift_lt128]
+  simp only [bind, Bind.bind, Option.bind]
+  miden_vcg_step
+  · exact shl_true_branch_correct fuel shift a0 a1 a2 a3 rest mem frames adv
+      h ha0 ha1 ha2 ha3
+  · have hshift_ge64 : ¬ shift.val < 64 := by omega
+    exact shl_false_branch_correct fuel shift a0 a1 a2 a3 rest mem frames adv
+      hshift_u32 hshift_ge64 hshift_lt128 ha0 ha1 ha2 ha3
 
 -- ============================================================================
 -- High-level correctness theorem
@@ -425,32 +379,32 @@ private theorem pow2_ofNat_a1_lt64 (n : Nat) (h : n < 64) :
   rw [Nat.mod_eq_of_lt]
   calc 2^n / 2^32 ≤ 2^63 / 2^32 :=
     Nat.div_le_div_right (Nat.pow_le_pow_right (by omega) (by omega))
-    _ < 2^32 := by native_decide
+    _ < 2^32 := by decide
 
 private theorem pow2_ofNat_a2_lt64 (n : Nat) (h : n < 64) :
     (U128.ofNat (2^n)).a2.val = 0 := by
   simp only [U128.ofNat_a2]
   rw [Nat.div_eq_of_lt (Nat.pow_lt_pow_right (by omega) h)]
-  native_decide
+  decide
 
 private theorem pow2_ofNat_a3_lt64 (n : Nat) (h : n < 64) :
     (U128.ofNat (2^n)).a3.val = 0 := by
   simp only [U128.ofNat_a3]
   rw [Nat.div_eq_of_lt (show 2^n < 2^96 from Nat.pow_lt_pow_right (by omega) (by omega))]
-  native_decide
+  decide
 
 private theorem pow2_ofNat_a0_ge64 (n : Nat) (h : 64 ≤ n) :
     (U128.ofNat (2^n)).a0.val = 0 := by
   simp only [U128.ofNat_a0]
   rw [(Nat.dvd_iff_mod_eq_zero.mp (Nat.pow_dvd_pow 2 (by omega : 32 ≤ n)))]
-  native_decide
+  decide
 
 private theorem pow2_ofNat_a1_ge64 (n : Nat) (h : 64 ≤ n) :
     (U128.ofNat (2^n)).a1.val = 0 := by
   simp only [U128.ofNat_a1]
   rw [Nat.pow_div (by omega : 32 ≤ n) (by omega)]
   rw [(Nat.dvd_iff_mod_eq_zero.mp (Nat.pow_dvd_pow 2 (by omega : 32 ≤ n - 32)))]
-  native_decide
+  decide
 
 private theorem pow2_ofNat_a2_ge64 (n : Nat) (h : 64 ≤ n) (_ : n < 128) :
     (U128.ofNat (2^n)).a2.val = Felt.ofNat (2^(n-64) % 2^32) := by
@@ -468,7 +422,7 @@ private theorem pow2_ofNat_a3_ge64 (n : Nat) (h : 64 ≤ n) (_ : n < 128) :
   rw [Nat.mod_eq_of_lt]
   calc 2^(n-64) / 2^32 ≤ 2^63 / 2^32 :=
     Nat.div_le_div_right (Nat.pow_le_pow_right (by omega) (by omega))
-    _ < 2^32 := by native_decide
+    _ < 2^32 := by decide
 
 -- Helper to recover Felt.ofNat(2^n).val = 2^n for shift values
 private theorem felt_pow2_val (n : Nat) (h : n < 64) :
@@ -496,7 +450,7 @@ theorem u128_shl_correct (a : U128) (shift : U32) (rest : List Felt) (s : Concre
     some (s.withStack (
       (a.shl shift.toNat).a0.val :: (a.shl shift.toNat).a1.val ::
       (a.shl shift.toNat).a2.val :: (a.shl shift.toNat).a3.val :: rest)) := by
-  have h := u128_shl_raw shift.val a.a0.val a.a1.val a.a2.val a.a3.val rest s hs
+  have h := u128_shl_exec 67 shift.val a.a0.val a.a1.val a.a2.val a.a3.val rest s hs
     shift.isU32 hshift_lt128 a.a0.isU32 a.a1.isU32 a.a2.isU32 a.a3.isU32
   rw [h]
   rw [U128.shl_eq_mul_ofNat_pow2 a shift.toNat]
@@ -504,14 +458,14 @@ theorem u128_shl_correct (a : U128) (shift : U32) (rest : List Felt) (s : Concre
   rw [← u128MulResult_eq a (U128.ofNat (2 ^ shift.toNat))]
   by_cases hlt : shift.toNat < 64
   · -- shift < 64: raw uses (p.lo32, p.hi32, 0, 0) = ofNat(2^shift) limbs
-    simp only [hlt, ↓reduceIte]
+    simp only [U32.toNat, hlt, ↓reduceIte]
     congr 1; congr 1
     rw [felt_pow2_lo32 shift.toNat hlt, pow2_ofNat_a0 shift.toNat,
         felt_pow2_hi32 shift.toNat hlt, pow2_ofNat_a1_lt64 shift.toNat hlt,
         pow2_ofNat_a2_lt64 shift.toNat hlt, pow2_ofNat_a3_lt64 shift.toNat hlt]
   · -- shift >= 64: raw uses (0, 0, q.lo32, q.hi32) = ofNat(2^shift) limbs
     push_neg at hlt
-    simp only [show ¬(shift.toNat < 64) from by omega, ↓reduceIte]
+    simp only [U32.toNat, show ¬(shift.toNat < 64) from by omega, ↓reduceIte]
     have hs64_val : (Felt.ofNat (u32OverflowingSub shift.toNat 64).2).val = shift.toNat - 64 := by
       unfold u32OverflowingSub
       simp [show shift.toNat ≥ 64 from hlt]

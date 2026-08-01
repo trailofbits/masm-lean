@@ -15,7 +15,7 @@ set_option maxHeartbeats 64000000 in
     store updated partial products to la(16).
     Input stack: rest
     Output stack: [lo4, lo3, lo2, a₇, a₆, a₅, a₄, carry4, b₃] ++ rest -/
-theorem wm_r4a_correct (a b : U256) (rest : List Felt)
+theorem wm_r4a_spec (a b : U256) (rest : List Felt)
     (mem : Nat → Felt) (frame : LocalFrame) (frames : List LocalFrame) (adv : List Felt)
     (fuel : Nat) (hnl : frame.numLocals ≥ 24)
     (p₀ p₁ p₂ p₃ q₀ q₁ q₂ q₃ : Felt)
@@ -262,7 +262,7 @@ theorem wm_round4_correct (a b : U256) (rest : List Felt)
   rw [show (wm_round4 : List Op) = wm_r4a ++ wm_r4b from wm_round4_eq_r4a_r4b]
   rw [execProcedure_append]
   -- Apply Part A
-  rw [wm_r4a_correct a b rest mem frame frames adv fuel hnl
+  rw [wm_r4a_spec a b rest mem frame frames adv fuel hnl
       p₀ p₁ p₂ p₃ q₀ q₁ q₂ q₃ hp₃ hq₀ hq₁ hq₂
       h16_3 h16_2 h16_1 h16_0 h20_3 h20_2 h20_1 h20_0
       h12_3 h12_2 h12_1 h12_0 h8_3 h8_2 h8_1 h8_0

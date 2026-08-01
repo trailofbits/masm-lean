@@ -14,7 +14,7 @@ set_option maxHeartbeats 8000000 in
 /-- The setup phase converts LE→BE, stores operands to locals 0-15,
     and initializes accumulators at locals 16-23 to zero.
     Output stack: [a7, a6, a5, a4, a3, a2, a1, a0, b0] ++ rest -/
-theorem wm_setup_correct (a b : U256) (rest : List Felt) (mem : Nat → Felt)
+theorem wm_setup_spec (a b : U256) (rest : List Felt) (mem : Nat → Felt)
     (frame : LocalFrame) (frames : List LocalFrame) (adv : List Felt) (fuel : Nat)
     (hnl : frame.numLocals ≥ 24) :
     let la := frame.localAddr

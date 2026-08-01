@@ -1,5 +1,6 @@
 import MidenLean.Proofs.U128.Common
 import MidenLean.Proofs.Tactics
+import MidenLean.Symbolic.Tactic
 import MidenLean.Generated.U128
 
 namespace MidenLean.Proofs
@@ -7,14 +8,6 @@ namespace MidenLean.Proofs
 open MidenLean
 open MidenLean.StepLemmas
 open MidenLean.Tactics
-
-/-- Execute a concatenation of op lists in two phases. -/
-theorem execProcedure_append (env : ProcEnv) (fuel : Nat) (s : Concrete.State) (xs ys : List Op) :
-    execProcedure env fuel s (xs ++ ys) = (do
-      let s' ← execProcedure env fuel s xs
-      execProcedure env fuel s' ys) := by
-  unfold execProcedure
-  cases fuel <;> simp [List.foldlM_append]
 
 def u128MulC0 (a0 b0 : Felt) : Felt := Felt.ofNat ((b0.val * a0.val) % 2 ^ 32)
 def u128MulO0 (a0 b0 : Felt) : Felt := Felt.ofNat ((b0.val * a0.val) / 2 ^ 32)
@@ -529,80 +522,6 @@ private theorem u128_mul_low_chunk2_run
     u128MulO1Sum, u128MulO1Carry, u128MulP2a, u128MulO2a, u128MulP2b, u128MulO2b]
 
 set_option maxHeartbeats 12000000 in
-private theorem u128_mul_low_chunk3_add3_step
-    (a0 a1 a2 a3 b0 b1 b2 b3 : Felt) (rest : List Felt)
-    (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
-    (hO2a_u32 : (u128MulO2a a0 a1 a2 b0 b1).isU32 = true)
-    (hO2b_u32 : (u128MulO2b a0 a1 a2 b0 b1).isU32 = true)
-    (hO2c_u32 : (u128MulO2c a0 a1 a2 b0 b1 b2).isU32 = true) :
-    execInstruction
-      ⟨u128MulO2c a0 a1 a2 b0 b1 b2 ::
-        u128MulO2b a0 a1 a2 b0 b1 ::
-        u128MulO2a a0 a1 a2 b0 b1 ::
-        a0 :: a1 :: a2 :: a3 :: b0 :: b1 :: b2 :: b3 ::
-        u128MulC0 a0 b0 ::
-        u128MulC1 a0 a1 b0 b1 ::
-        u128MulC2 a0 a1 a2 b0 b1 b2 ::
-        u128MulO1Carry a0 a1 b0 b1 ::
-        rest,
-        mem, frames, adv⟩
-      .u32WidenAdd3 =
-    some ⟨
-      u128MulO2Partial a0 a1 a2 b0 b1 b2 ::
-      u128MulO2Carry1 a0 a1 a2 b0 b1 b2 ::
-      a0 :: a1 :: a2 :: a3 :: b0 :: b1 :: b2 :: b3 ::
-      u128MulC0 a0 b0 ::
-      u128MulC1 a0 a1 b0 b1 ::
-      u128MulC2 a0 a1 a2 b0 b1 b2 ::
-      u128MulO1Carry a0 a1 b0 b1 ::
-      rest,
-      mem, frames, adv⟩ := by
-  simpa [u128MulO2Partial, u128MulO2Carry1, u128MulC2] using
-    (stepU32WidenAdd3 (mem := mem) (frames := frames) (adv := adv)
-      (a := u128MulO2a a0 a1 a2 b0 b1)
-      (b := u128MulO2b a0 a1 a2 b0 b1)
-      (c := u128MulO2c a0 a1 a2 b0 b1 b2)
-      (rest := a0 :: a1 :: a2 :: a3 :: b0 :: b1 :: b2 :: b3 ::
-        u128MulC0 a0 b0 :: u128MulC1 a0 a1 b0 b1 :: u128MulC2 a0 a1 a2 b0 b1 b2 ::
-        u128MulO1Carry a0 a1 b0 b1 :: rest)
-      (ha := hO2a_u32) (hb := hO2b_u32) (hc := hO2c_u32))
-
-private theorem u128_mul_low_chunk3_add_step
-    (a0 a1 a2 a3 b0 b1 b2 b3 : Felt) (rest : List Felt)
-    (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
-    (hO1Carry_u32 : (u128MulO1Carry a0 a1 b0 b1).isU32 = true)
-    (hO2Partial_u32 : (u128MulO2Partial a0 a1 a2 b0 b1 b2).isU32 = true) :
-    execInstruction
-      ⟨u128MulO1Carry a0 a1 b0 b1 ::
-        u128MulO2Partial a0 a1 a2 b0 b1 b2 ::
-        u128MulO2Carry1 a0 a1 a2 b0 b1 b2 ::
-        a0 :: a1 :: a2 :: a3 :: b0 :: b1 :: b2 :: b3 ::
-        u128MulC0 a0 b0 ::
-        u128MulC1 a0 a1 b0 b1 ::
-        u128MulC2 a0 a1 a2 b0 b1 b2 ::
-        rest,
-        mem, frames, adv⟩
-      .u32WidenAdd =
-    some ⟨
-      u128MulO2Sum a0 a1 a2 b0 b1 b2 ::
-      u128MulO2Carry2 a0 a1 a2 b0 b1 b2 ::
-      u128MulO2Carry1 a0 a1 a2 b0 b1 b2 ::
-      a0 :: a1 :: a2 :: a3 :: b0 :: b1 :: b2 :: b3 ::
-      u128MulC0 a0 b0 ::
-      u128MulC1 a0 a1 b0 b1 ::
-      u128MulC2 a0 a1 a2 b0 b1 b2 ::
-      rest,
-      mem, frames, adv⟩ := by
-  simpa [u128MulO2Sum, u128MulO2Carry2, Nat.add_comm] using
-    (stepU32WidenAdd (mem := mem) (frames := frames) (adv := adv)
-      (a := u128MulO2Partial a0 a1 a2 b0 b1 b2)
-      (b := u128MulO1Carry a0 a1 b0 b1)
-      (rest := u128MulO2Carry1 a0 a1 a2 b0 b1 b2 ::
-        a0 :: a1 :: a2 :: a3 :: b0 :: b1 :: b2 :: b3 ::
-        u128MulC0 a0 b0 :: u128MulC1 a0 a1 b0 b1 :: u128MulC2 a0 a1 a2 b0 b1 b2 :: rest)
-      (ha := hO2Partial_u32) (hb := hO1Carry_u32))
-
-set_option maxHeartbeats 12000000 in
 private theorem u128_mul_low_chunk3_run
     (env : ProcEnv) (fuel : Nat)
     (a0 a1 a2 a3 b0 b1 b2 b3 : Felt) (rest : List Felt)
@@ -1100,25 +1019,32 @@ theorem u128_overflowing_mul_cleanup_chunk_run
   simp [Concrete.State.withStack]
 
 set_option maxHeartbeats 12000000 in
-theorem u128_overflowing_mul_run
+/-- `u128::overflowing_mul` computes the low 128 bits of the product and an overflow flag.
+    Input stack:  [b0, b1, b2, b3, a0, a1, a2, a3] ++ rest
+    Output stack: [overflow, c0, c1, c2, c3] ++ rest
+    where `c0..c3` are the low-to-high limbs of `(a * b) mod 2^128`
+    and `overflow` is `1` exactly when the discarded high part is nonzero.
+    Parametric in `env` and `fuel` so this lemma serves both as a callee
+    summary for reflective callers and as the basis for `u128_overflowing_mul_correct`. -/
+@[miden_exec_summary]
+theorem u128_overflowing_mul_exec
     (env : ProcEnv) (fuel : Nat)
-    (a0 a1 a2 a3 b0 b1 b2 b3 : Felt) (rest : List Felt)
-    (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
+    (a0 a1 a2 a3 b0 b1 b2 b3 : Felt) (rest : List Felt) (s : Concrete.State)
+    (hs : s.stack = b0 :: b1 :: b2 :: b3 :: a0 :: a1 :: a2 :: a3 :: rest)
     (ha0 : a0.isU32 = true) (ha1 : a1.isU32 = true)
     (ha2 : a2.isU32 = true) (ha3 : a3.isU32 = true)
     (hb0 : b0.isU32 = true) (hb1 : b1.isU32 = true)
     (hb2 : b2.isU32 = true) (hb3 : b3.isU32 = true) :
-    execProcedure env (fuel + 1)
-      ⟨b0 :: b1 :: b2 :: b3 :: a0 :: a1 :: a2 :: a3 :: rest, mem, frames, adv⟩
-      Miden.Core.U128.overflowing_mul =
-    some ⟨
+    execProcedure env (fuel + 1) s Miden.Core.U128.overflowing_mul =
+    some (s.withStack (
       (if u128MulOverflowBool a0 a1 a2 a3 b0 b1 b2 b3 then (1 : Felt) else 0) ::
       u128MulC0 a0 b0 ::
       u128MulC1 a0 a1 b0 b1 ::
       u128MulC2 a0 a1 a2 b0 b1 b2 ::
-      u128MulC3 a0 a1 a2 a3 b0 b1 b2 b3 ::
-      rest,
-      mem, frames, adv⟩ := by
+      u128MulC3 a0 a1 a2 a3 b0 b1 b2 b3 :: rest)) := by
+  obtain ⟨stack, mem, frames, adv⟩ := s
+  simp only [Concrete.State.withStack] at hs ⊢
+  subst hs
   rw [execProcedure_body_eq _ _ _ _ _ overflowing_mul_decomp rfl, execProcedure_append]
   rw [u128_mul_low_chunk_run env fuel a0 a1 a2 a3 b0 b1 b2 b3 rest mem frames adv
     ha0 ha1 ha2 ha3 hb0 hb1 hb2 hb3]
@@ -1135,34 +1061,6 @@ theorem u128_overflowing_mul_run
     ha0 ha1 ha2 ha3 hb0 hb1 hb2 hb3]
   miden_bind
   rw [u128_overflowing_mul_cleanup_chunk_run env fuel]
-
-set_option maxHeartbeats 12000000 in
-/-- `u128::overflowing_mul` computes the low 128 bits of the product and an overflow flag.
-    Input stack:  [b0, b1, b2, b3, a0, a1, a2, a3] ++ rest
-    Output stack: [overflow, c0, c1, c2, c3] ++ rest
-    where `c0..c3` are the low-to-high limbs of `(a * b) mod 2^128`
-    and `overflow` is `1` exactly when the discarded high part is nonzero. -/
-theorem u128_overflowing_mul_raw
-    (a0 a1 a2 a3 b0 b1 b2 b3 : Felt) (rest : List Felt) (s : Concrete.State)
-    (hs : s.stack = b0 :: b1 :: b2 :: b3 :: a0 :: a1 :: a2 :: a3 :: rest)
-    (ha0 : a0.isU32 = true) (ha1 : a1.isU32 = true)
-    (ha2 : a2.isU32 = true) (ha3 : a3.isU32 = true)
-    (hb0 : b0.isU32 = true) (hb1 : b1.isU32 = true)
-    (hb2 : b2.isU32 = true) (hb3 : b3.isU32 = true) :
-    execProcedure emptyEnv 116 s Miden.Core.U128.overflowing_mul =
-    some (s.withStack (
-      (if u128MulOverflowBool a0 a1 a2 a3 b0 b1 b2 b3 then (1 : Felt) else 0) ::
-      u128MulC0 a0 b0 ::
-      u128MulC1 a0 a1 b0 b1 ::
-      u128MulC2 a0 a1 a2 b0 b1 b2 ::
-      u128MulC3 a0 a1 a2 a3 b0 b1 b2 b3 ::
-      rest)) := by
-  obtain ⟨stk, mem, frames, adv⟩ := s
-  simp only [Concrete.State.withStack] at hs ⊢
-  subst hs
-  simpa [emptyEnv] using
-    u128_overflowing_mul_run (fun _ => none) 115 a0 a1 a2 a3 b0 b1 b2 b3 rest mem frames adv
-      ha0 ha1 ha2 ha3 hb0 hb1 hb2 hb3
 
 -- Multiplication limb bridge: u128MulC0..C3 = (a * b).a0..a3.val
 
@@ -1241,14 +1139,14 @@ private theorem u128MulC2_eq (a b : U128) :
     have hprod : b.a0.val.val * a.a0.val.val / 2^32 < 2^32 := by
       calc b.a0.val.val * a.a0.val.val / 2^32
           ≤ (2^32-1)*(2^32-1) / 2^32 := Nat.div_le_div_right (Nat.mul_le_mul (by omega) (by omega))
-        _ < 2^32 := by native_decide
+        _ < 2^32 := by decide
     have hsum : b.a0.val.val * a.a1.val.val + b.a0.val.val * a.a0.val.val / 2^32
         ≤ (2^32-1)*(2^32-1) + (2^32-1) := by
       have := Nat.mul_le_mul (show b.a0.val.val ≤ 2^32-1 by omega) (show a.a1.val.val ≤ 2^32-1 by omega)
       omega
     calc (b.a0.val.val * a.a1.val.val + b.a0.val.val * a.a0.val.val / 2^32) / 2^32
         ≤ ((2^32-1)*(2^32-1) + (2^32-1)) / 2^32 := Nat.div_le_div_right hsum
-      _ < GOLDILOCKS_PRIME := by unfold GOLDILOCKS_PRIME; native_decide
+      _ < GOLDILOCKS_PRIME := by unfold GOLDILOCKS_PRIME; decide
   rw [felt_ofNat_val_lt _ hO1a_bound]
   -- O1b: (Felt.ofNat ((b1*a0 + (b0*a1 + b0*a0/2^32) % 2^32) / 2^32)).val
   have hO1b_bound : (b.a1.val.val * a.a0.val.val +
@@ -1261,7 +1159,7 @@ private theorem u128MulC2_eq (a b : U128) :
     calc (b.a1.val.val * a.a0.val.val +
         (b.a0.val.val * a.a1.val.val + b.a0.val.val * a.a0.val.val / 2^32) % 2^32) / 2^32
         ≤ ((2^32-1)*(2^32-1) + (2^32-1)) / 2^32 := Nat.div_le_div_right hsum
-      _ < GOLDILOCKS_PRIME := by unfold GOLDILOCKS_PRIME; native_decide
+      _ < GOLDILOCKS_PRIME := by unfold GOLDILOCKS_PRIME; decide
   rw [felt_ofNat_val_lt _ hO1b_bound]
   -- Apply div_add_mod_div to simplify O1a + O1b carry chain
   rw [div_add_mod_div _ _ _ (by norm_num : (0 : Nat) < 2^32)]
@@ -1320,14 +1218,14 @@ private theorem u128MulC3_eq (a b : U128) :
     have hprod : b.a0.val.val * a.a0.val.val / 2^32 < 2^32 := by
       calc b.a0.val.val * a.a0.val.val / 2^32
           ≤ (2^32-1)*(2^32-1) / 2^32 := Nat.div_le_div_right (Nat.mul_le_mul (by omega) (by omega))
-        _ < 2^32 := by native_decide
+        _ < 2^32 := by decide
     have hsum : b.a0.val.val * a.a1.val.val + b.a0.val.val * a.a0.val.val / 2^32
         ≤ (2^32-1)*(2^32-1) + (2^32-1) := by
       have := Nat.mul_le_mul (show b.a0.val.val ≤ 2^32-1 by omega) (show a.a1.val.val ≤ 2^32-1 by omega)
       omega
     calc (b.a0.val.val * a.a1.val.val + b.a0.val.val * a.a0.val.val / 2^32) / 2^32
         ≤ ((2^32-1)*(2^32-1) + (2^32-1)) / 2^32 := Nat.div_le_div_right hsum
-      _ < GOLDILOCKS_PRIME := by unfold GOLDILOCKS_PRIME; native_decide
+      _ < GOLDILOCKS_PRIME := by unfold GOLDILOCKS_PRIME; decide
   rw [felt_ofNat_val_lt _ hO1a_bound]
   -- O1b bound
   have hO1b_bound : (b.a1.val.val * a.a0.val.val +
@@ -1340,7 +1238,7 @@ private theorem u128MulC3_eq (a b : U128) :
     calc (b.a1.val.val * a.a0.val.val +
         (b.a0.val.val * a.a1.val.val + b.a0.val.val * a.a0.val.val / 2^32) % 2^32) / 2^32
         ≤ ((2^32-1)*(2^32-1) + (2^32-1)) / 2^32 := Nat.div_le_div_right hsum
-      _ < GOLDILOCKS_PRIME := by unfold GOLDILOCKS_PRIME; native_decide
+      _ < GOLDILOCKS_PRIME := by unfold GOLDILOCKS_PRIME; decide
   rw [felt_ofNat_val_lt _ hO1b_bound]
   -- Apply div_add_mod_div for O1a + O1b
   rw [div_add_mod_div _ _ _ (by norm_num : (0 : Nat) < 2^32)]
@@ -1359,12 +1257,12 @@ private theorem u128MulC3_eq (a b : U128) :
       have h3 : b.a0.val.val * a.a0.val.val / 2^32 ≤ (2^32-1) := by
         calc b.a0.val.val * a.a0.val.val / 2^32
             ≤ (2^32-1)*(2^32-1) / 2^32 := Nat.div_le_div_right (Nat.mul_le_mul (by omega) (by omega))
-          _ ≤ 2^32-1 := by native_decide
+          _ ≤ 2^32-1 := by decide
       omega
     calc (b.a0.val.val * a.a1.val.val + b.a0.val.val * a.a0.val.val / 2^32 + b.a1.val.val * a.a0.val.val) / 2^32 / 2^32
         ≤ ((2^32-1)*(2^32-1) + (2^32-1) + (2^32-1)*(2^32-1)) / 2^32 / 2^32 := by
           apply Nat.div_le_div_right; apply Nat.div_le_div_right; exact hsum
-      _ < GOLDILOCKS_PRIME := by unfold GOLDILOCKS_PRIME; native_decide
+      _ < GOLDILOCKS_PRIME := by unfold GOLDILOCKS_PRIME; decide
   rw [felt_ofNat_val_lt _ hO1Carry_bound]
   -- Abbreviate the carry1 sum for readability
   set C1 := (b.a0.val.val * a.a1.val.val + b.a0.val.val * a.a0.val.val / 2^32 + b.a1.val.val * a.a0.val.val) / 2^32
@@ -1377,7 +1275,7 @@ private theorem u128MulC3_eq (a b : U128) :
     calc (x * y + z % 2^32) / 2^32
         ≤ ((2^32-1)*(2^32-1) + (2^32-1)) / 2^32 := by
           apply Nat.div_le_div_right; omega
-      _ < GOLDILOCKS_PRIME := by unfold GOLDILOCKS_PRIME; native_decide
+      _ < GOLDILOCKS_PRIME := by unfold GOLDILOCKS_PRIME; decide
   -- O2a: (b0*a2 + C1%2^32) / 2^32
   rw [felt_ofNat_val_lt _ (madd_div_bound _ _ _ hb0 ha2)]
   -- O2b: (b1*a1 + (b0*a2 + C1%2^32) % 2^32) / 2^32
@@ -1516,7 +1414,8 @@ theorem u128_overflowing_mul_correct (a b : U128) (rest : List Felt) (s : Concre
       (if u128MulOverflowBool a.a0.val a.a1.val a.a2.val a.a3.val
           b.a0.val b.a1.val b.a2.val b.a3.val then (1 : Felt) else 0) ::
       (a * b).a0.val :: (a * b).a1.val :: (a * b).a2.val :: (a * b).a3.val :: rest)) := by
-  have h := u128_overflowing_mul_raw a.a0.val a.a1.val a.a2.val a.a3.val
+  have h := u128_overflowing_mul_exec emptyEnv 115
+    a.a0.val a.a1.val a.a2.val a.a3.val
     b.a0.val b.a1.val b.a2.val b.a3.val rest s hs
     a.a0.isU32 a.a1.isU32 a.a2.isU32 a.a3.isU32
     b.a0.isU32 b.a1.isU32 b.a2.isU32 b.a3.isU32

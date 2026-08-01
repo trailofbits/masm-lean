@@ -10,7 +10,7 @@ open MidenLean
 open MidenLean.StepLemmas
 open MidenLean.Tactics
 
-set_option maxHeartbeats 4000000 in
+set_option maxHeartbeats 8000000 in
 /-- `u64::wrapping_add` computes wrapping addition of two u64 values.
     Input stack:  [b_lo, b_hi, a_lo, a_hi] ++ rest
     Output stack: [c_lo, c_hi] ++ rest
@@ -27,17 +27,7 @@ theorem u64_wrapping_add_exec
       let hi_sum := a_hi.val + b_hi.val + carry
       Felt.ofNat (lo_sum % 2 ^ 32) ::
       Felt.ofNat (hi_sum % 2 ^ 32) :: rest)) := by
-  obtain ⟨stk, mem, frames, adv⟩ := s
-  simp only [Concrete.State.withStack] at hs ⊢
-  subst hs
-  unfold Miden.Core.U64.wrapping_add execProcedure
-  simp only [List.foldlM, u64ProcEnv]
-  dsimp only [bind, Bind.bind, Option.bind]
-  rw [u64_overflowing_add_run u64ProcEnv 8 a_lo a_hi b_lo b_hi rest mem frames adv
-        ha_lo ha_hi hb_lo hb_hi]
-  miden_bind
-  rw [stepDrop]
-  dsimp only [bind, Bind.bind, Option.bind, pure, Pure.pure]
+  miden_vcg
 
 /-- `u64::wrapping_add` computes `(a + b) mod 2^64`.
     Input stack:  [b.lo, b.hi, a.lo, a.hi] ++ rest

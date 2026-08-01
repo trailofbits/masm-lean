@@ -340,37 +340,13 @@ elab_rules : tactic
         return
       if ← tryClose (← `(tactic|
         (intros p hp;
-         simp [miden_reflect_norm,
-               and_assoc, and_left_comm, and_comm,
-               MidenLean.Concrete.State.withStack,
-               MidenLean.Symbolic.Precondition.holds,
-               MidenLean.Symbolic.Expr.eval,
-               MidenLean.Symbolic.Reflect.concreteAssignment,
-               MidenLean.Symbolic.Reflect.concreteState,
-               MidenLean.Symbolic.Reflect.concreteStateWithLocals,
-               MidenLean.LocalFrame.localAddr] at hp;
-         simp [miden_reflect_norm,
-               and_assoc, and_left_comm, and_comm,
-               MidenLean.Concrete.State.withStack,
-               MidenLean.Symbolic.Precondition.holds,
-               MidenLean.Symbolic.Expr.eval,
-               MidenLean.Symbolic.Reflect.concreteAssignment,
-               MidenLean.Symbolic.Reflect.concreteState,
-               MidenLean.Symbolic.Reflect.concreteStateWithLocals,
-               MidenLean.LocalFrame.localAddr];
+         simp [miden_reflect_norm, miden_cleanup] at hp;
+         simp [miden_reflect_norm, miden_cleanup];
          first | tauto | miden_arith | omega))) then
         return
       try
         Lean.Elab.Tactic.evalTactic (← `(tactic|
-          simp [miden_reflect_norm,
-                and_assoc, and_left_comm, and_comm,
-                MidenLean.Concrete.State.withStack,
-                MidenLean.Symbolic.Precondition.holds,
-                MidenLean.Symbolic.Expr.eval,
-                MidenLean.Symbolic.Reflect.concreteAssignment,
-                MidenLean.Symbolic.Reflect.concreteState,
-                MidenLean.Symbolic.Reflect.concreteStateWithLocals,
-                MidenLean.LocalFrame.localAddr]))
+          simp [miden_reflect_norm, miden_cleanup]))
       catch _ =>
         pure ()
       if ← tryClose (← `(tactic| assumption)) then
@@ -383,15 +359,7 @@ elab_rules : tactic
         return
       try
         Lean.Elab.Tactic.evalTactic (← `(tactic|
-          simp [miden_reflect_norm,
-                MidenLean.Symbolic.Precondition.holds,
-                MidenLean.Symbolic.Expr.eval,
-                MidenLean.Symbolic.Reflect.concreteAssignment,
-                MidenLean.Symbolic.Reflect.concreteState,
-                MidenLean.Symbolic.Reflect.concreteStateWithLocals,
-                MidenLean.Concrete.State.withStack,
-                MidenLean.LocalFrame.localAddr,
-                and_assoc, and_left_comm, and_comm] at *))
+          simp [miden_reflect_norm, miden_cleanup] at *))
       catch _ =>
         pure ()
       if ← tryClose (← `(tactic| assumption)) then

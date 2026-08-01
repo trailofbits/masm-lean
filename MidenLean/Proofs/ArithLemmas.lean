@@ -29,6 +29,7 @@ attribute [miden_u32] Proofs.U32.felt32_isU32
 attribute [miden_u32] Proofs.U32.felt64_isU32
 attribute [miden_u32] Proofs.U32.felt128_isU32
 attribute [miden_u32] Proofs.U32.lo32_isU32
+attribute [miden_u32] Proofs.U32.hi32_isU32_of_val_lt_2_64
 attribute [miden_u32] Proofs.U32.boolFelt_isU32
 attribute [miden_u32] Proofs.U32.u32Shr_result_isU32
 attribute [miden_u32] Proofs.u32_madd_div_isU32
@@ -46,6 +47,53 @@ attribute [miden_val] Proofs.u32_add_div_val
 attribute [miden_val] Proofs.u32_add3_div_val
 attribute [miden_val] Proofs.u32_prod_mod_add_div_val
 
+/-- Small powers of two remain below the Goldilocks prime. -/
+@[miden_bound] theorem pow2_lt_goldilocks_of_lt64 (n : Nat) (h : n < 64) :
+    2 ^ n < GOLDILOCKS_PRIME := by
+  have h1 : 2 ^ n ≤ 2 ^ 63 := by
+    exact Nat.pow_le_pow_right (by omega) (by omega)
+  have h2 : (2 : Nat) ^ 63 < GOLDILOCKS_PRIME := by
+    unfold GOLDILOCKS_PRIME
+    norm_num
+  omega
+
+/-- Small powers of two stay below `2^64` after embedding into `Felt`. -/
+@[miden_bound] theorem felt_pow2_val_lt_2_64 (n : Nat) (h : n < 64) :
+    (Felt.ofNat (2 ^ n)).val < 2 ^ 64 := by
+  rw [felt_ofNat_val_lt _ (pow2_lt_goldilocks_of_lt64 n h)]
+  exact Nat.pow_lt_pow_right (by omega) h
+
+/-- Subtracting 64 from a u32 shift amount below 128 yields a value below 64. -/
+@[miden_bound] theorem u32OverflowingSub64_snd_val_lt_64
+    (shift : Felt)
+    (hshift_u32 : shift.isU32 = true)
+    (hshift_ge64 : ¬ shift.val < 64)
+    (hshift_lt128 : shift.val < 128) :
+    (Felt.ofNat (u32OverflowingSub shift.val 64).2).val < 64 := by
+  have hge : shift.val >= 64 := by omega
+  rw [u32OverflowingSub_snd_val shift.val 64
+    (by simpa [Felt.isU32, decide_eq_true_eq] using hshift_u32)
+    (by norm_num)]
+  simp [u32OverflowingSub, hge]
+  omega
+
+/-- The raw Nat result of subtracting 64 from a u32 shift amount below 128 is below 64. -/
+@[miden_bound] theorem u32OverflowingSub64_snd_lt_64
+    (shift : Felt)
+    (hshift_u32 : shift.isU32 = true)
+    (hshift_ge64 : ¬ shift.val < 64)
+    (hshift_lt128 : shift.val < 128) :
+    (u32OverflowingSub shift.val 64).2 < 64 := by
+  have hshift_u32' : shift.val < 2 ^ 32 := by
+    simpa [Felt.isU32, decide_eq_true_eq] using hshift_u32
+  have hsnd_val :
+      (Felt.ofNat (u32OverflowingSub shift.val 64).2).val = (u32OverflowingSub shift.val 64).2 := by
+    exact u32OverflowingSub_snd_val shift.val 64 hshift_u32' (by norm_num)
+  have hfelt_lt64 :=
+    u32OverflowingSub64_snd_val_lt_64 shift hshift_u32 hshift_ge64 hshift_lt128
+  rw [hsnd_val] at hfelt_lt64
+  exact hfelt_lt64
+
 -- New isU32 propagation lemmas
 
 /-- The carry from adding three u32 values is u32. -/
@@ -57,7 +105,7 @@ attribute [miden_val] Proofs.u32_prod_mod_add_div_val
 
 /-- Bitwise AND of u32 values is u32. -/
 @[miden_u32] theorem u32And_isU32 (a b : Felt)
-    (ha : a.isU32 = true) (_hb : b.isU32 = true) :
+    (ha : a.isU32 = true) :
     (Felt.ofNat (a.val &&& b.val)).isU32 = true := by
   apply felt_ofNat_isU32_of_lt
   simp only [Felt.isU32, decide_eq_true_eq] at ha
@@ -88,15 +136,14 @@ attribute [miden_val] Proofs.u32_prod_mod_add_div_val
   unfold u32Max; omega
 
 /-- Left shift of a u32 value (mod 2^32) is u32. -/
-@[miden_u32] theorem u32Shl_isU32 (a b : Felt)
-    (_ha : a.isU32 = true) (_hb : b.isU32 = true) :
+@[miden_u32] theorem u32Shl_isU32 (a b : Felt) :
     (Felt.ofNat ((a.val * 2^b.val) % u32Max)).isU32 = true := by
   apply felt_ofNat_isU32_of_lt
   unfold u32Max; exact Nat.mod_lt _ (by positivity)
 
 /-- Right shift of a u32 value is u32. -/
 @[miden_u32] theorem u32Shr_isU32 (a b : Felt)
-    (ha : a.isU32 = true) (_hb : b.isU32 = true) :
+    (ha : a.isU32 = true) :
     (Felt.ofNat (a.val / 2^b.val)).isU32 = true := by
   apply felt_ofNat_isU32_of_lt
   simp only [Felt.isU32, decide_eq_true_eq] at ha
@@ -109,14 +156,6 @@ attribute [miden_val] Proofs.u32_prod_mod_add_div_val
     (ha : a.isU32 = true) (hb : b.isU32 = true) :
     (Felt.ofNat (u32OverflowingSub a.val b.val).2).isU32 = true := by
   apply u32OverflowingSub_snd_isU32 <;> simp [Felt.isU32, decide_eq_true_eq] at * <;> assumption
-
--- Boolean (isBool) lemmas for borrow/carry values
-
-/-- The borrow from u32OverflowingSub is boolean (0 or 1). -/
-@[miden_u32] theorem u32OverflowingSub_fst_bool (a b : Nat) :
-    Felt.ofNat (u32OverflowingSub a b).1 = 0 ∨
-    Felt.ofNat (u32OverflowingSub a b).1 = 1 := by
-  rw [u32OverflowingSub_borrow_ite]; cases decide (a < b) <;> simp
 
 -- New value recovery lemmas
 

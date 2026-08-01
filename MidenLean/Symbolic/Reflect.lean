@@ -45,15 +45,11 @@ def concreteStateWithLocals (stackPrefix : List Felt) (mem : Nat → Felt)
     frames := frame :: frames
     advice := adv.map Expr.lit }
 
-private theorem map_eval_lit (xs : List Felt) :
+@[simp, miden_reflect_norm] theorem map_eval_lit_comp_zero (xs : List Felt) :
     List.map ((Expr.eval (fun _ => 0)) ∘ Expr.lit) xs = xs := by
   induction xs with
   | nil => rfl
   | cons x xs ih => simp [Expr.eval, ih]
-
-@[simp, miden_reflect_norm] theorem map_eval_lit_comp_zero (xs : List Felt) :
-    List.map ((Expr.eval (fun _ => 0)) ∘ Expr.lit) xs = xs := by
-  simpa [Function.comp] using map_eval_lit xs
 
 @[simp, miden_reflect_norm] theorem map_eval_lit_concrete (xs : List Felt) :
     List.map (Expr.eval concreteAssignment) (xs.map Expr.lit) = xs := by
@@ -129,10 +125,12 @@ private theorem map_eval_lit (xs : List Felt) :
       a * b = 0 ∨ a * b = 1 := by
   simp [Precondition.holds, Expr.eval]
 
-@[simp, miden_reflect_norm] theorem u32CountLeadingOnes_eq (n : Nat) :
+-- Scoped to `miden_reflect_norm` only: as global `@[simp]` lemmas these would
+-- silently rewrite `clo`/`cto` spellings in unrelated manual proofs.
+@[miden_reflect_norm] theorem u32CountLeadingOnes_eq (n : Nat) :
     u32CountLeadingOnes n = u32CountLeadingZeros (u32Max - 1 - n) := rfl
 
-@[simp, miden_reflect_norm] theorem u32CountTrailingOnes_eq (n : Nat) :
+@[miden_reflect_norm] theorem u32CountTrailingOnes_eq (n : Nat) :
     u32CountTrailingOnes n = u32CountTrailingZeros (n ^^^ (u32Max - 1)) := rfl
 
 @[miden_reflect_norm] theorem decidable_rec_const
@@ -146,12 +144,6 @@ private theorem map_eval_lit (xs : List Felt) :
 @[simp, miden_reflect_norm] theorem ite_then_ite_one_zero_and (p q : Prop)
     [Decidable p] [Decidable q] :
     (if p then (if q then (1 : Felt) else 0) else 0) =
-      if p ∧ q then (1 : Felt) else 0 := by
-  by_cases hp : p <;> by_cases hq : q <;> simp [hp, hq]
-
-@[simp, miden_reflect_norm] theorem ite_then_ite_one_zero_and_rev (p q : Prop)
-    [Decidable p] [Decidable q] :
-    (if q then (if p then (1 : Felt) else 0) else 0) =
       if p ∧ q then (1 : Felt) else 0 := by
   by_cases hp : p <;> by_cases hq : q <;> simp [hp, hq]
 
@@ -183,7 +175,6 @@ private theorem map_eval_lit (xs : List Felt) :
     simp [concreteStateWithLocals, Expr.eval]
   · simp [concreteStateWithLocals]
 
-set_option linter.unusedVariables false in
 /-- Reflection for procedures with numLocals = 0.
     Memory, frames, and advice pass through based on the symbolic execution result. -/
 theorem reflect_with_env_zero
@@ -191,7 +182,7 @@ theorem reflect_with_env_zero
     (env : MidenLean.ProcEnv) (fuel : Nat)
     (stack : List Felt) (mem : Nat → Felt)
     (frames : List MidenLean.LocalFrame) (adv : List Felt)
-    (n : Nat) (rest : List Felt)
+    (rest : List Felt)
     (σ : Assignment)
     (initSS : State)
     (result : BlockResult)
@@ -219,7 +210,6 @@ theorem reflect_with_env_zero
   simp only [MidenLean.Concrete.State.mk.injEq] at hstk hmem hfr hadv ⊢
   exact ⟨hstk, funext hmem, hfr, hadv⟩
 
-set_option linter.unusedVariables false in
 /-- Reflection for procedures with numLocals > 0.
     Frame is pushed before execution and popped after. -/
 theorem reflect_with_env_locals
@@ -227,7 +217,7 @@ theorem reflect_with_env_locals
     (env : MidenLean.ProcEnv) (fuel : Nat)
     (stack : List Felt) (mem : Nat → Felt)
     (frames : List MidenLean.LocalFrame) (adv : List Felt)
-    (n : Nat) (rest : List Felt)
+    (rest : List Felt)
     (σ : Assignment)
     (initSS : State)
     (result : BlockResult)
@@ -297,7 +287,7 @@ theorem reflect_with_env_zero_concrete
   have hmain :=
     reflect_with_env_zero insts name ops env fuel
       (stackPrefix ++ rest) mem frames adv
-      stackPrefix.length rest
+      rest
       (fun _ => 0)
       (concreteState stackPrefix mem frames adv)
       result
@@ -331,7 +321,7 @@ theorem reflect_with_env_locals_concrete
   simpa [concreteStateWithLocals] using
     reflect_with_env_locals insts name k ops env fuel
       (stackPrefix ++ rest) mem frames adv
-      stackPrefix.length rest
+      rest
       (fun _ => 0)
       (concreteStateWithLocals stackPrefix mem frames adv (k + 1))
       result
@@ -694,32 +684,102 @@ theorem procSpec_sound {env : MidenLean.ProcEnv} {minFuel : Nat}
   exact ⟨cs', MidenLean.execProcedure_fuel_mono hfuel hbase, hmod⟩
 
 /-- Build a proof-carrying reflection environment directly from a reducible
-    concrete `ProcEnv`, bounded by the minimum concrete subcall fuel. -/
-def ReflectEnv.ofConcrete (env : MidenLean.ProcEnv) : (minFuel : Nat) → ReflectEnv env minFuel
-  | 0 => ReflectEnv.empty
-  | n + 1 => fun name =>
-      match hlookup : env name with
-      | some proc =>
-          some
-            { callee := proc
-              spec := procSpec (ReflectEnv.ofConcrete env n) proc
-              hlookup := hlookup
-              sound := by
-                simpa using
-                  (procSpec_sound (Γ := ReflectEnv.ofConcrete env n) (proc := proc)) }
-      | none => none
+    concrete `ProcEnv`, bounded by both the minimum concrete subcall fuel and
+    a hard recursion-depth cap.
 
-@[simp] theorem ReflectEnv.toSymbolic_ofConcrete_zero
-    (env : MidenLean.ProcEnv) (name : String) :
-    (ReflectEnv.ofConcrete env 0).toSymbolic name = none := by
+    `maxDepth` limits how many nested layers of callee summaries are produced.
+    Once the depth cap is reached, the environment falls back to
+    `ReflectEnv.empty`, forcing the reflection tactic to use a registered
+    `_exec` summary or fail. The cap prevents the kernel from unfolding the
+    full `minFuel` levels of nested `procSpec` calls during type checking,
+    which otherwise exhausts the stack on large `ProcEnv`s such as
+    `u128ProcEnv` (17 procedures × default fuel ≈ 30 yields ~424K nested
+    `List.rec` unfoldings).
+
+    A typical caller chain in the core library is at most depth 3
+    (rotl → shl → wrapping_mul), so a depth cap of `8` is generous and safe. -/
+def ReflectEnv.ofConcrete (env : MidenLean.ProcEnv) (maxDepth : Nat) :
+    (minFuel : Nat) → ReflectEnv env minFuel
+  | 0 => ReflectEnv.empty
+  | n + 1 =>
+      match maxDepth with
+      | 0 => ReflectEnv.empty
+      | maxDepth' + 1 => fun name =>
+          match hlookup : env name with
+          | some proc =>
+              some
+                { callee := proc
+                  spec := procSpec (ReflectEnv.ofConcrete env maxDepth' n) proc
+                  hlookup := hlookup
+                  sound := by
+                    simpa using
+                      (procSpec_sound
+                        (Γ := ReflectEnv.ofConcrete env maxDepth' n) (proc := proc)) }
+          | none => none
+
+@[simp] theorem ReflectEnv.toSymbolic_ofConcrete_minFuel_zero
+    (env : MidenLean.ProcEnv) (maxDepth : Nat) (name : String) :
+    (ReflectEnv.ofConcrete env maxDepth 0).toSymbolic name = none := by
+  simp [ReflectEnv.ofConcrete]
+
+@[simp] theorem ReflectEnv.toSymbolic_ofConcrete_maxDepth_zero
+    (env : MidenLean.ProcEnv) (n : Nat) (name : String) :
+    (ReflectEnv.ofConcrete env 0 (n + 1)).toSymbolic name = none := by
   simp [ReflectEnv.ofConcrete]
 
 @[simp] theorem ReflectEnv.toSymbolic_ofConcrete_succ
-    (env : MidenLean.ProcEnv) (n : Nat) (name : String) :
-    (ReflectEnv.ofConcrete env (n + 1)).toSymbolic name =
-      Option.map (fun proc => procSpec (ReflectEnv.ofConcrete env n) proc) (env name) := by
-  unfold ReflectEnv.toSymbolic ReflectEnv.ofConcrete
-  split <;> cases n <;> simp [ReflectEnv.ofConcrete, *]
+    (env : MidenLean.ProcEnv) (maxDepth n : Nat) (name : String) :
+    (ReflectEnv.ofConcrete env (maxDepth + 1) (n + 1)).toSymbolic name =
+      Option.map (fun proc => procSpec (ReflectEnv.ofConcrete env maxDepth n) proc) (env name) := by
+  dsimp only [ReflectEnv.toSymbolic, ReflectEnv.ofConcrete]
+  split <;> simp [*]
+
+/-- Build a proof-carrying reflection environment that only reflects the named
+    procedures from a concrete `ProcEnv`. Callees not in the list resolve to
+    `none`, falling back to `ReflectEnv.empty` for their own callees.
+
+    This is the preferred entry point when the caller already knows which
+    callees it needs (e.g., via the `@[miden_exec_summary]` registry). It
+    avoids the deep recursive expansion of `ofConcrete` on large environments. -/
+def ReflectEnv.withProcedures (env : MidenLean.ProcEnv) (names : List String) :
+    (minFuel : Nat) → ReflectEnv env minFuel
+  | 0 => ReflectEnv.empty
+  | n + 1 => fun name =>
+      if names.contains name then
+        match hlookup : env name with
+        | some proc =>
+            some
+              { callee := proc
+                spec := procSpec (ReflectEnv.empty (env := env) (minFuel := n)) proc
+                hlookup := hlookup
+                sound := by
+                  simpa using
+                    (procSpec_sound
+                      (Γ := ReflectEnv.empty (env := env) (minFuel := n)) (proc := proc)) }
+        | none => none
+      else
+        none
+
+@[simp] theorem ReflectEnv.toSymbolic_withProcedures_zero
+    (env : MidenLean.ProcEnv) (names : List String) (name : String) :
+    (ReflectEnv.withProcedures env names 0).toSymbolic name = none := by
+  simp [ReflectEnv.withProcedures]
+
+@[simp] theorem ReflectEnv.toSymbolic_withProcedures_succ
+    (env : MidenLean.ProcEnv) (names : List String) (n : Nat) (name : String) :
+    (ReflectEnv.withProcedures env names (n + 1)).toSymbolic name =
+      if names.contains name then
+        Option.map
+          (fun proc => procSpec (ReflectEnv.empty (env := env) (minFuel := n)) proc)
+          (env name)
+      else
+        none := by
+  dsimp only [ReflectEnv.toSymbolic, ReflectEnv.withProcedures]
+  by_cases hcontains : names.contains name
+  · rw [if_pos hcontains, if_pos hcontains]
+    split <;> simp [*]
+  · rw [if_neg hcontains, if_neg hcontains]
+    rfl
 
 /-- Procedure-level reflection over a fully concrete symbolic state, using an
     explicit `ReflectEnv` for direct callees. -/
@@ -868,3 +928,17 @@ theorem reflect_proc_state
         stackPrefix rest mem frames adv result rfl hfuel hresult hpreconds
 
 end MidenLean.Symbolic.Reflect
+
+-- The shared lemma/unfold set used by every reflection cleanup ladder
+-- (`miden_finish_reflection`, `finalizeCleanupGoals`, `cleanupExecSummaryGoals`).
+-- Registered once here so the ladders can say `simp [miden_cleanup, ...]`
+-- instead of each repeating the full list.
+attribute [miden_cleanup]
+  and_assoc and_left_comm and_comm
+  MidenLean.Concrete.State.withStack
+  MidenLean.Symbolic.Precondition.holds
+  MidenLean.Symbolic.Expr.eval
+  MidenLean.Symbolic.Reflect.concreteAssignment
+  MidenLean.Symbolic.Reflect.concreteState
+  MidenLean.Symbolic.Reflect.concreteStateWithLocals
+  MidenLean.LocalFrame.localAddr

@@ -43,7 +43,7 @@ theorem eqz_vcg_regression
 
 -- Target: word::testz — 10 identical hpreconds goals after miden_vcg
 -- miden_vcg needs >16M heartbeats for 10-iteration repeat decomposition
-set_option maxHeartbeats 32000000 in
+set_option maxHeartbeats 64000000 in
 theorem testz_vcg_test
     (a b c d : Felt) (rest : List Felt) (s : Concrete.State)
     (hs : s.stack = a :: b :: c :: d :: rest) :

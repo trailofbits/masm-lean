@@ -149,7 +149,7 @@ private theorem widening_mul_chunk2_correct
     calc
       (b_lo.val * a_hi.val + (b_hi.val * a_lo.val + b_lo.val * a_lo.val / 2 ^ 32) % 2 ^ 32) / 2 ^ 32 ≤
           ((2 ^ 32 - 1) * (2 ^ 32 - 1) + (2 ^ 32 - 1)) / 2 ^ 32 := Nat.div_le_div_right htotal
-      _ < 2 ^ 32 := by native_decide
+      _ < 2 ^ 32 := by decide
   rw [stepU32WidenMadd (ha := hb_hi) (hb := ha_hi) (hc := h_cross2_hi_isU32)]
   miden_bind
   have h_cross2_hi_val :
@@ -169,7 +169,7 @@ private theorem widening_mul_chunk2_correct
           ((2 ^ 32 - 1) * (2 ^ 32 - 1) + (2 ^ 32 - 1)) / 2 ^ 32 := Nat.div_le_div_right htotal
       _ < GOLDILOCKS_PRIME := by
         unfold GOLDILOCKS_PRIME
-        native_decide
+        decide
   rw [h_cross2_hi_val]
   miden_swap
   miden_movup
@@ -185,11 +185,11 @@ private theorem widening_mul_chunk2_correct
           Nat.mul_le_mul (by omega) (by omega)
         calc
           b_lo.val * a_lo.val / 2 ^ 32 ≤ (2 ^ 32 - 1) * (2 ^ 32 - 1) / 2 ^ 32 := Nat.div_le_div_right this
-          _ ≤ 2 ^ 32 - 1 := by native_decide)
+          _ ≤ 2 ^ 32 - 1 := by decide)
     calc
       (b_hi.val * a_lo.val + b_lo.val * a_lo.val / 2 ^ 32) / 2 ^ 32 ≤
           ((2 ^ 32 - 1) * (2 ^ 32 - 1) + (2 ^ 32 - 1)) / 2 ^ 32 := Nat.div_le_div_right htotal
-      _ < 2 ^ 32 := by native_decide
+      _ < 2 ^ 32 := by decide
   have h_cross1_hi_val :
       (Felt.ofNat ((b_hi.val * a_lo.val + b_lo.val * a_lo.val / 2 ^ 32) / 2 ^ 32)).val =
         (b_hi.val * a_lo.val + b_lo.val * a_lo.val / 2 ^ 32) / 2 ^ 32 := by
@@ -202,13 +202,13 @@ private theorem widening_mul_chunk2_correct
           Nat.mul_le_mul (by omega) (by omega)
         calc
           b_lo.val * a_lo.val / 2 ^ 32 ≤ (2 ^ 32 - 1) * (2 ^ 32 - 1) / 2 ^ 32 := Nat.div_le_div_right this
-          _ ≤ 2 ^ 32 - 1 := by native_decide)
+          _ ≤ 2 ^ 32 - 1 := by decide)
     calc
       (b_hi.val * a_lo.val + b_lo.val * a_lo.val / 2 ^ 32) / 2 ^ 32 ≤
           ((2 ^ 32 - 1) * (2 ^ 32 - 1) + (2 ^ 32 - 1)) / 2 ^ 32 := Nat.div_le_div_right htotal
       _ < GOLDILOCKS_PRIME := by
         unfold GOLDILOCKS_PRIME
-        native_decide
+        decide
   have h_high_lo_val :
       (Felt.ofNat
         ((b_hi.val * a_hi.val +

@@ -25,22 +25,19 @@ theorem ifElse_test
     (rest : List Felt) (mem : Nat → Felt)
     (frames : List LocalFrame) (adv : List Felt)
     (hbool : cond.val = 0 ∨ cond.val = 1) :
-    ∃ s', execProcedure env 2
+    execProcedure env 2
       ⟨cond :: x :: rest, mem, frames, adv⟩
       (Procedure.ofOps [Op.ifElse
         [Op.inst (.push 10), Op.inst .add]
-        [Op.inst (.push 20), Op.inst .add]]) = some s' ∧
-      ((cond.val = 1 → s'.stack = (x + 10) :: rest) ∧
-       (cond.val = 0 → s'.stack = (x + 20) :: rest)) := by
-  apply execProcedure_ifElse env 1 _ _ _ _ cond (x :: rest) rfl
+        [Op.inst (.push 20), Op.inst .add]]) =
+      some (if cond.val = 1
+        then (⟨cond :: x :: rest, mem, frames, adv⟩ : Concrete.State).withStack ((x + 10) :: rest)
+        else (⟨cond :: x :: rest, mem, frames, adv⟩ : Concrete.State).withStack ((x + 20) :: rest)) := by
+  apply execProcedure_ifElse env 2 _ _ _ _ _ cond (x :: rest) rfl (by omega)
   · intro h1
-    refine ⟨⟨(x + 10) :: rest, mem, frames, adv⟩, ?_,
-            fun _ => rfl, fun h0 => absurd h0 (by omega)⟩
     simp [execProcedure, Procedure.ofOps, List.foldlM, bind, Bind.bind, Option.bind,
           MidenLean.execInstruction, execPush, execAdd, Concrete.State.withStack]
   · intro h0
-    refine ⟨⟨(x + 20) :: rest, mem, frames, adv⟩, ?_,
-            fun h1 => absurd h1 (by omega), fun _ => rfl⟩
     simp [execProcedure, Procedure.ofOps, List.foldlM, bind, Bind.bind, Option.bind,
           MidenLean.execInstruction, execPush, execAdd, Concrete.State.withStack]
   · exact hbool
@@ -49,25 +46,23 @@ theorem ifElse_test
 -- Test 2: repeat with invariant — push 1 three times
 -- ============================================================================
 
-/-- Test execProcedure_repeat: repeat.3 { push 1 }.
+/-- Test execProcedure_repeat_succ + execProcedure_repeat_zero: repeat.3 { push 1 }.
     Input: [rest...], Output: [1, 1, 1, rest...] -/
 theorem repeat_test
     (env : ProcEnv) (rest : List Felt)
     (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt) :
-    ∃ s', execProcedure.doRepeat env 1 3 [Op.inst (.push 1)]
-      ⟨rest, mem, frames, adv⟩ = some s'
-      ∧ s'.stack = 1 :: 1 :: 1 :: rest := by
-  obtain ⟨s', hexec, _, _, _, hs⟩ := execProcedure_repeat env 1 3 [Op.inst (.push 1)]
-    ⟨rest, mem, frames, adv⟩
-    (fun i s => s.memory = mem ∧ s.frames = frames ∧ s.advice = adv ∧
-      s.stack = List.replicate i 1 ++ rest)
-    ⟨rfl, rfl, rfl, rfl⟩
-    (fun i s₀ _ ⟨hm, hf, ha, hs⟩ => by
-      refine ⟨⟨1 :: s₀.stack, mem, frames, adv⟩, ?_, rfl, rfl, rfl, ?_⟩
-      · simp [execProcedure, Procedure.ofOps, List.foldlM, bind, Bind.bind, Option.bind,
-              MidenLean.execInstruction, execPush, Concrete.State.withStack, hm, hf, ha]
-      · simp [hs, List.replicate_succ])
-  exact ⟨s', hexec, hs⟩
+    execProcedure env 2 ⟨rest, mem, frames, adv⟩ [Op.repeat 3 (body := [Op.inst (.push 1)])] =
+    some ⟨1 :: 1 :: 1 :: rest, mem, frames, adv⟩ := by
+  apply execProcedure_repeat_succ env 2 2 _ _ ⟨1 :: rest, mem, frames, adv⟩ _ (by omega)
+  · simp [execProcedure, Procedure.ofOps, List.foldlM, bind, Bind.bind, Option.bind,
+          MidenLean.execInstruction, execPush, Concrete.State.withStack]
+  apply execProcedure_repeat_succ env 2 1 _ _ ⟨1 :: 1 :: rest, mem, frames, adv⟩ _ (by omega)
+  · simp [execProcedure, Procedure.ofOps, List.foldlM, bind, Bind.bind, Option.bind,
+          MidenLean.execInstruction, execPush, Concrete.State.withStack]
+  apply execProcedure_repeat_succ env 2 0 _ _ ⟨1 :: 1 :: 1 :: rest, mem, frames, adv⟩ _ (by omega)
+  · simp [execProcedure, Procedure.ofOps, List.foldlM, bind, Bind.bind, Option.bind,
+          MidenLean.execInstruction, execPush, Concrete.State.withStack]
+  exact execProcedure_repeat_zero env 2 _ _ (by omega)
 
 -- ============================================================================
 -- Test 3: whileTrue — body pushes 0, loop exits after 1 iteration
@@ -103,36 +98,91 @@ theorem while_test
 -- ============================================================================
 
 /-- Validates miden_vcg on a singleton ifElse procedure.
-    The tactic decomposes the control flow; branch proofs are manual. -/
+    The tactic decomposes the control flow; residual goals are closed by
+    `miden_finish_reflection`. -/
 theorem ifElse_vcg_test
     (env : ProcEnv) (cond x : Felt)
-    (rest : List Felt) (mem : Nat → Felt)
-    (frames : List LocalFrame) (adv : List Felt)
+    (rest : List Felt) (s : Concrete.State)
+    (hs : s = ⟨cond :: x :: rest, fun _ => 0, [], []⟩)
     (hbool : cond.val = 0 ∨ cond.val = 1) :
-    ∃ s', execProcedure env 2
-      ⟨cond :: x :: rest, mem, frames, adv⟩
+    execProcedure env 2 s
       (Procedure.ofOps [Op.ifElse
         [Op.inst (.push 10), Op.inst .add]
-        [Op.inst (.push 20), Op.inst .add]]) = some s' ∧
-      ((cond.val = 1 → s'.stack = (x + 10) :: rest) ∧
-       (cond.val = 0 → s'.stack = (x + 20) :: rest)) := by
+        [Op.inst (.push 20), Op.inst .add]]) =
+      some (if cond.val = 1
+        then s.withStack ((x + 10) :: rest)
+        else s.withStack ((x + 20) :: rest)) := by
+  subst hs
   miden_vcg
-  · -- then branch
-    intro h1
-    refine ⟨⟨(x + 10) :: rest, mem, frames, adv⟩, ?_,
-            fun _ => rfl, fun h0 => absurd h0 (by omega)⟩
-    simp [execProcedure, Procedure.ofOps, List.foldlM, bind, Bind.bind, Option.bind,
-          MidenLean.execInstruction, execPush, execAdd, Concrete.State.withStack]
-  · -- else branch
-    intro h0
-    refine ⟨⟨(x + 20) :: rest, mem, frames, adv⟩, ?_,
-            fun h1 => absurd h1 (by omega), fun _ => rfl⟩
-    simp [execProcedure, Procedure.ofOps, List.foldlM, bind, Bind.bind, Option.bind,
-          MidenLean.execInstruction, execPush, execAdd, Concrete.State.withStack]
-  · exact hbool
 
 -- ============================================================================
--- Test 5: whileTrue via miden_vcg — tactic applies execProcedure_while
+-- Test 5: ifElse via fast boolean-stack path
+-- ============================================================================
+
+/-- Validates the fast `miden_vcg` path for singleton ifElse when the stack
+    condition is syntactically `if p then 1 else 0`. -/
+theorem ifElse_bool_vcg_test
+    (env : ProcEnv) (p : Prop) [Decidable p] (x : Felt)
+    (rest : List Felt) :
+    execProcedure env 2
+      ⟨(if p then (1 : Felt) else 0) :: x :: rest, fun _ => 0, [], []⟩
+      (Procedure.ofOps [Op.ifElse
+        [Op.inst (.push 10), Op.inst .add]
+        [Op.inst (.push 20), Op.inst .add]]) =
+      some (if p
+        then Concrete.State.withStack
+          (⟨(if p then (1 : Felt) else 0) :: x :: rest, fun _ => 0, [], []⟩ : Concrete.State)
+          ((x + 10) :: rest)
+        else Concrete.State.withStack
+          (⟨(if p then (1 : Felt) else 0) :: x :: rest, fun _ => 0, [], []⟩ : Concrete.State)
+          ((x + 20) :: rest)) := by
+  miden_vcg
+
+/-- Validates the shallow `miden_vcg_step` split for boolean-encoded ifElse.
+    The tactic should expose the two branch execution goals without recursive
+    solving. -/
+theorem ifElse_bool_vcg_step_test
+    (env : ProcEnv) (p : Prop) [Decidable p] (x : Felt)
+    (rest : List Felt) :
+    execProcedure env 2
+      ⟨(if p then (1 : Felt) else 0) :: x :: rest, fun _ => 0, [], []⟩
+      (Procedure.ofOps [Op.ifElse
+        [Op.inst (.push 10), Op.inst .add]
+        [Op.inst (.push 20), Op.inst .add]]) =
+      some (if p
+        then Concrete.State.withStack
+          (⟨(if p then (1 : Felt) else 0) :: x :: rest, fun _ => 0, [], []⟩ : Concrete.State)
+          ((x + 10) :: rest)
+        else Concrete.State.withStack
+          (⟨(if p then (1 : Felt) else 0) :: x :: rest, fun _ => 0, [], []⟩ : Concrete.State)
+          ((x + 20) :: rest)) := by
+  miden_vcg_step
+  · simp [execProcedure, Procedure.ofOps, List.foldlM, bind, Bind.bind, Option.bind,
+      MidenLean.execInstruction, execPush, execAdd, Concrete.State.withStack]
+  · simp [execProcedure, Procedure.ofOps, List.foldlM, bind, Bind.bind, Option.bind,
+      MidenLean.execInstruction, execPush, execAdd, Concrete.State.withStack]
+
+/-- Validates the fast `miden_vcg` path for singleton ifElse when the stack
+    condition is syntactically `if p then 0 else 1`. -/
+theorem ifElse_bool_neg_vcg_test
+    (env : ProcEnv) (p : Prop) [Decidable p] (x : Felt)
+    (rest : List Felt) :
+    execProcedure env 2
+      ⟨(if p then (0 : Felt) else 1) :: x :: rest, fun _ => 0, [], []⟩
+      (Procedure.ofOps [Op.ifElse
+        [Op.inst (.push 10), Op.inst .add]
+        [Op.inst (.push 20), Op.inst .add]]) =
+      some (if p
+        then Concrete.State.withStack
+          (⟨(if p then (0 : Felt) else 1) :: x :: rest, fun _ => 0, [], []⟩ : Concrete.State)
+          ((x + 20) :: rest)
+        else Concrete.State.withStack
+          (⟨(if p then (0 : Felt) else 1) :: x :: rest, fun _ => 0, [], []⟩ : Concrete.State)
+          ((x + 10) :: rest)) := by
+  miden_vcg
+
+-- ============================================================================
+-- Test 6: whileTrue via miden_vcg — tactic applies execProcedure_while
 -- ============================================================================
 
 /-- While loop test: body = push 0, 1 iteration.

@@ -1,5 +1,6 @@
 import MidenLean.Proofs.U128.Common
 import MidenLean.Proofs.Tactics
+import MidenLean.Symbolic.Tactic
 import MidenLean.Generated.U128
 
 namespace MidenLean.Proofs
@@ -7,14 +8,6 @@ namespace MidenLean.Proofs
 open MidenLean
 open MidenLean.StepLemmas
 open MidenLean.Tactics
-
-/-- Execute a concatenation of op lists in two phases. -/
-private theorem execProcedure_append (env : ProcEnv) (fuel : Nat) (s : Concrete.State) (xs ys : List Op) :
-    execProcedure env fuel s (xs ++ ys) = (do
-      let s' ← execProcedure env fuel s xs
-      execProcedure env fuel s' ys) := by
-  unfold execProcedure
-  cases fuel <;> simp [List.foldlM_append]
 
 private def sub0 (a0 b0 : Felt) : Nat × Nat :=
   u32OverflowingSub a0.val b0.val
@@ -405,18 +398,27 @@ private theorem chunk8_correct
   dsimp only [pure, Pure.pure]
 
 set_option maxHeartbeats 12000000 in
-theorem u128_overflowing_sub_run
+/-- `u128::overflowing_sub` computes subtraction of two 128-bit values with borrow.
+    Input stack:  [b0, b1, b2, b3, a0, a1, a2, a3] ++ rest
+    Output stack: [borrow, d0, d1, d2, d3] ++ rest
+    where `d0..d3` are the low-to-high limbs of `a - b`,
+    and `borrow = 1` iff the subtraction underflowed.
+    Parametric in `env` and `fuel` so this lemma serves both as a callee
+    summary for reflective callers and as the basis for `u128_overflowing_sub_correct`. -/
+@[miden_exec_summary]
+theorem u128_overflowing_sub_exec
     (env : ProcEnv) (fuel : Nat)
-    (a0 a1 a2 a3 b0 b1 b2 b3 : Felt) (rest : List Felt)
-    (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
+    (a0 a1 a2 a3 b0 b1 b2 b3 : Felt) (rest : List Felt) (s : Concrete.State)
+    (hs : s.stack = b0 :: b1 :: b2 :: b3 :: a0 :: a1 :: a2 :: a3 :: rest)
     (ha0 : a0.isU32 = true) (ha1 : a1.isU32 = true)
     (ha2 : a2.isU32 = true) (ha3 : a3.isU32 = true)
     (hb0 : b0.isU32 = true) (hb1 : b1.isU32 = true)
     (hb2 : b2.isU32 = true) (hb3 : b3.isU32 = true) :
-    execProcedure env (fuel + 1)
-      ⟨b0 :: b1 :: b2 :: b3 :: a0 :: a1 :: a2 :: a3 :: rest, mem, frames, adv⟩
-      Miden.Core.U128.overflowing_sub =
-    some ⟨u128OverflowingSubResult a0 a1 a2 a3 b0 b1 b2 b3 rest, mem, frames, adv⟩ := by
+    execProcedure env (fuel + 1) s Miden.Core.U128.overflowing_sub =
+    some (s.withStack (u128OverflowingSubResult a0 a1 a2 a3 b0 b1 b2 b3 rest)) := by
+  obtain ⟨stack, mem, frames, adv⟩ := s
+  simp only [Concrete.State.withStack] at hs ⊢
+  subst hs
   rw [execProcedure_body_eq _ _ _ _ _ overflowing_sub_decomp rfl, execProcedure_append]
   rw [chunk1_correct env fuel a0 a1 a2 a3 b0 b1 b2 b3 rest mem frames adv ha0 hb0]
   miden_bind
@@ -440,28 +442,6 @@ theorem u128_overflowing_sub_run
   miden_bind
   exact chunk8_correct env fuel a0 a1 a2 a3 b0 b1 b2 b3 rest mem frames adv
 
-set_option maxHeartbeats 8000000 in
-/-- `u128::overflowing_sub` computes subtraction of two 128-bit values with borrow (raw limb version).
-    Input stack:  [b0, b1, b2, b3, a0, a1, a2, a3] ++ rest
-    Output stack: [borrow, d0, d1, d2, d3] ++ rest
-    where `d0..d3` are the low-to-high limbs of `a - b`,
-    and `borrow = 1` iff the subtraction underflowed. -/
-theorem u128_overflowing_sub_raw
-    (a0 a1 a2 a3 b0 b1 b2 b3 : Felt) (rest : List Felt) (s : Concrete.State)
-    (hs : s.stack = b0 :: b1 :: b2 :: b3 :: a0 :: a1 :: a2 :: a3 :: rest)
-    (ha0 : a0.isU32 = true) (ha1 : a1.isU32 = true)
-    (ha2 : a2.isU32 = true) (ha3 : a3.isU32 = true)
-    (hb0 : b0.isU32 = true) (hb1 : b1.isU32 = true)
-    (hb2 : b2.isU32 = true) (hb3 : b3.isU32 = true) :
-    execProcedure emptyEnv 49 s Miden.Core.U128.overflowing_sub =
-    some (s.withStack (u128OverflowingSubResult a0 a1 a2 a3 b0 b1 b2 b3 rest)) := by
-  obtain ⟨stk, mem, frames, adv⟩ := s
-  simp only [Concrete.State.withStack] at hs ⊢
-  subst hs
-  simpa [emptyEnv] using
-    u128_overflowing_sub_run (fun _ => none) 48 a0 a1 a2 a3 b0 b1 b2 b3 rest mem frames adv
-      ha0 ha1 ha2 ha3 hb0 hb1 hb2 hb3
-
 /-- `u128::overflowing_sub` computes `a - b` with underflow detection.
     Input stack:  [b.a0, b.a1, b.a2, b.a3, a.a0, a.a1, a.a2, a.a3] ++ rest
     Output stack: [borrow, (a−b).a0, (a−b).a1, (a−b).a2, (a−b).a3] ++ rest
@@ -473,7 +453,8 @@ theorem u128_overflowing_sub_correct (a b : U128) (rest : List Felt) (s : Concre
     some (s.withStack (
       (if decide (a < b) then (1 : Felt) else 0) ::
       (a - b).a0.val :: (a - b).a1.val :: (a - b).a2.val :: (a - b).a3.val :: rest)) := by
-  have h := u128_overflowing_sub_raw a.a0.val a.a1.val a.a2.val a.a3.val
+  have h := u128_overflowing_sub_exec emptyEnv 48
+    a.a0.val a.a1.val a.a2.val a.a3.val
     b.a0.val b.a1.val b.a2.val b.a3.val rest s hs
     a.a0.isU32 a.a1.isU32 a.a2.isU32 a.a3.isU32
     b.a0.isU32 b.a1.isU32 b.a2.isU32 b.a3.isU32

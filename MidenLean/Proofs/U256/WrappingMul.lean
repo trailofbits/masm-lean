@@ -65,7 +65,7 @@ theorem u256_wrapping_mul_correct
   rw [show Miden.Core.U256.wrapping_mul.body = wm_setup ++ wm_rest from wm_body_decomp]
   rw [execProcedure_append]
   -- Step 4: Apply setup correctness
-  rw [wm_setup_correct a b drest mem frame frames adv fuel (by simp only [frame]; omega)]
+  rw [wm_setup_spec a b drest mem frame frames adv fuel (by simp only [frame]; omega)]
   simp only [bind, Bind.bind, Option.bind]
   -- Step 5: Decompose wm_rest into round 1 + remaining
   rw [show (wm_rest : List Op) = wm_round1 ++ wm_rest_after_r1 from wm_rest_eq_r1_append]
@@ -191,7 +191,7 @@ theorem u256_wrapping_mul_correct
   set c₃₃ := mulstepCarry c₂₃ a.a2.val b.a3.val
     (mulstepLo c₃₂ a.a3.val b.a2.val
       (mulstepLo c₄₁ a.a4.val b.a1.val (mulstepLo c₅₀ a.a5.val b.a0.val 0)))
-  rw [wm_round5_correct a b drest _ frame frames adv fuel
+  rw [wm_round5_spec a b drest _ frame frames adv fuel
       (by simp only [frame]; omega)
       _ _ _ _
       (mulstepLo_isU32 _ _ _ _) (mulstepLo_isU32 _ _ _ _)

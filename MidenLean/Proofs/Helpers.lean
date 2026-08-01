@@ -90,6 +90,22 @@ theorem execProcedure_singleton_exec_eq
       execProcedure env fuel s callee := by
   simp [execProcedure, Procedure.ofOps, hlookup]
 
+/-- State-level singleton `.exec` bridge for arbitrary positive fuel.
+    This is convenient for tactic-driven rewrites on nested call sites, where
+    the ambient goal often exposes `execProcedure env fuel s [exec "..."]`
+    directly rather than a syntactic `(fuel + 1)` shape. -/
+theorem execProcedure_singleton_exec_state
+    (env : ProcEnv) (fuel : Nat) (s : Concrete.State)
+    (target : String) (callee : Procedure)
+    (hlookup : env target = some callee)
+    (hfuel : fuel > 0) :
+    execProcedure env fuel s [Op.inst (.exec target)] =
+      execProcedure env (fuel - 1) s callee := by
+  cases fuel with
+  | zero => omega
+  | succ fuel' =>
+      simp [execProcedure, Procedure.ofOps, hlookup]
+
 /-- Execute a concatenation of op lists in two phases under a procedure environment. -/
 theorem execOps_append (env : ProcEnv) (fuel : Nat) (s : Concrete.State) (xs ys : List Op) :
     execOps env fuel s (xs ++ ys) = (do
@@ -104,15 +120,126 @@ theorem exec_append (fuel : Nat) (s : Concrete.State) (xs ys : List Op) :
       execProcedure emptyEnv fuel s' ys) := by
   simpa [emptyEnv] using execOps_append (env := fun _ => none) fuel s xs ys
 
-/-- Equality-oriented append decomposition for `execProcedure emptyEnv`. -/
-theorem exec_append_eq
-    (fuel : Nat) (s : Concrete.State)
-    (xs ys : List Op) (s' s'' : Concrete.State)
-    (hexec₁ : execProcedure emptyEnv fuel s xs = some s')
-    (hexec₂ : execProcedure emptyEnv fuel s' ys = some s'') :
-    execProcedure emptyEnv fuel s (xs ++ ys) = some s'' := by
-  simpa [emptyEnv] using
-    execProcedure_append_eq (env := fun _ => none) fuel s xs ys s' s'' hexec₁ hexec₂
+
+-- Felt value lemmas (used below for ifElse decomposition)
+
+@[simp, miden_simp] theorem Felt.val_zero' : (0 : Felt).val = 0 := rfl
+
+@[simp, miden_simp] theorem Felt.val_one' : (1 : Felt).val = 1 := ZMod.val_one _
+
+/-- Reduce a singleton `.ifElse` op when the condition on the stack is `1`. -/
+theorem execProcedure_ifElse_one
+    (env : ProcEnv) (fuel : Nat)
+    (rest : List Felt) (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
+    (thenBlk elseBlk : List Op) :
+    execProcedure env (fuel + 2)
+      ⟨(1 : Felt) :: rest, mem, frames, adv⟩
+      ([.ifElse thenBlk elseBlk] : List Op) =
+    execProcedure env (fuel + 1) ⟨rest, mem, frames, adv⟩ thenBlk := by
+  conv_lhs => unfold execProcedure
+  simp only [Procedure.ofOps, List.foldlM, Concrete.State.withStack]
+  dsimp only [bind, Bind.bind, Option.bind, pure, Pure.pure]
+  have hv1 : (1 : Felt).val = 1 := Felt.val_one'
+  have hbeq : ((1 : Nat) == 1) = true := by decide
+  simp only [hv1, hbeq, ↓reduceIte]
+  cases execProcedure env (fuel + 1) ⟨rest, mem, frames, adv⟩ thenBlk <;> rfl
+
+/-- Reduce a singleton `.ifElse` op when the condition on the stack is `0`. -/
+theorem execProcedure_ifElse_zero
+    (env : ProcEnv) (fuel : Nat)
+    (rest : List Felt) (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
+    (thenBlk elseBlk : List Op) :
+    execProcedure env (fuel + 2)
+      ⟨(0 : Felt) :: rest, mem, frames, adv⟩
+      ([.ifElse thenBlk elseBlk] : List Op) =
+    execProcedure env (fuel + 1) ⟨rest, mem, frames, adv⟩ elseBlk := by
+  conv_lhs => unfold execProcedure
+  simp only [Procedure.ofOps, List.foldlM, Concrete.State.withStack]
+  dsimp only [bind, Bind.bind, Option.bind, pure, Pure.pure]
+  have hv0 : (0 : Felt).val = 0 := Felt.val_zero'
+  have hneq : ((0 : Nat) == 1) = false := by decide
+  have hbeq : ((0 : Nat) == 0) = true := by decide
+  simp only [hv0, hneq, hbeq, ↓reduceIte]
+  cases execProcedure env (fuel + 1) ⟨rest, mem, frames, adv⟩ elseBlk <;> rfl
+
+/-- State-level version of `execProcedure_ifElse_one` for arbitrary positive fuel. -/
+theorem execProcedure_ifElse_state_one
+    (env : ProcEnv) (fuel : Nat) (s : Concrete.State)
+    (rest : List Felt) (thenBlk elseBlk : List Op)
+    (hs : s.stack = (1 : Felt) :: rest)
+    (hfuel : fuel > 0) :
+    execProcedure env fuel s ([.ifElse thenBlk elseBlk] : List Op) =
+    execProcedure env (fuel - 1) (s.withStack rest) thenBlk := by
+  cases fuel with
+  | zero => omega
+  | succ fuel' =>
+      obtain ⟨stack, mem, frames, adv⟩ := s
+      simp only [Concrete.State.withStack] at hs ⊢
+      subst hs
+      have hv1 : (1 : Felt).val = 1 := Felt.val_one'
+      simp [execProcedure, Procedure.ofOps, List.foldlM, bind, Bind.bind, Option.bind,
+        Pure.pure, hv1, Concrete.State.withStack]
+      cases execProcedure env fuel' { stack := rest, memory := mem, frames := frames, advice := adv } thenBlk <;> rfl
+
+/-- State-level version of `execProcedure_ifElse_zero` for arbitrary positive fuel. -/
+theorem execProcedure_ifElse_state_zero
+    (env : ProcEnv) (fuel : Nat) (s : Concrete.State)
+    (rest : List Felt) (thenBlk elseBlk : List Op)
+    (hs : s.stack = (0 : Felt) :: rest)
+    (hfuel : fuel > 0) :
+    execProcedure env fuel s ([.ifElse thenBlk elseBlk] : List Op) =
+    execProcedure env (fuel - 1) (s.withStack rest) elseBlk := by
+  cases fuel with
+  | zero => omega
+  | succ fuel' =>
+      obtain ⟨stack, mem, frames, adv⟩ := s
+      simp only [Concrete.State.withStack] at hs ⊢
+      subst hs
+      have hv0 : (0 : Felt).val = 0 := Felt.val_zero'
+      have hneq : ((0 : Nat) == 1) = false := by decide
+      simp [execProcedure, Procedure.ofOps, List.foldlM, bind, Bind.bind, Option.bind,
+        Pure.pure, hv0, hneq, Concrete.State.withStack]
+      cases execProcedure env fuel' { stack := rest, memory := mem, frames := frames, advice := adv } elseBlk <;> rfl
+
+/-- Reduce a singleton `.ifElse` whose stack condition is `if p then 1 else 0`. -/
+theorem execProcedure_ifElse_bool_ite
+    (env : ProcEnv) (fuel : Nat) (s : Concrete.State)
+    (rest : List Felt) (thenBlk elseBlk : List Op)
+    (p : Prop) [Decidable p]
+    (hs : s.stack = (if p then (1 : Felt) else 0) :: rest)
+    (hfuel : fuel > 0) :
+    execProcedure env fuel s ([.ifElse thenBlk elseBlk] : List Op) =
+    (if p then
+      execProcedure env (fuel - 1) (s.withStack rest) thenBlk
+    else
+      execProcedure env (fuel - 1) (s.withStack rest) elseBlk) := by
+  by_cases hp : p
+  · simp [hp]
+    exact execProcedure_ifElse_state_one env fuel s rest thenBlk elseBlk
+      (by simpa [hp] using hs) hfuel
+  · simp [hp]
+    exact execProcedure_ifElse_state_zero env fuel s rest thenBlk elseBlk
+      (by simpa [hp] using hs) hfuel
+
+/-- Reduce a singleton `.ifElse` whose stack condition is `if p then 0 else 1`. -/
+theorem execProcedure_ifElse_bool_ite_neg
+    (env : ProcEnv) (fuel : Nat) (s : Concrete.State)
+    (rest : List Felt) (thenBlk elseBlk : List Op)
+    (p : Prop) [Decidable p]
+    (hs : s.stack = (if p then (0 : Felt) else 1) :: rest)
+    (hfuel : fuel > 0) :
+    execProcedure env fuel s ([.ifElse thenBlk elseBlk] : List Op) =
+    (if p then
+      execProcedure env (fuel - 1) (s.withStack rest) elseBlk
+    else
+      execProcedure env (fuel - 1) (s.withStack rest) thenBlk) := by
+  by_cases hp : p
+  · simp [hp]
+    exact execProcedure_ifElse_state_zero env fuel s rest thenBlk elseBlk
+      (by simpa [hp] using hs) hfuel
+  · simp [hp]
+    exact execProcedure_ifElse_state_one env fuel s rest thenBlk elseBlk
+      (by simpa [hp] using hs) hfuel
 
 /-- Rewrite `execProcedure` on a Procedure whose body equals a given op list.
     Requires `numLocals = 0` so the RHS (via `List Op → Procedure` coercion) has
@@ -162,13 +289,6 @@ theorem execProcedure_body_eq_withLocals (env : ProcEnv) (fuel : Nat) (s : Concr
   | succ fuel' =>
     simp only [execProcedure, Procedure.ofOps, nextFrameBase, alignLocals, Nat.succ_eq_add_one]
     rfl
-
--- Felt value lemmas
-
-@[simp, miden_simp] theorem Felt.val_zero' : (0 : Felt).val = 0 := rfl
-
-set_option maxHeartbeats 400000 in
-@[simp, miden_simp] theorem Felt.val_one' : (1 : Felt).val = 1 := by native_decide
 
 -- Felt boolean lemmas
 
@@ -291,7 +411,7 @@ theorem u32OverflowingSub_borrow_ite (a b : Nat) :
     Nat.mul_le_mul (by omega) (by omega)
   calc a.val * b.val / 2^32
       ≤ (2^32 - 1) * (2^32 - 1) / 2^32 := Nat.div_le_div_right h3
-    _ < 2^32 := by native_decide
+    _ < 2^32 := by decide
 
 @[miden_bound] theorem u32_prod_div_lt_prime (a b : Felt)
     (ha : a.isU32 = true) (hb : b.isU32 = true) :
@@ -301,7 +421,7 @@ theorem u32OverflowingSub_borrow_ite (a b : Nat) :
     Nat.mul_le_mul (by omega) (by omega)
   calc a.val * b.val / 2^32
       ≤ (2^32 - 1) * (2^32 - 1) / 2^32 := Nat.div_le_div_right h3
-    _ < GOLDILOCKS_PRIME := by unfold GOLDILOCKS_PRIME; native_decide
+    _ < GOLDILOCKS_PRIME := by unfold GOLDILOCKS_PRIME; decide
 
 -- Felt arithmetic round-trip lemmas for bridging proofs
 

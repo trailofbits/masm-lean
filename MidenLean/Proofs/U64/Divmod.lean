@@ -8,14 +8,6 @@ open MidenLean
 open MidenLean.StepLemmas
 open MidenLean.Tactics
 
-/-- Execute a concatenation of op lists in two phases. -/
-private theorem execProcedure_append (env : ProcEnv) (fuel : Nat) (s : Concrete.State) (xs ys : List Op) :
-    execProcedure env fuel s (xs ++ ys) = (do
-      let s' ← execProcedure env fuel s xs
-      execProcedure env fuel s' ys) := by
-  unfold execProcedure
-  cases fuel <;> simp [List.foldlM_append]
-
 private def divmod_chunk1a : List Op := [
   .inst (.emitImm 14153021663962350784),
   .inst (.advPush 2),

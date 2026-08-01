@@ -40,18 +40,6 @@ private theorem u32and31_le31 (a : Felt) :
   rw [felt_ofNat_val_lt _ (by unfold GOLDILOCKS_PRIME; omega)]
   omega
 
-private theorem shr5_isU32 (a : Felt) (ha : a.isU32 = true) :
-    (Felt.ofNat (a.val / 2 ^ 5)).isU32 = true := by
-  apply felt_ofNat_isU32_of_lt
-  simp [Felt.isU32, decide_eq_true_eq] at ha
-  calc a.val / 2 ^ 5 ≤ a.val := Nat.div_le_self _ _
-    _ < 2 ^ 32 := ha
-
-private theorem shr5_val (shift : Felt) (hlt : shift.val < 128) :
-    (Felt.ofNat (shift.val / 2 ^ 5)).val = shift.val / 32 := by
-  rw [felt_ofNat_val_lt]; · ring_nf
-  · unfold GOLDILOCKS_PRIME; omega
-
 private theorem and31_val (shift : Felt) :
     (Felt.ofNat (shift.val &&& 31)).val = shift.val &&& 31 := by
   rw [felt_ofNat_val_lt]
@@ -105,13 +93,6 @@ private theorem execProcedure_ifElse_pure_inst (env1 env2 : ProcEnv) (f1 f2 : Na
     have hB' := execProcedure_pure_inst env1 env2 f1' f2'
       ⟨rest, s.memory, s.frames, s.advice⟩ B (by omega) (by omega) hB
     simp only [hA', hB']
-
-private theorem execProcedure_append (env : ProcEnv) (fuel : Nat) (s : Concrete.State) (xs ys : List Op) :
-    execProcedure env fuel s (xs ++ ys) = (do
-      let s' ← execProcedure env fuel s xs
-      execProcedure env fuel s' ys) := by
-  unfold execProcedure
-  cases fuel <;> simp [Procedure.ofOps, List.foldlM_append]
 
 -- ============================================================================
 -- Bridge lemmas for shr_k0..k3
@@ -260,43 +241,6 @@ private theorem shr_k2_env_bridge (fuel : Nat) (s : Concrete.State) (hfuel : fue
     dsimp only [bind, Bind.bind, Option.bind]
     exact execProcedure_ifElse_pure_inst u128ProcEnv (fun _ => none) fuel 34 s'
       shr_k2_then shr_k2_else (by omega) (by omega) shr_k2_then_pure shr_k2_else_pure
-
--- ============================================================================
--- ifElse dispatch helpers
--- ============================================================================
-
-private theorem execProcedure_ifElse_one
-    (env : ProcEnv) (fuel : Nat)
-    (rest : List Felt) (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
-    (thenBlk elseBlk : List Op) :
-    execProcedure env (fuel + 2)
-      ⟨(1 : Felt) :: rest, mem, frames, adv⟩
-      ([.ifElse thenBlk elseBlk] : List Op) =
-    execProcedure env (fuel + 1) ⟨rest, mem, frames, adv⟩ thenBlk := by
-  conv_lhs => unfold execProcedure
-  simp only [Procedure.ofOps, List.foldlM, Concrete.State.withStack]
-  dsimp only [bind, Bind.bind, Option.bind, pure, Pure.pure]
-  have hv1 : (1 : Felt).val = 1 := Felt.val_one'
-  have hbeq : ((1 : Nat) == 1) = true := by decide
-  simp only [hv1, hbeq, ↓reduceIte]
-  cases execProcedure env (fuel + 1) ⟨rest, mem, frames, adv⟩ thenBlk <;> rfl
-
-private theorem execProcedure_ifElse_zero
-    (env : ProcEnv) (fuel : Nat)
-    (rest : List Felt) (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
-    (thenBlk elseBlk : List Op) :
-    execProcedure env (fuel + 2)
-      ⟨(0 : Felt) :: rest, mem, frames, adv⟩
-      ([.ifElse thenBlk elseBlk] : List Op) =
-    execProcedure env (fuel + 1) ⟨rest, mem, frames, adv⟩ elseBlk := by
-  conv_lhs => unfold execProcedure
-  simp only [Procedure.ofOps, List.foldlM, Concrete.State.withStack]
-  dsimp only [bind, Bind.bind, Option.bind, pure, Pure.pure]
-  have hv0 : (0 : Felt).val = 0 := Felt.val_zero'
-  have hneq : ((0 : Nat) == 1) = false := by decide
-  have hbeq : ((0 : Nat) == 0) = true := by decide
-  simp only [hv0, hneq, hbeq, ↓reduceIte]
-  cases execProcedure env (fuel + 1) ⟨rest, mem, frames, adv⟩ elseBlk <;> rfl
 
 -- ============================================================================
 -- Decomposition of shr
@@ -570,10 +514,6 @@ private theorem dup_eqImm_eval (env : ProcEnv) (fuel : Nat) (v : Felt)
   miden_dup
   rw [stepEqImm]
 
-private theorem felt_beq_false_of_val_ne (a b : Felt) (h : a.val ≠ b.val) :
-    (a == b) = false := by
-  rw [beq_eq_false_iff_ne]; intro heq; exact h (congr_arg ZMod.val heq)
-
 -- Dispatch sub-lists and decomposition
 private def dispatch_else_1 : List Op :=
   [.inst (.dup 0), .inst (.eqImm 1),
@@ -787,16 +727,6 @@ theorem u128_shr_raw
 -- ============================================================================
 -- Bridge helpers for u128_shr_correct
 -- ============================================================================
-
--- Helper: shr limbs reduce to ofNat of division result
-private theorem shr_aI_eq (a : U128) (n : Nat) :
-    (a.shr n).a0.val = Felt.ofNat ((a.toNat / 2^n) % 2^32) ∧
-    (a.shr n).a1.val = Felt.ofNat ((a.toNat / 2^n / 2^32) % 2^32) ∧
-    (a.shr n).a2.val = Felt.ofNat ((a.toNat / 2^n / 2^64) % 2^32) ∧
-    (a.shr n).a3.val = Felt.ofNat ((a.toNat / 2^n / 2^96) % 2^32) := by
-  simp only [U128.shr, U128.ofNat_a0, U128.ofNat_a1, U128.ofNat_a2, U128.ofNat_a3,
-    Nat.div_div_eq_div_mul]
-  repeat constructor
 
 -- k=3 bridge: shift in [96, 128)
 private theorem shr_bridge_k3 (a : U128) (b_nat : Nat) :

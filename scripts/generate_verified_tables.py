@@ -42,7 +42,22 @@ GENERATED_MODULE_FILES = {
     "word": GENERATED_ROOT / "Word.lean",
 }
 MODULE_ORDER = ("u64", "u128", "u256", "word")
-SUPPORT_FILES = {"Common.lean"}
+SUPPORT_FILES = {
+    "Common.lean",
+    # U256 wrapping_mul is proved in chunks; these modules hold intermediate
+    # lemmas only — the procedure-level theorem lives in WrappingMul.lean.
+    "WrappingMulBridge.lean",
+    "WrappingMulDefs.lean",
+    "WrappingMulSetup.lean",
+    "WrappingMulRound1.lean",
+    "WrappingMulRound2.lean",
+    "WrappingMulRound3.lean",
+    "WrappingMulRound4.lean",
+    "WrappingMulRound5.lean",
+    "WrappingMulEpB5.lean",
+    "WrappingMulEpB6.lean",
+    "WrappingMulEpB7Final.lean",
+}
 
 THEOREM_RE = re.compile(r"(?m)^theorem\s+([A-Za-z0-9_]+_correct)\b")
 DOC_COMMENT_RE = re.compile(r"/--(.*?)-/", re.DOTALL)

@@ -9,43 +9,28 @@ open MidenLean
 open MidenLean.StepLemmas
 open MidenLean.Tactics
 
-set_option maxHeartbeats 8000000 in
 /-- `u64::overflowing_add` computes addition of two u64 values with carry.
     Input stack:  [b_lo, b_hi, a_lo, a_hi] ++ rest
     Output stack: [overflow, c_lo, c_hi] ++ rest
-    where `(c_hi, c_lo)` is the 64-bit sum and `overflow` is the carry bit. -/
+    where `(c_hi, c_lo)` is the 64-bit sum and `overflow` is the carry bit.
+    Parametric in `env` and `fuel` so this lemma serves both as a callee
+    summary for reflective callers and as the basis for `u64_overflowing_add_correct`. -/
+@[miden_exec_summary]
 theorem u64_overflowing_add_exec
+    (env : ProcEnv) (fuel : Nat)
     (a_lo a_hi b_lo b_hi : Felt) (rest : List Felt) (s : Concrete.State)
     (hs : s.stack = b_lo :: b_hi :: a_lo :: a_hi :: rest)
     (ha_lo : a_lo.isU32 = true) (ha_hi : a_hi.isU32 = true)
     (hb_lo : b_lo.isU32 = true) (hb_hi : b_hi.isU32 = true) :
-    execProcedure emptyEnv 10 s Miden.Core.U64.overflowing_add =
+    execProcedure env (fuel + 1) s Miden.Core.U64.overflowing_add =
     some (s.withStack (
-      let lo_sum := b_lo.val + a_lo.val
-      let carry := lo_sum / 2 ^ 32
-      let hi_sum := a_hi.val + b_hi.val + carry
-      Felt.ofNat (hi_sum / 2 ^ 32) ::
-      Felt.ofNat (lo_sum % 2 ^ 32) ::
-      Felt.ofNat (hi_sum % 2 ^ 32) :: rest)) := by
-  miden_vcg
-  all_goals miden_finish_reflection
-
-/-- `execProcedure` form of `u64_overflowing_add_exec`, for callers that compose
-    `overflowing_add` inside a `ProcEnv` (e.g. `wrapping_add`, `widening_add`). -/
-theorem u64_overflowing_add_run
-    (env : ProcEnv) (fuel : Nat)
-    (a_lo a_hi b_lo b_hi : Felt) (rest : List Felt)
-    (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
-    (ha_lo : a_lo.isU32 = true) (ha_hi : a_hi.isU32 = true)
-    (hb_lo : b_lo.isU32 = true) (hb_hi : b_hi.isU32 = true) :
-    execProcedure env (fuel + 1) ⟨b_lo :: b_hi :: a_lo :: a_hi :: rest, mem, frames, adv⟩
-      Miden.Core.U64.overflowing_add =
-    some ⟨
       Felt.ofNat ((a_hi.val + b_hi.val + (b_lo.val + a_lo.val) / 2 ^ 32) / 2 ^ 32) ::
       Felt.ofNat ((b_lo.val + a_lo.val) % 2 ^ 32) ::
       Felt.ofNat ((a_hi.val + b_hi.val + (b_lo.val + a_lo.val) / 2 ^ 32) % 2 ^ 32) ::
-      rest,
-      mem, frames, adv⟩ := by
+      rest)) := by
+  obtain ⟨stack, mem, frames, adv⟩ := s
+  simp only [Concrete.State.withStack] at hs ⊢
+  subst hs
   unfold Miden.Core.U64.overflowing_add execProcedure
   simp only [List.foldlM]
   miden_movup
@@ -70,7 +55,8 @@ theorem u64_overflowing_add_correct (a b : U64) (rest : List Felt) (s : Concrete
     some (s.withStack (
       (if a.toNat + b.toNat ≥ 2^64 then (1 : Felt) else 0) ::
       (a + b).lo.val :: (a + b).hi.val :: rest)) := by
-  rw [u64_overflowing_add_exec a.lo.val a.hi.val b.lo.val b.hi.val rest s hs a.lo.isU32 a.hi.isU32 b.lo.isU32 b.hi.isU32]
+  rw [u64_overflowing_add_exec emptyEnv 9 a.lo.val a.hi.val b.lo.val b.hi.val rest s hs
+    a.lo.isU32 a.hi.isU32 b.lo.isU32 b.hi.isU32]
   show _ = some (s.withStack (
     (if a.toNat + b.toNat ≥ 2^64 then (1 : Felt) else 0) ::
     Felt.ofNat ((a.toNat + b.toNat) % 2^32) ::

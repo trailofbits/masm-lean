@@ -136,7 +136,7 @@ theorem u32_madd_sum_lt_prime (a b c : Felt)
   have := u32_madd_sum_le a b c ha hb hc
   calc (a.val * b.val + c.val) / 2 ^ 32
       ≤ ((2^32 - 1) * (2^32 - 1) + (2^32 - 1)) / 2 ^ 32 := Nat.div_le_div_right this
-    _ < 2 ^ 32 := by native_decide
+    _ < 2 ^ 32 := by decide
 
 /-- The high 32 bits of `a*b + c` (for u32 a, b, c) are U32 as a Felt. -/
 @[miden_bound] theorem u32_madd_div_isU32 (a b c : Felt)
@@ -166,7 +166,7 @@ theorem u32_madd_sum_lt_prime (a b c : Felt)
   calc
     a.val * b.val / 2 ^ 32 ≤ ((2 ^ 32 - 1) * (2 ^ 32 - 1)) / 2 ^ 32 := by
       exact Nat.div_le_div_right hprod
-    _ < 2 ^ 32 := by native_decide
+    _ < 2 ^ 32 := by decide
 
 /-- Adding a u32 value to the low half of a u32 product carries by at most one word. -/
 @[miden_bound] theorem u32_prod_mod_add_div_le_one (a b c : Felt)
@@ -180,7 +180,7 @@ theorem u32_madd_sum_lt_prime (a b c : Felt)
         ≤ ((2 ^ 32 - 1) + (2 ^ 32 - 1)) / 2 ^ 32 := by
           apply Nat.div_le_div_right
           omega
-    _ ≤ 1 := by native_decide
+    _ ≤ 1 := by decide
 
 /-- Adding two u32 values carries by at most one word. -/
 @[miden_bound] theorem u32_add_div_le_one (a b : Felt)
@@ -191,7 +191,7 @@ theorem u32_madd_sum_lt_prime (a b c : Felt)
     (a.val + b.val) / 2 ^ 32 ≤ ((2 ^ 32 - 1) + (2 ^ 32 - 1)) / 2 ^ 32 := by
       apply Nat.div_le_div_right
       omega
-    _ ≤ 1 := by native_decide
+    _ ≤ 1 := by decide
 
 /-- `Felt.ofNat` of the carry from adding a u32 value to the low half of a u32 product
     round-trips through `.val`. -/

@@ -22,7 +22,6 @@ theorem u64_wrapping_sub_exec
       let sub_final := u32OverflowingSub sub_hi.2 sub_lo.1
       Felt.ofNat sub_lo.2 :: Felt.ofNat sub_final.2 :: rest)) := by
   miden_vcg
-  all_goals miden_finish_reflection
 
 /-- `u64::wrapping_sub` computes `a - b` as a u64 value.
     Input stack:  [b.lo, b.hi, a.lo, a.hi] ++ rest

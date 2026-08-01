@@ -15,20 +15,20 @@ private theorem pow2_val_eq (shift : Felt) (hshift : shift.val ≤ 63) :
     (Felt.ofNat (2 ^ shift.val)).val = 2 ^ shift.val := by
   apply felt_ofNat_val_lt
   calc 2 ^ shift.val ≤ 2 ^ 63 := Nat.pow_le_pow_right (by omega) hshift
-    _ < GOLDILOCKS_PRIME := by unfold GOLDILOCKS_PRIME; native_decide
+    _ < GOLDILOCKS_PRIME := by unfold GOLDILOCKS_PRIME; decide
 
 private theorem pow2_div_lt_prime (shift : Felt) (hshift : shift.val ≤ 63) :
     (Felt.ofNat (2 ^ shift.val)).val / 2 ^ 32 < GOLDILOCKS_PRIME := by
   rw [pow2_val_eq shift hshift]
   calc 2 ^ shift.val / 2 ^ 32 ≤ 2 ^ 63 / 2 ^ 32 :=
     Nat.div_le_div_right (Nat.pow_le_pow_right (by omega) hshift)
-    _ < GOLDILOCKS_PRIME := by unfold GOLDILOCKS_PRIME; native_decide
+    _ < GOLDILOCKS_PRIME := by unfold GOLDILOCKS_PRIME; decide
 
 private theorem pow2_div_lt_u32 (shift : Felt) (hshift : shift.val ≤ 63) :
     2 ^ shift.val / 2 ^ 32 < 2 ^ 32 := by
   calc 2 ^ shift.val / 2 ^ 32 ≤ (2 ^ 63) / 2 ^ 32 :=
     Nat.div_le_div_right (Nat.pow_le_pow_right (by omega) hshift)
-    _ < 2 ^ 32 := by native_decide
+    _ < 2 ^ 32 := by decide
 
 /-- pow2 value for shift <= 63: hi32.val + lo32.val < GOLDILOCKS_PRIME. -/
 private theorem pow2_hi32_add_lo32_val (shift : Felt) (hshift : shift.val ≤ 63) :
@@ -62,7 +62,7 @@ private theorem pow2_denom_isU32 (shift : Felt) (hshift : shift.val ≤ 63) :
   · have hdiv_zero : 2 ^ shift.val / 2 ^ 32 = 0 := by
       apply Nat.div_eq_of_lt
       calc 2 ^ shift.val ≤ 2 ^ 31 := Nat.pow_le_pow_right (by omega) (by omega)
-        _ < 2 ^ 32 := by native_decide
+        _ < 2 ^ 32 := by decide
     omega
   · have hle : 32 ≤ shift.val := by omega
     have hmod_zero : 2 ^ shift.val % 2 ^ 32 = 0 := by
@@ -556,7 +556,7 @@ theorem u64_shr_correct (a : U64) (shift : Felt) (rest : List Felt) (s : Concret
       simp only [Felt.hi32]; rw [hpow_val, h_pow_div]
       exact felt_ofNat_val_lt _ (by
         calc 2^(shift.val - 32) ≤ 2^31 := Nat.pow_le_pow_right (by omega) (by omega)
-          _ < GOLDILOCKS_PRIME := by unfold GOLDILOCKS_PRIME; native_decide)
+          _ < GOLDILOCKS_PRIME := by unfold GOLDILOCKS_PRIME; decide)
     -- Show the condition is false (pow_lo == 0, eq0 = 1, borrow = true, cond = false)
     have h_lo32_eq_zero : (Felt.ofNat (2 ^ shift.val)).lo32 = 0 := by
       exact (ZMod.val_eq_zero _).mp h_lo32_val

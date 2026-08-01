@@ -178,34 +178,13 @@ private theorem u128_wrapping_mul_tail_run
     (u128MulC0 a0 b0) (u128MulC1 a0 a1 b0 b1) (u128MulC2 a0 a1 a2 b0 b1 b2) rest mem frames adv]
 
 set_option maxHeartbeats 12000000 in
-theorem u128_wrapping_mul_run
-    (env : ProcEnv) (fuel : Nat)
-    (a0 a1 a2 a3 b0 b1 b2 b3 : Felt) (rest : List Felt)
-    (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
-    (ha0 : a0.isU32 = true) (ha1 : a1.isU32 = true)
-    (ha2 : a2.isU32 = true) (ha3 : a3.isU32 = true)
-    (hb0 : b0.isU32 = true) (hb1 : b1.isU32 = true)
-    (hb2 : b2.isU32 = true) (hb3 : b3.isU32 = true) :
-    execProcedure env (fuel + 1)
-      ⟨b0 :: b1 :: b2 :: b3 :: a0 :: a1 :: a2 :: a3 :: rest, mem, frames, adv⟩
-      Miden.Core.U128.wrapping_mul =
-    some ⟨
-      u128MulC0 a0 b0 ::
-      u128MulC1 a0 a1 b0 b1 ::
-      u128MulC2 a0 a1 a2 b0 b1 b2 ::
-      u128MulC3 a0 a1 a2 a3 b0 b1 b2 b3 ::
-      rest,
-      mem, frames, adv⟩ := by
-  rw [execProcedure_body_eq _ _ _ _ _ wrapping_mul_decomp rfl, execProcedure_append]
-  rw [u128_mul_low_chunk_run env fuel a0 a1 a2 a3 b0 b1 b2 b3 rest mem frames adv
-    ha0 ha1 ha2 ha3 hb0 hb1 hb2 hb3]
-  miden_bind
-  rw [u128_wrapping_mul_tail_run env fuel a0 a1 a2 a3 b0 b1 b2 b3 rest mem frames adv
-    ha0 ha1 ha2 ha3 hb0 hb1 hb2 hb3]
-
-set_option maxHeartbeats 12000000 in
-/-- Low-level execution theorem for `u128::wrapping_mul`.
-    This is the preferred theorem-backed summary shape for reflective callers. -/
+/-- `u128::wrapping_mul` computes the low 128 bits of the product of two 128-bit values (raw limb version).
+    Input stack:  [b0, b1, b2, b3, a0, a1, a2, a3] ++ rest
+    Output stack: [c0, c1, c2, c3] ++ rest
+    where `c0..c3` are the low-to-high limbs of `(a * b) mod 2^128`.
+    Parametric in `env` and `fuel` so this lemma serves both as a callee
+    summary for reflective callers and as the basis for `u128_wrapping_mul_correct`. -/
+@[miden_exec_summary]
 theorem u128_wrapping_mul_exec
     (env : ProcEnv) (fuel : Nat)
     (a0 a1 a2 a3 b0 b1 b2 b3 : Felt) (rest : List Felt) (s : Concrete.State)
@@ -224,33 +203,12 @@ theorem u128_wrapping_mul_exec
   obtain ⟨stk, mem, frames, adv⟩ := s
   simp only [Concrete.State.withStack] at hs ⊢
   subst hs
-  simpa using
-    u128_wrapping_mul_run env fuel a0 a1 a2 a3 b0 b1 b2 b3 rest mem frames adv
-      ha0 ha1 ha2 ha3 hb0 hb1 hb2 hb3
-
-set_option maxHeartbeats 12000000 in
-/-- `u128::wrapping_mul` computes the low 128 bits of the product of two 128-bit values (raw limb version).
-    Input stack:  [b0, b1, b2, b3, a0, a1, a2, a3] ++ rest
-    Output stack: [c0, c1, c2, c3] ++ rest
-    where `c0..c3` are the low-to-high limbs of `(a * b) mod 2^128`. -/
-theorem u128_wrapping_mul_raw
-    (a0 a1 a2 a3 b0 b1 b2 b3 : Felt) (rest : List Felt) (s : Concrete.State)
-    (hs : s.stack = b0 :: b1 :: b2 :: b3 :: a0 :: a1 :: a2 :: a3 :: rest)
-    (ha0 : a0.isU32 = true) (ha1 : a1.isU32 = true)
-    (ha2 : a2.isU32 = true) (ha3 : a3.isU32 = true)
-    (hb0 : b0.isU32 = true) (hb1 : b1.isU32 = true)
-    (hb2 : b2.isU32 = true) (hb3 : b3.isU32 = true) :
-    execProcedure emptyEnv 65 s Miden.Core.U128.wrapping_mul =
-    some (s.withStack (
-      u128MulC0 a0 b0 ::
-      u128MulC1 a0 a1 b0 b1 ::
-      u128MulC2 a0 a1 a2 b0 b1 b2 ::
-      u128MulC3 a0 a1 a2 a3 b0 b1 b2 b3 ::
-      rest)) := by
-  simpa [emptyEnv] using
-    u128_wrapping_mul_exec (env := fun _ => none) (fuel := 64)
-      a0 a1 a2 a3 b0 b1 b2 b3 rest s hs
-      ha0 ha1 ha2 ha3 hb0 hb1 hb2 hb3
+  rw [execProcedure_body_eq _ _ _ _ _ wrapping_mul_decomp rfl, execProcedure_append]
+  rw [u128_mul_low_chunk_run env fuel a0 a1 a2 a3 b0 b1 b2 b3 rest mem frames adv
+    ha0 ha1 ha2 ha3 hb0 hb1 hb2 hb3]
+  miden_bind
+  rw [u128_wrapping_mul_tail_run env fuel a0 a1 a2 a3 b0 b1 b2 b3 rest mem frames adv
+    ha0 ha1 ha2 ha3 hb0 hb1 hb2 hb3]
 
 set_option maxHeartbeats 12000000 in
 /-- `u128::wrapping_mul` computes `(a * b) mod 2^128` for two 128-bit values.
@@ -262,7 +220,8 @@ theorem u128_wrapping_mul_correct (a b : U128) (rest : List Felt) (s : Concrete.
     execProcedure emptyEnv 65 s Miden.Core.U128.wrapping_mul =
     some (s.withStack (
       (a * b).a0.val :: (a * b).a1.val :: (a * b).a2.val :: (a * b).a3.val :: rest)) := by
-  have h := u128_wrapping_mul_raw a.a0.val a.a1.val a.a2.val a.a3.val
+  have h := u128_wrapping_mul_exec emptyEnv 64
+    a.a0.val a.a1.val a.a2.val a.a3.val
     b.a0.val b.a1.val b.a2.val b.a3.val rest s hs
     a.a0.isU32 a.a1.isU32 a.a2.isU32 a.a3.isU32
     b.a0.isU32 b.a1.isU32 b.a2.isU32 b.a3.isU32

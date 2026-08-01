@@ -74,29 +74,29 @@ theorem u64_shl_exec
         Nat.mul_le_mul (by omega) (by omega)
       calc (Felt.ofNat (2 ^ shift.val)).lo32.val * lo.val / 2^32
           ≤ (2^32 - 1) * (2^32 - 1) / 2^32 := Nat.div_le_div_right this
-        _ < 2^32 := by native_decide
+        _ < 2^32 := by decide
     have htotal : hi.val * (Felt.ofNat (2 ^ shift.val)).lo32.val +
         (Felt.ofNat (2 ^ shift.val)).lo32.val * lo.val / 2^32 ≤
         (2^32 - 1) * (2^32 - 1) + (2^32 - 1) :=
       Nat.add_le_add (Nat.mul_le_mul (by omega) (by omega)) (by omega)
     calc (hi.val * (Felt.ofNat (2 ^ shift.val)).lo32.val + (Felt.ofNat (2 ^ shift.val)).lo32.val * lo.val / 2^32) / 2^32
         ≤ ((2^32 - 1) * (2^32 - 1) + (2^32 - 1)) / 2^32 := Nat.div_le_div_right htotal
-      _ < 2^32 := by native_decide
+      _ < 2^32 := by decide
   have h_pow_hi_u32 : (Felt.ofNat (2 ^ shift.val)).hi32.isU32 = true := by
     simp only [Felt.hi32, Felt.isU32, decide_eq_true_eq]
     have hpow_val : (Felt.ofNat (2 ^ shift.val)).val = 2 ^ shift.val := by
       apply felt_ofNat_val_lt
       calc 2 ^ shift.val ≤ 2 ^ 63 := Nat.pow_le_pow_right (by omega) hshift
-        _ < GOLDILOCKS_PRIME := by unfold GOLDILOCKS_PRIME; native_decide
+        _ < GOLDILOCKS_PRIME := by unfold GOLDILOCKS_PRIME; decide
     have hdiv_lt_prime : (Felt.ofNat (2 ^ shift.val)).val / 2 ^ 32 < GOLDILOCKS_PRIME := by
       rw [hpow_val]
       calc 2 ^ shift.val / 2 ^ 32 ≤ 2 ^ 63 / 2 ^ 32 :=
         Nat.div_le_div_right (Nat.pow_le_pow_right (by omega) hshift)
-        _ < GOLDILOCKS_PRIME := by unfold GOLDILOCKS_PRIME; native_decide
+        _ < GOLDILOCKS_PRIME := by unfold GOLDILOCKS_PRIME; decide
     rw [felt_ofNat_val_lt _ hdiv_lt_prime, hpow_val]
     calc 2 ^ shift.val / 2 ^ 32 ≤ 2 ^ 63 / 2 ^ 32 :=
       Nat.div_le_div_right (Nat.pow_le_pow_right (by omega) hshift)
-      _ < 2 ^ 32 := by native_decide
+      _ < 2 ^ 32 := by decide
   rw [stepU32WidenMadd (ha := by assumption) (hb := by assumption) (hc := by assumption)]; miden_bind
   -- Value recovery for cross1_lo
   have h_cross1_val : (Felt.ofNat ((hi.val * (Felt.ofNat (2 ^ shift.val)).lo32.val +
@@ -122,7 +122,7 @@ theorem u64_shl_correct (a : U64) (shift : Felt) (rest : List Felt) (s : Concret
   have hpow_val : (Felt.ofNat (2 ^ shift.val)).val = 2 ^ shift.val :=
     felt_ofNat_val_lt _ (by
       calc 2 ^ shift.val ≤ 2 ^ 63 := Nat.pow_le_pow_right (by omega) hshift
-        _ < GOLDILOCKS_PRIME := by unfold GOLDILOCKS_PRIME; native_decide)
+        _ < GOLDILOCKS_PRIME := by unfold GOLDILOCKS_PRIME; decide)
   have hlo32_val : (Felt.ofNat (2 ^ shift.val)).lo32.val = 2 ^ shift.val % 2^32 := by
     simp only [Felt.lo32]; rw [hpow_val]; exact felt_ofNat_val_lt _ (u32_mod_lt_prime _)
   have hhi32_val : (Felt.ofNat (2 ^ shift.val)).hi32.val = 2 ^ shift.val / 2^32 := by
@@ -130,7 +130,7 @@ theorem u64_shl_correct (a : U64) (shift : Felt) (rest : List Felt) (s : Concret
     exact felt_ofNat_val_lt _ (by
       calc 2 ^ shift.val / 2^32 ≤ 2^63 / 2^32 :=
         Nat.div_le_div_right (Nat.pow_le_pow_right (by omega) hshift)
-        _ < GOLDILOCKS_PRIME := by unfold GOLDILOCKS_PRIME; native_decide)
+        _ < GOLDILOCKS_PRIME := by unfold GOLDILOCKS_PRIME; decide)
   -- Bridge to shl definition: show the raw result matches (a.toNat * 2^shift.val)
   dsimp only
   rw [hlo32_val, hhi32_val]

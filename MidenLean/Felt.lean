@@ -9,6 +9,13 @@ def GOLDILOCKS_PRIME : Nat := 2^64 - 2^32 + 1
 /-- Miden field element type. -/
 abbrev Felt := ZMod GOLDILOCKS_PRIME
 
+-- This is the one remaining `native_decide` in the library, and it puts
+-- `Lean.ofReduceBool`/`Lean.trustCompiler` into the axiom footprint of every
+-- theorem that touches `Felt` (via this `Fact` instance). A kernel-checked
+-- alternative was attempted (`norm_num` Pratt certificate for the primality
+-- of 2^64 - 2^32 + 1) but did not finish within an hour of kernel checking;
+-- removing this axiom would need a precomputed, inlined primality
+-- certificate.
 set_option maxHeartbeats 800000 in
 instance : Fact (Nat.Prime GOLDILOCKS_PRIME) := ⟨by native_decide⟩
 

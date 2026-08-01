@@ -1,6 +1,7 @@
 import MidenLean.Proofs.U128.Common
 import MidenLean.Proofs.U128.OverflowingMul
 import MidenLean.Proofs.Tactics
+import MidenLean.Symbolic.Tactic
 import MidenLean.Generated.U128
 
 namespace MidenLean.Proofs
@@ -15,7 +16,8 @@ set_option maxHeartbeats 8000000 in
     Output stack: [c0, c1, c2, c3, overflow] ++ rest
     where `c0..c3` are the low-to-high limbs of `(a * b) mod 2^128`
     and `overflow` is `1` exactly when the discarded high part is nonzero. -/
-theorem u128_widening_mul_raw
+@[miden_exec_summary]
+theorem u128_widening_mul_exec
     (a0 a1 a2 a3 b0 b1 b2 b3 : Felt) (rest : List Felt) (s : Concrete.State)
     (hs : s.stack = b0 :: b1 :: b2 :: b3 :: a0 :: a1 :: a2 :: a3 :: rest)
     (ha0 : a0.isU32 = true) (ha1 : a1.isU32 = true)
@@ -30,28 +32,7 @@ theorem u128_widening_mul_raw
       u128MulC3 a0 a1 a2 a3 b0 b1 b2 b3 ::
       (if u128MulOverflowBool a0 a1 a2 a3 b0 b1 b2 b3 then (1 : Felt) else 0) ::
       rest)) := by
-  obtain ⟨stk, mem, frames, adv⟩ := s
-  simp only [Concrete.State.withStack] at hs ⊢
-  subst hs
-  unfold Miden.Core.U128.widening_mul execProcedure
-  simp only [List.foldlM, u128ProcEnv]
-  dsimp only [bind, Bind.bind, Option.bind]
-  rw [show execProcedure u128ProcEnv 30
-      ⟨b0 :: b1 :: b2 :: b3 :: a0 :: a1 :: a2 :: a3 :: rest, mem, frames, adv⟩
-      Miden.Core.U128.overflowing_mul =
-      some ⟨
-        (if u128MulOverflowBool a0 a1 a2 a3 b0 b1 b2 b3 then (1 : Felt) else 0) ::
-        u128MulC0 a0 b0 ::
-        u128MulC1 a0 a1 b0 b1 ::
-        u128MulC2 a0 a1 a2 b0 b1 b2 ::
-        u128MulC3 a0 a1 a2 a3 b0 b1 b2 b3 ::
-        rest,
-        mem, frames, adv⟩
-      from u128_overflowing_mul_run u128ProcEnv 29 a0 a1 a2 a3 b0 b1 b2 b3 rest mem frames adv
-        ha0 ha1 ha2 ha3 hb0 hb1 hb2 hb3]
-  miden_bind
-  miden_movdn
-  dsimp only [pure, Pure.pure]
+  miden_vcg
 
 set_option maxHeartbeats 8000000 in
 /-- `u128::widening_mul` computes `(a * b) mod 2^128` and an overflow flag.
@@ -66,7 +47,7 @@ theorem u128_widening_mul_correct (a b : U128) (rest : List Felt) (s : Concrete.
       (if u128MulOverflowBool a.a0.val a.a1.val a.a2.val a.a3.val
           b.a0.val b.a1.val b.a2.val b.a3.val then (1 : Felt) else 0) ::
       rest)) := by
-  have h := u128_widening_mul_raw a.a0.val a.a1.val a.a2.val a.a3.val
+  have h := u128_widening_mul_exec a.a0.val a.a1.val a.a2.val a.a3.val
     b.a0.val b.a1.val b.a2.val b.a3.val rest s hs
     a.a0.isU32 a.a1.isU32 a.a2.isU32 a.a3.isU32
     b.a0.isU32 b.a1.isU32 b.a2.isU32 b.a3.isU32

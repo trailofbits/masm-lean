@@ -14,7 +14,7 @@ set_option maxHeartbeats 32000000 in
 /-- Round 5: b₄ × a[0..3] using mulstep4 with stack accumulators.
     Input stack: [l₅, lo4, lo3, lo2] ++ rest
     Output stack: [lo4', lo3', lo2', lo1'] ++ rest -/
-theorem wm_round5_correct (a b : U256) (rest : List Felt)
+theorem wm_round5_spec (a b : U256) (rest : List Felt)
     (mem : Nat → Felt) (frame : LocalFrame) (frames : List LocalFrame) (adv : List Felt)
     (fuel : Nat) (hnl : frame.numLocals ≥ 24)
     (l₅ lo4 lo3 lo2 : Felt)

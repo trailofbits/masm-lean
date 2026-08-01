@@ -28,7 +28,7 @@ Decomposes control flow in `execProcedure`-based existential goals.
 Scans the procedure's `List Op` for control-flow ops and applies
 the appropriate composition rule:
 - **`Op.ifElse`**: applies `execProcedure_ifElse`, generating branch subgoals
-- **`Op.repeat`**: applies `execProcedure_repeat`, generating invariant subgoals
+- **`Op.repeat`**: applies `execProcedure_repeat_succ`, generating body and rest subgoals
 - **`Op.whileTrue`**: applies `execProcedure_while`, generating invariant/measure subgoals
 
 For mixed op lists (prefix instructions + control flow), the tactic splits
@@ -98,7 +98,7 @@ private partial def extractOps (e : Lean.Expr) : MetaM (Option (Array Lean.Expr)
   | List.nil _ => return some #[]
   | _ => return none
 
-/-- Check whether an op is an `execProcedure emptyEnv` call. -/
+/-- Check whether an op is an `exec` call. -/
 private def opHasExec (opExpr : Lean.Expr) : MetaM Bool := do
   let opExpr ← whnf opExpr
   match_expr opExpr with
@@ -129,6 +129,9 @@ private def mkListExpr (elemTy : Lean.Expr) (xs : List Lean.Expr) : MetaM Lean.E
 private def mkOpListExpr (xs : List Lean.Expr) : MetaM Lean.Expr :=
   mkListExpr (Lean.mkConst ``MidenLean.Op) xs
 
+private def mkListExprWithTail (xs : List Lean.Expr) (tail : Lean.Expr) : MetaM Lean.Expr := do
+  xs.foldrM (fun x acc => mkAppM ``List.cons #[x, acc]) tail
+
 /-- Check if a Lean `Expr` is a `Nat` literal equal to zero. -/
 private def isNatZero (e : Lean.Expr) : Bool :=
   e.numeral? == some 0 || e.isConstOf ``Nat.zero
@@ -157,6 +160,64 @@ private def findStackDecomposition (stateExpr : Lean.Expr) : TacticM (Array Lean
       | none => pure ()
   throwError "miden_reflect: could not find a stack decomposition hypothesis for `state.stack`"
 
+private def getStateStackDecomposition (stateExpr : Lean.Expr) : TacticM (Array Lean.Expr × Lean.Expr) := do
+  let stateWhnf ← whnf stateExpr
+  if stateWhnf.getAppNumArgs == 4 then
+    let stackExpr := stateWhnf.getArg! 0
+    extractCons stackExpr
+  else
+    let stackExpr := Lean.mkProj ``MidenLean.Concrete.State 0 stateExpr
+    let stackProjWhnf ← whnf stackExpr
+    if stateExpr.isAppOfArity ``MidenLean.Concrete.State.withStack 2 ||
+        stackProjWhnf.isAppOfArity ``List.nil 1 ||
+        stackProjWhnf.isAppOfArity ``List.cons 2 then
+      extractCons stackExpr
+    else
+      findStackDecomposition stateExpr
+
+private inductive IfElseCondShape where
+  | constOne (restExpr : Lean.Expr)
+  | constZero (restExpr : Lean.Expr)
+  | iteOneZero (propExpr : Lean.Expr) (restExpr : Lean.Expr)
+  | iteZeroOne (propExpr : Lean.Expr) (restExpr : Lean.Expr)
+
+private def lambdaBodyExpr (e : Lean.Expr) : Lean.Expr :=
+  match e with
+  | .lam _ _ body _ => body
+  | _ => e
+
+private def classifyIfElseCondShape
+    (stateExpr : Lean.Expr) : TacticM (Option IfElseCondShape) := do
+  let (stackElems, tailExpr) ← getStateStackDecomposition stateExpr
+  if stackElems.isEmpty then
+    return none
+  let condExpr := stackElems[0]!
+  let restExpr ← mkListExprWithTail (stackElems.toList.drop 1) tailExpr
+  let zeroExpr ← Lean.Elab.Term.elabTerm (← `((0 : MidenLean.Felt))) none
+  let oneExpr ← Lean.Elab.Term.elabTerm (← `((1 : MidenLean.Felt))) none
+  let condWhnf ← withTransparency TransparencyMode.all <| reduce (← instantiateMVars condExpr)
+  if ← isDefEq condWhnf oneExpr then
+    return some (.constOne restExpr)
+  if ← isDefEq condWhnf zeroExpr then
+    return some (.constZero restExpr)
+  match_expr condWhnf with
+  | ite p t f =>
+      if (← isDefEq t oneExpr) && (← isDefEq f zeroExpr) then
+        return some (.iteOneZero p restExpr)
+      if (← isDefEq t zeroExpr) && (← isDefEq f oneExpr) then
+        return some (.iteZeroOne p restExpr)
+      return none
+  | dite p t f =>
+      let tBody := lambdaBodyExpr t
+      let fBody := lambdaBodyExpr f
+      if (← isDefEq tBody oneExpr) && (← isDefEq fBody zeroExpr) then
+        return some (.iteOneZero p restExpr)
+      if (← isDefEq tBody zeroExpr) && (← isDefEq fBody oneExpr) then
+        return some (.iteZeroOne p restExpr)
+      return none
+  | _ =>
+      return none
+
 /-- Run a tactic against a single goal and return the remaining goals. -/
 private def runOnGoal (goal : MVarId) (stx : TSyntax `tactic) : TacticM (List MVarId) := do
   if ← goal.isAssigned then
@@ -166,135 +227,271 @@ private def runOnGoal (goal : MVarId) (stx : TSyntax `tactic) : TacticM (List MV
     evalTactic stx
     return ← getGoals
 
+/-- Run a tactic sequence against a single goal and return the remaining goals. -/
+private def runTacticSeqOnGoal (goal : MVarId) (stx : TSyntax `Lean.Parser.Tactic.tacticSeq) :
+    TacticM (List MVarId) := do
+  if ← goal.isAssigned then
+    pure []
+  else
+    goal.withContext do
+      setGoals [goal]
+      evalTactic stx
+      return ← getGoals
+
+/-- Run a tactic on a goal and attach a short label if it throws. -/
+private def runNamedOnGoal (label : String) (goal : MVarId) (stx : TSyntax `tactic) :
+    TacticM (List MVarId) := do
+  try
+    runOnGoal goal stx
+  catch ex =>
+    let ty ← goal.getType
+    throwError "{label} failed on goal:{indentExpr ty}\n{ex.toMessageData}"
+
+/-- Try running a tactic on a goal. On failure, restore the previous state and return `none`. -/
+private def tryRunOnGoal? (goal : MVarId) (stx : TSyntax `tactic) :
+    TacticM (Option (List MVarId)) := do
+  let savedState ← saveState
+  try
+    return some (← runOnGoal goal stx)
+  catch _ =>
+    restoreState savedState
+    return none
+
+private def tryRunTacticSeqOnGoal? (goal : MVarId) (stx : TSyntax `Lean.Parser.Tactic.tacticSeq) :
+    TacticM (Option (List MVarId)) := do
+  let savedState ← saveState
+  try
+    return some (← runTacticSeqOnGoal goal stx)
+  catch _ =>
+    restoreState savedState
+    return none
+
 /-- Solve a goal completely with the provided tactic script. -/
 private def closeGoalWith (goal : MVarId) (label : String) (stx : TSyntax `tactic) : TacticM Unit := do
   unless ← goal.isAssigned do
-    let remaining ← runOnGoal goal stx
+    let remaining ←
+      try
+        runOnGoal goal stx
+      catch ex =>
+        let ty ← goal.getType
+        throwError "miden_reflect: failed to solve {label}:{indentExpr ty}\n{ex.toMessageData}"
     unless remaining.isEmpty do
       let ty ← remaining[0]!.getType
       throwError "miden_reflect: failed to solve {label}:{indentExpr ty}"
 
-/-- If an equality goal has an unassigned metavariable on one side, assign it
-    directly to the other side and close the goal by reflexivity. -/
+/-- Close an equality goal whose one side (or `Option.some` argument) is a
+    bare unassigned metavariable, by unifying the two sides. Unification runs
+    through `isDefEq` rather than a raw `MVarId.assign`, so the occurs, scope,
+    and type checks apply: an illegal assignment leaves the goal open for the
+    caller instead of producing an ill-typed term that only the kernel
+    rejects. -/
 private def closeEqByAssigningMVar? (goal : MVarId) : TacticM Bool := do
   if ← goal.isAssigned then
     return true
-  let ty ← goal.getType
-  let some (_, lhs, rhs) := ty.eq?
-    | return false
-  if lhs.isMVar then
-    let lhsId := lhs.mvarId!
-    unless ← lhsId.isAssigned do
+  goal.withContext do
+    let ty ← goal.getType
+    let some (_, lhs, rhs) := ty.eq?
+      | return false
+    let unassignedMVar (e : Lean.Expr) : TacticM Bool := do
+      if e.isMVar then
+        return !(← e.mvarId!.isAssigned)
+      return false
+    let mut assignable := (← unassignedMVar lhs) || (← unassignedMVar rhs)
+    if !assignable
+        && lhs.isAppOfArity ``Option.some 2 && rhs.isAppOfArity ``Option.some 2 then
+      assignable := (← unassignedMVar (lhs.getArg! 1)) || (← unassignedMVar (rhs.getArg! 1))
+    unless assignable do
+      return false
+    let unified ←
       try
-        lhsId.assign rhs
-        goal.assign (← mkEqRefl (← instantiateMVars rhs))
-        return true
+        isDefEq lhs rhs
       catch _ =>
-        pure ()
-  if rhs.isMVar then
-    let rhsId := rhs.mvarId!
-    unless ← rhsId.isAssigned do
-      try
-        rhsId.assign lhs
-        goal.assign (← mkEqRefl (← instantiateMVars lhs))
-        return true
-      catch _ =>
-        pure ()
-  if lhs.isAppOfArity ``Option.some 2 && rhs.isAppOfArity ``Option.some 2 then
-    let lhsArg := lhs.getArg! 1
-    let rhsArg := rhs.getArg! 1
-    if lhsArg.isMVar then
-      let lhsId := lhsArg.mvarId!
-      unless ← lhsId.isAssigned do
-        try
-          lhsId.assign rhsArg
-          goal.assign (← mkEqRefl (← instantiateMVars rhs))
-          return true
-        catch _ =>
-          pure ()
-    if rhsArg.isMVar then
-      let rhsId := rhsArg.mvarId!
-      unless ← rhsId.isAssigned do
-        try
-          rhsId.assign lhsArg
-          goal.assign (← mkEqRefl (← instantiateMVars lhs))
-          return true
-        catch _ =>
-          pure ()
-  return false
+        pure false
+    unless unified do
+      return false
+    goal.assign (← mkEqRefl (← instantiateMVars rhs))
+    return true
 
 private def closeReflectResultGoal (goal : MVarId) : TacticM Unit := do
   unless ← goal.isAssigned do
-    let tryReduce : TacticM Bool := do
+    -- Fast path: `whnf` (at full transparency) each side just enough to
+    -- expose the `Option.some (concreteState ...)` head, then match it
+    -- against the other side. Unlike `Meta.reduce`, `whnf` does NOT
+    -- recursively normalize argument subterms, so it never descends into
+    -- the `Felt.ofNat (<complex-Nat>)` expressions that make up the stack
+    -- elements — avoiding the `maxRecDepth` blow-up from deeply nested
+    -- `ZMod.val`/`Nat.div`/`Nat.mod` reduction.
+    let tryWhnf : TacticM Bool := do
       let ty ← goal.getType
       let some (_, lhs, rhs) := ty.eq?
         | return false
-      let lhs' ← withTransparency TransparencyMode.all <| reduce lhs
-      let rhs' ← withTransparency TransparencyMode.all <| reduce rhs
-      if lhs'.isAppOfArity ``Option.some 2 && rhs'.isAppOfArity ``Option.some 2 then
-        let lhsArg := lhs'.getArg! 1
-        let rhsArg := rhs'.getArg! 1
-        if rhsArg.isMVar then
-          let rhsId := rhsArg.mvarId!
-          unless ← rhsId.isAssigned do
-            try
-              rhsId.assign lhsArg
-              goal.assign (← mkEqRefl (← instantiateMVars lhs'))
-              return true
-            catch _ =>
-              pure ()
-        if lhsArg.isMVar then
-          let lhsId := lhsArg.mvarId!
-          unless ← lhsId.isAssigned do
-            try
-              lhsId.assign rhsArg
-              goal.assign (← mkEqRefl (← instantiateMVars rhs'))
-              return true
-            catch _ =>
-              pure ()
+      let lhs' ← withTransparency TransparencyMode.all <| whnf lhs
+      let rhs' ← withTransparency TransparencyMode.all <| whnf rhs
+      -- `isDefEq` also covers the `some ?m = some (concreteState ...)` case:
+      -- it unifies the metavariable argument with the other side, with the
+      -- occurs/scope/type checks a raw `MVarId.assign` would skip.
       if ← isDefEq lhs' rhs' then
         goal.assign (← mkEqRefl (← instantiateMVars lhs'))
         return true
       return false
-    if ← tryReduce then
+    if ← tryWhnf then
       pure ()
     else
-    let remaining ← runOnGoal goal (← `(tactic|
-      simp [MidenLean.Symbolic.Reflect.execProcedure,
-            MidenLean.Symbolic.Reflect.procSpec,
-            MidenLean.Symbolic.Reflect.ReflectEnv.empty,
-            MidenLean.Symbolic.Reflect.concreteState,
-            MidenLean.Symbolic.execOps,
-            MidenLean.Symbolic.execOp,
-            MidenLean.Symbolic.execInstruction,
-            bind, Bind.bind, Option.bind]))
-    match remaining with
-    | [] => pure ()
-    | [goal'] =>
-        unless ← closeEqByAssigningMVar? goal' do
-          closeGoalWith goal' "`hresult`" (← `(tactic| rfl))
-    | goal' :: _ =>
-        let ty ← goal'.getType
-        throwError "miden_reflect: failed to solve `hresult`:{indentExpr ty}"
+      let remaining ← runNamedOnGoal "miden_reflect.closeReflectResultGoal" goal (← `(tactic|
+        simp [MidenLean.Symbolic.Reflect.execProcedure,
+              MidenLean.Symbolic.Reflect.procSpec,
+              MidenLean.Symbolic.Reflect.ReflectEnv.empty,
+              MidenLean.Symbolic.Reflect.concreteState,
+              MidenLean.Symbolic.execOps,
+              MidenLean.Symbolic.execOp,
+              MidenLean.Symbolic.execInstruction,
+              bind, Bind.bind, Option.bind]))
+      match remaining with
+      | [] => pure ()
+      | [goal'] =>
+          unless ← closeEqByAssigningMVar? goal' do
+            closeGoalWith goal' "`hresult`" (← `(tactic| rfl))
+      | goal' :: _ =>
+          let ty ← goal'.getType
+          throwError "miden_reflect: failed to solve `hresult`:{indentExpr ty}"
+
+/-- A `valLeq _ 63` precondition holds for a literal shift below 64
+    (discharges `pow2`-style shift bounds during cleanup). Scoped to
+    `miden_bound` — too specialized for the global default simp set. -/
+@[miden_bound] private theorem holdsValLeqLit63ConcreteOfLt64
+    (shift : MidenLean.Felt) (hlt : shift.val < 64) :
+    (MidenLean.Symbolic.Precondition.valLeq (MidenLean.Symbolic.Expr.lit shift) 63).holds
+      MidenLean.Symbolic.Reflect.concreteAssignment := by
+  unfold MidenLean.Symbolic.Precondition.holds
+  simp [MidenLean.Symbolic.Expr.eval]
+  omega
+
+@[miden_bound] private theorem u32OverflowingSub64SndValLe63
+    (shift : MidenLean.Felt)
+    (hshift_u32 : shift.isU32 = true)
+    (hshift_ge64 : ¬ shift.val < 64)
+    (hshift_lt128 : shift.val < 128) :
+    (MidenLean.Felt.ofNat (MidenLean.u32OverflowingSub shift.val 64).2).val ≤ 63 := by
+  have hlt : (MidenLean.Felt.ofNat (MidenLean.u32OverflowingSub shift.val 64).2).val < 64 := by
+    exact MidenLean.u32OverflowingSub64_snd_val_lt_64 shift hshift_u32 hshift_ge64 hshift_lt128
+  omega
+
+@[miden_bound] private theorem holdsValLeqU32WSubLit64Concrete
+    (shift : MidenLean.Felt)
+    (hshift_u32 : shift.isU32 = true)
+    (hshift_ge64 : ¬ shift.val < 64)
+    (hshift_lt128 : shift.val < 128) :
+    (MidenLean.Symbolic.Precondition.valLeq
+        ((MidenLean.Symbolic.Expr.lit shift).u32WSub (MidenLean.Symbolic.Expr.lit 64)) 63).holds
+      MidenLean.Symbolic.Reflect.concreteAssignment := by
+  unfold MidenLean.Symbolic.Precondition.holds
+  simp [MidenLean.Symbolic.Expr.eval]
+  exact u32OverflowingSub64SndValLe63 shift hshift_u32 hshift_ge64 hshift_lt128
 
 /-- Apply light cleanup to remaining goals, closing trivial `hpreconds` goals. -/
+private def finalizeCleanupGoals (goals : List MVarId) : TacticM (List MVarId) := do
+  let mut remaining : List MVarId := []
+  for goal in goals do
+    unless ← goal.isAssigned do
+      if let some rem ← tryRunOnGoal? goal (← `(tactic| assumption)) then
+        remaining := remaining ++ rem
+      else if let some rem ← tryRunOnGoal? goal (← `(tactic| rfl)) then
+        remaining := remaining ++ rem
+      else if let some rem ← tryRunTacticSeqOnGoal? goal (← `(tacticSeq|
+        intros p hp
+        simp at hp
+        repeat' (first | rcases hp with rfl | hp)
+        all_goals (simp [miden_reflect_norm, miden_u32, miden_val, miden_bound, *] at *)
+        all_goals (first | rfl | miden_arith | omega))) then
+        remaining := remaining ++ rem
+      else if let some rem ← tryRunOnGoal? goal (← `(tactic|
+        first
+        | simp [miden_reflect_norm, miden_cleanup,
+                miden_u32, miden_val, miden_bound, *]
+        | miden_finish_reflection)) then
+        remaining := remaining ++ rem
+      else if let some rem ← tryRunOnGoal? goal (← `(tactic| tauto)) then
+        remaining := remaining ++ rem
+      else if let some rem ← tryRunOnGoal? goal (← `(tactic| omega)) then
+        remaining := remaining ++ rem
+      else if let some rem ← tryRunOnGoal? goal (← `(tactic| miden_arith)) then
+        remaining := remaining ++ rem
+      else
+        remaining := remaining ++ [goal]
+  return remaining
+
+/-- Main cleanup ladder for residual VCG goals: hypothesis lookup, `decide`,
+    if-splitting, precondition normalization, then arithmetic. Whatever
+    survives is handed to `finalizeCleanupGoals`. -/
 private def cleanupGoals (goals : List MVarId) : TacticM (List MVarId) := do
   let mut remaining : List MVarId := []
   for goal in goals do
     unless ← goal.isAssigned do
-      let rem ← runOnGoal goal (← `(tactic|
-        try
-          simp [miden_reflect_norm,
-                and_assoc, and_left_comm, and_comm,
-                MidenLean.Concrete.State.withStack,
-                MidenLean.Symbolic.Precondition.holds,
-                MidenLean.Symbolic.Expr.eval,
-                MidenLean.Symbolic.Reflect.concreteAssignment,
-                MidenLean.Symbolic.Reflect.concreteState,
-                MidenLean.Symbolic.Reflect.concreteStateWithLocals,
-                MidenLean.LocalFrame.localAddr]))
-      remaining := remaining ++ rem
-  return remaining
+      if let some rem ← tryRunOnGoal? goal (← `(tactic| assumption)) then
+        remaining := remaining ++ rem
+      else if let some rem ← tryRunTacticSeqOnGoal? goal (← `(tacticSeq|
+        symm
+        assumption)) then
+        remaining := remaining ++ rem
+      else if let some rem ← tryRunOnGoal? goal (← `(tactic| decide)) then
+        remaining := remaining ++ rem
+      else if let some rem ← tryRunOnGoal? goal (← `(tactic| split_ifs at * <;> simp_all)) then
+        remaining := remaining ++ rem
+      else if let some rem ← tryRunTacticSeqOnGoal? goal (← `(tacticSeq|
+        intros p hp
+        simp only [List.mem_cons, List.mem_append, List.mem_singleton,
+                   true_and, and_true,
+                   and_assoc, and_left_comm, and_comm,
+                   or_assoc, or_left_comm, or_comm,
+                   miden_reflect_norm,
+                   MidenLean.Symbolic.Precondition.holds,
+                   MidenLean.Symbolic.Expr.eval,
+                   MidenLean.Symbolic.Reflect.concreteAssignment,
+                   miden_u32, miden_val, miden_bound, *] at hp ⊢
+        first
+        | tauto
+        | miden_arith
+        | omega)) then
+        remaining := remaining ++ rem
+      else if let some rem ← tryRunOnGoal? goal (← `(tactic|
+        split_ifs at * <;> simp [MidenLean.Concrete.State.withStack] at *)) then
+        remaining := remaining ++ rem
+      else if let some rem ← tryRunOnGoal? goal (← `(tactic| tauto)) then
+        remaining := remaining ++ rem
+      else if let some rem ← tryRunOnGoal? goal (← `(tactic| omega)) then
+        remaining := remaining ++ rem
+      else if let some rem ← tryRunOnGoal? goal (← `(tactic| miden_arith)) then
+        remaining := remaining ++ rem
+      else if let some rem ← tryRunOnGoal? goal (← `(tactic|
+        simp only [true_and, and_true, miden_u32, miden_val, miden_bound, *])) then
+        remaining := remaining ++ rem
+      else
+        remaining := remaining ++ [goal]
+  finalizeCleanupGoals remaining
+
+/-- Cleanup for goals produced by theorem-backed singleton `.exec` summaries.
+    This path needs stronger arithmetic normalization than plain `cleanupGoals`
+    because callee summaries often leave `isU32` side conditions on derived
+    values such as `lo32`/`hi32` limbs of `Felt.ofNat` expressions. -/
+private def cleanupExecSummaryGoals (goals : List MVarId) : TacticM (List MVarId) := do
+  let mut remaining : List MVarId := []
+  for goal in goals do
+    unless ← goal.isAssigned do
+      if let some rem ← tryRunOnGoal? goal (← `(tactic|
+        first
+        | assumption
+        | symm; assumption
+        | rfl
+        | decide
+        | omega
+        | miden_arith
+        | simp only [miden_u32, miden_val, miden_bound, *]
+        | simp [miden_reflect_norm, miden_cleanup]
+        | miden_finish_reflection)) then
+        remaining := remaining ++ rem
+      else
+        remaining := remaining ++ [goal]
+  cleanupGoals remaining
 
 /-- Simplify the bridge between the tactic's canonical reflected target and the
     user goal, directly instantiating state metavariables when possible. -/
@@ -302,31 +499,14 @@ private def closeBridgeGoal (goal : MVarId) : TacticM (List MVarId) := do
   if ← goal.isAssigned then
     pure []
   else
-    let remaining ←
-      try
-        runOnGoal goal (← `(tactic|
-          first
-          | simp [miden_reflect_norm,
-                  and_assoc, and_left_comm, and_comm,
-                  MidenLean.Concrete.State.withStack,
-                  MidenLean.Symbolic.Expr.eval,
-                  MidenLean.Symbolic.Reflect.concreteAssignment,
-                  MidenLean.Symbolic.Reflect.concreteState,
-                  MidenLean.Symbolic.Reflect.concreteStateWithLocals,
-                  MidenLean.LocalFrame.localAddr]
-          | apply congrArg some
-          | rfl
-          | ext addr <;>
-            simp [miden_reflect_norm,
-                  and_assoc, and_left_comm, and_comm,
-                  MidenLean.Concrete.State.withStack,
-                  MidenLean.Symbolic.Expr.eval,
-                  MidenLean.Symbolic.Reflect.concreteAssignment,
-                  MidenLean.Symbolic.Reflect.concreteState,
-                  MidenLean.Symbolic.Reflect.concreteStateWithLocals,
-                  MidenLean.LocalFrame.localAddr]))
-      catch _ =>
-        pure [goal]
+    if ← closeEqByAssigningMVar? goal then
+      return []
+    let remaining ← runNamedOnGoal "miden_vcg.closeBridgeGoal" goal (← `(tactic|
+      first
+      | assumption
+      | symm; assumption
+      | rfl
+      | simp [MidenLean.Concrete.State.withStack]))
     let mut unresolved : List MVarId := []
     for remGoal in remaining do
       unless ← remGoal.isAssigned do
@@ -420,16 +600,72 @@ private def concreteCalleeExpr?
     (envExpr targetExpr : Lean.Expr) : MetaM (Option Lean.Expr) := do
   let reduced ← whnf (Lean.mkApp envExpr targetExpr)
   match_expr reduced with
-  | Option.some callee => pure (some callee)
+  | Option.some _ callee => pure (some callee)
   | _ => pure none
 
-/-- Normalize goal (no-op: all goals are already `execProcedure` form). -/
-private def normalizeExecGoal (goal : MVarId) : TacticM MVarId :=
-  pure goal
+/-- Walk past leading binders in a theorem type to find the conclusion. -/
+private def conclusionOfType (ty : Lean.Expr) : MetaM Lean.Expr :=
+  Meta.forallTelescopeReducing ty fun _ body => pure body
+
+/-- Extract metadata from a theorem whose conclusion has the form
+    `execProcedure env fuel state callee = some result`. Returns the head
+    constant of `callee`, plus a flag indicating whether the `fuel` argument
+    is parametric (bound by an outer forall) rather than a concrete literal. -/
+private def extractCalleeFromType (ty : Lean.Expr) :
+    MetaM (Option (Lean.Name × Bool)) := do
+  Meta.forallTelescopeReducing ty fun fvars body => do
+    let some (_, lhs, _) := body.eq? | return none
+    unless lhs.isAppOf ``MidenLean.execProcedure && lhs.getAppNumArgs == 4 do
+      return none
+    -- Do NOT whnf the procedure expression — that would unfold the constant
+    -- (e.g. `Miden.Core.U64.overflowing_add`) into its `Procedure.mk` body,
+    -- losing the name we want to match on.
+    let some calleeName := (lhs.getArg! 3).getAppFn.constName? | return none
+    let fuelArg := lhs.getArg! 1
+    -- A theorem is "parametric" in fuel if the fuel position depends on a
+    -- bound forall variable (e.g. `fuel + 1`), as opposed to a concrete
+    -- literal like `10`.
+    let fuelIsParametric := fvars.any (fun fv => fuelArg.containsFVar fv.fvarId!)
+    return some (calleeName, fuelIsParametric)
+
+/-- Find all `@[miden_exec_summary]` theorems whose conclusion targets the
+    given callee procedure constant. The returned array is ordered so that
+    theorems with parametric fuel (e.g. `_run` form, accepting any `fuel + 1`)
+    come before theorems with a concrete fuel literal (e.g. `_exec` form,
+    fixed at `10`). This lets the registry pick the most flexible candidate
+    first when the goal's fuel was decremented by an `execProcedure_append_eq`
+    bridge upstream. -/
+private def findExecSummaryTheorems (calleeName : Lean.Name) :
+    MetaM (Array Lean.Name) := do
+  let env ← getEnv
+  let allTheorems := MidenLean.Symbolic.getExecSummaryTheorems env
+  let mut parametric : Array Lean.Name := #[]
+  let mut concrete : Array Lean.Name := #[]
+  for thmName in allTheorems do
+    try
+      let info ← getConstInfo thmName
+      if let some (name, isParam) ← extractCalleeFromType info.type then
+        if name == calleeName then
+          if isParam then
+            parametric := parametric.push thmName
+          else
+            concrete := concrete.push thmName
+    catch _ => pure ()
+  return parametric ++ concrete
+
+/-- Look up a theorem-backed callee execution summary from the
+    `@[miden_exec_summary]` registry. Returns the candidates in preference
+    order (parametric fuel first). -/
+private def registryExecTheoremNames
+    (calleeExpr : Lean.Expr) : MetaM (Array Lean.Name) := do
+  -- `concreteCalleeExpr?` already returns a `whnf`-reduced expression. We expect
+  -- it to be a constant like `Miden.Core.U64.overflowing_add`; do NOT `whnf`
+  -- again here because that would unfold the constant into its body.
+  let some calleeName := calleeExpr.getAppFn.constName? | return #[]
+  findExecSummaryTheorems calleeName
 
 /-- Parse the current goal as an `execProcedure` equation with a concrete op list. -/
 private def parseExecGoal (goal : MVarId) : TacticM ExecGoal := do
-  let goal ← normalizeExecGoal goal
   let goalTy ← goal.getType
   let some (_, lhs, rhs) := goalTy.eq?
     | throwError "miden_vcg: goal is not an equation"
@@ -486,7 +722,6 @@ private def firstExecSplitIndex? (opExprs : Array Lean.Expr) : MetaM (Option Nat
   return none
 
 private def rewriteZeroLocalsGoalToBody (goal : MVarId) : TacticM MVarId := do
-  let goal ← normalizeExecGoal goal
   let parsed ← parseExecGoal goal
   if isOfOpsProc parsed.procExpr then
     pure goal
@@ -525,7 +760,6 @@ private def rewriteZeroLocalsGoalToBody (goal : MVarId) : TacticM MVarId := do
       throwError "miden_vcg: failed to rewrite goal to procedure body for {procFmt} with body {bodyFmt}: {ex.toMessageData}"
 
 private def rewriteGoalToOfOpsBody (goal : MVarId) (bodyExpr : Lean.Expr) : TacticM MVarId := do
-  let goal ← normalizeExecGoal goal
   let parsed ← parseExecGoal goal
   let procExpr := Lean.mkApp (Lean.mkConst ``MidenLean.Procedure.ofOps) bodyExpr
   let targetNew ← mkEq
@@ -629,23 +863,120 @@ private def buildReflectTheoremExpr
           goal.stackExpr, stackPrefixExpr, goal.restExpr,
           goal.memExpr, goal.framesExpr, goal.advExpr, resultExpr]
 
-/-- Try to close a singleton `.exec` goal by rewriting it to a direct callee
-    execution goal and applying a convention-based `*_exec` theorem. This is
-    the preferred path for large callee leaves, with symbolic reflection kept as
-    the fallback. -/
-private def tryExecOverrideTheorem? (goal : MVarId) : TacticM (Option (List MVarId)) := do
-  let goal ← normalizeExecGoal goal
-  let parsed0 ← parseExecGoal goal
-  if !isNatZero parsed0.numLocalsExpr then
-    return none
-  let goal ← rewriteZeroLocalsGoalToBody goal
-  let parsed ← parseExecGoal goal
-  if parsed.opExprs.size != 1 then
-    return none
-  let some targetExpr ← execTargetExpr? parsed.opExprs[0]! | return none
-  let some theoremName ← execOverrideTheoremName? parsed.envExpr targetExpr | return none
-  let some calleeExpr ← concreteCalleeExpr? parsed.envExpr targetExpr | return none
+private def cleanupExecBridgeGoals (goals : List MVarId) : TacticM (List MVarId) := do
+  let mut remaining : List MVarId := []
+  for g in goals do
+    unless ← g.isAssigned do
+      let rem ←
+        runNamedOnGoal "miden_vcg.cleanupExecBridgeGoals" g (← `(tactic|
+          first
+          | assumption
+          | symm; assumption
+          | rfl
+          | omega
+          | simp))
+      remaining := remaining ++ rem
+  pure remaining
 
+private def applyExecSummaryTheoremRaw?
+    (goal : MVarId) (theoremName : Lean.Name) : TacticM (Option (List MVarId)) := do
+  let theoremExpr ← goal.withContext do
+    let lctx ← getLCtx
+    let localExpr? : Option Lean.Expr ← lctx.findDeclM? fun decl => do
+      pure <| if !decl.isImplementationDetail && decl.userName == theoremName then
+        some (Lean.mkFVar decl.fvarId)
+      else
+        none
+    pure <| match localExpr? with
+      | some expr => expr
+      | none => Lean.mkConst theoremName
+  let theoremGoals ←
+    try
+      goal.apply theoremExpr
+    catch _ =>
+      return none
+  let mut remaining : List MVarId := []
+  for g in theoremGoals do
+    unless ← g.isAssigned do
+      remaining := remaining ++ [g]
+  pure (some remaining)
+
+private def rewriteGoalWithTheorem
+    (goal : MVarId) (thmExpr : Lean.Expr) : TacticM (MVarId × List MVarId) := do
+  let goalTy ← goal.getType
+  let result ← goal.rewrite goalTy thmExpr
+  let newGoal ← goal.replaceTargetEq result.eNew result.eqProof
+  pure (newGoal, result.mvarIds)
+
+private def buildExecSummaryProofExpr
+    (theoremName : Lean.Name)
+    (envExpr fuelExpr stateExpr calleeExpr : Lean.Expr) :
+    TacticM (Lean.Expr × List MVarId) := do
+  let directCallExpr := Lean.mkAppN (Lean.mkConst ``MidenLean.execProcedure)
+    #[envExpr, fuelExpr, stateExpr, calleeExpr]
+  let directCallTy ← inferType directCallExpr
+  let resultExpr ← mkFreshExprMVar directCallTy
+  let proofGoalType ← mkEq directCallExpr resultExpr
+  let proofGoalExpr ← mkFreshExprMVar proofGoalType
+  let some theoremGoals ← applyExecSummaryTheoremRaw? proofGoalExpr.mvarId! theoremName
+    | throwError "miden_exec_step: `{theoremName}` did not apply to the exposed direct callee"
+  pure (proofGoalExpr, theoremGoals)
+
+private def rewriteGoalWithSingletonExecBridge
+    (goal : MVarId)
+    (envExpr fuelExpr stateExpr targetExpr calleeExpr : Lean.Expr) :
+    TacticM (MVarId × List MVarId) := do
+  let someCalleeExpr ← mkAppM ``Option.some #[calleeExpr]
+  let hlookupType ← mkEq (Lean.mkApp envExpr targetExpr) someCalleeExpr
+  let hlookupExpr ← mkFreshExprMVar hlookupType
+  let hfuelType ← mkAppM ``LT.lt #[Lean.mkNatLit 0, fuelExpr]
+  let hfuelExpr ← mkFreshExprMVar hfuelType
+  let bridgeExpr := Lean.mkAppN (Lean.mkConst ``MidenLean.execProcedure_singleton_exec_state)
+    #[envExpr, fuelExpr, stateExpr, targetExpr, calleeExpr, hlookupExpr, hfuelExpr]
+  rewriteGoalWithTheorem goal bridgeExpr
+
+private inductive ExecSummaryStep where
+  | direct (goal : MVarId) (theoremName : Lean.Name)
+      (envExpr fuelExpr stateExpr calleeExpr : Lean.Expr)
+  | nested (goal : MVarId) (theoremName : Lean.Name)
+      (envExpr fuelExpr stateExpr calleeExpr : Lean.Expr)
+
+private def runExecSummaryStep : ExecSummaryStep → TacticM (List MVarId)
+  | .direct goal theoremName envExpr fuelExpr stateExpr calleeExpr => do
+      let (proofExpr, theoremSideGoals) ←
+        buildExecSummaryProofExpr theoremName envExpr fuelExpr stateExpr calleeExpr
+      -- A checked assign unifies the goal's RHS (often a bare intermediate-state
+      -- metavariable from an append split) with the summary's result state. A raw
+      -- `assign` would leave that metavariable free for downstream goals to
+      -- mis-unify with the original state via `hs`.
+      -- Unify the goal's RHS (often a bare intermediate-state metavariable from
+      -- an append split) with the summary's result state before assigning. A
+      -- raw `assign` would leave that metavariable free for downstream goals
+      -- to mis-unify with the original state via `hs`.
+      goal.withContext do
+        let goalTy ← goal.getType
+        let proofTy ← inferType proofExpr
+        unless ← isDefEq goalTy proofTy do
+          throwError "miden_exec_step: summary `{theoremName}` proves{indentExpr (← instantiateMVars proofTy)}\nbut the goal expects{indentExpr (← instantiateMVars goalTy)}"
+        goal.assign proofExpr
+      pure (← cleanupExecSummaryGoals theoremSideGoals)
+  | .nested goal theoremName envExpr fuelExpr stateExpr calleeExpr => do
+      let (proofExpr, theoremSideGoals) ←
+        buildExecSummaryProofExpr theoremName envExpr fuelExpr stateExpr calleeExpr
+      let (rewrittenGoal, rewriteGoals) ← rewriteGoalWithTheorem goal proofExpr
+      let theoremRemaining ← cleanupExecSummaryGoals theoremSideGoals
+      let mut remaining ← cleanupExecSummaryGoals (theoremRemaining ++ rewriteGoals)
+      unless ← rewrittenGoal.isAssigned do
+        remaining := remaining ++ (← cleanupGoals [rewrittenGoal])
+      pure remaining
+
+/-- Apply a single candidate `_exec` summary theorem to a singleton-exec goal.
+    Throws on theorem mismatch or more serious internal failures; callers can
+    restore state and try the next candidate on exception. -/
+private def applyExecOverrideTheorem
+    (goal : MVarId) (parsed : ExecGoal)
+    (calleeExpr targetExpr : Lean.Expr) (theoremName : Lean.Name) :
+    TacticM (List MVarId) := do
   let directFuelExpr ← mkFreshExprMVar (Lean.mkConst ``Nat)
   let directCallExpr := Lean.mkAppN (Lean.mkConst ``MidenLean.execProcedure)
     #[parsed.envExpr, directFuelExpr, parsed.stateExpr, calleeExpr]
@@ -678,35 +1009,123 @@ private def tryExecOverrideTheorem? (goal : MVarId) : TacticM (Option (List MVar
         #[parsed.envExpr, directFuelExpr, parsed.stateExpr, targetExpr, calleeExpr, hlookupExpr])
     catch ex =>
       throwError "miden_reflect: failed to prove theorem-backed singleton-call bridge `{theoremName}`: {ex.toMessageData}"
-  let mut bridgeRemaining : List MVarId := []
-  for g in bridgeGoals do
-    unless ← g.isAssigned do
-      let rem ←
-        runOnGoal g (← `(tactic|
-          first
-          | assumption
-          | symm; assumption
-          | rfl
-          | simp))
-      bridgeRemaining := bridgeRemaining ++ rem
+  let bridgeRemaining ← cleanupExecBridgeGoals bridgeGoals
 
-  let theoremGoals ←
-    try
-      callGoal.apply (Lean.mkConst theoremName)
-    catch ex =>
-      throwError "miden_reflect: theorem-backed summary `{theoremName}` did not match the direct callee goal: {ex.toMessageData}"
+  let theoremRemaining ← runExecSummaryStep (.direct callGoal theoremName
+      parsed.envExpr directFuelExpr parsed.stateExpr calleeExpr)
   let mut remaining : List MVarId := []
-  for g in theoremGoals ++ bridgeRemaining ++ auxGoals do
+  for g in theoremRemaining ++ bridgeRemaining ++ auxGoals do
     unless ← g.isAssigned do
-      let rem ←
-        runOnGoal g (← `(tactic|
-          first
-          | assumption
-          | symm; assumption
-          | rfl
-          | simp [MidenLean.Concrete.State.withStack]))
-      remaining := remaining ++ rem
-  pure (some remaining)
+      remaining := remaining ++ [g]
+  pure (← cleanupExecSummaryGoals remaining)
+
+/-- Try to close a singleton `.exec` goal by rewriting it to a direct callee
+    execution goal and applying a registered `@[miden_exec_summary]` theorem
+    (with parametric-fuel candidates preferred over concrete-fuel ones), or
+    falling back to a convention-based `*_exec` theorem. This is the preferred
+    path for large callee leaves, with symbolic reflection kept as the
+    fallback. -/
+private def tryExecOverrideTheorem?
+    (goal : MVarId) (explicitThm? : Option Lean.Name := none) :
+    TacticM (Option (List MVarId)) := do
+  let parsed0 ← parseExecGoal goal
+  if !isNatZero parsed0.numLocalsExpr then return none
+  let goal ← rewriteZeroLocalsGoalToBody goal
+  let parsed ← parseExecGoal goal
+  if parsed.opExprs.size != 1 then return none
+  let some targetExpr ← execTargetExpr? parsed.opExprs[0]! | return none
+  let some calleeExpr ← concreteCalleeExpr? parsed.envExpr targetExpr | return none
+  let candidates ← match explicitThm? with
+    | some name => pure #[name]
+    | none => do
+        let mut cs ← registryExecTheoremNames calleeExpr
+        if cs.isEmpty then
+          if let some name ← execOverrideTheoremName? parsed.envExpr targetExpr then
+            cs := cs.push name
+        pure cs
+  if candidates.isEmpty then return none
+  for theoremName in candidates do
+    let savedState ← saveState
+    try
+      return some (← applyExecOverrideTheorem goal parsed calleeExpr targetExpr theoremName)
+    catch _ =>
+      restoreState savedState
+  return none
+
+-- ============================================================================
+-- miden_exec_step: resolve a single exec call
+-- ============================================================================
+
+private inductive ExecStepSite where
+  | direct
+      (envExpr fuelExpr stateExpr calleeExpr : Lean.Expr)
+      (candidates : Array Lean.Name)
+  | singleton
+      (envExpr fuelExpr stateExpr targetExpr calleeExpr : Lean.Expr)
+      (candidates : Array Lean.Name)
+
+private def directExecStepCandidates
+    (calleeExpr : Lean.Expr) (explicitThm? : Option Lean.Name) : TacticM (Array Lean.Name) := do
+  match explicitThm? with
+  | some theoremName => pure #[theoremName]
+  | none => registryExecTheoremNames calleeExpr
+
+private def singletonExecStepCandidates
+    (envExpr targetExpr calleeExpr : Lean.Expr) (explicitThm? : Option Lean.Name) :
+    TacticM (Array Lean.Name) := do
+  match explicitThm? with
+  | some theoremName => pure #[theoremName]
+  | none => do
+      let mut candidates ← registryExecTheoremNames calleeExpr
+      if candidates.isEmpty then
+        if let some theoremName ← execOverrideTheoremName? envExpr targetExpr then
+          candidates := candidates.push theoremName
+      pure candidates
+
+private def extractProcedureOps? (procExpr : Lean.Expr) : TacticM (Option (Array Lean.Expr)) := do
+  if procExpr.isAppOfArity ``MidenLean.Procedure.ofOps 1 then
+    return (← extractOps (procExpr.getArg! 0))
+  let procWhnf ← whnf procExpr
+  if procWhnf.isAppOfArity ``MidenLean.Procedure.ofOps 1 then
+    return (← extractOps (procWhnf.getArg! 0))
+  if procWhnf.getAppNumArgs == 3 then
+    return (← extractOps (procWhnf.getArg! 2))
+  return none
+
+/-- Scan a goal for the next theorem-backed exec step. This covers both already
+    resolved direct callees and singleton `.exec` calls that still need the
+    `execProcedure_singleton_exec_eq` bridge. -/
+private partial def findExecStepSiteInExpr
+    (e : Lean.Expr) (explicitThm? : Option Lean.Name) :
+    TacticM (Option ExecStepSite) := do
+  if e.isAppOf ``MidenLean.execProcedure && e.getAppNumArgs >= 4 then
+    let envExpr := e.getArg! 0
+    let fuelExpr := e.getArg! 1
+    let stateExpr := e.getArg! 2
+    let procExpr := e.getArg! 3
+    if let some procName := procExpr.getAppFn.constName? then
+      if procName != ``MidenLean.Procedure.ofOps then
+        let candidates ← directExecStepCandidates procExpr explicitThm?
+        if !candidates.isEmpty then
+          return some (.direct envExpr fuelExpr stateExpr procExpr candidates)
+    if let some opExprs ← extractProcedureOps? procExpr then
+      if opExprs.size == 1 then
+        if let some targetExpr ← execTargetExpr? opExprs[0]! then
+          if let some calleeExpr ← concreteCalleeExpr? envExpr targetExpr then
+            let candidates ← singletonExecStepCandidates envExpr targetExpr calleeExpr explicitThm?
+            if !candidates.isEmpty then
+              return some (.singleton envExpr fuelExpr stateExpr targetExpr calleeExpr candidates)
+  for i in [:e.getAppNumArgs] do
+    if let some result ← findExecStepSiteInExpr (e.getArg! i) explicitThm? then
+      return some result
+  match e with
+  | .lam _ _ body _ => findExecStepSiteInExpr body explicitThm?
+  | .letE _ _ value body _ =>
+      if let some result ← findExecStepSiteInExpr value explicitThm? then
+        return some result
+      findExecStepSiteInExpr body explicitThm?
+  | .mdata _ body => findExecStepSiteInExpr body explicitThm?
+  | _ => return none
 
 syntax "miden_reflect" (" using " term)? : tactic
 
@@ -730,9 +1149,14 @@ elab_rules : tactic
         throwError "miden_reflect: `.exec` target {fmt} is missing from the concrete `ProcEnv`. \
           Use `execProcedure` with a reducible environment or pass `using Γ`."
       let minFuelExpr := Lean.mkAppN (Lean.mkConst ``Nat.sub) #[reflectGoal.fuelExpr, Lean.mkNatLit 1]
+      -- Hard recursion-depth cap on `ReflectEnv.ofConcrete`. The deepest
+      -- caller chain in the core library (rotl → shl → wrapping_mul) is
+      -- depth 3, so 8 leaves headroom while preventing the 17-procedure ×
+      -- fuel-30 ProcEnv expansion from blowing the kernel stack.
+      let maxDepthExpr := Lean.mkNatLit 8
       pure <| some <|
         Lean.mkAppN (Lean.mkConst ``MidenLean.Symbolic.Reflect.ReflectEnv.ofConcrete)
-          #[reflectGoal.envExpr, minFuelExpr]
+          #[reflectGoal.envExpr, maxDepthExpr, minFuelExpr]
     else
       pure none
   let theoremExpr ← buildReflectTheoremExpr reflectGoal gammaExpr?
@@ -828,9 +1252,11 @@ private def closeVcgFuelGoal (goal : MVarId) : TacticM Unit := do
   closeGoalWith goal "`hfuel`" (← `(tactic| omega))
 
 private def closeVcgBoolGoal (goal : MVarId) : TacticM (List MVarId) := do
-  runOnGoal goal (← `(tactic|
+  runNamedOnGoal "miden_vcg.closeVcgBoolGoal" goal (← `(tactic|
     first
     | assumption
+    | decide
+    | (split_ifs at * <;> simp_all)
     | simp [miden_reflect_norm,
             MidenLean.Concrete.State.withStack,
             MidenLean.LocalFrame.localAddr,
@@ -840,11 +1266,12 @@ private def closeVcgBoolGoal (goal : MVarId) : TacticM (List MVarId) := do
 
 private def canonicalizeVcgGoal
     (goal : MVarId) (closeBridges : Bool := true) : TacticM (MVarId × List MVarId) := do
-  let goal ← normalizeExecGoal goal
   let goalTy ← goal.getType
   let some (_, lhs, rhs) := goalTy.eq?
     | pure (goal, [])
-  if rhs.isMVar || rhs.isAppOfArity ``Option.some 2 then
+  let rhsIsCanonicalTarget :=
+    rhs.isMVar || (rhs.isAppOfArity ``Option.some 2 && (rhs.getArg! 1).isMVar)
+  if rhsIsCanonicalTarget then
     pure (goal, [])
   else
     let targetTy ← inferType lhs
@@ -881,22 +1308,40 @@ private def canonicalizeVcgGoal
     else
       pure (execGoal, bridgeSeeds)
 
-mutual
-
-private partial def decomposeAppendGoalAt (goal : MVarId) (splitAt : Nat) : TacticM (List MVarId) := do
-  let goal ← normalizeExecGoal goal
+/-- Shared front half of the append decomposition used by both `miden_vcg`
+    (`decomposeAppendGoalAt`) and `miden_vcg_step`
+    (`decomposeAppendGoalAtStep`): rewrite the goal to an explicit
+    `prefix ++ suffix` op list, apply `execProcedure_append_eq` with fresh
+    intermediate/final state metavariables, and classify the resulting goals
+    into `(prefixGoal, suffixGoal, auxGoals, bridgeSeeds)`. When `canonicalize`
+    is set, the goal is first rewritten to a canonical `some ?state` target and
+    the resulting bridge seeds are returned for the caller to close after
+    decomposition (`miden_vcg`); `miden_vcg_step` keeps the goal as-is. -/
+private def prepareAppendSplit
+    (goal : MVarId) (splitAt : Nat) (tacticName : String) (canonicalize : Bool) :
+    TacticM (MVarId × MVarId × List MVarId × List MVarId) := do
   let parsed0 ← parseExecGoal goal
   if !isNatZero parsed0.numLocalsExpr then
-    throwError "miden_vcg: control-flow procedures with `numLocals > 0` are not yet supported"
+    throwError "{tacticName}: control-flow procedures with `numLocals > 0` are not yet supported"
   let goal ← rewriteZeroLocalsGoalToBody goal
   let parsed1 ← parseExecGoal goal
   let prefixExpr ← mkOpListExpr (parsed1.opExprs.toList.take splitAt)
   let suffixExpr ← mkOpListExpr (parsed1.opExprs.toList.drop splitAt)
   let goal ← rewriteGoalToOfOpsAppend goal prefixExpr suffixExpr
-  let (goal, bridgeSeeds) ← canonicalizeVcgGoal goal
+  let (goal, bridgeSeeds) ←
+    if canonicalize then
+      canonicalizeVcgGoal goal (closeBridges := false)
+    else
+      pure (goal, [])
   let parsed ← parseExecGoal goal
-  let midStateExpr ← mkFreshExprMVar (Lean.mkConst ``MidenLean.Concrete.State)
-  let finalStateExpr ← mkFreshExprMVar (Lean.mkConst ``MidenLean.Concrete.State)
+  -- Create the intermediate/final state metavariables in the goal's local
+  -- context. Created outside it, they cannot be (checked-)assigned any term
+  -- mentioning the goal's free variables, which silently breaks the exec
+  -- summary unification downstream.
+  let (midStateExpr, finalStateExpr) ← goal.withContext do
+    let mid ← mkFreshExprMVar (Lean.mkConst ``MidenLean.Concrete.State)
+    let final ← mkFreshExprMVar (Lean.mkConst ``MidenLean.Concrete.State)
+    pure (mid, final)
   let theoremExpr := Lean.mkAppN (Lean.mkConst ``MidenLean.execProcedure_append_eq)
     #[parsed.envExpr, parsed.fuelExpr, parsed.stateExpr,
       prefixExpr, suffixExpr, midStateExpr, finalStateExpr]
@@ -905,7 +1350,7 @@ private partial def decomposeAppendGoalAt (goal : MVarId) (splitAt : Nat) : Tact
       goal.apply theoremExpr
     catch ex =>
       let procFmt ← Meta.ppExpr parsed.procExpr
-      throwError "miden_vcg: failed to apply append decomposition for {procFmt}: {ex.toMessageData}"
+      throwError "{tacticName}: failed to apply append decomposition for {procFmt}: {ex.toMessageData}"
   let mut execGoals : List MVarId := []
   let mut auxGoals : List MVarId := []
   for g in goals do
@@ -921,7 +1366,7 @@ private partial def decomposeAppendGoalAt (goal : MVarId) (splitAt : Nat) : Tact
           let fmt ← Meta.ppExpr (← g.getType)
           pure <| MessageData.ofFormat fmt)
         let joined := MessageData.joinSep goalTypes " | "
-        throwError "miden_vcg: append decomposition returned {goals.length} goals: {joined}"
+        throwError "{tacticName}: append decomposition returned {goals.length} goals: {joined}"
   let goal1IsPrefix ← branchBodyMatches execGoal1 prefixExpr
   let goal1IsSuffix ← branchBodyMatches execGoal1 suffixExpr
   let goal2IsPrefix ← branchBodyMatches execGoal2 prefixExpr
@@ -932,30 +1377,294 @@ private partial def decomposeAppendGoalAt (goal : MVarId) (splitAt : Nat) : Tact
     else if goal1IsSuffix && goal2IsPrefix then
       pure (execGoal2, execGoal1)
     else
-      throwError "miden_vcg: could not classify append decomposition goals"
+      throwError "{tacticName}: could not classify append decomposition goals"
+  pure (prefixGoal, suffixGoal, auxGoals, bridgeSeeds)
+
+mutual
+
+private partial def decomposeAppendGoalAt (goal : MVarId) (splitAt : Nat) : TacticM (List MVarId) := do
+  let (prefixGoal, suffixGoal, auxGoals, bridgeSeeds) ←
+    prepareAppendSplit goal splitAt "miden_vcg" (canonicalize := true)
   let prefixRemaining ← decomposeVcgGoal prefixGoal
+  Lean.Elab.Term.synthesizeSyntheticMVarsNoPostponing
+  -- Eagerly close bridge goals from the prefix (especially the repeat base
+  -- case `some ?s₄ = some ?midState`) so that the intermediate state metavar
+  -- is assigned before the suffix's `miden_reflect` can mis-unify it with the
+  -- original state via the `hs` hypothesis.
+  let mut prefixBridges : List MVarId := []
+  let mut prefixOther : List MVarId := []
+  for g in prefixRemaining do
+    unless ← g.isAssigned do
+      let ty ← g.getType
+      if ty.eq?.isSome then
+        prefixBridges := prefixBridges ++ [g]
+      else
+        prefixOther := prefixOther ++ [g]
+  let mut prefixBridgeRemaining : List MVarId := []
+  for g in prefixBridges do
+    prefixBridgeRemaining := prefixBridgeRemaining ++ (← closeBridgeGoal g)
   Lean.Elab.Term.synthesizeSyntheticMVarsNoPostponing
   let suffixRemaining ← decomposeVcgGoal suffixGoal
   let auxRemaining ← cleanupGoals auxGoals
   let bridgeRemaining ← cleanupGoals bridgeSeeds
-  return prefixRemaining ++ suffixRemaining ++ auxRemaining ++ bridgeRemaining
+  return prefixOther ++ prefixBridgeRemaining ++ suffixRemaining ++ auxRemaining ++ bridgeRemaining
+
+/-- Classify `ifElse` subgoals into hs, hfuel, branch (forall), hbool (Or), and aux goals. -/
+private partial def classifyIfElseGoals (goals : List MVarId) :
+    TacticM (MVarId × MVarId × List MVarId × MVarId × List MVarId) := do
+  let mut hsGoal? : Option MVarId := none
+  let mut hfuelGoal? : Option MVarId := none
+  let mut branchGoals : List MVarId := []
+  let mut hboolGoal? : Option MVarId := none
+  let mut auxGoals : List MVarId := []
+  for g in goals do
+    unless ← g.isAssigned do
+      let ty ← g.getType
+      if ← isProp ty then
+        match ty.eq? with
+        | some (_, lhs, rhs) =>
+            if (← hasListTypeOf lhs ``MidenLean.Felt) || (← hasListTypeOf rhs ``MidenLean.Felt) then
+              hsGoal? := some g
+            else
+              auxGoals := auxGoals ++ [g]
+        | none =>
+            if ty.isForall then
+              branchGoals := branchGoals ++ [g]
+            else if ty.isAppOfArity ``Or 2 then
+              hboolGoal? := some g
+            else
+              hfuelGoal? := some g
+      else
+        auxGoals := auxGoals ++ [g]
+  let some hsGoal := hsGoal? | throwError "miden_vcg: missing `hs` goal for singleton `ifElse`"
+  let some hfuelGoal := hfuelGoal? | throwError "miden_vcg: missing `hfuel` goal for singleton `ifElse`"
+  let some hboolGoal := hboolGoal? | throwError "miden_vcg: missing `hbool` goal for singleton `ifElse`"
+  pure (hsGoal, hfuelGoal, branchGoals, hboolGoal, auxGoals)
+
+private partial def closeIfElseFastRewriteGoals (goals : List MVarId) : TacticM (List MVarId) := do
+  let mut remaining : List MVarId := []
+  for g in goals do
+    unless ← g.isAssigned do
+      let ty ← g.getType
+      if ty.eq?.isSome then
+        if ← closeEqByAssigningMVar? g then
+          pure ()
+        else
+          let rem ← runNamedOnGoal "miden_vcg.closeIfElseFastRewriteGoals.eq" g (← `(tactic|
+            first
+            | assumption
+            | symm; assumption
+            | rfl
+            | simp [MidenLean.Concrete.State.withStack]))
+          for remGoal in rem do
+            unless ← remGoal.isAssigned do
+              if ← closeEqByAssigningMVar? remGoal then
+                pure ()
+              else
+                remaining := remaining ++ [remGoal]
+      else
+        let rem ← runNamedOnGoal "miden_vcg.closeIfElseFastRewriteGoals.prop" g (← `(tactic|
+          first
+          | omega
+          | assumption
+          | decide
+          | simp))
+        remaining := remaining ++ rem
+  cleanupGoals remaining
+
+/-- NOTE: `splitIfElseFastGoalStep` (the `miden_vcg_step` twin) intentionally
+    uses a different branch-discharge ladder (`split_ifs at *; simp_all` vs
+    `simp [h]` here). Keep divergences deliberate — if you fix a bug in one,
+    check whether the twin needs the same fix. -/
+private partial def splitIfElseFastGoal
+    (goal : MVarId) (propExpr : Lean.Expr) (thenOps elseOps : Lean.Expr) : TacticM (List MVarId) := do
+  let (posGoal, negGoal) ← goal.byCases propExpr `h
+  let posGoals ← runNamedOnGoal "miden_vcg.splitIfElseFastGoal.true" posGoal.mvarId (← `(tactic|
+    simp [h]))
+  let negGoals ← runNamedOnGoal "miden_vcg.splitIfElseFastGoal.false" negGoal.mvarId (← `(tactic|
+    simp [h]))
+  let splitGoals := posGoals ++ negGoals
+  let mut execGoals : List MVarId := []
+  let mut auxGoals : List MVarId := []
+  for g in splitGoals do
+    unless ← g.isAssigned do
+      let ty ← g.getType
+      match ty.eq? with
+      | some (_, lhs, _) =>
+          if lhs.isAppOf ``MidenLean.execProcedure then
+            execGoals := execGoals ++ [g]
+          else
+            auxGoals := auxGoals ++ [g]
+      | none =>
+          auxGoals := auxGoals ++ [g]
+  let [execGoal1, execGoal2] := execGoals
+    | throwError "miden_vcg: expected two execution goals after fast `ifElse` split, got {execGoals.length}"
+  let goal1IsThen ← branchBodyMatches execGoal1 thenOps
+  let goal1IsElse ← branchBodyMatches execGoal1 elseOps
+  let goal2IsThen ← branchBodyMatches execGoal2 thenOps
+  let goal2IsElse ← branchBodyMatches execGoal2 elseOps
+  let (thenGoal, elseGoal) ←
+    if goal1IsThen && goal2IsElse then
+      pure (execGoal1, execGoal2)
+    else if goal1IsElse && goal2IsThen then
+      pure (execGoal2, execGoal1)
+    else
+      throwError "miden_vcg: could not classify fast `ifElse` branch goals"
+  let thenRemaining ← decomposeVcgGoal thenGoal
+  Lean.Elab.Term.synthesizeSyntheticMVarsNoPostponing
+  let elseRemaining ← decomposeVcgGoal elseGoal
+  let auxRemaining ← cleanupGoals auxGoals
+  pure (thenRemaining ++ elseRemaining ++ auxRemaining)
+
+private partial def tryDecomposeIfElseFast
+    (goal : MVarId) (thenOps elseOps : Lean.Expr) : TacticM (Option (List MVarId)) := do
+  let (goal, bridgeSeeds) ← canonicalizeVcgGoal goal (closeBridges := false)
+  let parsed ← parseExecGoal goal
+  let some condShape ← classifyIfElseCondShape parsed.stateExpr | return none
+  let (theoremExpr, splitProp?) ← match condShape with
+    | .constOne restExpr =>
+        pure
+          (Lean.mkAppN (Lean.mkConst ``MidenLean.execProcedure_ifElse_state_one)
+            #[parsed.envExpr, parsed.fuelExpr, parsed.stateExpr, restExpr, thenOps, elseOps],
+            none)
+    | .constZero restExpr =>
+        pure
+          (Lean.mkAppN (Lean.mkConst ``MidenLean.execProcedure_ifElse_state_zero)
+            #[parsed.envExpr, parsed.fuelExpr, parsed.stateExpr, restExpr, thenOps, elseOps],
+            none)
+    | .iteOneZero propExpr restExpr =>
+        pure
+          (Lean.mkAppN (Lean.mkConst ``MidenLean.execProcedure_ifElse_bool_ite)
+            #[parsed.envExpr, parsed.fuelExpr, parsed.stateExpr, restExpr, thenOps, elseOps, propExpr],
+            some propExpr)
+    | .iteZeroOne propExpr restExpr =>
+        pure
+          (Lean.mkAppN (Lean.mkConst ``MidenLean.execProcedure_ifElse_bool_ite_neg)
+            #[parsed.envExpr, parsed.fuelExpr, parsed.stateExpr, restExpr, thenOps, elseOps, propExpr],
+            some propExpr)
+  let targetTy ← inferType parsed.lhs
+  let middleExpr ← mkFreshExprMVar targetTy
+  let eqTransExpr ← mkAppOptM ``Eq.trans
+    #[some targetTy, some parsed.lhs, some middleExpr, some parsed.rhs]
+  let splitGoals ← goal.apply eqTransExpr
+  let mut execGoal? : Option MVarId := none
+  let mut bridgeGoal? : Option MVarId := none
+  let mut auxGoals : List MVarId := []
+  for g in splitGoals do
+    unless ← g.isAssigned do
+      let ty ← g.getType
+      match ty.eq? with
+      | some (_, lhs, _) =>
+          if lhs.isAppOf ``MidenLean.execProcedure then
+            execGoal? := some g
+          else
+            bridgeGoal? := some g
+      | none =>
+          auxGoals := auxGoals ++ [g]
+  let some theoremGoal := execGoal?
+    | throwError "miden_vcg: missing execution goal for fast `ifElse` decomposition"
+  let some bridgeGoal := bridgeGoal?
+    | throwError "miden_vcg: missing bridge goal for fast `ifElse` decomposition"
+  let theoremGoals ← theoremGoal.apply theoremExpr
+  let theoremRemaining ← closeIfElseFastRewriteGoals (theoremGoals ++ auxGoals)
+  let branchRemaining ←
+    match splitProp? with
+    | some propExpr => splitIfElseFastGoal bridgeGoal propExpr thenOps elseOps
+    | none => decomposeVcgGoal bridgeGoal
+  let mut bridgePending : List MVarId := []
+  for g in bridgeSeeds do
+    bridgePending := bridgePending ++ (← closeBridgeGoal g)
+  let bridgeRemaining ← cleanupGoals bridgePending
+  pure (some (theoremRemaining ++ branchRemaining ++ bridgeRemaining))
+
+/-- Decompose a singleton `ifElse` using `execProcedure_ifElse` (ite form)
+    or `execProcedure_ifElse_same` (same-output form).
+
+    The ite form is tried first; it succeeds when the goal RHS already contains
+    a state-level `if`. When both branches produce the same output state and
+    the goal RHS is a single state (no `if`), the same-output form is used as
+    a fallback. -/
+private partial def decomposeIfElse
+    (goal : MVarId) (thenOps elseOps : Lean.Expr) : TacticM (List MVarId) := do
+  let savedFastState ← saveState
+  match ← tryDecomposeIfElseFast goal thenOps elseOps with
+  | some remaining => return remaining
+  | none => restoreState savedFastState
+  let (goal, bridgeSeeds) ← canonicalizeVcgGoal goal (closeBridges := false)
+  let parsed ← parseExecGoal goal
+  let condExpr ← mkFreshExprMVar (Lean.mkConst ``MidenLean.Felt)
+  let restExpr ← mkFreshExprMVar
+    (Lean.mkApp (Lean.mkConst ``List [Lean.levelZero]) (Lean.mkConst ``MidenLean.Felt))
+  -- Try the ite form first (produces `if cond.val = 1 then s_then else s_else`)
+  let savedState ← saveState
+  let (goals, _) ← do
+    let sThenExpr ← mkFreshExprMVar (Lean.mkConst ``MidenLean.Concrete.State)
+    let sElseExpr ← mkFreshExprMVar (Lean.mkConst ``MidenLean.Concrete.State)
+    let theoremExpr := Lean.mkAppN (Lean.mkConst ``MidenLean.execProcedure_ifElse)
+      #[parsed.envExpr, parsed.fuelExpr, thenOps, elseOps,
+        parsed.stateExpr, sThenExpr, sElseExpr, condExpr, restExpr]
+    try
+      let goals ← goal.apply theoremExpr
+      pure (goals, true)
+    catch _ =>
+      restoreState savedState
+      -- Fallback: same-output form (both branches produce the same state)
+      let sExpr ← mkFreshExprMVar (Lean.mkConst ``MidenLean.Concrete.State)
+      let theoremExpr := Lean.mkAppN (Lean.mkConst ``MidenLean.execProcedure_ifElse_same)
+        #[parsed.envExpr, parsed.fuelExpr, thenOps, elseOps,
+          parsed.stateExpr, sExpr, condExpr, restExpr]
+      try
+        let goals ← goal.apply theoremExpr
+        pure (goals, false)
+      catch ex =>
+        throwError "miden_vcg: failed to decompose singleton `ifElse`: {ex.toMessageData}"
+  let (hsGoal, hfuelGoal, branchGoals, hboolGoal, auxGoals) ← classifyIfElseGoals goals
+  let [branchGoal1, branchGoal2] := branchGoals
+    | throwError "miden_vcg: expected two branch goals for singleton `ifElse`, got {branchGoals.length}"
+  closeVcgStackGoal hsGoal
+  closeVcgFuelGoal hfuelGoal
+  Lean.Elab.Term.synthesizeSyntheticMVarsNoPostponing
+  let (_, branchBodyGoal1) ← branchGoal1.intro1
+  let (_, branchBodyGoal2) ← branchGoal2.intro1
+  let branch1IsThen ← branchBodyMatches branchBodyGoal1 thenOps
+  let branch1IsElse ← branchBodyMatches branchBodyGoal1 elseOps
+  let branch2IsThen ← branchBodyMatches branchBodyGoal2 thenOps
+  let branch2IsElse ← branchBodyMatches branchBodyGoal2 elseOps
+  let (hthenBodyGoal, helseBodyGoal) ←
+    if branch1IsThen && branch2IsElse then
+      pure (branchBodyGoal1, branchBodyGoal2)
+    else if branch1IsElse && branch2IsThen then
+      pure (branchBodyGoal2, branchBodyGoal1)
+    else
+      throwError "miden_vcg: could not classify singleton `ifElse` branch goals"
+  let thenRemaining ← decomposeVcgGoal hthenBodyGoal
+  Lean.Elab.Term.synthesizeSyntheticMVarsNoPostponing
+  let elseRemaining ← decomposeVcgGoal helseBodyGoal
+  let boolRemaining ← closeVcgBoolGoal hboolGoal
+  let auxRemaining ← cleanupGoals auxGoals
+  let mut bridgePending : List MVarId := []
+  for g in bridgeSeeds do
+    bridgePending := bridgePending ++ (← closeBridgeGoal g)
+  let bridgeRemaining ← cleanupGoals bridgePending
+  return thenRemaining ++ elseRemaining ++ boolRemaining ++ auxRemaining ++ bridgeRemaining
 
 private partial def decomposeVcgGoal (goal : MVarId) : TacticM (List MVarId) := do
   if ← goal.isAssigned then
     pure []
   else
-    let goal ← normalizeExecGoal goal
     let parsed0 ← parseExecGoal goal
     let noControl := (← firstControlBoundary? parsed0.opExprs).isNone
     if noControl then
       if !isNatZero parsed0.numLocalsExpr then
-        return ← runOnGoal goal (← `(tactic| miden_reflect))
+        return ← runNamedOnGoal "miden_vcg.reflectLeaf.locals" goal (← `(tactic| miden_reflect))
       let goal ← rewriteZeroLocalsGoalToBody goal
       let parsed ← parseExecGoal goal
       if let some splitAt ← firstExecSplitIndex? parsed.opExprs then
         return ← decomposeAppendGoalAt goal splitAt
       else
-        return ← runOnGoal goal (← `(tactic| miden_reflect))
+        if let some rem ← tryExecOverrideTheorem? goal then
+          return rem
+        return ← runNamedOnGoal "miden_vcg.reflectLeaf" goal (← `(tactic| miden_reflect))
 
     if !isNatZero parsed0.numLocalsExpr then
       throwError "miden_vcg: control-flow procedures with `numLocals > 0` are not yet supported"
@@ -963,83 +1672,22 @@ private partial def decomposeVcgGoal (goal : MVarId) : TacticM (List MVarId) := 
     let goal ← rewriteZeroLocalsGoalToBody goal
     let parsed ← parseExecGoal goal
     let some (idx, boundary) ← firstControlBoundary? parsed.opExprs
-      | return ← runOnGoal goal (← `(tactic| miden_reflect))
+      | do
+          if let some rem ← tryExecOverrideTheorem? goal then
+            return rem
+          return ← runOnGoal goal (← `(tactic| miden_reflect))
 
     if parsed.opExprs.size > 1 then
       return ← decomposeAppendGoalAt goal (if idx = 0 then 1 else idx)
 
     match boundary with
     | .ifElse thenOps elseOps =>
-        let (goal, bridgeSeeds) ← canonicalizeVcgGoal goal (closeBridges := false)
-        let parsed ← parseExecGoal goal
-        let condExpr ← mkFreshExprMVar (Lean.mkConst ``MidenLean.Felt)
-        let restExpr ← mkFreshExprMVar
-          (Lean.mkApp (Lean.mkConst ``List [Lean.levelZero]) (Lean.mkConst ``MidenLean.Felt))
-        let finalStateExpr ← mkFreshExprMVar (Lean.mkConst ``MidenLean.Concrete.State)
-        let theoremExpr := Lean.mkAppN (Lean.mkConst ``MidenLean.execProcedure_ifElse_eq)
-          #[parsed.envExpr, parsed.fuelExpr, thenOps, elseOps,
-            parsed.stateExpr, finalStateExpr, condExpr, restExpr]
-        let goals ←
-          try
-            goal.apply theoremExpr
-          catch ex =>
-            throwError "miden_vcg: failed to decompose singleton `ifElse`: {ex.toMessageData}"
-        let mut hsGoal? : Option MVarId := none
-        let mut hfuelGoal? : Option MVarId := none
-        let mut branchGoals : List MVarId := []
-        let mut hboolGoal? : Option MVarId := none
-        let mut auxGoals : List MVarId := []
-        for g in goals do
-          unless ← g.isAssigned do
-            let ty ← g.getType
-            if ← isProp ty then
-              match ty.eq? with
-              | some (_, lhs, rhs) =>
-                  if (← hasListTypeOf lhs ``MidenLean.Felt) || (← hasListTypeOf rhs ``MidenLean.Felt) then
-                    hsGoal? := some g
-                  else
-                    auxGoals := auxGoals ++ [g]
-              | none =>
-                  if ty.isForall then
-                    branchGoals := branchGoals ++ [g]
-                  else if ty.isAppOfArity ``Or 2 then
-                    hboolGoal? := some g
-                  else
-                    hfuelGoal? := some g
-            else
-              auxGoals := auxGoals ++ [g]
-        let some hsGoal := hsGoal? | throwError "miden_vcg: missing `hs` goal for singleton `ifElse`"
-        let some hfuelGoal := hfuelGoal? | throwError "miden_vcg: missing `hfuel` goal for singleton `ifElse`"
-        let [branchGoal1, branchGoal2] := branchGoals
-          | throwError "miden_vcg: expected two branch goals for singleton `ifElse`, got {branchGoals.length}"
-        let some hboolGoal := hboolGoal? | throwError "miden_vcg: missing `hbool` goal for singleton `ifElse`"
-        closeVcgStackGoal hsGoal
-        closeVcgFuelGoal hfuelGoal
-        Lean.Elab.Term.synthesizeSyntheticMVarsNoPostponing
-        let (_, branchBodyGoal1) ← branchGoal1.intro1
-        let (_, branchBodyGoal2) ← branchGoal2.intro1
-        let branch1IsThen ← branchBodyMatches branchBodyGoal1 thenOps
-        let branch1IsElse ← branchBodyMatches branchBodyGoal1 elseOps
-        let branch2IsThen ← branchBodyMatches branchBodyGoal2 thenOps
-        let branch2IsElse ← branchBodyMatches branchBodyGoal2 elseOps
-        let (hthenBodyGoal, helseBodyGoal) ←
-          if branch1IsThen && branch2IsElse then
-            pure (branchBodyGoal1, branchBodyGoal2)
-          else if branch1IsElse && branch2IsThen then
-            pure (branchBodyGoal2, branchBodyGoal1)
-          else
-            throwError "miden_vcg: could not classify singleton `ifElse` branch goals"
-        let thenRemaining ← decomposeVcgGoal hthenBodyGoal
-        Lean.Elab.Term.synthesizeSyntheticMVarsNoPostponing
-        let elseRemaining ← decomposeVcgGoal helseBodyGoal
-        let boolRemaining ← closeVcgBoolGoal hboolGoal
-        let auxRemaining ← cleanupGoals auxGoals
-        return thenRemaining ++ elseRemaining ++ boolRemaining ++ auxRemaining ++ bridgeSeeds
+        decomposeIfElse goal thenOps elseOps
     | .repeat countExpr bodyOps =>
         let some count := countExpr.numeral?
           | throwError "miden_vcg: `repeat` count must reduce to a Nat literal"
         if count = 0 then
-          let theoremExpr := Lean.mkAppN (Lean.mkConst ``MidenLean.execProcedure_repeat_zero_eq)
+          let theoremExpr := Lean.mkAppN (Lean.mkConst ``MidenLean.execProcedure_repeat_zero)
             #[parsed.envExpr, parsed.fuelExpr, bodyOps, parsed.stateExpr]
           let rwResult ←
             try
@@ -1047,20 +1695,20 @@ private partial def decomposeVcgGoal (goal : MVarId) : TacticM (List MVarId) := 
             catch ex =>
               throwError "miden_vcg: failed to decompose singleton `repeat 0`: {ex.toMessageData}"
           let goal' ← goal.replaceTargetEq rwResult.eNew rwResult.eqProof
-          let mut hfuelGoal? : Option MVarId := none
-          let mut auxGoals : List MVarId := [goal']
+          let mut remaining : List MVarId := [goal']
           for g in rwResult.mvarIds do
             unless ← g.isAssigned do
               let ty ← g.getType
               if ← isProp ty then
-                hfuelGoal? := some g
+                closeVcgFuelGoal g
               else
-                auxGoals := auxGoals ++ [g]
-          let some hfuelGoal := hfuelGoal? | throwError "miden_vcg: missing `hfuel` goal for singleton `repeat 0`"
-          closeVcgFuelGoal hfuelGoal
+                remaining := remaining ++ [g]
+          -- Close bridge goals eagerly so intermediate state metavars are
+          -- assigned before downstream goals (e.g. suffix after append split)
+          -- can mis-unify them with the original state.
           let mut bridgeSeeds : List MVarId := []
           let mut otherGoals : List MVarId := []
-          for g in auxGoals do
+          for g in remaining do
             unless ← g.isAssigned do
               let ty ← g.getType
               if ty.eq?.isSome then
@@ -1072,7 +1720,7 @@ private partial def decomposeVcgGoal (goal : MVarId) : TacticM (List MVarId) := 
             bridgeRemaining := bridgeRemaining ++ (← closeBridgeGoal g)
           cleanupGoals (bridgeRemaining ++ otherGoals)
         else
-          let theoremExpr := Lean.mkAppN (Lean.mkConst ``MidenLean.execProcedure_repeat_succ_eq)
+          let theoremExpr := Lean.mkAppN (Lean.mkConst ``MidenLean.execProcedure_repeat_succ)
             #[parsed.envExpr, parsed.fuelExpr, Lean.mkNatLit (count - 1), bodyOps]
           let goals ←
             try
@@ -1091,7 +1739,8 @@ private partial def decomposeVcgGoal (goal : MVarId) : TacticM (List MVarId) := 
                 | none => hfuelGoal? := some g
               else
                 auxGoals := auxGoals ++ [g]
-          let some hfuelGoal := hfuelGoal? | throwError "miden_vcg: missing `hfuel` goal for singleton `repeat`"
+          let some hfuelGoal := hfuelGoal?
+            | throwError "miden_vcg: missing `hfuel` goal for singleton `repeat`"
           let [execGoal1, execGoal2] := execGoals
             | throwError "miden_vcg: expected two execution goals for singleton `repeat`, got {execGoals.length}"
           let restOpsExpr ← mkOpListExpr [Lean.mkAppN (Lean.mkConst ``MidenLean.Op.repeat)
@@ -1118,6 +1767,452 @@ private partial def decomposeVcgGoal (goal : MVarId) : TacticM (List MVarId) := 
 
 end
 
+mutual
+
+private partial def decomposeAppendGoalAtStep (goal : MVarId) (splitAt : Nat) : TacticM (List MVarId) := do
+  let (prefixGoal, suffixGoal, auxGoals, _) ←
+    prepareAppendSplit goal splitAt "miden_vcg_step" (canonicalize := false)
+  let auxRemaining ← cleanupGoals auxGoals
+  let mut remaining : List MVarId := []
+  unless ← prefixGoal.isAssigned do
+    remaining := remaining ++ [prefixGoal]
+  unless ← suffixGoal.isAssigned do
+    remaining := remaining ++ [suffixGoal]
+  return remaining ++ auxRemaining
+
+private partial def splitIfElseFastGoalStep
+    (goal : MVarId) (propExpr : Lean.Expr) (thenOps elseOps : Lean.Expr) : TacticM (List MVarId) := do
+  let (posGoal, negGoal) ← goal.byCases propExpr `h
+  let posGoals ←
+    try
+      runTacticSeqOnGoal posGoal.mvarId (← `(tacticSeq|
+        try (split_ifs at *)
+        simp_all))
+    catch ex =>
+      let ty ← posGoal.mvarId.getType
+      throwError "miden_vcg_step.splitIfElseFastGoal.true failed on goal:{indentExpr ty}\n{ex.toMessageData}"
+  let negGoals ←
+    try
+      runTacticSeqOnGoal negGoal.mvarId (← `(tacticSeq|
+        try (split_ifs at *)
+        simp_all))
+    catch ex =>
+      let ty ← negGoal.mvarId.getType
+      throwError "miden_vcg_step.splitIfElseFastGoal.false failed on goal:{indentExpr ty}\n{ex.toMessageData}"
+  let splitGoals := posGoals ++ negGoals
+  let mut execGoals : List MVarId := []
+  let mut auxGoals : List MVarId := []
+  for g in splitGoals do
+    unless ← g.isAssigned do
+      let ty ← g.getType
+      match ty.eq? with
+      | some (_, lhs, _) =>
+          if lhs.isAppOf ``MidenLean.execProcedure then
+            execGoals := execGoals ++ [g]
+          else
+            auxGoals := auxGoals ++ [g]
+      | none =>
+          auxGoals := auxGoals ++ [g]
+  let [execGoal1, execGoal2] := execGoals
+    | do
+        let goalTypes ← splitGoals.mapM (fun g => do
+          let fmt ← Meta.ppExpr (← g.getType)
+          pure <| MessageData.ofFormat fmt)
+        let joined := MessageData.joinSep goalTypes " | "
+        throwError "miden_vcg_step: expected two execution goals after fast `ifElse` split, got {execGoals.length}: {joined}"
+  let goal1IsThen ← branchBodyMatches execGoal1 thenOps
+  let goal1IsElse ← branchBodyMatches execGoal1 elseOps
+  let goal2IsThen ← branchBodyMatches execGoal2 thenOps
+  let goal2IsElse ← branchBodyMatches execGoal2 elseOps
+  let (thenGoal, elseGoal) ←
+    if goal1IsThen && goal2IsElse then
+      pure (execGoal1, execGoal2)
+    else if goal1IsElse && goal2IsThen then
+      pure (execGoal2, execGoal1)
+    else
+      throwError "miden_vcg_step: could not classify fast `ifElse` branch goals"
+  let auxRemaining ← cleanupGoals auxGoals
+  let mut remaining : List MVarId := []
+  unless ← thenGoal.isAssigned do
+    remaining := remaining ++ [thenGoal]
+  unless ← elseGoal.isAssigned do
+    remaining := remaining ++ [elseGoal]
+  return remaining ++ auxRemaining
+
+private partial def tryApplyFastIfElseTheoremStep?
+    (goal : MVarId) (theoremExpr : Lean.Expr) (splitProp? : Option Lean.Expr)
+    (thenOps elseOps : Lean.Expr) : TacticM (Option (List MVarId)) := do
+  let savedState ← saveState
+  try
+    let parsed ← parseExecGoal goal
+    let targetTy ← inferType parsed.lhs
+    let theoremTy ← inferType theoremExpr
+    let middleExpr ← forallTelescopeReducing theoremTy fun _ body => do
+      let some (_, _, theoremRhs) := body.eq?
+        | throwError "miden_vcg_step: fast `ifElse` theorem does not conclude with an equality"
+      instantiateMVars theoremRhs
+    let eqTransExpr ← mkAppOptM ``Eq.trans
+      #[some targetTy, some parsed.lhs, some middleExpr, some parsed.rhs]
+    let splitGoals ← goal.apply eqTransExpr
+    let mut execGoal? : Option MVarId := none
+    let mut bridgeGoal? : Option MVarId := none
+    let mut auxGoals : List MVarId := []
+    for g in splitGoals do
+      unless ← g.isAssigned do
+        let ty ← g.getType
+        match ty.eq? with
+        | some (_, lhs, _) =>
+            if lhs.isAppOf ``MidenLean.execProcedure then
+              execGoal? := some g
+            else
+              bridgeGoal? := some g
+        | none =>
+            auxGoals := auxGoals ++ [g]
+    let some theoremGoal := execGoal?
+      | throwError "miden_vcg_step: missing execution goal for fast `ifElse` decomposition"
+    let some bridgeGoal := bridgeGoal?
+      | throwError "miden_vcg_step: missing bridge goal for fast `ifElse` decomposition"
+    let theoremGoals ← theoremGoal.apply theoremExpr
+    let theoremRemaining ← closeIfElseFastRewriteGoals (theoremGoals ++ auxGoals)
+    let branchRemaining ←
+      match splitProp? with
+      | some propExpr => splitIfElseFastGoalStep bridgeGoal propExpr thenOps elseOps
+      | none =>
+          if ← bridgeGoal.isAssigned then
+            pure []
+          else
+            pure [bridgeGoal]
+    pure (some (theoremRemaining ++ branchRemaining))
+  catch _ =>
+    restoreState savedState
+    pure none
+
+private partial def tryDecomposeIfElseFastStep
+    (goal : MVarId) (thenOps elseOps : Lean.Expr) : TacticM (Option (List MVarId)) := do
+  let parsed ← parseExecGoal goal
+  let (stackElems, tailExpr) ← getStateStackDecomposition parsed.stateExpr
+  if stackElems.isEmpty then
+    return none
+  let condExpr := stackElems[0]!
+  let restExpr ← mkListExprWithTail (stackElems.toList.drop 1) tailExpr
+  let zeroExpr ← Lean.Elab.Term.elabTerm (← `((0 : MidenLean.Felt))) none
+  let oneExpr ← Lean.Elab.Term.elabTerm (← `((1 : MidenLean.Felt))) none
+  let condInst ← instantiateMVars condExpr
+  let condWhnf ← withTransparency TransparencyMode.all <| reduce condInst
+  if ← isDefEq condWhnf oneExpr then
+    let theoremExpr := Lean.mkAppN (Lean.mkConst ``MidenLean.execProcedure_ifElse_state_one)
+      #[parsed.envExpr, parsed.fuelExpr, parsed.stateExpr, restExpr, thenOps, elseOps]
+    if let some remaining ← tryApplyFastIfElseTheoremStep? goal theoremExpr none thenOps elseOps then
+      return some remaining
+  if ← isDefEq condWhnf zeroExpr then
+    let theoremExpr := Lean.mkAppN (Lean.mkConst ``MidenLean.execProcedure_ifElse_state_zero)
+      #[parsed.envExpr, parsed.fuelExpr, parsed.stateExpr, restExpr, thenOps, elseOps]
+    if let some remaining ← tryApplyFastIfElseTheoremStep? goal theoremExpr none thenOps elseOps then
+      return some remaining
+  if condInst.isAppOf ``ite && condInst.getAppNumArgs = 5 then
+    let propExpr := condInst.getArg! 1
+    let decInst ← synthInstance (Lean.mkApp (Lean.mkConst ``Decidable) propExpr)
+    let posTheoremExpr := Lean.mkAppN (Lean.mkConst ``MidenLean.execProcedure_ifElse_bool_ite)
+      #[parsed.envExpr, parsed.fuelExpr, parsed.stateExpr, restExpr, thenOps, elseOps, propExpr, decInst]
+    if let some remaining ←
+        tryApplyFastIfElseTheoremStep? goal posTheoremExpr (some propExpr) thenOps elseOps then
+      return some remaining
+    let negTheoremExpr := Lean.mkAppN (Lean.mkConst ``MidenLean.execProcedure_ifElse_bool_ite_neg)
+      #[parsed.envExpr, parsed.fuelExpr, parsed.stateExpr, restExpr, thenOps, elseOps, propExpr, decInst]
+      if let some remaining ←
+        tryApplyFastIfElseTheoremStep? goal negTheoremExpr (some propExpr) thenOps elseOps then
+      return some remaining
+  else if condInst.isAppOf ``dite && condInst.getAppNumArgs = 5 then
+    let propExpr := condInst.getArg! 1
+    let decInst ← synthInstance (Lean.mkApp (Lean.mkConst ``Decidable) propExpr)
+    let posTheoremExpr := Lean.mkAppN (Lean.mkConst ``MidenLean.execProcedure_ifElse_bool_ite)
+      #[parsed.envExpr, parsed.fuelExpr, parsed.stateExpr, restExpr, thenOps, elseOps, propExpr, decInst]
+    if let some remaining ←
+        tryApplyFastIfElseTheoremStep? goal posTheoremExpr (some propExpr) thenOps elseOps then
+      return some remaining
+    let negTheoremExpr := Lean.mkAppN (Lean.mkConst ``MidenLean.execProcedure_ifElse_bool_ite_neg)
+      #[parsed.envExpr, parsed.fuelExpr, parsed.stateExpr, restExpr, thenOps, elseOps, propExpr, decInst]
+    if let some remaining ←
+        tryApplyFastIfElseTheoremStep? goal negTheoremExpr (some propExpr) thenOps elseOps then
+      return some remaining
+  return none
+
+private partial def decomposeIfElseStep
+    (goal : MVarId) (thenOps elseOps : Lean.Expr) : TacticM (List MVarId) := do
+  let savedFastState ← saveState
+  match ← tryDecomposeIfElseFastStep goal thenOps elseOps with
+  | some remaining => return remaining
+  | none => restoreState savedFastState
+  let parsed ← parseExecGoal goal
+  let condExpr ← mkFreshExprMVar (Lean.mkConst ``MidenLean.Felt)
+  let restExpr ← mkFreshExprMVar
+    (Lean.mkApp (Lean.mkConst ``List [Lean.levelZero]) (Lean.mkConst ``MidenLean.Felt))
+  let savedState ← saveState
+  let goals ← do
+    let sThenExpr ← mkFreshExprMVar (Lean.mkConst ``MidenLean.Concrete.State)
+    let sElseExpr ← mkFreshExprMVar (Lean.mkConst ``MidenLean.Concrete.State)
+    let theoremExpr := Lean.mkAppN (Lean.mkConst ``MidenLean.execProcedure_ifElse)
+      #[parsed.envExpr, parsed.fuelExpr, thenOps, elseOps,
+        parsed.stateExpr, sThenExpr, sElseExpr, condExpr, restExpr]
+    try
+      goal.apply theoremExpr
+    catch _ =>
+      restoreState savedState
+      let sExpr ← mkFreshExprMVar (Lean.mkConst ``MidenLean.Concrete.State)
+      let theoremExpr := Lean.mkAppN (Lean.mkConst ``MidenLean.execProcedure_ifElse_same)
+        #[parsed.envExpr, parsed.fuelExpr, thenOps, elseOps,
+          parsed.stateExpr, sExpr, condExpr, restExpr]
+      try
+        goal.apply theoremExpr
+      catch ex =>
+        throwError "miden_vcg_step: failed to decompose singleton `ifElse`: {ex.toMessageData}"
+  let (hsGoal, hfuelGoal, branchGoals, hboolGoal, auxGoals) ← classifyIfElseGoals goals
+  let [branchGoal1, branchGoal2] := branchGoals
+    | throwError "miden_vcg_step: expected two branch goals for singleton `ifElse`, got {branchGoals.length}"
+  closeVcgStackGoal hsGoal
+  closeVcgFuelGoal hfuelGoal
+  Lean.Elab.Term.synthesizeSyntheticMVarsNoPostponing
+  let (_, branchBodyGoal1) ← branchGoal1.intro1
+  let (_, branchBodyGoal2) ← branchGoal2.intro1
+  let branch1IsThen ← branchBodyMatches branchBodyGoal1 thenOps
+  let branch1IsElse ← branchBodyMatches branchBodyGoal1 elseOps
+  let branch2IsThen ← branchBodyMatches branchBodyGoal2 thenOps
+  let branch2IsElse ← branchBodyMatches branchBodyGoal2 elseOps
+  let (hthenBodyGoal, helseBodyGoal) ←
+    if branch1IsThen && branch2IsElse then
+      pure (branchBodyGoal1, branchBodyGoal2)
+    else if branch1IsElse && branch2IsThen then
+      pure (branchBodyGoal2, branchBodyGoal1)
+    else
+      throwError "miden_vcg_step: could not classify singleton `ifElse` branch goals"
+  let boolRemaining ← closeVcgBoolGoal hboolGoal
+  let auxRemaining ← cleanupGoals auxGoals
+  let mut remaining : List MVarId := []
+  unless ← hthenBodyGoal.isAssigned do
+    remaining := remaining ++ [hthenBodyGoal]
+  unless ← helseBodyGoal.isAssigned do
+    remaining := remaining ++ [helseBodyGoal]
+  return remaining ++ boolRemaining ++ auxRemaining
+
+private partial def decomposeRepeatStep
+    (goal : MVarId) (countExpr bodyOps : Lean.Expr) : TacticM (List MVarId) := do
+  let parsed ← parseExecGoal goal
+  let some count := countExpr.numeral?
+    | throwError "miden_vcg_step: `repeat` count must reduce to a Nat literal"
+  if count = 0 then
+    let theoremExpr := Lean.mkAppN (Lean.mkConst ``MidenLean.execProcedure_repeat_zero)
+      #[parsed.envExpr, parsed.fuelExpr, bodyOps, parsed.stateExpr]
+    let rwResult ←
+      try
+        goal.rewrite (← goal.getType) theoremExpr
+      catch ex =>
+        throwError "miden_vcg_step: failed to decompose singleton `repeat 0`: {ex.toMessageData}"
+    let goal' ← goal.replaceTargetEq rwResult.eNew rwResult.eqProof
+    let mut remaining : List MVarId := []
+    unless ← goal'.isAssigned do
+      remaining := remaining ++ [goal']
+    let mut bridgeSeeds : List MVarId := []
+    let mut otherGoals : List MVarId := []
+    for g in rwResult.mvarIds do
+      unless ← g.isAssigned do
+        let ty ← g.getType
+        if ← isProp ty then
+          closeVcgFuelGoal g
+        else if ty.eq?.isSome then
+          bridgeSeeds := bridgeSeeds ++ [g]
+        else
+          otherGoals := otherGoals ++ [g]
+    let mut bridgeRemaining : List MVarId := []
+    for g in bridgeSeeds do
+      bridgeRemaining := bridgeRemaining ++ (← closeBridgeGoal g)
+    let otherRemaining ← cleanupGoals otherGoals
+    let bridgeCleanup ← cleanupGoals bridgeRemaining
+    return remaining ++ otherRemaining ++ bridgeCleanup
+  else
+    let theoremExpr := Lean.mkAppN (Lean.mkConst ``MidenLean.execProcedure_repeat_succ)
+      #[parsed.envExpr, parsed.fuelExpr, Lean.mkNatLit (count - 1), bodyOps]
+    let goals ←
+      try
+        goal.apply theoremExpr
+      catch ex =>
+        throwError "miden_vcg_step: failed to decompose singleton `repeat`: {ex.toMessageData}"
+    let mut hfuelGoal? : Option MVarId := none
+    let mut execGoals : List MVarId := []
+    let mut auxGoals : List MVarId := []
+    for g in goals do
+      unless ← g.isAssigned do
+        let ty ← g.getType
+        if ← isProp ty then
+          match ty.eq? with
+          | some _ => execGoals := execGoals ++ [g]
+          | none => hfuelGoal? := some g
+        else
+          auxGoals := auxGoals ++ [g]
+    let some hfuelGoal := hfuelGoal?
+      | throwError "miden_vcg_step: missing `hfuel` goal for singleton `repeat`"
+    let [execGoal1, execGoal2] := execGoals
+      | throwError "miden_vcg_step: expected two execution goals for singleton `repeat`, got {execGoals.length}"
+    let restOpsExpr ← mkOpListExpr [Lean.mkAppN (Lean.mkConst ``MidenLean.Op.repeat)
+      #[Lean.mkNatLit (count - 1), bodyOps]]
+    let goal1IsBody ← branchBodyMatches execGoal1 bodyOps
+    let goal1IsRest ← branchBodyMatches execGoal1 restOpsExpr
+    let goal2IsBody ← branchBodyMatches execGoal2 bodyOps
+    let goal2IsRest ← branchBodyMatches execGoal2 restOpsExpr
+    let (bodyGoal, restGoal) ←
+      if goal1IsBody && goal2IsRest then
+        pure (execGoal1, execGoal2)
+      else if goal1IsRest && goal2IsBody then
+        pure (execGoal2, execGoal1)
+      else
+        throwError "miden_vcg_step: could not classify singleton `repeat` goals"
+    closeVcgFuelGoal hfuelGoal
+    let auxRemaining ← cleanupGoals auxGoals
+    let mut remaining : List MVarId := []
+    unless ← bodyGoal.isAssigned do
+      remaining := remaining ++ [bodyGoal]
+    unless ← restGoal.isAssigned do
+      remaining := remaining ++ [restGoal]
+    return remaining ++ auxRemaining
+
+private partial def decomposeVcgStepGoal (goal : MVarId) : TacticM (List MVarId) := do
+  if ← goal.isAssigned then
+    pure []
+  else
+    let parsed0 ← parseExecGoal goal
+    let noControl := (← firstControlBoundary? parsed0.opExprs).isNone
+    if noControl then
+      if !isNatZero parsed0.numLocalsExpr then
+        return [goal]
+      let goal ← rewriteZeroLocalsGoalToBody goal
+      let parsed ← parseExecGoal goal
+      if let some splitAt ← firstExecSplitIndex? parsed.opExprs then
+        return ← decomposeAppendGoalAtStep goal splitAt
+      else
+        return [goal]
+
+    if !isNatZero parsed0.numLocalsExpr then
+      throwError "miden_vcg_step: control-flow procedures with `numLocals > 0` are not yet supported"
+
+    let goal ← rewriteZeroLocalsGoalToBody goal
+    let parsed ← parseExecGoal goal
+    let some (idx, boundary) ← firstControlBoundary? parsed.opExprs
+      | return [goal]
+
+    if parsed.opExprs.size > 1 then
+      return ← decomposeAppendGoalAtStep goal (if idx = 0 then 1 else idx)
+
+    match boundary with
+    | .ifElse thenOps elseOps =>
+        decomposeIfElseStep goal thenOps elseOps
+    | .repeat countExpr bodyOps =>
+        decomposeRepeatStep goal countExpr bodyOps
+    | .whileTrue _ =>
+        throwError "miden_vcg_step: `whileTrue` is not yet supported. Use manual proofs with invariants."
+
+end
+
+/-- Result of attempting a nested theorem-backed exec step. -/
+private inductive NestedExecStepResult where
+  | notFound
+  | success (remaining : List MVarId)
+  | failed (msg : MessageData)
+
+private def tryNestedExecStep
+    (goal : MVarId) (explicitThm? : Option Lean.Name := none) :
+    TacticM NestedExecStepResult := do
+  let goalTy ← goal.getType
+  let some site ← findExecStepSiteInExpr goalTy explicitThm?
+    | return .notFound
+  let candidates := match site with
+    | .direct _ _ _ _ cs => cs
+    | .singleton _ _ _ _ _ cs => cs
+  let mut lastErr? : Option MessageData := none
+  for theoremName in candidates do
+    let savedState ← saveState
+    try
+      let (goalAfterBridge, bridgeSideGoals, directSite) ←
+        match site with
+        | .direct envExpr fuelExpr stateExpr calleeExpr _ =>
+            pure (goal, ([] : List MVarId), (envExpr, fuelExpr, stateExpr, calleeExpr))
+        | .singleton envExpr fuelExpr stateExpr targetExpr calleeExpr _ => do
+            let (goal', bridgeGoals) ←
+              rewriteGoalWithSingletonExecBridge goal envExpr fuelExpr stateExpr targetExpr calleeExpr
+            let bridgeRemaining ← cleanupExecBridgeGoals bridgeGoals
+            let goalTy' ← goal'.getType
+            let some (.direct envExpr' fuelExpr' stateExpr' calleeExpr' _)
+                ← findExecStepSiteInExpr goalTy' (some theoremName)
+              | throwError "miden_exec_step: failed to expose the direct callee after bridging"
+            pure (goal', bridgeRemaining, (envExpr', fuelExpr', stateExpr', calleeExpr'))
+      let (envExpr, fuelExpr, stateExpr, calleeExpr) := directSite
+      let remaining ← runExecSummaryStep (.nested goalAfterBridge theoremName
+          envExpr fuelExpr stateExpr calleeExpr)
+      return .success (bridgeSideGoals ++ remaining)
+    catch ex =>
+      restoreState savedState
+      lastErr? := some m!"candidate `{theoremName}` failed: {ex.toMessageData}"
+  return .failed (lastErr?.getD
+    m!"found a theorem-backed exec site, but summary application and cleanup failed")
+
+/-- Core implementation for `miden_exec_step`. Tries two strategies:
+
+    **Strategy A** — the goal is a top-level `execProcedure` equation with a
+    singleton `.exec` op. Resolves the `ProcEnv` lookup, applies
+    `execProcedure_singleton_exec_eq`, applies the callee theorem, and closes
+    mechanical side-goals.
+
+    **Strategy B** — the next exec is nested under the goal (typically inside a
+    `bind` chain after `execProcedure_append`). If the callee is already
+    visible, rewrite directly; if the goal still contains a singleton
+    `[.exec "..."]`, insert `execProcedure_singleton_exec_eq` first, then apply
+    the callee theorem and pass the rewritten goal back through the shared VCG
+    decomposition / leaf solver. -/
+private def execStepImpl (thmId? : Option (TSyntax `ident)) : TacticM Unit := do
+  let mainGoal ← getMainGoal
+  let explicitName? : Option Lean.Name := thmId?.map (·.getId)
+
+  let saved ← saveState
+  try
+    if let some remaining ← tryExecOverrideTheorem? mainGoal explicitName? then
+      setGoals remaining
+      Lean.Elab.Term.synthesizeSyntheticMVarsNoPostponing
+      return
+  catch _ => pure ()
+  restoreState saved
+
+  let saved ← saveState
+  match ← tryNestedExecStep mainGoal explicitName? with
+  | .success remaining =>
+      setGoals remaining
+      Lean.Elab.Term.synthesizeSyntheticMVarsNoPostponing
+  | .failed msg =>
+      restoreState saved
+      throwError "miden_exec_step: found theorem-backed exec site but could not resolve it: {msg}"
+  | .notFound =>
+      restoreState saved
+      throwError "miden_exec_step: no theorem-backed exec call found in goal. \
+        Expose the next `execProcedure` call with `execProcedure_append`, or use \
+        `miden_exec_step [thm]` to provide the callee theorem explicitly."
+
+/-- `miden_exec_step` resolves a single theorem-backed exec call in the goal.
+
+    When the goal is a top-level singleton `.exec`, the tactic reuses the same
+    summary-application path as `miden_reflect`.
+
+    When the next exec is nested under a larger goal, the tactic bridges to the
+    direct callee if needed, rewrites with the shared summary engine, and then
+    hands the residual execution goal back to the normal VCG decomposition /
+    leaf solver so simple suffixes can close automatically.
+
+    Usage:
+      miden_exec_step              -- automatic `@[miden_exec_summary]` lookup
+      miden_exec_step [thm_name]   -- explicit theorem -/
+syntax "miden_exec_step" : tactic
+syntax "miden_exec_step" "[" ident "]" : tactic
+
+elab_rules : tactic
+  | `(tactic| miden_exec_step) => execStepImpl none
+  | `(tactic| miden_exec_step [ $thmId:ident ]) => execStepImpl (some thmId)
+
 /-- `miden_vcg` recursively decomposes equality goals over control-flow bodies,
     delegating straight-line leaves to `miden_reflect`. Supported control flow:
     `ifElse` and concrete-count `repeat`. `whileTrue` remains unsupported. -/
@@ -1126,6 +2221,18 @@ elab_rules : tactic
   | `(tactic| miden_vcg) => do
       let mainGoal ← getMainGoal
       let remaining ← decomposeVcgGoal mainGoal
+      setGoals remaining
+      Lean.Elab.Term.synthesizeSyntheticMVarsNoPostponing
+
+/-- `miden_vcg_step` performs one structural VCG decomposition step, closing
+    only administrative side goals and leaving the resulting execution goals
+    for the user or for subsequent tactics. Supported control flow:
+    `ifElse` and concrete-count `repeat`. `whileTrue` remains unsupported. -/
+syntax "miden_vcg_step" : tactic
+elab_rules : tactic
+  | `(tactic| miden_vcg_step) => do
+      let mainGoal ← getMainGoal
+      let remaining ← decomposeVcgStepGoal mainGoal
       setGoals remaining
       Lean.Elab.Term.synthesizeSyntheticMVarsNoPostponing
 

@@ -28,17 +28,7 @@ theorem u64_widening_add_exec
       let c_hi := Felt.ofNat (hi_sum % 2^32)
       let overflow := Felt.ofNat (hi_sum / 2^32)
       c_lo :: c_hi :: overflow :: rest)) := by
-  obtain ⟨stk, mem, frames, adv⟩ := s
-  simp only [Concrete.State.withStack] at hs ⊢
-  subst hs
-  unfold Miden.Core.U64.widening_add execProcedure
-  simp only [List.foldlM, u64ProcEnv]
-  dsimp only [bind, Bind.bind, Option.bind]
-  rw [u64_overflowing_add_run u64ProcEnv 8 a_lo a_hi b_lo b_hi rest mem frames adv
-        ha_lo ha_hi hb_lo hb_hi]
-  miden_bind
-  miden_movdn
-  dsimp only [pure, Pure.pure]
+  miden_vcg
 
 /-- `u64::widening_add` computes the full 65-bit sum of two u64 values.
     Input stack:  [b.lo, b.hi, a.lo, a.hi] ++ rest

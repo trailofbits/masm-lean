@@ -6,6 +6,16 @@ import MidenLean.Symbolic.State
 Symbolic execution of basic blocks (straight-line instruction sequences).
 Supports all non-control-flow instructions except dynamic-address memory
 (address popped from stack).
+
+## Support boundary
+
+Everything outside the supported fragment returns `none`: dynamic-address
+memory (`memLoad`/`memStore`/`mem*w*` with a stack address), bare `exec` calls
+(handled compositionally via `ProcEnv` specs in `execOps`), and control flow
+(`ifElse`/`repeat`/`whileTrue`, decomposed by `miden_vcg` instead). A `none`
+here can never produce a "verified" result — the soundness theorems in
+`Soundness.lean` only speak about `some` outcomes, so unsupported code fails
+loudly at tactic time rather than weakening any theorem.
 -/
 
 namespace MidenLean.Symbolic
@@ -16,7 +26,7 @@ structure BlockResult where
   preconditions : List Precondition
 
 /-- Execute a single instruction symbolically.  Returns none for stack
-    underflow, unsupported instructions (dynamic-address memory, execProcedure emptyEnv),
+    underflow, unsupported instructions (dynamic-address memory, `exec` calls),
     or immediate values that violate static guards. Collects preconditions for
     instructions with runtime guards. Supports local memory (locLoad, locStore,
     locStorewBe/Le, locLoadwBe/Le, locaddr), static-address memory
@@ -670,7 +680,7 @@ def execInstruction (s : State) (i : Instruction) :
   -- Events: emitImm (always succeeds, no-op)
   | .emitImm _ => some (s, [])
 
-  -- Unsupported: dynamic-address memory (address from stack), execProcedure emptyEnv
+  -- Unsupported: dynamic-address memory (address from stack), `exec` calls
   | .memLoad | .memStore
   | .memLoadwBe | .memStorewBe
   | .memLoadwLe | .memStorewLe
