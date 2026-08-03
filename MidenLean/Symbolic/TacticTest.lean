@@ -25,7 +25,6 @@ theorem u64_eq_via_tactic (b_lo b_hi a_lo a_hi : Felt) (rest : List Felt)
            (if b_hi == a_hi then (1 : Felt) else 0)) :: rest,
           fun _ => (0 : Felt), frames, []⟩ := by
   miden_reflect
-  all_goals miden_finish_reflection
 
 set_option maxHeartbeats 800000 in
 /-- Test `miden_reflect` with `cdrop` (condition = 1). -/

@@ -16,6 +16,5 @@ theorem word_testz_correct (a b c d : Felt) (rest : List Felt) (s : Concrete.Sta
       (if (d == (0:Felt)) && ((c == (0:Felt)) && ((b == (0:Felt)) && (a == (0:Felt))))
        then (1 : Felt) else 0) :: a :: b :: c :: d :: rest)) := by
   miden_vcg
-  all_goals miden_finish_reflection
 
 end MidenLean.Proofs

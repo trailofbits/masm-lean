@@ -20,6 +20,5 @@ theorem word_eqz_correct
       (if (a == (0 : Felt)) && (b == (0 : Felt)) && (c == (0 : Felt)) && (d == (0 : Felt))
        then (1 : Felt) else 0) :: rest)) := by
   miden_vcg
-  all_goals miden_finish_reflection
 
 end MidenLean.Proofs

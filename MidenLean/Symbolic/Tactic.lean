@@ -312,6 +312,36 @@ private def closeReflectResultGoal (goal : MVarId) : TacticM Unit := do
           let ty ← goal'.getType
           throwError "miden_reflect: failed to solve `hresult`:{indentExpr ty}"
 
+/-- `Precondition.isBool` on a comparison result (`eq`, `lt`, `gt`, …) normalizes
+    to an instance of excluded middle once `if c then 1 else 0 = 0 ∨ … = 1` has
+    been pushed through `Felt`. Scoped to `miden_bound` so the precondition
+    ladder closes it inside its `simp only`, rather than falling through to the
+    much more expensive `split_ifs`/`simp_all` rungs. -/
+@[miden_bound] private theorem holdsIsBoolExcludedMiddle (p : Prop) :
+    (¬p ∨ p) = True :=
+  eq_true (Classical.em p).symm
+
+/-- Companion to `holdsIsBoolExcludedMiddle` for the `<`-flavoured
+    `Precondition.isBool` residue `b ≤ a ∨ a < b` left by `lt`/`gt` results. -/
+@[miden_bound] private theorem holdsIsBoolLeOrLt {α : Type _} [LinearOrder α] (a b : α) :
+    (a ≤ b ∨ b < a) = True :=
+  eq_true (le_or_gt a b)
+
+/-- `Precondition.isBool` residue for a comparison flag `and`-ed with an earlier
+    flag, as produced by every iteration after the first of a comparison loop
+    (`word::gt`, `word::lt`): `(P → a ≤ b) ∨ (P ∧ b < a)` is a tautology, but
+    neither `tauto` (which cannot do the order case split) nor `omega` (which
+    cannot do the `P` case split) closes it on its own. -/
+@[miden_bound] private theorem holdsIsBoolImpLeOrAndLt
+    {P : Prop} {α : Type _} [LinearOrder α] (a b : α) :
+    ((P → a ≤ b) ∨ (P ∧ b < a)) = True := by
+  refine eq_true ?_
+  by_cases hP : P
+  · rcases le_or_gt a b with h | h
+    · exact Or.inl fun _ => h
+    · exact Or.inr ⟨hP, h⟩
+  · exact Or.inl fun h => absurd h hP
+
 /-- A `valLeq _ 63` precondition holds for a literal shift below 64
     (discharges `pow2`-style shift bounds during cleanup). Scoped to
     `miden_bound` — too specialized for the global default simp set. -/
@@ -396,7 +426,19 @@ private def cleanupGoals (goals : List MVarId) : TacticM (List MVarId) := do
         remaining := remaining ++ rem
       else if let some rem ← tryRunTacticSeqOnGoal? goal (← `(tacticSeq|
         intros p hp
+        -- Collapse the membership hypothesis FIRST, with a small non-permutative
+        -- lemma set. `result.preconditions` is an append chain with one empty
+        -- list per precondition-free instruction, so `List.mem_append` /
+        -- `List.mem_cons` leave one `p ∈ []` junk disjunct per instruction. On a
+        -- 13-op basic block that is a ~25-wide disjunction, and handing it to the
+        -- permutative `or_comm`/`or_left_comm`/`or_assoc` rewrites below makes
+        -- simp's ordered AC normalization blow up (tens of seconds per leaf, and
+        -- unbounded once several loop iterations compose). Discharging `p ∈ []`
+        -- up front keeps the disjunction as wide as the actual precondition list.
+        try simp only [List.mem_cons, List.mem_append, List.mem_singleton,
+                       List.not_mem_nil, false_or, or_false] at hp
         simp only [List.mem_cons, List.mem_append, List.mem_singleton,
+                   List.not_mem_nil, false_or, or_false, true_or, or_true,
                    true_and, and_true,
                    and_assoc, and_left_comm, and_comm,
                    or_assoc, or_left_comm, or_comm,
@@ -405,10 +447,10 @@ private def cleanupGoals (goals : List MVarId) : TacticM (List MVarId) := do
                    MidenLean.Symbolic.Expr.eval,
                    MidenLean.Symbolic.Reflect.concreteAssignment,
                    miden_u32, miden_val, miden_bound, *] at hp ⊢
-        first
+        all_goals (first
         | tauto
         | miden_arith
-        | omega)) then
+        | omega))) then
         remaining := remaining ++ rem
       else if let some rem ← tryRunOnGoal? goal (← `(tactic|
         split_ifs at * <;> simp [MidenLean.Concrete.State.withStack] at *)) then
@@ -449,6 +491,37 @@ private def cleanupExecSummaryGoals (goals : List MVarId) : TacticM (List MVarId
       else
         remaining := remaining ++ [goal]
   cleanupGoals remaining
+
+/-- Reduce the state argument of a singleton-`repeat` goal
+    `execProcedure env fuel s [Op.repeat n body] = …` before it is split.
+
+    Reflection assigns intermediate states the raw wrapper output
+    `⟨List.map (Expr.eval concreteAssignment) [big Expr trees] ++ rest, …⟩`.
+    That is fine as a *final* answer, but as the *input state* of a loop
+    iteration it makes the symbolic `Expr` trees — and every `Precondition`
+    derived from them — nest one level deeper per iteration. Left unreduced,
+    `repeat 7` over the 3-op `u256::eqz` body exceeds simp's step cap in the
+    leaf ladder, and `repeat 4` over the 13-op `word::gt` comparison body does
+    not terminate at all. Reducing here keeps every iteration roughly the size
+    of the first.
+
+    Because `decomposeVcgGoal` re-enters this case for the `repeat n`
+    continuation goal, one hook covers both the loop entry state (which comes
+    from an append split) and every subsequent iteration's input state.
+
+    Deliberately scoped to this one goal shape: reducing every intermediate
+    state bridge would also rewrite the `ifElse` branch bridges, which changes
+    which residual goals reach the caller of `miden_vcg`. -/
+private def normalizeRepeatStateGoal (goal : MVarId) : TacticM MVarId := do
+  if ← goal.isAssigned then
+    return goal
+  match ← tryRunOnGoal? goal (← `(tactic|
+    simp only [miden_reflect_norm, miden_cleanup,
+               MidenLean.Concrete.State.withStack,
+               List.map_cons, List.map_nil,
+               List.cons_append, List.nil_append])) with
+  | some [goal'] => pure goal'
+  | _ => pure goal
 
 /-- Simplify the bridge between the tactic's canonical reflected target and the
     user goal, directly instantiating state metavariables when possible. -/
@@ -1826,6 +1899,9 @@ private partial def decomposeVcgGoal (goal : MVarId) : TacticM (List MVarId) := 
     | .ifElse thenOps elseOps =>
         decomposeIfElse goal thenOps elseOps
     | .repeat countExpr bodyOps =>
+        -- Reduce the loop's input state before splitting, so successive
+        -- iterations do not accumulate nested `Expr.eval` applications.
+        let goal ← normalizeRepeatStateGoal goal
         match ← prepareRepeatSplit goal countExpr bodyOps "miden_vcg" with
         | .zero goal' otherGoals =>
             -- Close the bridge goal eagerly so intermediate state metavars are
