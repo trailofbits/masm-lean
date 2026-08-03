@@ -271,6 +271,72 @@ normalization steps for reflected goals, not facts wanted in unrelated proofs. -
   rw [eval_u32Add3Hi]
   exact felt_ofNat_val_lt _ (sum3_div_2_32_lt_prime _ _ _)
 
+/-! ### Borrow-propagation chains
+
+`u32OverflowSub` is the mirror image of `u32WidenAdd`: it pushes a
+`.u32SubBorrow` node and a `.u32SubDiff` node sharing the same operand subtrees,
+so a multi-limb subtraction threads the borrow expression through every limb and
+consumes it as `(Expr.eval σ borrow).val` — the same `ZMod.val ∘ Felt.ofNat`
+round-trip that gated the widening-add carry chains.
+
+The failure mode is the more visible half of the add diagnosis: because
+`u32OverflowingSub` is an opaque `if`, `simp` cannot make *any* progress on
+`(Felt.ofNat (u32OverflowingSub _ _).2).val`, so it does not slow down with
+depth, it simply gives up with the round-trips intact at every depth. The
+conditional route `felt_ofNat_val_lt` is unavailable for the same reason as
+before: its `< GOLDILOCKS_PRIME` side condition is not something the discharger
+can establish for a nested borrow.
+
+The six lemmas below collapse one borrow level per rewrite with no side
+condition. Both components are *unconditionally* below the prime once the
+operands come from `Felt`s: the borrow is `0` or `1`, and the difference is
+either `a - b ≤ a < p` or, in the underflow branch, at most `2 ^ 32 - 1`
+(Nat-truncated `u32Max - b + a` with `a < b`).
+
+Registration follows the add family exactly, and for the same two reasons:
+**pre**-order (`↓`) so the fused `val`-of-`eval` pattern is seen before `simp`
+descends and unfolds the inner `Expr.eval`, and right-hand sides spelling
+`u32OverflowingSub` — the form the manual statements and the `miden_bound`
+lemmas already use — rather than the unfolded `if`. -/
+
+/-- Evaluate the difference of an overflowing subtract. -/
+@[miden_reflect_norm ↓, miden_val ↓] theorem eval_u32SubDiff (σ : Assignment) (x y : Expr) :
+    Expr.eval σ (x.u32SubDiff y) =
+      Felt.ofNat (u32OverflowingSub (x.eval σ).val (y.eval σ).val).2 := rfl
+
+/-- Evaluate the borrow of an overflowing subtract. -/
+@[miden_reflect_norm ↓, miden_val ↓] theorem eval_u32SubBorrow (σ : Assignment) (x y : Expr) :
+    Expr.eval σ (x.u32SubBorrow y) =
+      Felt.ofNat (u32OverflowingSub (x.eval σ).val (y.eval σ).val).1 := rfl
+
+/-- Evaluate a wrapping subtract, which keeps only the difference. -/
+@[miden_reflect_norm ↓, miden_val ↓] theorem eval_u32WSub (σ : Assignment) (x y : Expr) :
+    Expr.eval σ (x.u32WSub y) =
+      Felt.ofNat (u32OverflowingSub (x.eval σ).val (y.eval σ).val).2 := rfl
+
+/-- The difference of an overflowing subtract round-trips through `Felt`. -/
+@[miden_reflect_norm ↓, miden_val ↓] theorem val_eval_u32SubDiff (σ : Assignment) (x y : Expr) :
+    (Expr.eval σ (x.u32SubDiff y)).val =
+      (u32OverflowingSub (x.eval σ).val (y.eval σ).val).2 := by
+  rw [eval_u32SubDiff]
+  exact felt_ofNat_val_lt _
+    (u32_overflow_sub_snd_lt _ _ (felt_val_lt_prime _) (felt_val_lt_prime _))
+
+/-- The borrow of an overflowing subtract round-trips through `Felt`. -/
+@[miden_reflect_norm ↓, miden_val ↓] theorem val_eval_u32SubBorrow (σ : Assignment) (x y : Expr) :
+    (Expr.eval σ (x.u32SubBorrow y)).val =
+      (u32OverflowingSub (x.eval σ).val (y.eval σ).val).1 := by
+  rw [eval_u32SubBorrow]
+  exact felt_ofNat_val_lt _ (u32_overflow_sub_fst_lt _ _)
+
+/-- A wrapping subtract round-trips through `Felt`. -/
+@[miden_reflect_norm ↓, miden_val ↓] theorem val_eval_u32WSub (σ : Assignment) (x y : Expr) :
+    (Expr.eval σ (x.u32WSub y)).val =
+      (u32OverflowingSub (x.eval σ).val (y.eval σ).val).2 := by
+  rw [eval_u32WSub]
+  exact felt_ofNat_val_lt _
+    (u32_overflow_sub_snd_lt _ _ (felt_val_lt_prime _) (felt_val_lt_prime _))
+
 /-! The next two lemmas are scoped to `miden_reflect_norm` only: as global
 `@[simp]` lemmas they would silently rewrite `clo`/`cto` spellings in unrelated
 manual proofs. -/
