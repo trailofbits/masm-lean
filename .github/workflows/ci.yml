@@ -1,0 +1,136 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# A newer push to the same branch supersedes an in-flight run; `main` runs are
+# never cancelled so the default branch always has a conclusive result.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    # Mathlib is the bulk of the work: a cold build is long, a warm one is
+    # minutes. The proof suite itself contains individually expensive modules
+    # (U128/Divmod and friends run into the minutes).
+    timeout-minutes: 180
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install elan
+        run: |
+          curl -sSfL https://github.com/leanprover/elan/releases/latest/download/elan-x86_64-unknown-linux-gnu.tar.gz \
+            | tar xz
+          ./elan-init -y --default-toolchain none
+          echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
+
+      # Keyed on the toolchain and the dependency manifest: a Mathlib bump
+      # invalidates it, ordinary proof edits do not.
+      - name: Cache .lake
+        uses: actions/cache@v4
+        with:
+          path: .lake
+          key: lake-${{ runner.os }}-${{ hashFiles('lean-toolchain', 'lake-manifest.json') }}-${{ github.sha }}
+          restore-keys: |
+            lake-${{ runner.os }}-${{ hashFiles('lean-toolchain', 'lake-manifest.json') }}-
+            lake-${{ runner.os }}-
+
+      - name: Fetch Mathlib build cache
+        run: lake exe cache get || echo "cache unavailable; building Mathlib from source"
+
+      # The library and proofs. A clean build with no `sorry` means every
+      # correctness theorem is machine-checked.
+      - name: Build library and proofs
+        run: lake build MidenLean
+
+      # Not part of the default target by design, so it must be built
+      # explicitly — this is exactly how Symbolic/TacticTest.lean silently
+      # stopped compiling after the Concrete/ restructure.
+      - name: Build symbolic regression tests
+        run: lake build MidenLeanTests
+
+      # `sorry` is only a warning, so `lake build` alone exits 0 with sorries
+      # present. Proofs/Generated holds machine-generated scaffolding that is
+      # deliberately full of `sorry` and imported by nothing.
+      - name: Assert no sorry outside generated scaffolding
+        run: |
+          if grep -rn --include='*.lean' '\bsorry\b' MidenLean \
+               | grep -v '^MidenLean/Proofs/Generated/'; then
+            echo "::error::found sorry outside MidenLean/Proofs/Generated"
+            exit 1
+          fi
+          echo "no sorry outside generated scaffolding"
+
+      # Rebuilds each manual proof module with a strict per-module timeout and
+      # warns on structural problems (missing/misnamed *_correct theorems,
+      # placeholder doc comments). Also proves the README tables are current.
+      - name: Verified-procedure tables are warning-free and in sync
+        run: |
+          python3 scripts/generate_verified_tables.py > /tmp/tables.md 2> /tmp/tables.err
+          if grep -q warning /tmp/tables.err; then
+            echo "::error::generate_verified_tables.py emitted warnings"
+            cat /tmp/tables.err
+            exit 1
+          fi
+          python3 - <<'EOF'
+          import sys
+          tables = open('/tmp/tables.md').read().strip()
+          if tables not in open('README.md').read():
+              sys.exit("::error::README verified-procedures section is stale; "
+                       "regenerate with scripts/generate_verified_tables.py")
+          print("README tables in sync")
+          EOF
+
+  lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install elan
+        run: |
+          curl -sSfL https://github.com/leanprover/elan/releases/latest/download/elan-x86_64-unknown-linux-gnu.tar.gz \
+            | tar xz
+          ./elan-init -y --default-toolchain none
+          echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
+
+      - name: Cache .lake
+        uses: actions/cache@v4
+        with:
+          path: .lake
+          key: lake-${{ runner.os }}-${{ hashFiles('lean-toolchain', 'lake-manifest.json') }}-${{ github.sha }}
+          restore-keys: |
+            lake-${{ runner.os }}-${{ hashFiles('lean-toolchain', 'lake-manifest.json') }}-
+            lake-${{ runner.os }}-
+
+      - name: Fetch Mathlib build cache
+        run: lake exe cache get || echo "cache unavailable; building Mathlib from source"
+
+      - name: Build library
+        run: lake build MidenLean
+
+      # Batteries' linters are opt-in for Mathlib-dependent projects, so a
+      # green `lake build` does not exercise them. simpNF in particular catches
+      # simp lemmas that are redundant or not in simp-normal form — six such
+      # lemmas were live here until they were found this way.
+      #
+      # Deliberately omitted: `unusedArguments`, which does not finish within
+      # a reasonable budget at this library size. Re-add it (per-module) if
+      # someone makes it affordable.
+      - name: Batteries linters (simpNF, dupNamespace, simpVarHead)
+        run: |
+          cat > /tmp/Lint.lean <<'EOF'
+          import MidenLean
+          #lint only simpNF dupNamespace simpVarHead in MidenLean
+          EOF
+          lake env lean /tmp/Lint.lean 2>&1 | tee /tmp/lint.out
+          if grep -qE '^-- Found [1-9]' /tmp/lint.out; then
+            echo "::error::linter findings above"
+            exit 1
+          fi

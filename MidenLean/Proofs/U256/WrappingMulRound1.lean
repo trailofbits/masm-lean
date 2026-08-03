@@ -85,7 +85,7 @@ theorem wm_r1a_correct (a b : U256) (rest : List Felt)
   simp only [pure, Pure.pure]
 
 -- ============================================================================
--- Round 1 Part B: individual mulsteps (sorry for now)
+-- Round 1 Part B: individual mulsteps
 -- ============================================================================
 
 set_option maxHeartbeats 32000000 in
