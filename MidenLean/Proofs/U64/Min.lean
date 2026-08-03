@@ -1,11 +1,11 @@
 import MidenLean.Proofs.U64.Common
-import MidenLean.Proofs.Tactics
+import MidenLean.Proofs.U64.Gt
+import MidenLean.Symbolic.Tactic
 import MidenLean.Generated.U64
 
 namespace MidenLean.Proofs
 
 open MidenLean
-open MidenLean.StepLemmas
 open MidenLean.Tactics
 
 -- Based on generated skeleton: SEMI | Instructions: 10 | Calls: true (gt)
@@ -13,13 +13,17 @@ set_option maxHeartbeats 16000000 in
 /-- `u64::min` computes the minimum of two u64 values.
     Input stack:  [b_lo, b_hi, a_lo, a_hi] ++ rest
     Output stack: [min_lo, min_hi] ++ rest
-    If b > a (as u64), returns a; otherwise returns b. -/
+    If b > a (as u64), returns a; otherwise returns b.
+    Parametric in `fuel` so this lemma serves both as a callee summary for
+    reflective callers and as the basis for `u64_min_correct`. -/
+@[miden_exec_summary]
 theorem u64_min_exec
+    (fuel : Nat)
     (a_lo a_hi b_lo b_hi : Felt) (rest : List Felt) (s : Concrete.State)
     (hs : s.stack = b_lo :: b_hi :: a_lo :: a_hi :: rest)
     (ha_lo : a_lo.isU32 = true) (ha_hi : a_hi.isU32 = true)
     (hb_lo : b_lo.isU32 = true) (hb_hi : b_hi.isU32 = true) :
-    execProcedure u64ProcEnv 20 s Miden.Core.U64.min =
+    execProcedure u64ProcEnv (fuel + 2) s Miden.Core.U64.min =
     some (s.withStack (
       let borrow_lo := decide (a_lo.val < b_lo.val)
       let borrow_hi := decide (a_hi.val < b_hi.val)
@@ -27,50 +31,24 @@ theorem u64_min_exec
       let is_gt := borrow_hi || (hi_eq && borrow_lo)
       (if is_gt then a_lo else b_lo) ::
       (if is_gt then a_hi else b_hi) :: rest)) := by
-  -- Setup: unfold min, resolve ProcEnv, unfold gt body
-  obtain ⟨stk, mem, frames, adv⟩ := s
-  simp only [Concrete.State.withStack] at hs ⊢
-  subst hs
-  unfold Miden.Core.U64.min execProcedure
-  simp only [List.foldlM, u64ProcEnv]
-  dsimp only [bind, Bind.bind, Option.bind]
-  unfold Miden.Core.U64.gt execProcedure
-  simp only [List.foldlM, bind, Bind.bind, Option.bind, pure, Pure.pure]
-  -- Instruction 1: movup 3
-  miden_step
-  -- Instruction 2: movup 3
-  miden_step
-  -- Instruction 3: dupw 0
-  miden_step
-  -- gt body (13 instructions)
-  miden_step  -- movup 3
-  miden_step  -- movup 3
-  miden_step  -- movup 2
-  miden_step  -- swap 1
-  miden_step  -- u32OverflowSub
-  miden_step  -- movdn 3
-  miden_step  -- drop
-  miden_step  -- u32OverflowSub
-  miden_step  -- swap 1
-  miden_step  -- eqImm 0
-  miden_step  -- movup 2
-  -- and: need to rewrite borrow first
-  rw [u32OverflowingSub_borrow_ite a_lo.val b_lo.val]
-  miden_step  -- and
-  rw [u32OverflowingSub_borrow_ite a_hi.val b_hi.val]
-  miden_step  -- or
-  -- Instruction 5: movup 4
-  miden_step
-  -- Instruction 6: movup 3
-  miden_step
-  -- Instruction 7: dup 2
-  miden_step
-  -- Instruction 8: cdrop
-  miden_step
-  -- Instruction 9: movdn 3
-  miden_step
-  -- Instruction 10: cdrop
-  rw [stepCdropIte]
+  miden_vcg
+  all_goals simp only [Symbolic.Expr.eval] at *
+  -- Both branches are vacuous: the `cdrop` selector agrees with the `gt` result.
+  · rename_i h
+    refine ⟨fun h1 h2 => ?_, fun h1 h2 => ?_⟩ <;> exfalso <;>
+      rcases h with h | ⟨heq, hlt⟩
+    · omega
+    · exact (h2 hlt) heq
+    · omega
+    · exact (h2 hlt) heq
+  · rename_i h
+    obtain ⟨hhi, hlo⟩ := h
+    refine ⟨fun hc => ?_, fun hc => ?_⟩ <;> exfalso <;>
+      rcases hc with hc | ⟨hlt, heq⟩
+    · omega
+    · have := hlo heq; omega
+    · omega
+    · have := hlo heq; omega
 
 /-- `u64::min` intermediate: uses `decide (a < b)` on individual limbs. -/
 theorem u64_min_ite (a b : U64) (rest : List Felt) (s : Concrete.State)
@@ -79,7 +57,7 @@ theorem u64_min_ite (a b : U64) (rest : List Felt) (s : Concrete.State)
     some (s.withStack (
       (if decide (a < b) then a.lo.val else b.lo.val) ::
       (if decide (a < b) then a.hi.val else b.hi.val) :: rest)) := by
-  rw [u64_min_exec a.lo.val a.hi.val b.lo.val b.hi.val rest s hs a.lo.isU32 a.hi.isU32 b.lo.isU32 b.hi.isU32]
+  rw [u64_min_exec 18 a.lo.val a.hi.val b.lo.val b.hi.val rest s hs a.lo.isU32 a.hi.isU32 b.lo.isU32 b.hi.isU32]
   simp only [u64_borrow_iff_lt a b]; rfl
 
 /-- `u64::min` computes the minimum of two u64 values.

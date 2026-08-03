@@ -1,12 +1,13 @@
 import MidenLean.Proofs.U256.Common
+import MidenLean.Proofs.U256.U256LeToBe
 import MidenLean.Proofs.U256.U256LeToBePair
 import MidenLean.Proofs.U256.SubWithBorrowBe
-import MidenLean.Proofs.StepLemmas
+import MidenLean.Symbolic.Tactic
 
 namespace MidenLean.Proofs
 
 open MidenLean
-open MidenLean.StepLemmas
+open MidenLean.Tactics
 
 set_option maxHeartbeats 4000000 in
 /-- `u256::wrapping_sub` computes `(a - b) mod 2^256` for two 256-bit values.
@@ -24,21 +25,9 @@ theorem u256_wrapping_sub_correct
     some ⟨(a - b).a0.val :: (a - b).a1.val :: (a - b).a2.val :: (a - b).a3.val ::
           (a - b).a4.val :: (a - b).a5.val :: (a - b).a6.val :: (a - b).a7.val :: rest,
           mem, frames, adv⟩ := by
-  -- Unfold procedure body
-  unfold Miden.Core.U256.wrapping_sub execProcedure
-  simp only [List.foldlM, u256ProcEnv]
-  -- Step 1: execProcedure emptyEnv "u256_le_to_be_pair" (convert LE → BE)
-  dsimp only [bind, Bind.bind, Option.bind]
-  rw [u256_u256_le_to_be_pair_raw]
-  dsimp only [bind, Bind.bind, Option.bind]
-  -- Step 2: execProcedure emptyEnv "sub_with_borrow_be"
-  rw [u256_sub_with_borrow_be_correct]
-  dsimp only [bind, Bind.bind, Option.bind]
-  -- Step 3: drop (discard borrow)
-  rw [stepDrop]
-  dsimp only [bind, Bind.bind, Option.bind]
-  -- Step 4: execProcedure emptyEnv "u256_le_to_be" (convert BE → LE)
-  rw [le_to_be_env]
-  simp only [pure, Pure.pure]
+  miden_vcg
+  all_goals simp only [HSub.hSub, Sub.sub, U256.ofNat_a0, U256.ofNat_a1, U256.ofNat_a2,
+    U256.ofNat_a3, U256.ofNat_a4, U256.ofNat_a5, U256.ofNat_a6, U256.ofNat_a7]
+  all_goals norm_num
 
 end MidenLean.Proofs

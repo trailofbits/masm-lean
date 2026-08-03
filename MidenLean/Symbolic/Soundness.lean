@@ -848,7 +848,8 @@ theorem execInstruction_sound
         · simp [hmod] at hexec
       · push_neg at haddr
         obtain ⟨hlt, hmod⟩ := haddr
-        simp [hlt, hmod] at hexec
+        simp only [ge_iff_le, not_le.mpr hlt, hmod, ne_eq, decide_false, bne_iff_ne,
+          Bool.false_or] at hexec
         obtain ⟨rfl, rfl⟩ := hexec
         refine ⟨cs.withStack (cs.memory (addr + 3) :: cs.memory (addr + 2) ::
           cs.memory (addr + 1) :: cs.memory addr :: srest.map (Expr.eval σ) ++ rest), ?_, ?_⟩
@@ -872,7 +873,8 @@ theorem execInstruction_sound
         · simp [hmod] at hexec
       · push_neg at haddr
         obtain ⟨hlt, hmod⟩ := haddr
-        simp [hlt, hmod] at hexec
+        simp only [ge_iff_le, not_le.mpr hlt, hmod, ne_eq, decide_false, bne_iff_ne,
+          Bool.false_or] at hexec
         obtain ⟨rfl, rfl⟩ := hexec
         refine ⟨cs.withStack (cs.memory addr :: cs.memory (addr + 1) ::
           cs.memory (addr + 2) :: cs.memory (addr + 3) :: srest.map (Expr.eval σ) ++ rest), ?_, ?_⟩
@@ -896,7 +898,8 @@ theorem execInstruction_sound
         · simp [hmod] at hexec
       · push_neg at haddr
         obtain ⟨hlt, hmod⟩ := haddr
-        simp [hlt, hmod] at hexec
+        simp only [ge_iff_le, not_le.mpr hlt, hmod, ne_eq, decide_false, bne_iff_ne,
+          Bool.false_or] at hexec
         obtain ⟨rfl, rfl⟩ := hexec
         refine ⟨(((cs.writeMemory addr (e3.eval σ)).writeMemory (addr + 1) (e2.eval σ)).writeMemory
           (addr + 2) (e1.eval σ) |>.writeMemory (addr + 3) (e0.eval σ)).withStack
@@ -925,7 +928,8 @@ theorem execInstruction_sound
         · simp [hmod] at hexec
       · push_neg at haddr
         obtain ⟨hlt, hmod⟩ := haddr
-        simp [hlt, hmod] at hexec
+        simp only [ge_iff_le, not_le.mpr hlt, hmod, ne_eq, decide_false, bne_iff_ne,
+          Bool.false_or] at hexec
         obtain ⟨rfl, rfl⟩ := hexec
         refine ⟨(((cs.writeMemory addr (e0.eval σ)).writeMemory (addr + 1) (e1.eval σ)).writeMemory
           (addr + 2) (e2.eval σ) |>.writeMemory (addr + 3) (e3.eval σ)).withStack

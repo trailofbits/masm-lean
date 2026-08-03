@@ -1,5 +1,6 @@
+import MidenLean.Proofs.Word.Common
 import MidenLean.Proofs.Tactics
-import MidenLean.Proofs.Word.Arrange
+import MidenLean.Symbolic.Tactic
 import MidenLean.Generated.Word
 
 namespace MidenLean.Proofs
@@ -7,44 +8,6 @@ namespace MidenLean.Proofs
 open MidenLean
 open MidenLean.StepLemmas
 open MidenLean.Tactics
-
-/-- Procedure environment for word comparison procedures. -/
-def wordProcEnv : ProcEnv := fun name =>
-  match name with
-  | "arrange_words_adjacent_le" => some Miden.Core.Word.arrange_words_adjacent_le
-  | "lt" => some Miden.Core.Word.lt
-  | "gt" => some Miden.Core.Word.gt
-  | _ => none
-
-/-- Convert Prop-level `if a < b` to Bool-level `if decide (a < b)` for Felt values. -/
-private theorem felt_ite_lt_decide (a b : Felt) :
-    (if a.val < b.val then (1:Felt) else 0) =
-    (if decide (a.val < b.val) then (1:Felt) else 0) := by
-  cases h : decide (a.val < b.val) <;> simp_all [decide_eq_true_eq, decide_eq_false_iff_not]
-
-/-- Convert Prop-level `if a > b` to Bool-level `if decide (a > b)` for Felt values. -/
-private theorem felt_ite_gt_decide (a b : Felt) :
-    (if a.val > b.val then (1:Felt) else 0) =
-    (if decide (a.val > b.val) then (1:Felt) else 0) := by
-  cases h : decide (a.val > b.val) <;> simp_all [decide_eq_true_eq, decide_eq_false_iff_not]
-
-set_option maxHeartbeats 4000000 in
-theorem arrange_for_wordProcEnv
-    (a0 a1 a2 a3 b0 b1 b2 b3 : Felt) (rest : List Felt)
-    (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt) :
-    execProcedure wordProcEnv 2
-      ⟨a0 :: a1 :: a2 :: a3 :: b0 :: b1 :: b2 :: b3 :: rest, mem, frames, adv⟩
-      Miden.Core.Word.arrange_words_adjacent_le =
-    some ⟨b3 :: a3 :: b2 :: a2 :: b1 :: a1 :: b0 :: a0 :: rest, mem, frames, adv⟩ := by
-  unfold Miden.Core.Word.arrange_words_adjacent_le execProcedure
-  simp [Procedure.ofOps]
-  miden_step; miden_step; miden_step; miden_step; miden_step  -- movup 7, movup 4, swap, movup 7, movdn 2
-  miden_step; miden_step; miden_step; miden_step; miden_step  -- movup 5, movdn 3, movup 7, movdn 4, movup 6
-  rw [stepMovdn (hn := rfl)]; miden_bind  -- movdn 5
-  miden_step  -- movup 7
-  rw [stepMovdn (hn := rfl)]  -- movdn 6
-  dsimp only [bind, Bind.bind, Option.bind, pure, Pure.pure, insertAt, List.take, List.drop,
-    List.cons_append, List.nil_append, List.append_nil]
 
 -- One iteration of the word.gt comparison loop.
 set_option maxHeartbeats 4000000 in
@@ -96,18 +59,15 @@ private theorem gt_iteration_init
   gt_iteration false true b_i a_i tail mem frames adv
 
 set_option maxHeartbeats 16000000 in
-/-- `word::gt` pushes 1 iff the deeper word (pushed first, limbs `b0..b3`) is
-    lexicographically greater than the top word, comparing limbs from the most
-    significant (index 3) downward. -/
-theorem word_gt_correct
+private theorem word_gt_exec_concrete
     (a0 a1 a2 a3 b0 b1 b2 b3 : Felt) (rest : List Felt) (s : Concrete.State)
     (hs : s.stack = a0 :: a1 :: a2 :: a3 :: b0 :: b1 :: b2 :: b3 :: rest) :
-    let result := decide (a3.val < b3.val)
+    execProcedure wordProcEnv 3 s Miden.Core.Word.gt =
+    some (s.withStack ((if decide (a3.val < b3.val)
                   || ((b3 == a3) && decide (a2.val < b2.val))
                   || ((b3 == a3) && (b2 == a2) && decide (a1.val < b1.val))
                   || ((b3 == a3) && (b2 == a2) && (b1 == a1) && decide (a0.val < b0.val))
-    execProcedure wordProcEnv 3 s Miden.Core.Word.gt =
-    some (s.withStack ((if result then (1:Felt) else 0) :: rest)) := by
+                then (1:Felt) else 0) :: rest)) := by
   obtain ⟨stk, mem, frames, adv⟩ := s
   simp only [Concrete.State.withStack] at hs ⊢
   subst hs
@@ -143,5 +103,40 @@ theorem word_gt_correct
   miden_step  -- swap 1
   rw [stepDrop]
   simp
+
+/-- `word::gt` pushes 1 iff the deeper word (pushed first, limbs `b0..b3`) is
+    lexicographically greater than the top word, comparing limbs from the most
+    significant (index 3) downward.
+    Parametric in `fuel` (derived from the concrete-fuel proof by fuel
+    monotonicity) so this lemma serves both as a callee summary for reflective
+    callers and as the basis for `word_gt_correct`. The env is fixed to
+    `wordProcEnv` because the proof resolves the `exec arrange_words_adjacent_le`
+    call by unfolding that environment. -/
+@[miden_exec_summary]
+theorem word_gt_exec (fuel : Nat)
+    (a0 a1 a2 a3 b0 b1 b2 b3 : Felt) (rest : List Felt) (s : Concrete.State)
+    (hs : s.stack = a0 :: a1 :: a2 :: a3 :: b0 :: b1 :: b2 :: b3 :: rest) :
+    execProcedure wordProcEnv (fuel + 3) s Miden.Core.Word.gt =
+    some (s.withStack ((if decide (a3.val < b3.val)
+                  || ((b3 == a3) && decide (a2.val < b2.val))
+                  || ((b3 == a3) && (b2 == a2) && decide (a1.val < b1.val))
+                  || ((b3 == a3) && (b2 == a2) && (b1 == a1) && decide (a0.val < b0.val))
+                then (1:Felt) else 0) :: rest)) :=
+  execProcedure_fuel_mono (by omega)
+    (word_gt_exec_concrete a0 a1 a2 a3 b0 b1 b2 b3 rest s hs)
+
+/-- `word::gt` pushes 1 iff the deeper word (pushed first, limbs `b0..b3`) is
+    lexicographically greater than the top word, comparing limbs from the most
+    significant (index 3) downward. -/
+theorem word_gt_correct
+    (a0 a1 a2 a3 b0 b1 b2 b3 : Felt) (rest : List Felt) (s : Concrete.State)
+    (hs : s.stack = a0 :: a1 :: a2 :: a3 :: b0 :: b1 :: b2 :: b3 :: rest) :
+    let result := decide (a3.val < b3.val)
+                  || ((b3 == a3) && decide (a2.val < b2.val))
+                  || ((b3 == a3) && (b2 == a2) && decide (a1.val < b1.val))
+                  || ((b3 == a3) && (b2 == a2) && (b1 == a1) && decide (a0.val < b0.val))
+    execProcedure wordProcEnv 3 s Miden.Core.Word.gt =
+    some (s.withStack ((if result then (1:Felt) else 0) :: rest)) :=
+  word_gt_exec 0 a0 a1 a2 a3 b0 b1 b2 b3 rest s hs
 
 end MidenLean.Proofs

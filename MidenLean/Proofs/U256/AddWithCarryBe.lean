@@ -1,5 +1,6 @@
 import MidenLean.Proofs.U256.Common
 import MidenLean.Proofs.Tactics
+import MidenLean.Symbolic.Tactic
 
 namespace MidenLean.Proofs
 
@@ -322,8 +323,11 @@ set_option maxHeartbeats 8000000 in
 /-- `u256::add_with_carry_be` raw carry-chain form.
     Input stack:  [b7, ..., b0, a7, ..., a0] ++ rest  (big-endian limbs)
     Output stack: [carry, r7, ..., r0] ++ rest
-    where carry * 2^256 + U256.mk(r0..r7).toNat = a.toNat + b.toNat. -/
-private theorem u256_add_with_carry_be_raw
+    where carry * 2^256 + U256.mk(r0..r7).toNat = a.toNat + b.toNat.
+    Parametric in `fuel` so this lemma serves both as a callee summary for
+    reflective callers and as the basis for `u256_add_with_carry_be_correct`. -/
+@[miden_exec_summary]
+theorem u256_add_with_carry_be_exec
     (a b : U256) (rest : List Felt) (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (fuel : Nat) :
     let s := a.toNat + b.toNat
@@ -446,7 +450,7 @@ theorem u256_add_with_carry_be_correct
           (a + b).a7.val :: (a + b).a6.val :: (a + b).a5.val :: (a + b).a4.val ::
           (a + b).a3.val :: (a + b).a2.val :: (a + b).a1.val :: (a + b).a0.val :: rest,
           mem, frames, adv⟩ := by
-  rw [u256_add_with_carry_be_raw a b rest mem frames adv fuel]
+  rw [u256_add_with_carry_be_exec a b rest mem frames adv fuel]
   simp only [HAdd.hAdd, Add.add, U256.ofNat_a0, U256.ofNat_a1, U256.ofNat_a2, U256.ofNat_a3,
              U256.ofNat_a4, U256.ofNat_a5, U256.ofNat_a6, U256.ofNat_a7]
 

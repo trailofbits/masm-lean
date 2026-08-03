@@ -1,12 +1,11 @@
 import MidenLean.Proofs.U64.Common
-import MidenLean.Proofs.Tactics
+import MidenLean.Proofs.U64.Lt
 import MidenLean.Symbolic.Tactic
 import MidenLean.Generated.U64
 
 namespace MidenLean.Proofs
 
 open MidenLean
-open MidenLean.StepLemmas
 open MidenLean.Tactics
 
 set_option maxHeartbeats 8000000 in
@@ -32,34 +31,16 @@ theorem u64_gte_exec
       let borrow_hi := decide (a_hi.val < b_hi.val)
       let hi_eq := Felt.ofNat (u32OverflowingSub a_hi.val b_hi.val).2 == (0 : Felt)
       (if !(borrow_hi || (hi_eq && borrow_lo)) then (1 : Felt) else 0) :: rest)) := by
-  obtain ⟨stk, mem, frames, adv⟩ := s
-  simp only [Concrete.State.withStack] at hs ⊢
-  subst hs
-  -- Unfold gte and resolve ProcEnv
-  unfold Miden.Core.U64.gte execProcedure
-  simp only [List.foldlM, u64ProcEnv]
-  dsimp only [bind, Bind.bind, Option.bind]
-  -- Unfold lt body
-  unfold Miden.Core.U64.lt execProcedure
-  simp only [List.foldlM, bind, Bind.bind, Option.bind, pure, Pure.pure]
-  -- Step through lt body
-  miden_movup; miden_movup; miden_movup
-  rw [stepU32OverflowSub (ha := by assumption) (hb := by assumption)]; dsimp only []
-  miden_movdn
-  rw [stepDrop]; dsimp only []
-  miden_swap
-  rw [stepU32OverflowSub (ha := by assumption) (hb := by assumption)]; dsimp only []
-  miden_swap
-  rw [stepEqImm]; dsimp only []
-  miden_movup
-  -- Convert borrow_lo to boolean ite form for stepAndIte
-  rw [u32OverflowingSub_borrow_ite a_lo.val b_lo.val]
-  rw [stepAndIte]; dsimp only []
-  -- Convert borrow_hi to boolean ite form for stepOrIte
-  rw [u32OverflowingSub_borrow_ite a_hi.val b_hi.val]
-  rw [stepOrIte]; dsimp only []
-  -- not
-  rw [stepNotIte]
+  miden_vcg
+  · rename_i h
+    intro hle
+    rcases h with h | ⟨heq, hlt⟩
+    · omega
+    · exact ⟨hlt, heq⟩
+  · rename_i h
+    intro hlt heq
+    have := h.2 heq
+    omega
 
 /-- `u64::gte` pushes 1 iff `a ≥ b` (as u64).
     Input stack:  [b_lo, b_hi, a_lo, a_hi] ++ rest

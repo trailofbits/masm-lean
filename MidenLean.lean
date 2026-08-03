@@ -101,6 +101,7 @@ import MidenLean.Proofs.U256.WrappingMul
 import MidenLean.Proofs.U256.WrappingMulBridge
 import MidenLean.Proofs.U256.WrappingSub
 import MidenLean.Proofs.U256.Xor
+import MidenLean.Proofs.Word.Common
 import MidenLean.Proofs.Word.Testz
 import MidenLean.Proofs.Word.Eqz
 import MidenLean.Proofs.Word.Reverse

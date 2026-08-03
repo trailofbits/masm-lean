@@ -1,5 +1,6 @@
 import MidenLean.Proofs.U256.Common
 import MidenLean.Proofs.Tactics
+import MidenLean.Symbolic.Tactic
 
 namespace MidenLean.Proofs
 
@@ -495,8 +496,11 @@ set_option maxHeartbeats 8000000 in
 /-- `u256::sub_with_borrow_be` raw digit-extraction form.
     Input stack:  [b.a7, ..., b.a0, a.a7, ..., a.a0] ++ rest
     Output stack: [1-s/2^256, (s/2^224)%2^32, ..., s%2^32] ++ rest
-    where s = a.toNat + 2^256 - b.toNat. -/
-private theorem u256_sub_with_borrow_be_raw
+    where s = a.toNat + 2^256 - b.toNat.
+    Parametric in `fuel` so this lemma serves both as a callee summary for
+    reflective callers and as the basis for `u256_sub_with_borrow_be_correct`. -/
+@[miden_exec_summary]
+theorem u256_sub_with_borrow_be_exec
     (a b : U256) (rest : List Felt) (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
     (fuel : Nat) :
     execProcedure u256ProcEnv (fuel + 1)
@@ -650,7 +654,7 @@ theorem u256_sub_with_borrow_be_correct
           (a - b).a7.val :: (a - b).a6.val :: (a - b).a5.val :: (a - b).a4.val ::
           (a - b).a3.val :: (a - b).a2.val :: (a - b).a1.val :: (a - b).a0.val :: rest,
           mem, frames, adv⟩ := by
-  rw [u256_sub_with_borrow_be_raw a b rest mem frames adv fuel]
+  rw [u256_sub_with_borrow_be_exec a b rest mem frames adv fuel]
   have hborrow : 1 - (a.toNat + 2^256 - b.toNat) / 2^256 =
       if a.toNat < b.toNat then 1 else 0 := by
     have := a.toNat_lt; have := b.toNat_lt

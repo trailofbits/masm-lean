@@ -46,7 +46,7 @@ theorem wm_setup_spec (a b : U256) (rest : List Felt) (mem : Nat → Felt)
   simp only [List.foldlM, u256ProcEnv]
   -- Step 1: execProcedure emptyEnv "u256_le_to_be_pair"
   dsimp only [bind, Bind.bind, Option.bind]
-  rw [u256_u256_le_to_be_pair_raw]
+  rw [u256_u256_le_to_be_pair_exec]
   dsimp only [bind, Bind.bind, Option.bind]
   -- Step 2: locStorewBe 0
   rw [stepLocStorewBe (halign := wm_align_0) (hbound := wm_bound_0 hnl)]

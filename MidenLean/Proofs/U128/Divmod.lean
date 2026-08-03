@@ -1,6 +1,7 @@
 import MidenLean.Proofs.U128.Common
 import MidenLean.Proofs.U128.OverflowingMul
 import MidenLean.Proofs.Tactics
+import MidenLean.Symbolic.SimpAttrs
 import MidenLean.Generated.U128
 
 namespace MidenLean.Proofs
@@ -5131,5 +5132,28 @@ theorem u128_divmod_correct
       r.a0.isU32 r.a1.isU32 r.a2.isU32 r.a3.isU32
       (by simpa [U128.toNat, u128RawValue] using hdiv)
       (by simpa [U128.toNat, u128RawValue] using hlt)
+
+/-- Success summary for `u128::divmod` in `u128ProcEnv`, parametric in `fuel`.
+    Tagged so reflective callers (`u128::div`, `u128::mod`) can resolve their
+    `exec divmod` call automatically.
+    Input stack:  [b.a0, b.a1, b.a2, b.a3, a.a0, a.a1, a.a2, a.a3] ++ rest
+    Advice stack: [r.a0, r.a1, r.a2, r.a3, q.a0, q.a1, q.a2, q.a3] ++ adv_rest
+    Output stack: [r.a0, r.a1, r.a2, r.a3, q.a0, q.a1, q.a2, q.a3] ++ rest -/
+@[miden_exec_summary]
+theorem u128_divmod_exec (fuel : Nat)
+    (a b q r : U128) (rest adv_rest : List Felt) (s : Concrete.State)
+    (hs : s.stack = b.a0.val :: b.a1.val :: b.a2.val :: b.a3.val ::
+                    a.a0.val :: a.a1.val :: a.a2.val :: a.a3.val :: rest)
+    (hadv : s.advice = r.a0.val :: r.a1.val :: r.a2.val :: r.a3.val ::
+                      q.a0.val :: q.a1.val :: q.a2.val :: q.a3.val :: adv_rest)
+    (hdiv : q.toNat * b.toNat + r.toNat = a.toNat) (hlt : r.toNat < b.toNat) :
+    execProcedure u128ProcEnv (fuel + 1) s Miden.Core.U128.divmod =
+    some { stack := r.a0.val :: r.a1.val :: r.a2.val :: r.a3.val ::
+                     q.a0.val :: q.a1.val :: q.a2.val :: q.a3.val :: rest,
+           memory := s.memory,
+           frames := s.frames,
+           advice := adv_rest } := by
+  rw [u128_divmod_execProcedure_eq (fuel + 1) s (Nat.succ_pos _)]
+  exact (u128_divmod_correct a b q r rest adv_rest s hs hadv).mpr ⟨hdiv, hlt⟩
 
 end MidenLean.Proofs

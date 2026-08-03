@@ -1,16 +1,13 @@
-import MidenLean.Proofs.Word.Gt
+import MidenLean.Proofs.Word.Common
+import MidenLean.Proofs.Tactics
+import MidenLean.Symbolic.Tactic
+import MidenLean.Generated.Word
 
 namespace MidenLean.Proofs
 
 open MidenLean
 open MidenLean.StepLemmas
 open MidenLean.Tactics
-
-/-- Convert Prop-level `if a > b` to Bool-level `if decide (a > b)` for Felt values. -/
-private theorem felt_ite_gt_decide (a b : Felt) :
-    (if a.val > b.val then (1:Felt) else 0) =
-    (if decide (a.val > b.val) then (1:Felt) else 0) := by
-  cases h : decide (a.val > b.val) <;> simp_all [decide_eq_true_eq, decide_eq_false_iff_not]
 
 -- One iteration of the word.lt comparison loop (uses .gt instead of .lt).
 set_option maxHeartbeats 4000000 in
@@ -59,18 +56,15 @@ private theorem lt_iteration_init
   lt_iteration false true b_i a_i tail mem frames adv
 
 set_option maxHeartbeats 16000000 in
-/-- `word::lt` pushes 1 iff the deeper word (pushed first, limbs `b0..b3`) is
-    lexicographically less than the top word, comparing limbs from the most
-    significant (index 3) downward. -/
-theorem word_lt_correct
+private theorem word_lt_exec_concrete
     (a0 a1 a2 a3 b0 b1 b2 b3 : Felt) (rest : List Felt) (s : Concrete.State)
     (hs : s.stack = a0 :: a1 :: a2 :: a3 :: b0 :: b1 :: b2 :: b3 :: rest) :
-    let result := decide (a3.val > b3.val)
+    execProcedure wordProcEnv 3 s Miden.Core.Word.lt =
+    some (s.withStack ((if decide (a3.val > b3.val)
                   || ((b3 == a3) && decide (a2.val > b2.val))
                   || ((b3 == a3) && (b2 == a2) && decide (a1.val > b1.val))
                   || ((b3 == a3) && (b2 == a2) && (b1 == a1) && decide (a0.val > b0.val))
-    execProcedure wordProcEnv 3 s Miden.Core.Word.lt =
-    some (s.withStack ((if result then (1:Felt) else 0) :: rest)) := by
+                then (1:Felt) else 0) :: rest)) := by
   obtain ⟨stk, mem, frames, adv⟩ := s
   simp only [Concrete.State.withStack] at hs ⊢
   subst hs
@@ -104,5 +98,40 @@ theorem word_lt_correct
   rw [stepDrop]
   congr 1; congr 1; congr 1; congr 1
   simp only [Bool.or_eq_true, decide_eq_true_eq, Bool.and_eq_true, beq_iff_eq, gt_iff_lt]
+
+/-- `word::lt` pushes 1 iff the deeper word (pushed first, limbs `b0..b3`) is
+    lexicographically less than the top word, comparing limbs from the most
+    significant (index 3) downward.
+    Parametric in `fuel` (derived from the concrete-fuel proof by fuel
+    monotonicity) so this lemma serves both as a callee summary for reflective
+    callers and as the basis for `word_lt_correct`. The env is fixed to
+    `wordProcEnv` because the proof resolves the `exec arrange_words_adjacent_le`
+    call by unfolding that environment. -/
+@[miden_exec_summary]
+theorem word_lt_exec (fuel : Nat)
+    (a0 a1 a2 a3 b0 b1 b2 b3 : Felt) (rest : List Felt) (s : Concrete.State)
+    (hs : s.stack = a0 :: a1 :: a2 :: a3 :: b0 :: b1 :: b2 :: b3 :: rest) :
+    execProcedure wordProcEnv (fuel + 3) s Miden.Core.Word.lt =
+    some (s.withStack ((if decide (a3.val > b3.val)
+                  || ((b3 == a3) && decide (a2.val > b2.val))
+                  || ((b3 == a3) && (b2 == a2) && decide (a1.val > b1.val))
+                  || ((b3 == a3) && (b2 == a2) && (b1 == a1) && decide (a0.val > b0.val))
+                then (1:Felt) else 0) :: rest)) :=
+  execProcedure_fuel_mono (by omega)
+    (word_lt_exec_concrete a0 a1 a2 a3 b0 b1 b2 b3 rest s hs)
+
+/-- `word::lt` pushes 1 iff the deeper word (pushed first, limbs `b0..b3`) is
+    lexicographically less than the top word, comparing limbs from the most
+    significant (index 3) downward. -/
+theorem word_lt_correct
+    (a0 a1 a2 a3 b0 b1 b2 b3 : Felt) (rest : List Felt) (s : Concrete.State)
+    (hs : s.stack = a0 :: a1 :: a2 :: a3 :: b0 :: b1 :: b2 :: b3 :: rest) :
+    let result := decide (a3.val > b3.val)
+                  || ((b3 == a3) && decide (a2.val > b2.val))
+                  || ((b3 == a3) && (b2 == a2) && decide (a1.val > b1.val))
+                  || ((b3 == a3) && (b2 == a2) && (b1 == a1) && decide (a0.val > b0.val))
+    execProcedure wordProcEnv 3 s Miden.Core.Word.lt =
+    some (s.withStack ((if result then (1:Felt) else 0) :: rest)) :=
+  word_lt_exec 0 a0 a1 a2 a3 b0 b1 b2 b3 rest s hs
 
 end MidenLean.Proofs

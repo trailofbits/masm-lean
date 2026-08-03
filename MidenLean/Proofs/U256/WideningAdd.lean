@@ -1,16 +1,13 @@
 import MidenLean.Proofs.U256.Common
+import MidenLean.Proofs.U256.U256LeToBe
 import MidenLean.Proofs.U256.U256LeToBePair
 import MidenLean.Proofs.U256.AddWithCarryBe
-import MidenLean.Proofs.StepLemmas
+import MidenLean.Symbolic.Tactic
 
 namespace MidenLean.Proofs
 
 open MidenLean
-open MidenLean.StepLemmas
-
--- ============================================================================
--- Main theorem
--- ============================================================================
+open MidenLean.Tactics
 
 set_option maxHeartbeats 4000000 in
 /-- `u256::widening_add` computes `a + b` with carry for two 256-bit values.
@@ -30,21 +27,9 @@ theorem u256_widening_add_correct
           (a + b).a4.val :: (a + b).a5.val :: (a + b).a6.val :: (a + b).a7.val ::
           Felt.ofNat ((a.toNat + b.toNat) / 2^256) :: rest,
           mem, frames, adv⟩ := by
-  -- Unfold procedure body
-  unfold Miden.Core.U256.widening_add execProcedure
-  simp only [List.foldlM, u256ProcEnv]
-  -- Step 1: execProcedure emptyEnv "u256_le_to_be_pair" (convert LE → BE)
-  dsimp only [bind, Bind.bind, Option.bind]
-  rw [u256_u256_le_to_be_pair_raw]
-  dsimp only [bind, Bind.bind, Option.bind]
-  -- Step 2: execProcedure emptyEnv "add_with_carry_be"
-  rw [u256_add_with_carry_be_correct]
-  dsimp only [bind, Bind.bind, Option.bind]
-  -- Step 3: movdn 8 (move carry below result limbs)
-  rw [stepMovdn8]
-  dsimp only [bind, Bind.bind, Option.bind]
-  -- Step 4: execProcedure emptyEnv "u256_le_to_be" (convert BE → LE)
-  rw [le_to_be_env]
-  simp only [pure, Pure.pure]
+  miden_vcg
+  all_goals simp only [HAdd.hAdd, Add.add, U256.ofNat_a0, U256.ofNat_a1, U256.ofNat_a2,
+    U256.ofNat_a3, U256.ofNat_a4, U256.ofNat_a5, U256.ofNat_a6, U256.ofNat_a7]
+  all_goals norm_num
 
 end MidenLean.Proofs

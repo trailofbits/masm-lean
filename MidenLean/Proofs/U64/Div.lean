@@ -70,25 +70,7 @@ theorem u64_div_exec
            memory := s.memory,
            frames := s.frames,
            advice := adv_rest } := by
-  obtain ⟨stk, mem, frames, adv⟩ := s
-  simp only [] at hadv
-  subst hs; subst hadv
-  -- Unfold div: execProcedure emptyEnv "divmod"; drop; drop
-  unfold Miden.Core.U64.div execProcedure
-  simp only [List.foldlM, u64ProcEnv]
-  dsimp only [bind, Bind.bind, Option.bind]
-  -- The execProcedure emptyEnv "divmod" resolves and calls execProcedure u64ProcEnv 50 s divmod_body
-  -- Use the divmod correctness theorem
-  rw [u64_divmod_exec a_lo a_hi b_lo b_hi rest q_lo q_hi r_lo r_hi adv_rest
-        ⟨b_lo :: b_hi :: a_lo :: a_hi :: rest, mem, frames, q_lo :: q_hi :: r_lo :: r_hi :: adv_rest⟩
-        rfl rfl hq_hi_u32 hq_lo_u32 hr_hi_u32 hr_lo_u32 hb_lo_u32 hb_hi_u32
-        cross0_hi_val h_madd1_hi_zero madd1_lo_val h_madd2_hi_zero h_bhi_qlo_zero
-        cross0_lo_val madd2_lo_val h_lt_result h_add2_hi_zero h_a_hi_eq h_a_lo_eq]
-  -- Reduce match (some {...}) to expose execInstruction calls
-  simp only []
-  -- Now we have the divmod result and just need to drop twice
-  miden_step
-  rw [stepDrop]; dsimp only [pure, Pure.pure]
+  miden_vcg
 
 set_option maxHeartbeats 4000000 in
 /-- `u64::div` verifies and returns the quotient of two u64 values.

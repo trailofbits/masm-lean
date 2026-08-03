@@ -1,13 +1,35 @@
 import MidenLean.Proofs.U128.Common
 import MidenLean.Proofs.U128.Divmod
-import MidenLean.Proofs.Tactics
+import MidenLean.Symbolic.Tactic
 import MidenLean.Generated.U128
 
 namespace MidenLean.Proofs
 
 open MidenLean
-open MidenLean.StepLemmas
 open MidenLean.Tactics
+
+set_option maxHeartbeats 12000000 in
+/-- Success summary for `u128::div`: given a valid advice-supplied quotient and
+    remainder, the procedure returns the quotient limbs and consumes the advice.
+    Input stack:  [b.a0, b.a1, b.a2, b.a3, a.a0, a.a1, a.a2, a.a3] ++ rest
+    Advice stack: [r.a0, r.a1, r.a2, r.a3, q.a0, q.a1, q.a2, q.a3] ++ adv_rest
+    Output stack: [q.a0, q.a1, q.a2, q.a3] ++ rest
+    Parametric in `fuel` so this lemma serves both as a callee summary for
+    reflective callers and as the success direction of `u128_div_correct`. -/
+@[miden_exec_summary]
+theorem u128_div_exec (fuel : Nat)
+    (a b q r : U128) (rest adv_rest : List Felt) (s : Concrete.State)
+    (hs : s.stack = b.a0.val :: b.a1.val :: b.a2.val :: b.a3.val ::
+                    a.a0.val :: a.a1.val :: a.a2.val :: a.a3.val :: rest)
+    (hadv : s.advice = r.a0.val :: r.a1.val :: r.a2.val :: r.a3.val ::
+                      q.a0.val :: q.a1.val :: q.a2.val :: q.a3.val :: adv_rest)
+    (hdiv : q.toNat * b.toNat + r.toNat = a.toNat) (hlt : r.toNat < b.toNat) :
+    execProcedure u128ProcEnv (fuel + 2) s Miden.Core.U128.div =
+    some { stack := q.a0.val :: q.a1.val :: q.a2.val :: q.a3.val :: rest,
+           memory := s.memory,
+           frames := s.frames,
+           advice := adv_rest } := by
+  miden_vcg
 
 set_option maxHeartbeats 12000000 in
 /-- `u128::div` verifies an advice-supplied quotient and remainder for u128 division,
@@ -62,35 +84,6 @@ theorem u128_div_correct
           exact h_dm
         exact u128_divmod_conditions_of_exec a b q r rest adv_rest _ rfl rfl h_dm_exec
   · intro ⟨hdiv, hlt⟩
-    have h_divmod :
-        execProcedure emptyEnv 163
-          { stack := b.a0.val :: b.a1.val :: b.a2.val :: b.a3.val ::
-                     a.a0.val :: a.a1.val :: a.a2.val :: a.a3.val :: rest,
-            memory := mem,
-            frames := frames,
-            advice := r.a0.val :: r.a1.val :: r.a2.val :: r.a3.val ::
-                      q.a0.val :: q.a1.val :: q.a2.val :: q.a3.val :: adv_rest }
-          Miden.Core.U128.divmod =
-        some { stack := r.a0.val :: r.a1.val :: r.a2.val :: r.a3.val ::
-                         q.a0.val :: q.a1.val :: q.a2.val :: q.a3.val :: rest,
-               memory := mem,
-               frames := frames,
-               advice := adv_rest } :=
-      (u128_divmod_correct a b q r rest adv_rest
-        { stack := b.a0.val :: b.a1.val :: b.a2.val :: b.a3.val ::
-                   a.a0.val :: a.a1.val :: a.a2.val :: a.a3.val :: rest,
-          memory := mem,
-          frames := frames,
-          advice := r.a0.val :: r.a1.val :: r.a2.val :: r.a3.val ::
-                    q.a0.val :: q.a1.val :: q.a2.val :: q.a3.val :: adv_rest }
-        rfl rfl).mpr ⟨hdiv, hlt⟩
-    unfold Miden.Core.U128.div execProcedure
-    simp only [List.foldlM, u128ProcEnv]
-    dsimp only [bind, Bind.bind, Option.bind]
-    rw [u128_divmod_execProcedure_eq 30 _ (by decide)]
-    rw [h_divmod]
-    miden_bind
-    rw [stepDropw]
-    rfl
+    exact u128_div_exec 29 a b q r rest adv_rest _ rfl rfl hdiv hlt
 
 end MidenLean.Proofs
