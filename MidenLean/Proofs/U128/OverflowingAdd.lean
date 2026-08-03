@@ -6,9 +6,9 @@ import MidenLean.Generated.U128
 namespace MidenLean.Proofs
 
 open MidenLean
-open MidenLean.StepLemmas
 open MidenLean.Tactics
 
+set_option maxHeartbeats 1000000 in
 /-- `u128::overflowing_add` computes addition of two 128-bit values with carry.
     Input stack:  [b0, b1, b2, b3, a0, a1, a2, a3] ++ rest
     Output stack: [overflow, c0, c1, c2, c3] ++ rest
@@ -38,83 +38,8 @@ theorem u128_overflowing_add_exec
       Felt.ofNat (sum1 % 2 ^ 32) ::
       Felt.ofNat (sum2 % 2 ^ 32) ::
       Felt.ofNat (sum3 % 2 ^ 32) :: rest)) := by
-  obtain ⟨stack, mem, frames, adv⟩ := s
-  simp only [Concrete.State.withStack] at hs ⊢
-  subst hs
-  unfold Miden.Core.U128.overflowing_add execProcedure
-  simp only [List.foldlM]
-  have ha0_lt : a0.val < 2 ^ 32 := by simpa [Felt.isU32, decide_eq_true_eq] using ha0
-  have ha1_lt : a1.val < 2 ^ 32 := by simpa [Felt.isU32, decide_eq_true_eq] using ha1
-  have ha2_lt : a2.val < 2 ^ 32 := by simpa [Felt.isU32, decide_eq_true_eq] using ha2
-  have ha3_lt : a3.val < 2 ^ 32 := by simpa [Felt.isU32, decide_eq_true_eq] using ha3
-  have hb0_lt : b0.val < 2 ^ 32 := by simpa [Felt.isU32, decide_eq_true_eq] using hb0
-  have hb1_lt : b1.val < 2 ^ 32 := by simpa [Felt.isU32, decide_eq_true_eq] using hb1
-  have hb2_lt : b2.val < 2 ^ 32 := by simpa [Felt.isU32, decide_eq_true_eq] using hb2
-  have hb3_lt : b3.val < 2 ^ 32 := by simpa [Felt.isU32, decide_eq_true_eq] using hb3
-  have hcarry0_lt : (b0.val + a0.val) / 2 ^ 32 < 2 ^ 32 := by omega
-  have hcarry1_lt : ((b0.val + a0.val) / 2 ^ 32 + a1.val + b1.val) / 2 ^ 32 < 2 ^ 32 := by
-    omega
-  have hcarry2_lt :
-      ((((b0.val + a0.val) / 2 ^ 32 + a1.val + b1.val) / 2 ^ 32) + a2.val + b2.val) / 2 ^ 32 <
-        2 ^ 32 := by
-    omega
-  have hcarry0_isU32 : (Felt.ofNat ((b0.val + a0.val) / 2 ^ 32)).isU32 = true := by
-    simp only [Felt.isU32, decide_eq_true_eq]
-    rw [felt_ofNat_val_lt _ (by unfold GOLDILOCKS_PRIME; omega)]
-    omega
-  have hcarry1_isU32 :
-      (Felt.ofNat (((b0.val + a0.val) / 2 ^ 32 + a1.val + b1.val) / 2 ^ 32)).isU32 = true := by
-    simp only [Felt.isU32, decide_eq_true_eq]
-    rw [felt_ofNat_val_lt _ (by unfold GOLDILOCKS_PRIME; omega)]
-    omega
-  have hcarry2_isU32 :
-      (Felt.ofNat
-          (((((b0.val + a0.val) / 2 ^ 32 + a1.val + b1.val) / 2 ^ 32) + a2.val + b2.val) /
-            2 ^ 32)).isU32 = true := by
-    simp only [Felt.isU32, decide_eq_true_eq]
-    rw [felt_ofNat_val_lt _ (by unfold GOLDILOCKS_PRIME; omega)]
-    omega
-  have hcarry0_val : (Felt.ofNat ((b0.val + a0.val) / 2 ^ 32)).val = (b0.val + a0.val) / 2 ^ 32 := by
-    apply felt_ofNat_val_lt
-    unfold GOLDILOCKS_PRIME
-    omega
-  have hcarry1_val :
-      (Felt.ofNat (((b0.val + a0.val) / 2 ^ 32 + a1.val + b1.val) / 2 ^ 32)).val =
-        ((b0.val + a0.val) / 2 ^ 32 + a1.val + b1.val) / 2 ^ 32 := by
-    apply felt_ofNat_val_lt
-    unfold GOLDILOCKS_PRIME
-    omega
-  have hcarry2_val :
-      (Felt.ofNat
-          (((((b0.val + a0.val) / 2 ^ 32 + a1.val + b1.val) / 2 ^ 32) + a2.val + b2.val) /
-            2 ^ 32)).val =
-        ((((b0.val + a0.val) / 2 ^ 32 + a1.val + b1.val) / 2 ^ 32) + a2.val + b2.val) / 2 ^ 32 := by
-    apply felt_ofNat_val_lt
-    unfold GOLDILOCKS_PRIME
-    omega
-  miden_movup
-  rw [stepU32WidenAdd (ha := hb0) (hb := ha0)]
-  miden_bind
-  miden_movdn
-  miden_movup
-  miden_movup
-  rw [stepU32WidenAdd3 (ha := hcarry0_isU32) (hb := ha1) (hc := hb1)]
-  miden_bind
-  rw [hcarry0_val]
-  miden_movdn
-  miden_movup
-  miden_movup
-  rw [stepU32WidenAdd3 (ha := hcarry1_isU32) (hb := ha2) (hc := hb2)]
-  miden_bind
-  rw [hcarry1_val]
-  miden_movdn
-  miden_movup
-  miden_movup
-  rw [stepU32WidenAdd3 (ha := hcarry2_isU32) (hb := ha3) (hc := hb3)]
-  miden_bind
-  rw [hcarry2_val]
-  miden_movdn
-  simp only [pure, Pure.pure]
+  miden_vcg
+  all_goals miden_finish_reflection
 
 /-- `u128::overflowing_add` computes `a + b` with overflow detection.
     Input stack:  [b.a0, b.a1, b.a2, b.a3, a.a0, a.a1, a.a2, a.a3] ++ rest

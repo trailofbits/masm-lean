@@ -6,7 +6,6 @@ import MidenLean.Generated.U64
 namespace MidenLean.Proofs
 
 open MidenLean
-open MidenLean.StepLemmas
 open MidenLean.Tactics
 
 /-- `u64::overflowing_add` computes addition of two u64 values with carry.
@@ -28,22 +27,8 @@ theorem u64_overflowing_add_exec
       Felt.ofNat ((b_lo.val + a_lo.val) % 2 ^ 32) ::
       Felt.ofNat ((a_hi.val + b_hi.val + (b_lo.val + a_lo.val) / 2 ^ 32) % 2 ^ 32) ::
       rest)) := by
-  obtain ⟨stack, mem, frames, adv⟩ := s
-  simp only [Concrete.State.withStack] at hs ⊢
-  subst hs
-  unfold Miden.Core.U64.overflowing_add execProcedure
-  simp only [List.foldlM]
-  miden_movup
-  rw [stepU32WidenAdd (ha := by assumption) (hb := by assumption)]
-  miden_bind
-  miden_movdn
-  have h_carry_isU32 : (Felt.ofNat ((b_lo.val + a_lo.val) / 2 ^ 32)).isU32 = true :=
-    u32_div_2_32_isU32 b_lo a_lo hb_lo ha_lo
-  rw [stepU32WidenAdd3 (ha := by assumption) (hb := by assumption) (hc := by assumption)]
-  miden_bind
-  miden_movdn
-  dsimp only [pure, Pure.pure]
-  rw [felt_ofNat_val_lt _ (sum_div_2_32_lt_prime b_lo a_lo)]
+  miden_vcg
+  all_goals miden_finish_reflection
 
 /-- `u64::overflowing_add` computes `a + b` with overflow detection.
     Input stack:  [b.lo, b.hi, a.lo, a.hi] ++ rest

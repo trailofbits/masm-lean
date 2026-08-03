@@ -406,6 +406,15 @@ theorem u32OverflowingSub_borrow_ite (a b : Nat) :
   rw [ZMod.val_natCast]
   exact Nat.mod_eq_of_lt h
 
+/-- Unconditional companion to `felt_ofNat_val_lt`: embedding into `Felt` and
+    reading `val` back reduces mod the prime. Deliberately *not* tagged into any
+    `simp` set — as a rewrite it would compete with the conditional round-trip
+    lemmas and turn every recovered value into a `% GOLDILOCKS_PRIME` term.
+    It is used explicitly, to flatten residual goals for `omega`. -/
+theorem felt_ofNat_val_mod (n : Nat) : (Felt.ofNat n).val = n % GOLDILOCKS_PRIME := by
+  unfold Felt.ofNat
+  exact ZMod.val_natCast (n := GOLDILOCKS_PRIME) n
+
 /-- Every `Felt` has `val` below the Goldilocks prime. -/
 @[miden_bound] theorem felt_val_lt_prime (a : Felt) : a.val < GOLDILOCKS_PRIME :=
   ZMod.val_lt a
@@ -423,6 +432,14 @@ theorem u32OverflowingSub_borrow_ite (a b : Nat) :
     (a.val + b.val) / 2^32 < GOLDILOCKS_PRIME := by
   have ha := felt_val_lt_prime a
   have hb := felt_val_lt_prime b
+  unfold GOLDILOCKS_PRIME at *; omega
+
+/-- The carry of a three-way `Felt` sum is below the Goldilocks prime. -/
+@[miden_bound] theorem sum3_div_2_32_lt_prime (a b c : Felt) :
+    (a.val + b.val + c.val) / 2^32 < GOLDILOCKS_PRIME := by
+  have ha := felt_val_lt_prime a
+  have hb := felt_val_lt_prime b
+  have hc := felt_val_lt_prime c
   unfold GOLDILOCKS_PRIME at *; omega
 
 /-- The borrow of `u32OverflowingSub` is below the Goldilocks prime. -/

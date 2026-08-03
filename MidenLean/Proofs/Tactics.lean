@@ -343,6 +343,17 @@ elab_rules : tactic
           if goals.isEmpty then return
           else savedState.restore
         catch _ => savedState.restore
+      -- Residual `isU32` obligations on a reflected carry chain look like
+      -- `(Felt.ofNat <flat Nat expr>).isU32 = true`, where the expression is a
+      -- nest of `/ 2^32` carries. The structural `miden_u32` lemmas cannot chain
+      -- that deep (simp's discharge depth is capped), so flatten `.val` to
+      -- `_ % GOLDILOCKS_PRIME` and let `omega` work from the u32 bounds in
+      -- context: it handles division and modulus by literals directly.
+      if ← tryClose (← `(tactic|
+        (simp only [MidenLean.Felt.isU32, decide_eq_true_eq,
+                    MidenLean.felt_ofNat_val_mod, MidenLean.GOLDILOCKS_PRIME] at *;
+         omega))) then
+        return
       -- Handle boolean OR identity from borrow values (e.g., u32OverflowingSub borrows).
       -- Operates on the simp-normalized goal. Rewrites borrows to if-then-else, splits,
       -- and closes by computation + omega.

@@ -189,6 +189,88 @@ def concreteStateWithLocals (stackPrefix : List Felt) (mem : Nat → Felt)
       a * b = 0 ∨ a * b = 1 := by
   simp [Precondition.holds, Expr.eval]
 
+/-! ### Widening-add carry chains
+
+The `u32WidenAdd` / `u32WidenAdd3` handlers push a `Lo` node and a `Hi` node that
+each embed the same operand subtrees, so along a carry chain the carry expression
+reappears at every limb, and each limb consumes the previous carry as
+`(Expr.eval σ carry).val` — a `ZMod.val ∘ Felt.ofNat` round-trip.
+
+Unfolding `Expr.eval` alone cannot eliminate those round-trips, for two
+independent reasons. `Expr.eval` spells the modulus `u32Max` while the round-trip
+lemmas in `miden_val` / `miden_bound` are keyed on `2 ^ 32` and the goal side is
+normalized to the literal `4294967296` (by `Nat.reducePow` in the default `simp`
+set), so no spelling matches; and the general conditional route,
+`felt_ofNat_val_lt`, needs a `< GOLDILOCKS_PRIME` side condition that the
+discharger cannot establish for a nested carry. Nothing collapses, `simp`
+re-traverses the duplicated subtrees, and the cost per chain depth measured
+0.02s / 0.2s / 4.8s / >110s for depths 1–4 — the depth-4
+`u128::overflowing_add` chain exceeded 4M heartbeats.
+
+The eight lemmas below collapse one carry level in a single rewrite with no side
+condition: the `.val` of a widening-add node is *unconditionally* below the
+prime, because the operands are `Felt`s (so their sum is below `3 * (p - 1)`,
+and dividing by `2 ^ 32` or reducing mod `2 ^ 32` lands well below `p`).
+
+Two details matter:
+
+* They are registered as **pre**-order (`↓`) rewrites. `simp` rewrites
+  bottom-up, so by the time it reaches `(Expr.eval σ carry).val` the inner
+  `Expr.eval` has already been unfolded to `Felt.ofNat …` and the fused
+  `val`-of-`eval` pattern no longer matches. Firing before the descent is what
+  keeps each level to one rewrite.
+* The right-hand sides spell the modulus `2 ^ 32`, not `u32Max`, so that the
+  usual literal normalization lands on the same form as the user's statement.
+
+Scoped to `miden_reflect_norm` / `miden_val` rather than `@[simp]`: they are
+normalization steps for reflected goals, not facts wanted in unrelated proofs. -/
+
+/-- Evaluate the low word of a two-operand widening add. -/
+@[miden_reflect_norm ↓, miden_val ↓] theorem eval_u32AddLo (σ : Assignment) (x y : Expr) :
+    Expr.eval σ (x.u32AddLo y) =
+      Felt.ofNat (((x.eval σ).val + (y.eval σ).val) % 2 ^ 32) := rfl
+
+/-- Evaluate the carry of a two-operand widening add. -/
+@[miden_reflect_norm ↓, miden_val ↓] theorem eval_u32AddHi (σ : Assignment) (x y : Expr) :
+    Expr.eval σ (x.u32AddHi y) =
+      Felt.ofNat (((x.eval σ).val + (y.eval σ).val) / 2 ^ 32) := rfl
+
+/-- Evaluate the low word of a three-operand widening add. -/
+@[miden_reflect_norm ↓, miden_val ↓] theorem eval_u32Add3Lo (σ : Assignment) (x y z : Expr) :
+    Expr.eval σ (x.u32Add3Lo y z) =
+      Felt.ofNat (((x.eval σ).val + (y.eval σ).val + (z.eval σ).val) % 2 ^ 32) := rfl
+
+/-- Evaluate the carry of a three-operand widening add. -/
+@[miden_reflect_norm ↓, miden_val ↓] theorem eval_u32Add3Hi (σ : Assignment) (x y z : Expr) :
+    Expr.eval σ (x.u32Add3Hi y z) =
+      Felt.ofNat (((x.eval σ).val + (y.eval σ).val + (z.eval σ).val) / 2 ^ 32) := rfl
+
+/-- The low word of a two-operand widening add round-trips through `Felt`. -/
+@[miden_reflect_norm ↓, miden_val ↓] theorem val_eval_u32AddLo (σ : Assignment) (x y : Expr) :
+    (Expr.eval σ (x.u32AddLo y)).val = ((x.eval σ).val + (y.eval σ).val) % 2 ^ 32 := by
+  rw [eval_u32AddLo]
+  exact felt_ofNat_val_lt _ (u32_mod_lt_prime _)
+
+/-- The carry of a two-operand widening add round-trips through `Felt`. -/
+@[miden_reflect_norm ↓, miden_val ↓] theorem val_eval_u32AddHi (σ : Assignment) (x y : Expr) :
+    (Expr.eval σ (x.u32AddHi y)).val = ((x.eval σ).val + (y.eval σ).val) / 2 ^ 32 := by
+  rw [eval_u32AddHi]
+  exact felt_ofNat_val_lt _ (sum_div_2_32_lt_prime _ _)
+
+/-- The low word of a three-operand widening add round-trips through `Felt`. -/
+@[miden_reflect_norm ↓, miden_val ↓] theorem val_eval_u32Add3Lo (σ : Assignment) (x y z : Expr) :
+    (Expr.eval σ (x.u32Add3Lo y z)).val =
+      ((x.eval σ).val + (y.eval σ).val + (z.eval σ).val) % 2 ^ 32 := by
+  rw [eval_u32Add3Lo]
+  exact felt_ofNat_val_lt _ (u32_mod_lt_prime _)
+
+/-- The carry of a three-operand widening add round-trips through `Felt`. -/
+@[miden_reflect_norm ↓, miden_val ↓] theorem val_eval_u32Add3Hi (σ : Assignment) (x y z : Expr) :
+    (Expr.eval σ (x.u32Add3Hi y z)).val =
+      ((x.eval σ).val + (y.eval σ).val + (z.eval σ).val) / 2 ^ 32 := by
+  rw [eval_u32Add3Hi]
+  exact felt_ofNat_val_lt _ (sum3_div_2_32_lt_prime _ _ _)
+
 /-! The next two lemmas are scoped to `miden_reflect_norm` only: as global
 `@[simp]` lemmas they would silently rewrite `clo`/`cto` spellings in unrelated
 manual proofs. -/
