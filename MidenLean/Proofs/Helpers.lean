@@ -356,20 +356,14 @@ its `val`) back into the underlying proposition.
     Felt.isBool (if p then (1 : Felt) else 0) = true := by
   cases p <;> simp [Felt.isBool, Felt.val_one']
 
-/-- Multiplying two boolean flags is their conjunction. -/
-@[simp] theorem Felt.ite_mul_ite (p q : Bool) :
-    (if p then (1 : Felt) else 0) * (if q then (1 : Felt) else 0) =
-    if (p && q) then (1 : Felt) else 0 := by
-  cases p <;> cases q <;> simp
-
 /-- A boolean flag equals `1` exactly when its condition holds. -/
-@[simp, miden_reflect_norm] theorem Felt.ite_prop_eq_one_iff
+@[miden_reflect_norm] theorem Felt.ite_prop_eq_one_iff
     (p : Prop) [Decidable p] :
     (if p then (1 : Felt) else 0) = 1 ↔ p := by
   by_cases hp : p <;> simp [hp]
 
 /-- A boolean flag equals `0` exactly when its condition fails. -/
-@[simp, miden_reflect_norm] theorem Felt.ite_prop_eq_zero_iff
+@[miden_reflect_norm] theorem Felt.ite_prop_eq_zero_iff
     (p : Prop) [Decidable p] :
     (if p then (1 : Felt) else 0) = 0 ↔ ¬p := by
   by_cases hp : p <;> simp [hp]
@@ -381,7 +375,7 @@ its `val`) back into the underlying proposition.
   by_cases hp : p <;> simp [hp]
 
 /-- `val`-level version of `Felt.ite_prop_eq_zero_iff`. -/
-@[simp, miden_reflect_norm] theorem Felt.val_ite_prop_eq_zero_iff
+@[miden_reflect_norm] theorem Felt.val_ite_prop_eq_zero_iff
     (p : Prop) [Decidable p] :
     (if p then (1 : Felt) else 0).val = 0 ↔ ¬p := by
   by_cases hp : p <;> simp [hp]

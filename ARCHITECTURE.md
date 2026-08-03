@@ -146,7 +146,8 @@ The theorem-backed path is intended for expensive helpers such as multiplication
 - `Concrete.State.withStack` projections (stack, memory, locals, advice)
 - local-frame and read-after-write simplification
 - `Felt.isBool` on `if p then 1 else 0` expressions
-- `Felt.ite_mul_ite` for boolean AND reduction
+- boolean-flag normalization (`Felt.ite_prop_eq_one_iff` and friends, scoped to
+  the `miden_reflect_norm` set)
 
 These ensure that `simp` can close goals involving state projections and boolean field arithmetic.
 

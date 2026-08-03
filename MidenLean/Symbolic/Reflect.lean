@@ -101,7 +101,7 @@ def concreteStateWithLocals (stackPrefix : List Felt) (mem : Nat → Felt)
   | cons x xs ih => simp [Expr.eval, ih]
 
 /-- Evaluating a literal-mapped list recovers the original list. -/
-@[simp, miden_reflect_norm] theorem map_eval_lit_concrete (xs : List Felt) :
+@[miden_reflect_norm] theorem map_eval_lit_concrete (xs : List Felt) :
     List.map (Expr.eval concreteAssignment) (xs.map Expr.lit) = xs := by
   induction xs with
   | nil => rfl
@@ -164,7 +164,7 @@ def concreteStateWithLocals (stackPrefix : List Felt) (mem : Nat → Felt)
   by_cases h : a = b <;> simp [Expr.eval, h]
 
 /-- `val`-level version of `eval_feltEq_lit_concrete_eq_zero_iff`. -/
-@[simp, miden_reflect_norm] theorem val_eval_feltEq_lit_concrete_eq_zero_iff
+@[miden_reflect_norm] theorem val_eval_feltEq_lit_concrete_eq_zero_iff
     (a b : Felt) :
     (Expr.eval concreteAssignment ((Expr.lit a).feltEq (Expr.lit b))).val = 0 ↔ a ≠ b := by
   by_cases h : a = b <;> simp [Expr.eval, h]
