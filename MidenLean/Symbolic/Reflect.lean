@@ -30,8 +30,25 @@ def concreteState (stackPrefix : List Felt) (mem : Nat → Felt)
     frames := frames
     advice := adv.map Expr.lit }
 
+/-! ### `miden_reflect_norm` bank
+
+The lemmas tagged `@[miden_reflect_norm]` below canonicalize the terms produced by
+reflection, so that the cleanup phase of `miden_reflect` / `miden_vcg` can close
+the residual goal. Symbolic execution leaves behind `Expr.eval` applications over
+the trivial `concreteAssignment`, projections out of `concreteState` /
+`concreteStateWithLocals`, and `Precondition.holds` obligations; this bank pushes
+`eval` through the term structure, collapses literal-carrying `Expr` nodes back to
+`Felt` arithmetic, and rewrites boolean flags into the propositions they encode.
+
+Most lemmas are `@[simp]` as well; the few that are scoped to
+`miden_reflect_norm` only are flagged where they occur. The two state
+constructors these lemmas project out of are defined inline in this section.
+-/
+
+/-- The local-memory base of an empty frame stack is `0`. -/
 @[simp, miden_reflect_norm] theorem localsBase_nil : MidenLean.localsBase [] = 0 := rfl
 
+/-- The local-memory base above a frame stack sits past the top frame. -/
 @[simp, miden_reflect_norm] theorem localsBase_cons
     (f : MidenLean.LocalFrame) (fs : List MidenLean.LocalFrame) :
     MidenLean.localsBase (f :: fs) = f.base + f.alignedNumLocals := rfl
@@ -49,21 +66,26 @@ def concreteStateWithLocals (stackPrefix : List Felt) (mem : Nat → Felt)
     frames := frame :: frames
     advice := adv.map Expr.lit }
 
+/-- Project the frame stack out of a `concreteState`. -/
 @[simp, miden_reflect_norm] theorem concreteState_frames
     (stackPrefix : List Felt) (mem : Nat → Felt)
     (frames : List MidenLean.LocalFrame) (adv : List Felt) :
     (concreteState stackPrefix mem frames adv).frames = frames := rfl
 
+/-- Project the symbolic stack out of a `concreteState`. -/
 @[simp, miden_reflect_norm] theorem concreteState_stack
     (stackPrefix : List Felt) (mem : Nat → Felt)
     (frames : List MidenLean.LocalFrame) (adv : List Felt) :
     (concreteState stackPrefix mem frames adv).stack = stackPrefix.map Expr.lit := rfl
 
+/-- Project the advice stack out of a `concreteState`. -/
 @[simp, miden_reflect_norm] theorem concreteState_advice
     (stackPrefix : List Felt) (mem : Nat → Felt)
     (frames : List MidenLean.LocalFrame) (adv : List Felt) :
     (concreteState stackPrefix mem frames adv).advice = adv.map Expr.lit := rfl
 
+/-- Project the frame stack out of a `concreteStateWithLocals`, exposing the
+    pre-pushed local frame. -/
 @[simp, miden_reflect_norm] theorem concreteStateWithLocals_frames
     (stackPrefix : List Felt) (mem : Nat → Felt)
     (frames : List MidenLean.LocalFrame) (adv : List Felt) (numLocals : Nat) :
@@ -71,24 +93,29 @@ def concreteStateWithLocals (stackPrefix : List Felt) (mem : Nat → Felt)
       { base := MidenLean.localsBase frames, numLocals,
         alignedNumLocals := MidenLean.alignLocals numLocals } :: frames := rfl
 
+/-- Evaluating a list of literals (in composed form) recovers the original list. -/
 @[simp, miden_reflect_norm] theorem map_eval_lit_comp_zero (xs : List Felt) :
     List.map ((Expr.eval (fun _ => 0)) ∘ Expr.lit) xs = xs := by
   induction xs with
   | nil => rfl
   | cons x xs ih => simp [Expr.eval, ih]
 
+/-- Evaluating a literal-mapped list recovers the original list. -/
 @[simp, miden_reflect_norm] theorem map_eval_lit_concrete (xs : List Felt) :
     List.map (Expr.eval concreteAssignment) (xs.map Expr.lit) = xs := by
   induction xs with
   | nil => rfl
   | cons x xs ih => simp [Expr.eval, ih]
 
+/-- A memory read out of a `concreteState` evaluates to the concrete memory value. -/
 @[simp, miden_reflect_norm] theorem eval_concreteState_memory
     (stackPrefix : List Felt) (mem : Nat → Felt)
     (frames : List MidenLean.LocalFrame) (adv : List Felt) (addr : Nat) :
     ((concreteState stackPrefix mem frames adv).memory addr).eval concreteAssignment = mem addr := by
   simp [concreteState, Expr.eval]
 
+/-- A memory read out of a `concreteStateWithLocals` evaluates to the concrete
+    memory value. -/
 @[simp, miden_reflect_norm] theorem eval_concreteStateWithLocals_memory
     (stackPrefix : List Felt) (mem : Nat → Felt)
     (frames : List MidenLean.LocalFrame) (adv : List Felt)
@@ -97,68 +124,85 @@ def concreteStateWithLocals (stackPrefix : List Felt) (mem : Nat → Felt)
         concreteAssignment = mem addr := by
   simp [concreteStateWithLocals, Expr.eval]
 
+/-- Push `Expr.eval` through a Lean-level conditional between two expressions. -/
 @[simp, miden_reflect_norm] theorem eval_if_concreteAssignment
     (c : Prop) [Decidable c] (t e : Expr) :
     Expr.eval concreteAssignment (if c then t else e) =
       if c then Expr.eval concreteAssignment t else Expr.eval concreteAssignment e := by
   by_cases h : c <;> simp [h]
 
+/-- An `Expr.ite` guarded by the literal `0` takes its else branch. -/
 @[simp, miden_reflect_norm] theorem eval_ite_zero_concrete (a b : Expr) :
     Expr.eval concreteAssignment (.ite (.lit 0) a b) = Expr.eval concreteAssignment b := by
   change (if (((0 : Felt).val == 1) = true) then Expr.eval concreteAssignment a
       else Expr.eval concreteAssignment b) = Expr.eval concreteAssignment b
   simp
 
+/-- An `Expr.ite` guarded by the literal `1` takes its then branch. -/
 @[simp, miden_reflect_norm] theorem eval_ite_one_concrete (a b : Expr) :
     Expr.eval concreteAssignment (.ite (.lit 1) a b) = Expr.eval concreteAssignment a := by
   change (if (((1 : Felt).val == 1) = true) then Expr.eval concreteAssignment a
       else Expr.eval concreteAssignment b) = Expr.eval concreteAssignment a
   simp
 
+/-- A literal `feltEq` flag is `1` exactly when the two literals agree. -/
 @[simp, miden_reflect_norm] theorem eval_feltEq_lit_concrete_eq_one_iff
     (a b : Felt) :
     Expr.eval concreteAssignment ((Expr.lit a).feltEq (Expr.lit b)) = 1 ↔ a = b := by
   by_cases h : a = b <;> simp [Expr.eval, h]
 
+/-- A literal `feltEq` flag is `0` exactly when the two literals differ. -/
 @[simp, miden_reflect_norm] theorem eval_feltEq_lit_concrete_eq_zero_iff
     (a b : Felt) :
     Expr.eval concreteAssignment ((Expr.lit a).feltEq (Expr.lit b)) = 0 ↔ a ≠ b := by
   by_cases h : a = b <;> simp [Expr.eval, h]
 
+/-- `val`-level version of `eval_feltEq_lit_concrete_eq_one_iff`. -/
 @[simp, miden_reflect_norm] theorem val_eval_feltEq_lit_concrete_eq_one_iff
     (a b : Felt) :
     (Expr.eval concreteAssignment ((Expr.lit a).feltEq (Expr.lit b))).val = 1 ↔ a = b := by
   by_cases h : a = b <;> simp [Expr.eval, h]
 
+/-- `val`-level version of `eval_feltEq_lit_concrete_eq_zero_iff`. -/
 @[simp, miden_reflect_norm] theorem val_eval_feltEq_lit_concrete_eq_zero_iff
     (a b : Felt) :
     (Expr.eval concreteAssignment ((Expr.lit a).feltEq (Expr.lit b))).val = 0 ↔ a ≠ b := by
   by_cases h : a = b <;> simp [Expr.eval, h]
 
+/-- A literal `feltAnd` evaluates to the product of the two literals. -/
 @[simp, miden_reflect_norm] theorem eval_feltAnd_lit_concrete
     (a b : Felt) :
     Expr.eval concreteAssignment ((Expr.lit a).feltAnd (Expr.lit b)) = a * b := by
   simp [Expr.eval]
 
+/-- An `isBool` precondition on a literal reduces to a `0`/`1` disjunction. -/
 @[simp, miden_reflect_norm] theorem holds_isBool_lit_concrete
     (a : Felt) :
     Precondition.holds (.isBool (.lit a)) concreteAssignment ↔ a = 0 ∨ a = 1 := by
   simp [Precondition.holds, Expr.eval]
 
+/-- An `isBool` precondition on a literal `feltAnd` reduces to a `0`/`1`
+    disjunction about the product. -/
 @[simp, miden_reflect_norm] theorem holds_isBool_feltAnd_lit_concrete
     (a b : Felt) :
     Precondition.holds (.isBool ((Expr.lit a).feltAnd (Expr.lit b))) concreteAssignment ↔
       a * b = 0 ∨ a * b = 1 := by
   simp [Precondition.holds, Expr.eval]
 
--- Scoped to `miden_reflect_norm` only: as global `@[simp]` lemmas these would
--- silently rewrite `clo`/`cto` spellings in unrelated manual proofs.
+/-! The next two lemmas are scoped to `miden_reflect_norm` only: as global
+`@[simp]` lemmas they would silently rewrite `clo`/`cto` spellings in unrelated
+manual proofs. -/
+
+/-- Rewrite leading-ones counting into leading-zeros counting on the complement. -/
 @[miden_reflect_norm] theorem u32CountLeadingOnes_eq (n : Nat) :
     u32CountLeadingOnes n = u32CountLeadingZeros (u32Max - 1 - n) := rfl
 
+/-- Rewrite trailing-ones counting into trailing-zeros counting on the complement. -/
 @[miden_reflect_norm] theorem u32CountTrailingOnes_eq (n : Nat) :
     u32CountTrailingOnes n = u32CountTrailingZeros (n ^^^ (u32Max - 1)) := rfl
 
+/-- Turn a `Decidable.rec` with branch-independent results back into an `ite`;
+    scoped to `miden_reflect_norm` to keep it out of unrelated `simp` calls. -/
 @[miden_reflect_norm] theorem decidable_rec_const
     {P : Prop} [inst : Decidable P] {α : Sort*} (e t : α) :
     @Decidable.rec P (fun _ => α) (fun _ => e) (fun _ => t) inst =
@@ -167,11 +211,19 @@ def concreteStateWithLocals (stackPrefix : List Felt) (mem : Nat → Felt)
   | isFalse h => simp [h]
   | isTrue h => simp [h]
 
+/-- Fuse nested boolean flags into a single flag guarded by a conjunction. -/
 @[simp, miden_reflect_norm] theorem ite_then_ite_one_zero_and (p q : Prop)
     [Decidable p] [Decidable q] :
     (if p then (if q then (1 : Felt) else 0) else 0) =
       if p ∧ q then (1 : Felt) else 0 := by
   by_cases hp : p <;> by_cases hq : q <;> simp [hp, hq]
+
+/-! ### Modelling lemmas
+
+The reflected literal states model the concrete states they were built from, for
+any stack suffix `rest`. These discharge the `models` side conditions of the
+soundness theorems below.
+-/
 
 @[simp] theorem concreteState_models
     (stackPrefix rest : List Felt) (mem : Nat → Felt)
@@ -571,7 +623,7 @@ theorem execProcedure_sound
   | mk name numLocals body =>
       cases numLocals with
       | zero =>
-          simp [execProcedure] at hresult
+          simp only [execProcedure] at hresult
           obtain ⟨cs', hconc, hmod⟩ :=
             execOps_sound senv env minFuel body ss cs σ rest result
               hmodels hresult hpreconds hcallees
@@ -607,7 +659,8 @@ theorem execProcedure_sound
           | none =>
               simp [execProcedure, aligned, base, frame, ss', hexecOps] at hresult
           | some bodyResult =>
-              simp [execProcedure, aligned, base, frame, ss', hexecOps] at hresult
+              simp only [execProcedure, hexecOps, Option.some.injEq, aligned, ss', base,
+                frame] at hresult
               subst result
               obtain ⟨csMid, hconcBody, hmodBody⟩ :=
                 execOps_sound senv env minFuel body ss' cs' σ rest bodyResult

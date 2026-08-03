@@ -72,7 +72,8 @@ private theorem foldlM_option_step_mono {α β : Type*}
     match hfop : f init op with
     | none => simp [hfop] at hf
     | some s' =>
-      simp [hfop] at hf; simp [h init op s' hfop]
+      simp only [hfop, Option.bind_eq_bind, Option.bind_some] at hf
+      simp only [h init op s' hfop, Option.bind_eq_bind, Option.bind_some]
       exact ih s' hf
 
 -- opStep pointwise monotonicity
@@ -107,9 +108,10 @@ private theorem opStep_fuel_mono (env : ProcEnv) (n m : Nat) (hm : n ≤ m)
     | cons cond rest =>
       simp only [hstk] at h ⊢
       split
-      · next h1 => simp [h1] at h; exact ihE m _ _ s' hm h
+      · next h1 => simp only [h1, ↓reduceIte] at h; exact ihE m _ _ s' hm h
       · next h1 =>
-        simp [h1] at h ⊢
+        simp only [h1, Bool.false_eq_true, ↓reduceIte, beq_iff_eq, ZMod.val_eq_zero,
+          Option.ite_none_right_eq_some] at h ⊢
         obtain ⟨hcond, h⟩ := h
         exact ⟨hcond, ihE m _ _ s' hm h⟩
   | «repeat» count body => exact ihR m count body s s' hm h
@@ -217,7 +219,7 @@ private theorem fuel_mono_core (env : ProcEnv) :
         split at h
         · next st'' heq =>
           have : execProcedure env m st ↑body = some st'' := execE m st ↑body st'' hm heq
-          simp [this]
+          simp only [this]
           exact ihCount st'' h
         · simp at h
     -- (W) doWhile at fuel n + 1

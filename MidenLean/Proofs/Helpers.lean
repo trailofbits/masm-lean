@@ -2,55 +2,108 @@ import MidenLean.Concrete.Exec
 import MidenLean.Proofs.SimpAttrs
 import MidenLean.Symbolic.SimpAttrs
 
+/-!
+# Shared proof helpers
+
+Small reusable lemmas consumed both by the manual procedure proofs under
+`MidenLean/Proofs/` and by the cleanup ladders of the `miden_*` tactics
+(`miden_arith`, `miden_finish_reflection`, `miden_vcg`, `miden_reflect`).
+
+The file is organized into five groups:
+
+* **state projections** — how `Concrete.State.withStack` and
+  `Concrete.State.writeMemory` interact with the individual state fields;
+* **`ite` normalization** — pushing conditionals inwards so that state-valued,
+  `Option`-valued, and `Felt`-valued branches collapse into one canonical shape;
+* **execution decomposition** — splitting `execProcedure` over appended op
+  lists, singleton `exec` calls, `ifElse` blocks, and local-frame allocation;
+* **`Felt` values and arithmetic bounds** — `val`/`isU32` facts and round-trip
+  lemmas, mostly tagged `@[miden_bound]` for the bound-discharging ladder;
+* **local frames** — `LocalFrame.localAddr` comparison lemmas that let memory
+  reads through the `ite` chains produced by `loc_store*` be resolved by `simp`.
+
+Most lemmas carry `@[simp]`, `@[miden_bound]`, or `@[miden_reflect_norm]`, so
+they are normally applied automatically rather than named in a proof.
+-/
+
 namespace MidenLean
 
--- Concrete.State projection lemmas
+/-! ### State projections
 
+Field-level reduction lemmas for the two state constructors used by the
+instruction semantics. All of them hold by `rfl` and are `@[simp]` so that
+goals about a rewritten state reduce to goals about its fields.
+-/
+
+/-- `withStack` replaces the stack. -/
 @[simp] theorem Concrete.State.withStack_stack (s : Concrete.State) (stk : List Felt) :
     (s.withStack stk).stack = stk := rfl
 
+/-- `withStack` leaves memory untouched. -/
 @[simp] theorem Concrete.State.withStack_memory (s : Concrete.State) (stk : List Felt) :
     (s.withStack stk).memory = s.memory := rfl
 
+/-- `withStack` leaves the advice provider untouched. -/
 @[simp] theorem Concrete.State.withStack_advice (s : Concrete.State) (stk : List Felt) :
     (s.withStack stk).advice = s.advice := rfl
 
+/-- Consecutive stack replacements collapse to the last one. -/
 @[simp] theorem Concrete.State.withStack_withStack (s : Concrete.State) (stk1 stk2 : List Felt) :
     (s.withStack stk1).withStack stk2 = s.withStack stk2 := rfl
 
+/-- `withStack` leaves the local-frame stack untouched. -/
+@[simp] theorem Concrete.State.withStack_frames (s : Concrete.State) (stk : List Felt) :
+    (s.withStack stk).frames = s.frames := rfl
+
+/-- A memory write leaves the stack untouched. -/
+@[simp] theorem Concrete.State.writeMemory_stack (s : Concrete.State) (addr : Nat) (v : Felt) :
+    (s.writeMemory addr v).stack = s.stack := rfl
+
+/-- A memory write updates exactly the written address. -/
+@[simp] theorem Concrete.State.writeMemory_memory (s : Concrete.State) (addr : Nat) (v : Felt) :
+    (s.writeMemory addr v).memory = fun a => if a = addr then v else s.memory a := rfl
+
+/-- A memory write leaves the local-frame stack untouched. -/
+@[simp] theorem Concrete.State.writeMemory_frames (s : Concrete.State) (addr : Nat) (v : Felt) :
+    (s.writeMemory addr v).frames = s.frames := rfl
+
+/-- A memory write leaves the advice provider untouched. -/
+@[simp] theorem Concrete.State.writeMemory_advice (s : Concrete.State) (addr : Nat) (v : Felt) :
+    (s.writeMemory addr v).advice = s.advice := rfl
+
+/-- Two writes to the same address collapse to the later one. -/
+@[simp] theorem Concrete.State.writeMemory_overwrite (s : Concrete.State) (addr : Nat) (v w : Felt) :
+    (s.writeMemory addr v).writeMemory addr w = s.writeMemory addr w := by
+  simp only [Concrete.State.writeMemory, Concrete.State.mk.injEq, and_self, and_true, true_and]
+  funext a; split <;> simp
+
+/-! ### `ite` normalization for states and options
+
+Branches that differ only in the value they carry are pushed inwards, so that a
+conditional over states or `Option`s becomes a single state (or `some`) carrying
+a conditional value. This keeps later projection and `simp` steps from having to
+case split.
+-/
+
+/-- Push a conditional between two `withStack` states into the stack argument. -/
 @[simp, miden_reflect_norm] theorem Concrete.State.ite_withStack
     (p : Prop) [Decidable p] (s : Concrete.State) (stk1 stk2 : List Felt) :
     (if p then s.withStack stk1 else s.withStack stk2) =
       s.withStack (if p then stk1 else stk2) := by
   by_cases hp : p <;> simp [hp]
 
-@[simp] theorem Concrete.State.withStack_frames (s : Concrete.State) (stk : List Felt) :
-    (s.withStack stk).frames = s.frames := rfl
-
-@[simp] theorem Concrete.State.writeMemory_stack (s : Concrete.State) (addr : Nat) (v : Felt) :
-    (s.writeMemory addr v).stack = s.stack := rfl
-
-@[simp] theorem Concrete.State.writeMemory_memory (s : Concrete.State) (addr : Nat) (v : Felt) :
-    (s.writeMemory addr v).memory = fun a => if a = addr then v else s.memory a := rfl
-
-@[simp] theorem Concrete.State.writeMemory_frames (s : Concrete.State) (addr : Nat) (v : Felt) :
-    (s.writeMemory addr v).frames = s.frames := rfl
-
-@[simp] theorem Concrete.State.writeMemory_advice (s : Concrete.State) (addr : Nat) (v : Felt) :
-    (s.writeMemory addr v).advice = s.advice := rfl
-
+/-- Push a conditional between two `some` values into the payload. -/
 @[simp, miden_reflect_norm] theorem ite_some
     {α : Type} (p : Prop) [Decidable p] (x y : α) :
     (if p then some x else some y : Option α) = some (if p then x else y) := by
   by_cases hp : p <;> simp [hp]
 
--- writeMemory reasoning lemmas
-@[simp] theorem Concrete.State.writeMemory_overwrite (s : Concrete.State) (addr : Nat) (v w : Felt) :
-    (s.writeMemory addr v).writeMemory addr w = s.writeMemory addr w := by
-  simp [Concrete.State.writeMemory]
-  funext a; split <;> simp
+/-! ### Execution decomposition
 
--- Execution decomposition lemmas
+Lemmas that break an `execProcedure` goal into smaller pieces: sequential
+composition of op lists, resolution of a singleton `exec` call, reduction of a
+singleton `ifElse` block, and the body/local-frame view of a `Procedure`.
+-/
 
 /-- Execute a concatenation of op lists in two phases under a procedure environment. -/
 theorem execProcedure_append (env : ProcEnv) (fuel : Nat) (s : Concrete.State) (xs ys : List Op) :
@@ -115,11 +168,16 @@ theorem exec_append (fuel : Nat) (s : Concrete.State) (xs ys : List Op) :
       execProcedure emptyEnv fuel s' ys) := by
   simpa [emptyEnv] using execOps_append (env := fun _ => none) fuel s xs ys
 
+/-! ### `Felt` values
 
--- Felt value lemmas (used below for ifElse decomposition)
+The two literal `val` computations that the `ifElse` reduction lemmas below rely
+on when inspecting a boolean condition sitting on top of the stack.
+-/
 
+/-- The `val` of the zero field element is `0`. -/
 @[simp] theorem Felt.val_zero' : (0 : Felt).val = 0 := rfl
 
+/-- The `val` of the one field element is `1`. -/
 @[simp] theorem Felt.val_one' : (1 : Felt).val = 1 := ZMod.val_one _
 
 /-- Reduce a singleton `.ifElse` op when the condition on the stack is `1`. -/
@@ -285,38 +343,56 @@ theorem execProcedure_body_eq_withLocals (env : ProcEnv) (fuel : Nat) (s : Concr
     simp only [execProcedure, Procedure.ofOps, nextFrameBase, alignLocals, Nat.succ_eq_add_one]
     rfl
 
--- Felt boolean lemmas
+/-! ### `ite` normalization for boolean `Felt` values
 
+MASM comparison instructions leave `if p then 1 else 0` on the stack. These
+lemmas recognize that shape: they identify it as boolean, fuse products of two
+such flags into a conjunction, and turn `= 0` / `= 1` tests (on the element or on
+its `val`) back into the underlying proposition.
+-/
+
+/-- An `if _ then 1 else 0` flag is a boolean field element. -/
 @[simp] theorem Felt.isBool_ite_bool (p : Bool) :
     Felt.isBool (if p then (1 : Felt) else 0) = true := by
   cases p <;> simp [Felt.isBool, Felt.val_one']
 
+/-- Multiplying two boolean flags is their conjunction. -/
 @[simp] theorem Felt.ite_mul_ite (p q : Bool) :
     (if p then (1 : Felt) else 0) * (if q then (1 : Felt) else 0) =
     if (p && q) then (1 : Felt) else 0 := by
   cases p <;> cases q <;> simp
 
+/-- A boolean flag equals `1` exactly when its condition holds. -/
 @[simp, miden_reflect_norm] theorem Felt.ite_prop_eq_one_iff
     (p : Prop) [Decidable p] :
     (if p then (1 : Felt) else 0) = 1 ↔ p := by
   by_cases hp : p <;> simp [hp]
 
+/-- A boolean flag equals `0` exactly when its condition fails. -/
 @[simp, miden_reflect_norm] theorem Felt.ite_prop_eq_zero_iff
     (p : Prop) [Decidable p] :
     (if p then (1 : Felt) else 0) = 0 ↔ ¬p := by
   by_cases hp : p <;> simp [hp]
 
+/-- `val`-level version of `Felt.ite_prop_eq_one_iff`. -/
 @[simp, miden_reflect_norm] theorem Felt.val_ite_prop_eq_one_iff
     (p : Prop) [Decidable p] :
     (if p then (1 : Felt) else 0).val = 1 ↔ p := by
   by_cases hp : p <;> simp [hp]
 
+/-- `val`-level version of `Felt.ite_prop_eq_zero_iff`. -/
 @[simp, miden_reflect_norm] theorem Felt.val_ite_prop_eq_zero_iff
     (p : Prop) [Decidable p] :
     (if p then (1 : Felt) else 0).val = 0 ↔ ¬p := by
   by_cases hp : p <;> simp [hp]
 
--- u32OverflowingSub borrow lemma
+/-! ### Arithmetic bounds and value recovery
+
+`@[miden_bound]` lemmas feeding the side-goal ladder used by `miden_arith` and
+the reflection tactics: `Felt.ofNat` round trips below the Goldilocks prime,
+`isU32` propagation through the u32 helper operations, and the no-wrap
+conditions under which `Felt` arithmetic agrees with `Nat` arithmetic.
+-/
 
 /-- The borrow (first component) of u32OverflowingSub is a boolean:
     1 when a < b, 0 otherwise. -/
@@ -328,8 +404,6 @@ theorem u32OverflowingSub_borrow_ite (a b : Nat) :
   · simp [decide_eq_false (show ¬(a < b) by omega)]
   · simp [decide_eq_true (show a < b by omega)]
 
--- Felt.ofNat / value recovery lemmas
-
 /-- Felt.ofNat n has val = n when n < GOLDILOCKS_PRIME. -/
 @[miden_bound] theorem felt_ofNat_val_lt (n : Nat) (h : n < GOLDILOCKS_PRIME) :
     (Felt.ofNat n).val = n := by
@@ -338,28 +412,33 @@ theorem u32OverflowingSub_borrow_ite (a b : Nat) :
   rw [ZMod.val_natCast]
   exact Nat.mod_eq_of_lt h
 
+/-- Every `Felt` has `val` below the Goldilocks prime. -/
 @[miden_bound] theorem felt_val_lt_prime (a : Felt) : a.val < GOLDILOCKS_PRIME :=
   ZMod.val_lt a
 
--- u32 bounds lemmas (all values < 2^32 are < GOLDILOCKS_PRIME)
-
+/-- Every u32 value is below the Goldilocks prime. -/
 @[miden_bound] theorem u32_val_lt_prime (n : Nat) (h : n < 2^32) : n < GOLDILOCKS_PRIME := by
   unfold GOLDILOCKS_PRIME; omega
 
+/-- A u32-truncated value is below the Goldilocks prime. -/
 @[miden_bound] theorem u32_mod_lt_prime (n : Nat) : n % 2^32 < GOLDILOCKS_PRIME := by
   unfold GOLDILOCKS_PRIME; omega
 
+/-- The carry of a `Felt` sum is below the Goldilocks prime. -/
 @[miden_bound] theorem sum_div_2_32_lt_prime (a b : Felt) :
     (a.val + b.val) / 2^32 < GOLDILOCKS_PRIME := by
   have ha := felt_val_lt_prime a
   have hb := felt_val_lt_prime b
   unfold GOLDILOCKS_PRIME at *; omega
 
+/-- The borrow of `u32OverflowingSub` is below the Goldilocks prime. -/
 @[miden_bound] theorem u32_overflow_sub_fst_lt (a b : Nat) :
     (u32OverflowingSub a b).1 < GOLDILOCKS_PRIME := by
   unfold u32OverflowingSub
   split <;> simp [GOLDILOCKS_PRIME]
 
+/-- The difference computed by `u32OverflowingSub` stays below the prime when its
+    inputs do. -/
 @[miden_bound] theorem u32_overflow_sub_snd_lt (a b : Nat)
     (ha : a < GOLDILOCKS_PRIME) (hb : b < GOLDILOCKS_PRIME) :
     (u32OverflowingSub a b).2 < GOLDILOCKS_PRIME := by
@@ -368,35 +447,39 @@ theorem u32OverflowingSub_borrow_ite (a b : Nat) :
   · simp; omega
   · simp [u32Max, GOLDILOCKS_PRIME] at *; omega
 
--- isU32 lemmas for intermediate Felt.ofNat values
-
+/-- Embedding a value below `2^32` into `Felt` yields a u32 element. -/
 @[miden_bound] theorem felt_ofNat_isU32_of_lt (n : Nat) (h : n < 2^32) :
     (Felt.ofNat n).isU32 = true := by
   simp only [Felt.isU32, decide_eq_true_eq]
   have hp : n < GOLDILOCKS_PRIME := by unfold GOLDILOCKS_PRIME; omega
   rw [felt_ofNat_val_lt n hp]; exact h
 
+/-- The borrow of `u32OverflowingSub` is a u32 element. -/
 @[miden_bound] theorem u32OverflowingSub_fst_isU32 (a b : Nat) :
     (Felt.ofNat (u32OverflowingSub a b).1).isU32 = true := by
   unfold u32OverflowingSub
   split <;> simp [felt_ofNat_isU32_of_lt]
 
+/-- The difference computed by `u32OverflowingSub` is a u32 element. -/
 @[miden_bound] theorem u32OverflowingSub_snd_isU32 (a b : Nat)
     (ha : a < 2^32) (hb : b < 2^32) :
     (Felt.ofNat (u32OverflowingSub a b).2).isU32 = true := by
   apply felt_ofNat_isU32_of_lt
   unfold u32OverflowingSub u32Max; split <;> omega
 
+/-- A u32-truncated value embeds to a u32 element. -/
 @[miden_bound] theorem u32_mod_isU32 (n : Nat) :
     (Felt.ofNat (n % 2^32)).isU32 = true := by
   apply felt_ofNat_isU32_of_lt; omega
 
+/-- The carry of a sum of two u32 elements is a u32 element. -/
 @[miden_bound] theorem u32_div_2_32_isU32 (a b : Felt)
     (ha : a.isU32 = true) (hb : b.isU32 = true) :
     (Felt.ofNat ((a.val + b.val) / 2^32)).isU32 = true := by
   apply felt_ofNat_isU32_of_lt
   simp only [Felt.isU32, decide_eq_true_eq] at ha hb; omega
 
+/-- The high limb of a product of two u32 elements is a u32 element. -/
 @[miden_bound] theorem u32_prod_div_isU32 (a b : Felt)
     (ha : a.isU32 = true) (hb : b.isU32 = true) :
     (Felt.ofNat (a.val * b.val / 2^32)).isU32 = true := by
@@ -408,6 +491,7 @@ theorem u32OverflowingSub_borrow_ite (a b : Nat) :
       ≤ (2^32 - 1) * (2^32 - 1) / 2^32 := Nat.div_le_div_right h3
     _ < 2^32 := by decide
 
+/-- The high limb of a product of two u32 elements is below the Goldilocks prime. -/
 @[miden_bound] theorem u32_prod_div_lt_prime (a b : Felt)
     (ha : a.isU32 = true) (hb : b.isU32 = true) :
     a.val * b.val / 2^32 < GOLDILOCKS_PRIME := by
@@ -418,7 +502,12 @@ theorem u32OverflowingSub_borrow_ite (a b : Nat) :
       ≤ (2^32 - 1) * (2^32 - 1) / 2^32 := Nat.div_le_div_right h3
     _ < GOLDILOCKS_PRIME := by unfold GOLDILOCKS_PRIME; decide
 
--- Felt arithmetic round-trip lemmas for bridging proofs
+/-! #### `Felt` arithmetic round trips
+
+Conditions under which a `Felt` operation agrees with the corresponding `Nat`
+operation, used to bridge between the field-level semantics and the `Nat`-level
+specifications in the correctness statements.
+-/
 
 /-- Felt addition round-trips when the sum stays below the prime. -/
 @[miden_bound] theorem felt_add_val_no_wrap (a b : Felt)
@@ -478,26 +567,33 @@ theorem felt_mul_beq_zero (a b : Felt) (h : a.val * b.val = 0)
   have hzero : (0 : Felt).val = 0 := Felt.val_zero'
   exact_mod_cast Fin.val_injective (by omega : (a * b).val = (0 : Felt).val)
 
--- LocalFrame.localAddr comparison lemmas
--- These are critical for resolving memory reads through if-then-else chains
--- produced by locStorewBe. Since localAddr idx = LOCAL_MEM_BASE + base + idx,
--- address equality reduces to offset equality.
+/-! ### Local frames
 
+`LocalFrame.localAddr` comparison lemmas. They are critical for resolving memory
+reads through the if-then-else chains produced by `locStorewBe`: since
+`localAddr idx = LOCAL_MEM_BASE + base + idx`, address equality reduces to offset
+equality, which `simp`/`omega` can then decide.
+-/
+
+/-- Compare two offset local addresses by their offsets. -/
 @[simp] theorem LocalFrame.localAddr_add_eq_localAddr_add_iff
     (frame : LocalFrame) (i k j l : Nat) :
     (frame.localAddr i + k = frame.localAddr j + l) ↔ (i + k = j + l) := by
   unfold localAddr; omega
 
+/-- Compare a local address with an offset local address by their offsets. -/
 @[simp] theorem LocalFrame.localAddr_eq_localAddr_add_iff
     (frame : LocalFrame) (i j l : Nat) :
     (frame.localAddr i = frame.localAddr j + l) ↔ (i = j + l) := by
   unfold localAddr; omega
 
+/-- Compare an offset local address with a local address by their offsets. -/
 @[simp] theorem LocalFrame.localAddr_add_eq_localAddr_iff
     (frame : LocalFrame) (i k j : Nat) :
     (frame.localAddr i + k = frame.localAddr j) ↔ (i + k = j) := by
   unfold localAddr; omega
 
+/-- Two local addresses in the same frame are equal exactly when their indices are. -/
 @[simp] theorem LocalFrame.localAddr_eq_localAddr_iff
     (frame : LocalFrame) (i j : Nat) :
     (frame.localAddr i = frame.localAddr j) ↔ (i = j) := by

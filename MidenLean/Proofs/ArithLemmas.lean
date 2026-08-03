@@ -74,7 +74,7 @@ attribute [miden_val] Proofs.u32_prod_mod_add_div_val
   rw [u32OverflowingSub_snd_val shift.val 64
     (by simpa [Felt.isU32, decide_eq_true_eq] using hshift_u32)
     (by norm_num)]
-  simp [u32OverflowingSub, hge]
+  simp only [u32OverflowingSub, ge_iff_le, hge, ↓reduceIte, gt_iff_lt]
   omega
 
 /-- The raw Nat result of subtracting 64 from a u32 shift amount below 128 is below 64. -/
