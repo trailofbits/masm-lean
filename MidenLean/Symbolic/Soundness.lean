@@ -53,10 +53,7 @@ private theorem execInstruction_sound_drop
   | [] => simp [hstk] at hexec
   | x :: tail =>
     simp only [hstk] at hexec
-    have heq := Option.some.inj hexec
-    have hss : ss' = { ss with stack := tail } := (congrArg Prod.fst heq).symm
-    have hpc : preconds = [] := (congrArg Prod.snd heq).symm
-    subst hss; subst hpc
+    obtain ⟨rfl, rfl⟩ := Prod.mk.inj (Option.some.inj hexec)
     rw [hstk, List.map_cons] at hstack
     exact ⟨cs.withStack (tail.map (Expr.eval σ) ++ rest),
       by simp only [MidenLean.execInstruction, execDrop, hstack]; rfl,
@@ -77,10 +74,7 @@ private theorem execInstruction_sound_dup
   | none => simp [hget] at hexec
   | some v =>
     simp only [hget] at hexec
-    have heq := Option.some.inj hexec
-    have hss : ss' = { ss with stack := v :: ss.stack } := (congrArg Prod.fst heq).symm
-    have hpc : preconds = [] := (congrArg Prod.snd heq).symm
-    subst hss; subst hpc
+    obtain ⟨rfl, rfl⟩ := Prod.mk.inj (Option.some.inj hexec)
     obtain ⟨hn, hval⟩ := List.getElem?_eq_some_iff.mp hget
     refine ⟨cs.withStack (v.eval σ :: cs.stack), ?_, ?_⟩
     · simp only [MidenLean.execInstruction, execDup, hstack,
@@ -103,10 +97,7 @@ private theorem execInstruction_sound_swap
   by_cases h0 : n.val = 0
   · have hbeq : (n.val == 0) = true := by simp [h0]
     simp only [hbeq, ite_true] at hexec
-    have heq := Option.some.inj hexec
-    have hss : ss' = ss := (congrArg Prod.fst heq).symm
-    have hpc : preconds = [] := (congrArg Prod.snd heq).symm
-    subst hss; subst hpc
+    obtain ⟨rfl, rfl⟩ := Prod.mk.inj (Option.some.inj hexec)
     exact ⟨cs,
       by simp only [MidenLean.execInstruction, execSwap, hbeq, ite_true],
       hstack, hmem, hframes, hadv⟩
@@ -115,11 +106,7 @@ private theorem execInstruction_sound_swap
     match hget0 : ss.stack[0]?, hgetn : ss.stack[n.val]? with
     | some top, some nth =>
       simp only [hget0, hgetn] at hexec
-      have heq := Option.some.inj hexec
-      have hss : ss' = { ss with stack := (ss.stack.set 0 nth).set n.val top } :=
-        (congrArg Prod.fst heq).symm
-      have hpc : preconds = [] := (congrArg Prod.snd heq).symm
-      subst hss; subst hpc
+      obtain ⟨rfl, rfl⟩ := Prod.mk.inj (Option.some.inj hexec)
       obtain ⟨h0lt, hval0⟩ := List.getElem?_eq_some_iff.mp hget0
       obtain ⟨hnlt, hvaln⟩ := List.getElem?_eq_some_iff.mp hgetn
       refine ⟨cs.withStack ((cs.stack.set 0 (nth.eval σ)).set n.val (top.eval σ)), ?_, ?_⟩
@@ -154,10 +141,7 @@ private theorem execInstruction_sound_add
   | [] | [_] => simp [hstk] at hexec
   | b :: a :: tail =>
     simp only [hstk] at hexec
-    have heq := Option.some.inj hexec
-    have hss : ss' = { ss with stack := .add a b :: tail } := (congrArg Prod.fst heq).symm
-    have hpc : preconds = [] := (congrArg Prod.snd heq).symm
-    subst hss; subst hpc
+    obtain ⟨rfl, rfl⟩ := Prod.mk.inj (Option.some.inj hexec)
     rw [hstk, List.map_cons, List.map_cons] at hstack
     exact ⟨cs.withStack ((a.eval σ + b.eval σ) :: tail.map (Expr.eval σ) ++ rest),
       by simp only [MidenLean.execInstruction, execAdd, hstack]; rfl,
@@ -178,10 +162,7 @@ private theorem execInstruction_sound_sub
   | [] | [_] => simp [hstk] at hexec
   | b :: a :: tail =>
     simp only [hstk] at hexec
-    have heq := Option.some.inj hexec
-    have hss : ss' = { ss with stack := .sub a b :: tail } := (congrArg Prod.fst heq).symm
-    have hpc : preconds = [] := (congrArg Prod.snd heq).symm
-    subst hss; subst hpc
+    obtain ⟨rfl, rfl⟩ := Prod.mk.inj (Option.some.inj hexec)
     rw [hstk, List.map_cons, List.map_cons] at hstack
     exact ⟨cs.withStack ((a.eval σ - b.eval σ) :: tail.map (Expr.eval σ) ++ rest),
       by simp only [MidenLean.execInstruction, execSub, hstack]; rfl,
@@ -202,10 +183,7 @@ private theorem execInstruction_sound_mul
   | [] | [_] => simp [hstk] at hexec
   | b :: a :: tail =>
     simp only [hstk] at hexec
-    have heq := Option.some.inj hexec
-    have hss : ss' = { ss with stack := .mul a b :: tail } := (congrArg Prod.fst heq).symm
-    have hpc : preconds = [] := (congrArg Prod.snd heq).symm
-    subst hss; subst hpc
+    obtain ⟨rfl, rfl⟩ := Prod.mk.inj (Option.some.inj hexec)
     rw [hstk, List.map_cons, List.map_cons] at hstack
     exact ⟨cs.withStack ((a.eval σ * b.eval σ) :: tail.map (Expr.eval σ) ++ rest),
       by simp only [MidenLean.execInstruction, execMul, hstack]; rfl,
@@ -226,16 +204,12 @@ private theorem execInstruction_sound_u32WidenAdd
   | [] | [_] => simp [hstk] at hexec
   | b :: a :: tail =>
     simp only [hstk] at hexec
-    have heq := Option.some.inj hexec
-    have hss : ss' = { ss with stack := .u32AddLo a b :: .u32AddHi a b :: tail } :=
-      (congrArg Prod.fst heq).symm
-    have hpc : preconds = [.isU32 a, .isU32 b] := (congrArg Prod.snd heq).symm
-    subst hss
+    obtain ⟨rfl, rfl⟩ := Prod.mk.inj (Option.some.inj hexec)
     rw [hstk, List.map_cons, List.map_cons, List.cons_append, List.cons_append] at hstack
     have ha : (a.eval σ).isU32 = true :=
-      hpreconds (.isU32 a) (by rw [hpc]; simp)
+      hpreconds (.isU32 a) (by simp)
     have hb : (b.eval σ).isU32 = true :=
-      hpreconds (.isU32 b) (by rw [hpc]; simp)
+      hpreconds (.isU32 b) (by simp)
     refine ⟨cs.withStack (Felt.ofNat (((a.eval σ).val + (b.eval σ).val) % u32Max) ::
                           Felt.ofNat (((a.eval σ).val + (b.eval σ).val) / u32Max) ::
                           tail.map (Expr.eval σ) ++ rest), ?_, ?_⟩
@@ -260,10 +234,7 @@ private theorem execInstruction_sound_eq
   | [] | [_] => simp [hstk] at hexec
   | b :: a :: tail =>
     simp only [hstk] at hexec
-    have heq := Option.some.inj hexec
-    have hss : ss' = { ss with stack := .feltEq a b :: tail } := (congrArg Prod.fst heq).symm
-    have hpc : preconds = [] := (congrArg Prod.snd heq).symm
-    subst hss; subst hpc
+    obtain ⟨rfl, rfl⟩ := Prod.mk.inj (Option.some.inj hexec)
     rw [hstk, List.map_cons, List.map_cons] at hstack
     exact ⟨cs.withStack ((if a.eval σ == b.eval σ then (1 : Felt) else 0) :: tail.map (Expr.eval σ) ++ rest),
       by simp only [MidenLean.execInstruction, execEq, hstack]; rfl,
@@ -284,15 +255,12 @@ private theorem execInstruction_sound_and
   | [] | [_] => simp [hstk] at hexec
   | b :: a :: tail =>
     simp only [hstk] at hexec
-    have heq := Option.some.inj hexec
-    have hss : ss' = { ss with stack := .feltAnd a b :: tail } := (congrArg Prod.fst heq).symm
-    have hpc : preconds = [.isBool a, .isBool b] := (congrArg Prod.snd heq).symm
-    subst hss
+    obtain ⟨rfl, rfl⟩ := Prod.mk.inj (Option.some.inj hexec)
     rw [hstk, List.map_cons, List.map_cons] at hstack
     have ha : (a.eval σ).isBool = true :=
-      isBool_guard _ (hpreconds (.isBool a) (by rw [hpc]; simp))
+      isBool_guard _ (hpreconds (.isBool a) (by simp))
     have hb : (b.eval σ).isBool = true :=
-      isBool_guard _ (hpreconds (.isBool b) (by rw [hpc]; simp))
+      isBool_guard _ (hpreconds (.isBool b) (by simp))
     have hguard : ((a.eval σ).isBool && (b.eval σ).isBool) = true := by rw [ha, hb]; rfl
     refine ⟨cs.withStack ((a.eval σ * b.eval σ) :: tail.map (Expr.eval σ) ++ rest), ?_, ?_⟩
     · change execAnd cs = _
@@ -315,18 +283,14 @@ private theorem execInstruction_sound_u32WidenAdd3
   | [] | [_] | [_, _] => simp [hstk] at hexec
   | c :: b :: a :: tail =>
     simp only [hstk] at hexec
-    have heq := Option.some.inj hexec
-    have hss : ss' = { ss with stack := .u32Add3Lo a b c :: .u32Add3Hi a b c :: tail } :=
-      (congrArg Prod.fst heq).symm
-    have hpc : preconds = [.isU32 a, .isU32 b, .isU32 c] := (congrArg Prod.snd heq).symm
-    subst hss
+    obtain ⟨rfl, rfl⟩ := Prod.mk.inj (Option.some.inj hexec)
     rw [hstk, List.map_cons, List.map_cons, List.map_cons] at hstack
     have ha : (a.eval σ).isU32 = true :=
-      hpreconds (.isU32 a) (by rw [hpc]; simp)
+      hpreconds (.isU32 a) (by simp)
     have hb : (b.eval σ).isU32 = true :=
-      hpreconds (.isU32 b) (by rw [hpc]; simp)
+      hpreconds (.isU32 b) (by simp)
     have hc : (c.eval σ).isU32 = true :=
-      hpreconds (.isU32 c) (by rw [hpc]; simp)
+      hpreconds (.isU32 c) (by simp)
     refine ⟨cs.withStack (Felt.ofNat (((a.eval σ).val + (b.eval σ).val + (c.eval σ).val) % u32Max) ::
                           Felt.ofNat (((a.eval σ).val + (b.eval σ).val + (c.eval σ).val) / u32Max) ::
                           tail.map (Expr.eval σ) ++ rest), ?_, ?_⟩
@@ -351,16 +315,12 @@ private theorem execInstruction_sound_u32OverflowSub
   | [] | [_] => simp [hstk] at hexec
   | b :: a :: tail =>
     simp only [hstk] at hexec
-    have heq := Option.some.inj hexec
-    have hss : ss' = { ss with stack := .u32SubBorrow a b :: .u32SubDiff a b :: tail } :=
-      (congrArg Prod.fst heq).symm
-    have hpc : preconds = [.isU32 a, .isU32 b] := (congrArg Prod.snd heq).symm
-    subst hss
+    obtain ⟨rfl, rfl⟩ := Prod.mk.inj (Option.some.inj hexec)
     rw [hstk, List.map_cons, List.map_cons] at hstack
     have ha : (a.eval σ).isU32 = true :=
-      hpreconds (.isU32 a) (by rw [hpc]; simp)
+      hpreconds (.isU32 a) (by simp)
     have hb : (b.eval σ).isU32 = true :=
-      hpreconds (.isU32 b) (by rw [hpc]; simp)
+      hpreconds (.isU32 b) (by simp)
     refine ⟨cs.withStack (Felt.ofNat (u32OverflowingSub (a.eval σ).val (b.eval σ).val).1 ::
                           Felt.ofNat (u32OverflowingSub (a.eval σ).val (b.eval σ).val).2 ::
                           tail.map (Expr.eval σ) ++ rest), ?_, ?_⟩
@@ -390,10 +350,7 @@ private theorem execInstruction_sound_movup
     | none => simp [hget] at hexec
     | some v =>
       simp only [hget] at hexec
-      have heq := Option.some.inj hexec
-      have hss : ss' = { ss with stack := v :: ss.stack.eraseIdx n } := (congrArg Prod.fst heq).symm
-      have hpc : preconds = [] := (congrArg Prod.snd heq).symm
-      subst hss; subst hpc
+      obtain ⟨rfl, rfl⟩ := Prod.mk.inj (Option.some.inj hexec)
       obtain ⟨hn, hval⟩ := List.getElem?_eq_some_iff.mp hget
       refine ⟨cs.withStack (v.eval σ :: (ss.stack.eraseIdx n).map (Expr.eval σ) ++ rest), ?_, ?_⟩
       · change execMovup n cs = _
@@ -430,10 +387,7 @@ private theorem execInstruction_sound_movdn
       have hpsplit : p = srest.splitAt n := hp_def
       by_cases hlen : p.1.length == n
       · simp only [hlen, ite_true] at hexec
-        have heq := Option.some.inj hexec
-        have hss : ss' = { ss with stack := p.1 ++ [top] ++ p.2 } := (congrArg Prod.fst heq).symm
-        have hpc : preconds = [] := (congrArg Prod.snd heq).symm
-        subst hss; subst hpc
+        obtain ⟨rfl, rfl⟩ := Prod.mk.inj (Option.some.inj hexec)
         have hsplit := @List.splitAt_eq _ n srest
         rw [← hpsplit] at hsplit
         have hlen_eq : p.1.length = n := by
