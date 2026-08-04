@@ -55,17 +55,14 @@ jobs:
       - name: Build symbolic regression tests
         run: lake build MidenLeanTests
 
-      # `sorry` is only a warning, so `lake build` alone exits 0 with sorries
-      # present. Proofs/Generated holds machine-generated scaffolding that is
-      # deliberately full of `sorry` and imported by nothing.
-      - name: Assert no sorry outside generated scaffolding
-        run: |
-          if grep -rn --include='*.lean' '\bsorry\b' MidenLean \
-               | grep -v '^MidenLean/Proofs/Generated/'; then
-            echo "::error::found sorry outside MidenLean/Proofs/Generated"
-            exit 1
-          fi
-          echo "no sorry outside generated scaffolding"
+      # Ask the kernel which axioms each declaration actually depends on,
+      # rather than grepping for the word `sorry`. This catches a `sorry`
+      # reached transitively through a helper lemma (whose own text is clean)
+      # and cannot be fooled by the word appearing in a comment or docstring —
+      # both of which have bitten this repo. It also asserts the full axiom
+      # footprint, so a new trust assumption cannot appear unnoticed.
+      - name: Axiom audit (no sorryAx, no unexpected axioms)
+        run: lake env lean scripts/AxiomCheck.lean
 
       # Rebuilds each manual proof module with a strict per-module timeout and
       # warns on structural problems (missing/misnamed *_correct theorems,
@@ -134,3 +131,65 @@ jobs:
             echo "::error::linter findings above"
             exit 1
           fi
+
+  # Mathlib's full `mathlibStandardSet` (long lines, undocumented
+  # `set_option maxHeartbeats`, cdot/cases/induction style, docstring rules, …)
+  # is ADVISORY for now: the existing tree has roughly 960 findings — ~576 lines
+  # over 100 characters across 64 files, plus ~387 `maxHeartbeats` overrides
+  # that want an explanatory comment. Gating on that today would fail every PR.
+  #
+  # So it runs only over the files a PR touches, and does not block. Burn the
+  # backlog down, then move this into the `lint` job and drop
+  # `continue-on-error`.
+  style-advisory:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install elan
+        run: |
+          curl -sSfL https://github.com/leanprover/elan/releases/latest/download/elan-x86_64-unknown-linux-gnu.tar.gz \
+            | tar xz
+          ./elan-init -y --default-toolchain none
+          echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
+
+      - name: Cache .lake
+        uses: actions/cache@v4
+        with:
+          path: .lake
+          key: lake-${{ runner.os }}-${{ hashFiles('lean-toolchain', 'lake-manifest.json') }}-${{ github.sha }}
+          restore-keys: |
+            lake-${{ runner.os }}-${{ hashFiles('lean-toolchain', 'lake-manifest.json') }}-
+            lake-${{ runner.os }}-
+
+      - name: Fetch Mathlib build cache
+        run: lake exe cache get || echo "cache unavailable; building Mathlib from source"
+
+      - name: Build library
+        run: lake build MidenLean
+
+      # Passed with -D rather than via lakefile `leanOptions`, which would
+      # change the build hash and force a full rebuild. Note that -D silently
+      # ignores UNKNOWN options, so a typo here reads as "clean" — the option
+      # name below is verified to exist and to fire.
+      - name: Mathlib standard linter set on changed files
+        run: |
+          changed=$(git diff --name-only "origin/${{ github.base_ref }}...HEAD" \
+                     -- 'MidenLean/**/*.lean' \
+                     | grep -v '^MidenLean/Proofs/Generated/' || true)
+          if [ -z "$changed" ]; then
+            echo "no library files changed"; exit 0
+          fi
+          status=0
+          for f in $changed; do
+            [ -f "$f" ] || continue
+            echo "--- $f"
+            lake env lean -Dlinter.mathlibStandardSet=true "$f" 2>&1 | tee /tmp/style.out
+            if grep -qE 'warning|error' /tmp/style.out; then status=1; fi
+          done
+          exit $status
