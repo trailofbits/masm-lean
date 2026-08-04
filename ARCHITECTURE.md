@@ -105,9 +105,24 @@ The symbolic proof stack lives under `MidenLean/Symbolic/`:
 
 - `Expr.lean` defines symbolic expressions, boolean/connective combinators, and evaluation.
 - `State.lean` and `Exec.lean` define symbolic states, preconditions, and symbolic execution for instructions and straight-line op lists.
+- `Helpers.lean` holds the per-instruction soundness lemmas. Most are generated
+  by the local `sound_stack_op` macro from four inputs (operands popped,
+  name suffix, instruction, concrete handler), so extending the symbolic
+  executor with a new stack instruction is normally a one-line addition;
+  ops with irregular shapes (word-width, state-preserving, conditional) stay
+  hand-written.
 - `Soundness.lean` proves that symbolic execution is sound with respect to `execProcedure`.
-- `Reflect.lean` packages this into tactic-facing reflection theorems for fully concrete initial states.
-- `Tactic.lean` implements `miden_reflect` and `miden_vcg`.
+- `Reflect.lean` packages this into tactic-facing reflection theorems for fully
+  concrete initial states, and holds the `miden_reflect_norm` simp bank that
+  canonicalizes reflected terms. Lemmas that fuse `ZMod.val` with an
+  `Expr.eval` node are registered **pre-order** (`↓`); in post-order `simp`
+  unfolds the inner `Expr.eval` before it can see the enclosing `.val`.
+- `Tactic.lean` implements `miden_reflect`, `miden_vcg`, `miden_vcg_step` and
+  `miden_exec_step`. The recursive (`miden_vcg`) and single-step
+  (`miden_vcg_step`) families share their mechanical halves through
+  `prepareAppendSplit`, `prepareIfElseFastSplit`, `prepareIfElseFastDecompose`,
+  `prepareIfElseSlowSplit` and `prepareRepeatSplit`; each family supplies only
+  a recurse-or-return tail.
 
 The reflection workflow is:
 
@@ -127,8 +142,53 @@ The reflection workflow is:
 
 - `ifElse`
 - concrete-count `repeat`
+- `.exec` calls, via the call summaries below
 
-and delegates straight-line leaves back to `miden_reflect`. `whileTrue` is intentionally still out of scope for automatic proofs.
+and delegates straight-line leaves back to `miden_reflect`. `whileTrue` is
+intentionally out of scope for automatic proofs — no procedure in the core
+library uses it, so loop-bearing proofs would use the invariant/measure rules in
+`Proofs/ControlFlow.lean` instead.
+
+#### Leaf size: the reflection ceiling
+
+The reflection leaf is closed by kernel reduction, whose cost grows steeply in
+the number of ops in the block (measured on `closeReflectResultGoal`'s `whnf`
+fast path: ~11 ms at 6 ops, ~48 ms at 11, ~107 ms at 16, ~720 ms at 22, ~1.7 s
+at 28, ~16 s at 33, ~36 s at 39, and beyond ~44 ops it does not return within a
+usable budget). The practical ceiling for one leaf is therefore roughly 15-25
+ops, which is why `U128.overflowing_add` (15 ops) is a one-line `miden_vcg`
+proof while `U128.overflowing_sub` (44 ops) and `U256.sub_with_borrow_be`
+(53 ops) are still proved by hand-splitting the body into chunks.
+
+Automating that split — segmenting long straight-line bodies via
+`execProcedure_append` so each leaf stays under the ceiling — is the known next
+step for the remaining large manual proofs, and `prepareAppendSplit` already
+provides the mechanism. An attempt at it is preserved outside the tree; it
+worked but roughly doubled elaboration time for already-passing proofs, because
+the accompanying "fail-soft" heartbeat cap on the `whnf` fast path was set equal
+to the ambient budget, so a leaf that was going to fail ground through the whole
+cap before falling back instead of bailing immediately. A retry should use a
+small cap, and should land segmentation and fail-soft as separate, separately
+measured changes.
+
+When comparing elaboration times, compare like with like: a warm incremental
+build of one module and a cold full parallel build of the same module differ by
+orders of magnitude, so per-module timings are only meaningful within a single
+build mode.
+
+Two related reduction hazards, both fixed and worth knowing about when
+extending the engine:
+
+- **Duplicated intermediate states.** Reflection assigns a loop iteration's (or
+  segment's) output state to a metavariable as an unreduced wrapper term; used
+  as the next input, that nests one level deeper per step. `Expr` trees grew
+  ~1.8× per limb in widening carry chains until the state was normalized
+  between steps.
+- **Numeral spelling.** `Expr.eval` writes the u32 modulus as `u32Max`, the
+  round-trip lemmas are keyed on `2 ^ 32`, and goals normalize to the literal
+  `4294967296`. Three spellings of one value means a rewrite that looks
+  applicable never fires, and `simp` burns its budget instead. New
+  `miden_reflect_norm` lemmas should state right-hand sides as `2 ^ 32`.
 
 ### Call Summaries
 
