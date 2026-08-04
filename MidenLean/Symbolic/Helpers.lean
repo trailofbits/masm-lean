@@ -828,7 +828,9 @@ theorem execInstruction_sound_swapw
     (hpreconds : ∀ p ∈ preconds, p.holds σ) :
     ∃ cs', MidenLean.execInstruction cs (.swapw n) = some cs' ∧ ss'.models cs' σ rest := by
   obtain ⟨hstack, hmem, hframes, hadv⟩ := hmodels
-  simp only [execInstruction] at hexec
+  -- Restate the `cons`-pattern definition in the index/`List.set` form that the
+  -- concrete `execSwapw` uses (the two agree for every `n` and stack shape).
+  rw [execInstruction_swapw_setForm] at hexec
   -- Split on the if (n.val == 0) condition inside hexec
   split at hexec
   · -- n = 0: identity case

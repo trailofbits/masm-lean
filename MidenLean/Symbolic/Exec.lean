@@ -101,19 +101,26 @@ def execInstruction (s : State) (i : Instruction) :
     | some top, some nth =>
       some ({ s with stack := s.stack.set 0 nth |>.set n.val top }, [])
     | _, _ => none
+  -- `swapw` destructures the stack with explicit `cons` patterns instead of
+  -- eight `getElem?` lookups plus a chain of eight `List.set`s. Both
+  -- formulations agree (`execInstruction_swapw_setForm` below), but this one
+  -- mentions `s.stack` exactly once, which is what keeps `whnf`-based
+  -- reflection (`miden_reflect`) linear in the number of instructions: every
+  -- extra occurrence of `s.stack` in a case multiplies the number of distinct
+  -- reduction paths the `whnf` cache has to explore down the block's `foldlM`.
   | .swapw n =>
-    if n.val == 0 then some (s, [])
-    else
-      let base := n.val * 4
-      match s.stack[0]?, s.stack[1]?, s.stack[2]?, s.stack[3]?,
-            s.stack[base]?, s.stack[base+1]?, s.stack[base+2]?, s.stack[base+3]? with
-      | some a0, some a1, some a2, some a3,
-        some b0, some b1, some b2, some b3 =>
-        let stk' := s.stack
-          |>.set 0 b0 |>.set 1 b1 |>.set 2 b2 |>.set 3 b3
-          |>.set base a0 |>.set (base+1) a1 |>.set (base+2) a2 |>.set (base+3) a3
-        some ({ s with stack := stk' }, [])
-      | _, _, _, _, _, _, _, _ => none
+    match n, s.stack with
+    | 0, _ => some (s, [])
+    | 1, a0 :: a1 :: a2 :: a3 :: b0 :: b1 :: b2 :: b3 :: rest =>
+      some ({ s with stack := b0 :: b1 :: b2 :: b3 :: a0 :: a1 :: a2 :: a3 :: rest }, [])
+    | 2, a0 :: a1 :: a2 :: a3 :: c0 :: c1 :: c2 :: c3 :: b0 :: b1 :: b2 :: b3 :: rest =>
+      some ({ s with stack := b0 :: b1 :: b2 :: b3 :: c0 :: c1 :: c2 :: c3 ::
+                              a0 :: a1 :: a2 :: a3 :: rest }, [])
+    | 3, a0 :: a1 :: a2 :: a3 :: c0 :: c1 :: c2 :: c3 :: d0 :: d1 :: d2 :: d3 ::
+           b0 :: b1 :: b2 :: b3 :: rest =>
+      some ({ s with stack := b0 :: b1 :: b2 :: b3 :: c0 :: c1 :: c2 :: c3 ::
+                              d0 :: d1 :: d2 :: d3 :: a0 :: a1 :: a2 :: a3 :: rest }, [])
+    | _, _ => none
   | .swapdw => match s.stack with
     | a0::a1::a2::a3::b0::b1::b2::b3::c0::c1::c2::c3::d0::d1::d2::d3::rest =>
       some ({ s with stack := c0::c1::c2::c3::d0::d1::d2::d3::a0::a1::a2::a3::b0::b1::b2::b3::rest }, [])
@@ -685,6 +692,41 @@ def execInstruction (s : State) (i : Instruction) :
   | .memLoadwBe | .memStorewBe
   | .memLoadwLe | .memStorewLe
   | .exec _ => none
+
+/-- The `cons`-pattern `swapw` case of `execInstruction` agrees with the
+    index-and-`List.set` formulation of the same word swap: for every `n` and
+    every stack shape the two return the same `Option`, including the `n = 0`
+    no-op and the underflow cases that return `none`. The `cons` form is the
+    definition because it mentions `s.stack` only once (see the comment on the
+    `swapw` case); this lemma lets the soundness proof in `Helpers.lean` keep
+    reasoning in terms of `getElem?` and `List.set`, which is the form the
+    concrete `execSwapw` uses. -/
+theorem execInstruction_swapw_setForm (s : State) (n : Fin 4) :
+    execInstruction s (.swapw n) =
+      (if n.val == 0 then some (s, [])
+       else
+         match s.stack[0]?, s.stack[1]?, s.stack[2]?, s.stack[3]?,
+               s.stack[n.val * 4]?, s.stack[n.val * 4 + 1]?,
+               s.stack[n.val * 4 + 2]?, s.stack[n.val * 4 + 3]? with
+         | some a0, some a1, some a2, some a3, some b0, some b1, some b2, some b3 =>
+           some ({ s with stack := s.stack.set 0 b0 |>.set 1 b1 |>.set 2 b2 |>.set 3 b3
+                     |>.set (n.val * 4) a0 |>.set (n.val * 4 + 1) a1
+                     |>.set (n.val * 4 + 2) a2 |>.set (n.val * 4 + 3) a3 }, [])
+         | _, _, _, _, _, _, _, _ => none) := by
+  obtain ⟨stk, mem, frames, advice⟩ := s
+  obtain ⟨v, hv⟩ := n
+  match v, hv with
+  | 0, _ => rfl
+  | 1, _ =>
+    iterate 8 (rcases stk with _ | ⟨_, stk⟩; · rfl)
+    rfl
+  | 2, _ =>
+    iterate 12 (rcases stk with _ | ⟨_, stk⟩; · rfl)
+    rfl
+  | 3, _ =>
+    iterate 16 (rcases stk with _ | ⟨_, stk⟩; · rfl)
+    rfl
+  | (k + 4), h => omega
 
 /-- The step function used inside execBlock's fold. -/
 def execBlockStep (acc : State × List Precondition) (inst : Instruction) :
