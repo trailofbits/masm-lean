@@ -388,13 +388,15 @@ private def finalizeCleanupGoals (goals : List MVarId) : TacticM (List MVarId) :
         intros p hp
         simp at hp
         repeat' (first | rcases hp with rfl | hp)
-        all_goals (simp [miden_reflect_norm, miden_u32, miden_val, miden_bound, *] at *)
+        all_goals (simp (config := { maxDischargeDepth := 16 })
+          [miden_reflect_norm, miden_u32, miden_val, miden_bound, *] at *)
         all_goals (first | rfl | miden_arith | omega))) then
         remaining := remaining ++ rem
       else if let some rem ← tryRunOnGoal? goal (← `(tactic|
         first
-        | simp [miden_reflect_norm, miden_cleanup,
-                miden_u32, miden_val, miden_bound, *]
+        | simp (config := { maxDischargeDepth := 16 })
+            [miden_reflect_norm, miden_cleanup,
+             miden_u32, miden_val, miden_bound, *]
         | miden_finish_reflection)) then
         remaining := remaining ++ rem
       else if let some rem ← tryRunOnGoal? goal (← `(tactic| tauto)) then
@@ -437,16 +439,26 @@ private def cleanupGoals (goals : List MVarId) : TacticM (List MVarId) := do
         -- up front keeps the disjunction as wide as the actual precondition list.
         try simp only [List.mem_cons, List.mem_append, List.mem_singleton,
                        List.not_mem_nil, false_or, or_false] at hp
-        simp only [List.mem_cons, List.mem_append, List.mem_singleton,
-                   List.not_mem_nil, false_or, or_false, true_or, or_true,
-                   true_and, and_true,
-                   and_assoc, and_left_comm, and_comm,
-                   or_assoc, or_left_comm, or_comm,
-                   miden_reflect_norm,
-                   MidenLean.Symbolic.Precondition.holds,
-                   MidenLean.Symbolic.Expr.eval,
-                   MidenLean.Symbolic.Reflect.concreteAssignment,
-                   miden_u32, miden_val, miden_bound, *] at hp ⊢
+        -- `maxDischargeDepth` is raised from its default of 2 because the
+        -- `isU32` facts a carry (or borrow) chain needs are themselves
+        -- conditional on the *previous* limb's carry being u32: discharging the
+        -- k-th limb's obligation recurses k levels down to the literal
+        -- operands. At the default depth the recursion is cut off after two
+        -- levels, the fused `isU32_eval_u32Add3Hi`-style lemmas silently fail
+        -- to fire, and the ladder falls through to its expensive rungs with the
+        -- whole chain still unreduced — which is what made an 8-limb u256 chain
+        -- exceed 4M heartbeats while its 2-limb chunks took a second.
+        simp (config := { maxDischargeDepth := 16 }) only
+          [List.mem_cons, List.mem_append, List.mem_singleton,
+           List.not_mem_nil, false_or, or_false, true_or, or_true,
+           true_and, and_true,
+           and_assoc, and_left_comm, and_comm,
+           or_assoc, or_left_comm, or_comm,
+           miden_reflect_norm,
+           MidenLean.Symbolic.Precondition.holds,
+           MidenLean.Symbolic.Expr.eval,
+           MidenLean.Symbolic.Reflect.concreteAssignment,
+           miden_u32, miden_val, miden_bound, *] at hp ⊢
         all_goals (first
         | tauto
         | miden_arith
@@ -462,7 +474,8 @@ private def cleanupGoals (goals : List MVarId) : TacticM (List MVarId) := do
       else if let some rem ← tryRunOnGoal? goal (← `(tactic| miden_arith)) then
         remaining := remaining ++ rem
       else if let some rem ← tryRunOnGoal? goal (← `(tactic|
-        simp only [true_and, and_true, miden_u32, miden_val, miden_bound, *])) then
+        simp (config := { maxDischargeDepth := 16 }) only
+          [true_and, and_true, miden_u32, miden_val, miden_bound, *])) then
         remaining := remaining ++ rem
       else
         remaining := remaining ++ [goal]
@@ -484,7 +497,7 @@ private def cleanupExecSummaryGoals (goals : List MVarId) : TacticM (List MVarId
         | decide
         | omega
         | miden_arith
-        | simp only [miden_u32, miden_val, miden_bound, *]
+        | simp (config := { maxDischargeDepth := 16 }) only [miden_u32, miden_val, miden_bound, *]
         | simp [miden_reflect_norm, miden_cleanup]
         | miden_finish_reflection)) then
         remaining := remaining ++ rem

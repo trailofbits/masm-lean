@@ -25,6 +25,12 @@ theorem val_lt (x : U32) : x.val.val < 2^32 := by
 
 theorem toNat_lt (x : U32) : x.toNat < 2^32 := x.val_lt
 
+/-- The underlying `Felt` of a `U32` is u32. This is just the structure field,
+    but tagged into `miden_u32` it discharges the `isU32` side conditions the
+    automation raises about limbs of `U64` / `U128` / `U256` values, whose stack
+    elements are all of the form `x.aK.val`. -/
+@[miden_u32] theorem val_isU32 (x : U32) : x.val.isU32 = true := x.isU32
+
 theorem val_lt_prime (x : U32) : x.val.val < GOLDILOCKS_PRIME := by
   have := x.val_lt; unfold GOLDILOCKS_PRIME; omega
 

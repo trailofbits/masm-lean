@@ -1,6 +1,7 @@
 import MidenLean.Symbolic.SimpAttrs
 import MidenLean.Symbolic.Soundness
 import MidenLean.Proofs.Helpers
+import MidenLean.Proofs.U32.Common
 import MidenLean.Proofs.Fuel
 import MidenLean.Generated.U64
 
@@ -92,6 +93,19 @@ def concreteStateWithLocals (stackPrefix : List Felt) (mem : Nat → Felt)
     (concreteStateWithLocals stackPrefix mem frames adv numLocals).frames =
       { base := MidenLean.localsBase frames, numLocals,
         alignedNumLocals := MidenLean.alignLocals numLocals } :: frames := rfl
+
+/-- Evaluating a literal node recovers the `Felt` it carries.
+
+    Registered into the `val`/`u32`/`bound` banks as well as
+    `miden_reflect_norm`, because the fused `Expr.eval` lemmas further down
+    carry side conditions of the form `(Expr.eval σ operand).isU32 = true`. When
+    the operand is a literal those must reduce to the hypothesis the caller
+    supplied about the underlying `Felt`, and the side-condition discharger only
+    sees the bank the enclosing `simp` call was given — not the `Expr.eval`
+    unfold, which lives in `miden_cleanup`. -/
+@[miden_reflect_norm, miden_val, miden_u32, miden_bound] theorem eval_lit
+    (σ : Assignment) (a : Felt) :
+    Expr.eval σ (Expr.lit a) = a := rfl
 
 /-- Evaluating a list of literals (in composed form) recovers the original list. -/
 @[simp, miden_reflect_norm] theorem map_eval_lit_comp_zero (xs : List Felt) :
@@ -271,6 +285,53 @@ normalization steps for reflected goals, not facts wanted in unrelated proofs. -
   rw [eval_u32Add3Hi]
   exact felt_ofNat_val_lt _ (sum3_div_2_32_lt_prime _ _ _)
 
+/-! The `isU32` companions below discharge the `Precondition.isU32` obligation
+that the *next* limb of a carry chain imposes on the previous limb's carry.
+They matter for exactly the reason the `val` lemmas do, one step earlier: after
+`Expr.eval` is unfolded the obligation reads
+`(Felt.ofNat ((… + …) / 2 ^ 32)).isU32 = true`, whose modulus `simp` has already
+normalized to the literal `4294967296`, so the `2 ^ 32`-keyed `miden_u32`
+lemmas (`u32_add3_div_isU32` and friends) no longer match it. Firing
+pre-order, before the unfold, sidesteps the spelling question entirely.
+
+A `Lo` word is u32 unconditionally. A carry is not: two arbitrary `Felt`
+operands sum to nearly `2 * p`, and `2 * p / 2 ^ 32` is above `2 ^ 32`. The
+carry lemmas therefore ask their operands to be u32, which for a chain
+recurses down to the literal operands and the caller's hypotheses about them. -/
+
+/-- The low word of a two-operand widening add is always u32. -/
+@[miden_reflect_norm ↓, miden_u32 ↓] theorem isU32_eval_u32AddLo (σ : Assignment) (x y : Expr) :
+    (Expr.eval σ (x.u32AddLo y)).isU32 = true := by
+  rw [eval_u32AddLo]
+  exact u32_mod_isU32 _
+
+/-- The low word of a three-operand widening add is always u32. -/
+@[miden_reflect_norm ↓, miden_u32 ↓] theorem isU32_eval_u32Add3Lo
+    (σ : Assignment) (x y z : Expr) :
+    (Expr.eval σ (x.u32Add3Lo y z)).isU32 = true := by
+  rw [eval_u32Add3Lo]
+  exact u32_mod_isU32 _
+
+/-- The carry of a two-operand widening add is u32 once both operands are. -/
+@[miden_reflect_norm ↓, miden_u32 ↓] theorem isU32_eval_u32AddHi (σ : Assignment) (x y : Expr)
+    (hx : (x.eval σ).isU32 = true) (hy : (y.eval σ).isU32 = true) :
+    (Expr.eval σ (x.u32AddHi y)).isU32 = true := by
+  rw [eval_u32AddHi]
+  refine felt_ofNat_isU32_of_lt _ ?_
+  simp only [Felt.isU32, decide_eq_true_eq] at hx hy
+  omega
+
+/-- The carry of a three-operand widening add is u32 once all three operands are. -/
+@[miden_reflect_norm ↓, miden_u32 ↓] theorem isU32_eval_u32Add3Hi
+    (σ : Assignment) (x y z : Expr)
+    (hx : (x.eval σ).isU32 = true) (hy : (y.eval σ).isU32 = true)
+    (hz : (z.eval σ).isU32 = true) :
+    (Expr.eval σ (x.u32Add3Hi y z)).isU32 = true := by
+  rw [eval_u32Add3Hi]
+  refine felt_ofNat_isU32_of_lt _ ?_
+  simp only [Felt.isU32, decide_eq_true_eq] at hx hy hz
+  omega
+
 /-! ### Borrow-propagation chains
 
 `u32OverflowSub` is the mirror image of `u32WidenAdd`: it pushes a
@@ -336,6 +397,163 @@ lemmas already use — rather than the unfolded `if`. -/
   rw [eval_u32WSub]
   exact felt_ofNat_val_lt _
     (u32_overflow_sub_snd_lt _ _ (felt_val_lt_prime _) (felt_val_lt_prime _))
+
+/-! ### Mask, shift, and schoolbook-multiply nodes
+
+`u32And` / `pow2` / `u32WidenMul` / `u32WidenMadd` compose the same way the
+add and subtract families do: the `Lo` and `Hi` nodes of one widening multiply
+share their operand subtrees, and the next limb consumes a sibling as
+`(Expr.eval σ node).val`. Two spelling mismatches block the collapse, and both
+are fixed here rather than in the goal:
+
+* `Expr.eval` spells the modulus `u32Max`, while manual statements and the
+  `miden_val` / `miden_bound` banks are keyed on `2 ^ 32` (normalized to the
+  literal `4294967296`). The right-hand sides below therefore say `2 ^ 32`.
+* `Expr.eval` spells bitwise and as `Nat.land`, while manual statements use
+  `&&&`. The two are definitionally equal, so `eval_u32And` can state the
+  `&&&` form by `rfl` and pull every downstream goal onto that spelling.
+
+As with the add and subtract families these are **pre**-order (`↓`): in
+post-order the inner `Expr.eval` is unfolded before the enclosing `.val` can be
+seen, and the fused lemma never fires.
+
+Only the `Lo` halves (and `u32And`) get an unconditional `val` companion:
+`x % 2 ^ 32` and `x &&& y` are below the prime for any `Felt` operands, whereas
+a `Hi` half needs its operands to be u32 (two arbitrary `Felt`s multiply to
+about `2 ^ 128`, and `2 ^ 96` is far above the prime). The `Hi` `val`
+round-trips are left to the conditional `miden_val` bank, which can discharge
+the `isU32` side conditions from the hypotheses in scope. -/
+
+/-- Evaluate a bitwise-and node, in the `&&&` spelling. -/
+@[miden_reflect_norm ↓, miden_val ↓] theorem eval_u32And (σ : Assignment) (x y : Expr) :
+    Expr.eval σ (x.u32And y) =
+      Felt.ofNat ((x.eval σ).val &&& (y.eval σ).val) := rfl
+
+/-- A bitwise-and node round-trips through `Felt`: the result is bounded by its
+    right operand, which is a `Felt` value and so below the prime. -/
+@[miden_reflect_norm ↓, miden_val ↓] theorem val_eval_u32And (σ : Assignment) (x y : Expr) :
+    (Expr.eval σ (x.u32And y)).val = (x.eval σ).val &&& (y.eval σ).val := by
+  rw [eval_u32And]
+  exact felt_ofNat_val_lt _ (lt_of_le_of_lt Nat.and_le_right (felt_val_lt_prime _))
+
+/-- Evaluate a `pow2` node. There is no unconditional `val` companion: `2 ^ n`
+    exceeds the prime for `n ≥ 64`. -/
+@[miden_reflect_norm ↓, miden_val ↓] theorem eval_pow2 (σ : Assignment) (x : Expr) :
+    Expr.eval σ x.pow2 = Felt.ofNat (2 ^ (x.eval σ).val) := rfl
+
+/-- Evaluate the low word of a widening multiply. -/
+@[miden_reflect_norm ↓, miden_val ↓] theorem eval_u32MulLo (σ : Assignment) (x y : Expr) :
+    Expr.eval σ (x.u32MulLo y) =
+      Felt.ofNat ((x.eval σ).val * (y.eval σ).val % 2 ^ 32) := rfl
+
+/-- Evaluate the high word of a widening multiply. -/
+@[miden_reflect_norm ↓, miden_val ↓] theorem eval_u32MulHi (σ : Assignment) (x y : Expr) :
+    Expr.eval σ (x.u32MulHi y) =
+      Felt.ofNat ((x.eval σ).val * (y.eval σ).val / 2 ^ 32) := rfl
+
+/-- The low word of a widening multiply round-trips through `Felt`. -/
+@[miden_reflect_norm ↓, miden_val ↓] theorem val_eval_u32MulLo (σ : Assignment) (x y : Expr) :
+    (Expr.eval σ (x.u32MulLo y)).val = (x.eval σ).val * (y.eval σ).val % 2 ^ 32 := by
+  rw [eval_u32MulLo]
+  exact felt_ofNat_val_lt _ (u32_mod_lt_prime _)
+
+/-- Evaluate the low word of a widening multiply-add. -/
+@[miden_reflect_norm ↓, miden_val ↓] theorem eval_u32MaddLo (σ : Assignment) (x y z : Expr) :
+    Expr.eval σ (x.u32MaddLo y z) =
+      Felt.ofNat (((x.eval σ).val * (y.eval σ).val + (z.eval σ).val) % 2 ^ 32) := rfl
+
+/-- Evaluate the high word of a widening multiply-add. -/
+@[miden_reflect_norm ↓, miden_val ↓] theorem eval_u32MaddHi (σ : Assignment) (x y z : Expr) :
+    Expr.eval σ (x.u32MaddHi y z) =
+      Felt.ofNat (((x.eval σ).val * (y.eval σ).val + (z.eval σ).val) / 2 ^ 32) := rfl
+
+/-- The low word of a widening multiply-add round-trips through `Felt`. -/
+@[miden_reflect_norm ↓, miden_val ↓] theorem val_eval_u32MaddLo (σ : Assignment) (x y z : Expr) :
+    (Expr.eval σ (x.u32MaddLo y z)).val =
+      ((x.eval σ).val * (y.eval σ).val + (z.eval σ).val) % 2 ^ 32 := by
+  rw [eval_u32MaddLo]
+  exact felt_ofNat_val_lt _ (u32_mod_lt_prime _)
+
+/-- The high word of a widening multiply round-trips through `Felt` once both
+    operands are u32. -/
+@[miden_reflect_norm ↓, miden_val ↓] theorem val_eval_u32MulHi (σ : Assignment) (x y : Expr)
+    (hx : (x.eval σ).isU32 = true) (hy : (y.eval σ).isU32 = true) :
+    (Expr.eval σ (x.u32MulHi y)).val = (x.eval σ).val * (y.eval σ).val / 2 ^ 32 := by
+  rw [eval_u32MulHi]
+  exact felt_ofNat_val_lt _ (u32_prod_div_lt_prime _ _ hx hy)
+
+/-- The high word of a widening multiply-add round-trips through `Felt` once all
+    three operands are u32. -/
+@[miden_reflect_norm ↓, miden_val ↓] theorem val_eval_u32MaddHi (σ : Assignment) (x y z : Expr)
+    (hx : (x.eval σ).isU32 = true) (hy : (y.eval σ).isU32 = true)
+    (hz : (z.eval σ).isU32 = true) :
+    (Expr.eval σ (x.u32MaddHi y z)).val =
+      ((x.eval σ).val * (y.eval σ).val + (z.eval σ).val) / 2 ^ 32 := by
+  rw [eval_u32MaddHi]
+  exact felt_ofNat_val_lt _
+    (u32_val_lt_prime _ (Proofs.u32_madd_div_lt_2_32 _ _ _ hx hy hz))
+
+/-! The `isU32` companions below let a widening-multiply node satisfy the
+`Precondition.isU32` obligation that the *next* multiply in a schoolbook chain
+imposes on it, without the enclosing `.isU32` having to survive an `Expr.eval`
+unfold first — the same pre-order argument as for the `val` lemmas. -/
+
+/-- A bitwise-and node is u32 as soon as its right operand is. -/
+@[miden_reflect_norm ↓, miden_u32 ↓] theorem isU32_eval_u32And (σ : Assignment) (x y : Expr)
+    (hy : (y.eval σ).isU32 = true) :
+    (Expr.eval σ (x.u32And y)).isU32 = true := by
+  rw [eval_u32And]
+  refine felt_ofNat_isU32_of_lt _ (lt_of_le_of_lt Nat.and_le_right ?_)
+  simpa [Felt.isU32] using hy
+
+/-- The low word of a widening multiply is always u32. -/
+@[miden_reflect_norm ↓, miden_u32 ↓] theorem isU32_eval_u32MulLo (σ : Assignment) (x y : Expr) :
+    (Expr.eval σ (x.u32MulLo y)).isU32 = true := by
+  rw [eval_u32MulLo]
+  exact u32_mod_isU32 _
+
+/-- The high word of a widening multiply is u32 once both operands are. -/
+@[miden_reflect_norm ↓, miden_u32 ↓] theorem isU32_eval_u32MulHi (σ : Assignment) (x y : Expr)
+    (hx : (x.eval σ).isU32 = true) (hy : (y.eval σ).isU32 = true) :
+    (Expr.eval σ (x.u32MulHi y)).isU32 = true := by
+  rw [eval_u32MulHi]
+  exact u32_prod_div_isU32 _ _ hx hy
+
+/-- The low word of a widening multiply-add is always u32. -/
+@[miden_reflect_norm ↓, miden_u32 ↓] theorem isU32_eval_u32MaddLo (σ : Assignment) (x y z : Expr) :
+    (Expr.eval σ (x.u32MaddLo y z)).isU32 = true := by
+  rw [eval_u32MaddLo]
+  exact u32_mod_isU32 _
+
+/-- The high word of a widening multiply-add is u32 once all three operands are. -/
+@[miden_reflect_norm ↓, miden_u32 ↓] theorem isU32_eval_u32MaddHi (σ : Assignment) (x y z : Expr)
+    (hx : (x.eval σ).isU32 = true) (hy : (y.eval σ).isU32 = true)
+    (hz : (z.eval σ).isU32 = true) :
+    (Expr.eval σ (x.u32MaddHi y z)).isU32 = true := by
+  rw [eval_u32MaddHi]
+  exact Proofs.u32_madd_div_isU32 _ _ _ hx hy hz
+
+/-- The borrow of an overflowing subtract is always u32: it is `0` or `1`. -/
+@[miden_reflect_norm ↓, miden_u32 ↓] theorem isU32_eval_u32SubBorrow (σ : Assignment) (x y : Expr) :
+    (Expr.eval σ (x.u32SubBorrow y)).isU32 = true := by
+  rw [eval_u32SubBorrow]
+  exact u32OverflowingSub_fst_isU32 _ _
+
+/-- The difference of an overflowing subtract is u32 once the subtrahend is. -/
+@[miden_reflect_norm ↓, miden_u32 ↓] theorem isU32_eval_u32SubDiff (σ : Assignment) (x y : Expr)
+    (hx : (x.eval σ).isU32 = true) (hy : (y.eval σ).isU32 = true) :
+    (Expr.eval σ (x.u32SubDiff y)).isU32 = true := by
+  rw [eval_u32SubDiff]
+  simp only [Felt.isU32, decide_eq_true_eq] at hx hy
+  exact u32OverflowingSub_snd_isU32 _ _ hx hy
+
+/-- A wrapping subtract is u32 once both operands are. -/
+@[miden_reflect_norm ↓, miden_u32 ↓] theorem isU32_eval_u32WSub (σ : Assignment) (x y : Expr)
+    (hx : (x.eval σ).isU32 = true) (hy : (y.eval σ).isU32 = true) :
+    (Expr.eval σ (x.u32WSub y)).isU32 = true := by
+  rw [eval_u32WSub]
+  simp only [Felt.isU32, decide_eq_true_eq] at hx hy
+  exact u32OverflowingSub_snd_isU32 _ _ hx hy
 
 /-! The next two lemmas are scoped to `miden_reflect_norm` only: as global
 `@[simp]` lemmas they would silently rewrite `clo`/`cto` spellings in unrelated

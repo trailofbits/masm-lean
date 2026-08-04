@@ -29,7 +29,6 @@ theorem u64_wrapping_mul_exec
       let cross2 := b_lo.val * a_hi.val + cross1 % 2^32
       Felt.ofNat (prod_lo % 2^32) :: Felt.ofNat (cross2 % 2^32) :: rest)) := by
   miden_vcg
-  all_goals miden_finish_reflection
 
 /-- `u64::wrapping_mul` computes the low 64 bits of the product `a * b`.
     Input stack:  [b.lo, b.hi, a.lo, a.hi] ++ rest

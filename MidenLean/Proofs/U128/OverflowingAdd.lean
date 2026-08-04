@@ -39,7 +39,6 @@ theorem u128_overflowing_add_exec
       Felt.ofNat (sum2 % 2 ^ 32) ::
       Felt.ofNat (sum3 % 2 ^ 32) :: rest)) := by
   miden_vcg
-  all_goals miden_finish_reflection
 
 /-- `u128::overflowing_add` computes `a + b` with overflow detection.
     Input stack:  [b.a0, b.a1, b.a2, b.a3, a.a0, a.a1, a.a2, a.a3] ++ rest

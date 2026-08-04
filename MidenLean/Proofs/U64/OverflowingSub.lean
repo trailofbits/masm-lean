@@ -33,7 +33,6 @@ theorem u64_overflowing_sub_exec
       (if borrow_adj || borrow_hi then (1 : Felt) else 0) ::
       Felt.ofNat sub_lo.2 :: Felt.ofNat sub_adj.2 :: rest)) := by
   miden_vcg
-  all_goals miden_finish_reflection
 
 /-- `u64::overflowing_sub` computes `a - b` with underflow detection.
     Input stack:  [b.lo, b.hi, a.lo, a.hi] ++ rest

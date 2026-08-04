@@ -1,36 +1,9 @@
 import MidenLean.Proofs.U256.Common
-import MidenLean.Proofs.Tactics
 import MidenLean.Symbolic.Tactic
 
 namespace MidenLean.Proofs
 
 open MidenLean
-open MidenLean.StepLemmas
-open MidenLean.Tactics
-
--- ============================================================================
--- Helper step lemmas
--- ============================================================================
-
-set_option maxHeartbeats 4000000 in
-private theorem stepU32OverflowAdd (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
-    (a b : Felt) (rest : List Felt)
-    (ha : a.isU32 = true) (hb : b.isU32 = true) :
-    execInstruction ⟨b :: a :: rest, mem, frames, adv⟩ .u32OverflowAdd =
-    some ⟨Felt.ofNat ((a.val + b.val) / 2^32) ::
-          Felt.ofNat ((a.val + b.val) % 2^32) :: rest, mem, frames, adv⟩ := by
-  unfold execInstruction execU32OverflowAdd u32WideAdd u32Max
-  simp [ha, hb, Concrete.State.withStack]
-
-set_option maxHeartbeats 4000000 in
-private theorem stepU32OverflowAdd3 (mem : Nat → Felt) (frames : List LocalFrame) (adv : List Felt)
-    (a b c : Felt) (rest : List Felt)
-    (ha : a.isU32 = true) (hb : b.isU32 = true) (hc : c.isU32 = true) :
-    execInstruction ⟨c :: b :: a :: rest, mem, frames, adv⟩ .u32OverflowAdd3 =
-    some ⟨Felt.ofNat ((a.val + b.val + c.val) / 2^32) ::
-          Felt.ofNat ((a.val + b.val + c.val) % 2^32) :: rest, mem, frames, adv⟩ := by
-  unfold execInstruction execU32OverflowAdd3 u32WideAdd3 u32Max
-  simp [ha, hb, hc, Concrete.State.withStack]
 
 -- ============================================================================
 -- Chunk definitions
@@ -71,7 +44,7 @@ private theorem awc_decomp :
 -- Chunk correctness lemmas
 -- ============================================================================
 
-set_option maxHeartbeats 4000000 in
+set_option maxHeartbeats 400000 in
 /-- Chunk 1: swapw3 + add limbs 0,1.
     Input:  [b7..b0, a7..a0 | rest]
     Output: [c1, r1, r0, a3, a2, b3, b2, a7..a4, b7..b4 | rest] -/
@@ -91,25 +64,9 @@ private theorem awc_chunk1_correct
           Felt.ofNat (s0 % 2^32) :: a3 :: a2 :: b3 :: b2 ::
           a7 :: a6 :: a5 :: a4 :: b7 :: b6 :: b5 :: b4 :: rest,
           mem, frames, adv⟩ := by
-  have ha0_lt : a0.val < 2^32 := by simpa [Felt.isU32, decide_eq_true_eq] using ha0
-  have hb0_lt : b0.val < 2^32 := by simpa [Felt.isU32, decide_eq_true_eq] using hb0
-  have hc0_isU32 : (Felt.ofNat ((a0.val + b0.val) / 2^32)).isU32 = true := by
-    simp only [Felt.isU32, decide_eq_true_eq]
-    rw [felt_ofNat_val_lt _ (by unfold GOLDILOCKS_PRIME; omega)]; omega
-  have hc0_val : (Felt.ofNat ((a0.val + b0.val) / 2^32)).val =
-      (a0.val + b0.val) / 2^32 :=
-    felt_ofNat_val_lt _ (by unfold GOLDILOCKS_PRIME; omega)
-  unfold awc_chunk1 execProcedure
-  simp only [List.foldlM]
-  rw [stepSwapw3]; miden_bind
-  miden_movup; miden_movup
-  rw [stepU32OverflowAdd (ha := ha0) (hb := hb0)]; miden_bind
-  miden_movup; miden_movup
-  rw [stepU32OverflowAdd3 (ha := hc0_isU32) (hb := ha1) (hc := hb1)]; miden_bind
-  rw [hc0_val]
-  simp only [pure, Pure.pure]
+  miden_vcg
 
-set_option maxHeartbeats 4000000 in
+set_option maxHeartbeats 400000 in
 /-- Chunk 2: add limbs 2,3.
     Input:  [cin, prev1, prev0, x3, x2, y3, y2, z0..z3, w0..w3 | rest]
     Output: [c3, r2, r1, prev1, prev0, z0..z3, w0..w3 | rest] -/
@@ -130,25 +87,9 @@ private theorem awc_chunk2_correct
           Felt.ofNat (s2 % 2^32) :: prev1 :: prev0 ::
           z0 :: z1 :: z2 :: z3 :: w0 :: w1 :: w2 :: w3 :: rest,
           mem, frames, adv⟩ := by
-  have hcin_lt : cin.val < 2^32 := by simpa [Felt.isU32, decide_eq_true_eq] using hcin
-  have hx2_lt : x2.val < 2^32 := by simpa [Felt.isU32, decide_eq_true_eq] using hx2
-  have hy2_lt : y2.val < 2^32 := by simpa [Felt.isU32, decide_eq_true_eq] using hy2
-  have hc2_isU32 : (Felt.ofNat ((cin.val + x2.val + y2.val) / 2^32)).isU32 = true := by
-    simp only [Felt.isU32, decide_eq_true_eq]
-    rw [felt_ofNat_val_lt _ (by unfold GOLDILOCKS_PRIME; omega)]; omega
-  have hc2_val : (Felt.ofNat ((cin.val + x2.val + y2.val) / 2^32)).val =
-      (cin.val + x2.val + y2.val) / 2^32 :=
-    felt_ofNat_val_lt _ (by unfold GOLDILOCKS_PRIME; omega)
-  unfold awc_chunk2 execProcedure
-  simp only [List.foldlM]
-  miden_movup; miden_movup
-  rw [stepU32OverflowAdd3 (ha := hcin) (hb := hx2) (hc := hy2)]; miden_bind
-  miden_movup; miden_movup
-  rw [stepU32OverflowAdd3 (ha := hc2_isU32) (hb := hx3) (hc := hy3)]; miden_bind
-  rw [hc2_val]
-  simp only [pure, Pure.pure]
+  miden_vcg
 
-set_option maxHeartbeats 8000000 in
+set_option maxHeartbeats 400000 in
 /-- Chunk 3: transition (movdn12, swapw2, movup12) + add limbs 4,5.
     Input:  [cin, prev3..prev0, z0..z3, w0..w3 | rest]
     Output: [c5, r5, r4, w0, w1, z0, z1, prev3..prev0 | rest] -/
@@ -168,27 +109,9 @@ private theorem awc_chunk3_correct
     some ⟨Felt.ofNat (s5 / 2^32) :: Felt.ofNat (s5 % 2^32) :: Felt.ofNat (s4 % 2^32) ::
           w0 :: w1 :: z0 :: z1 :: prev3 :: prev2 :: prev1 :: prev0 :: rest,
           mem, frames, adv⟩ := by
-  have hcin_lt : cin.val < 2^32 := by simpa [Felt.isU32, decide_eq_true_eq] using hcin
-  have hw3_lt : w3.val < 2^32 := by simpa [Felt.isU32, decide_eq_true_eq] using hw3
-  have hz3_lt : z3.val < 2^32 := by simpa [Felt.isU32, decide_eq_true_eq] using hz3
-  have hc4_isU32 : (Felt.ofNat ((cin.val + w3.val + z3.val) / 2^32)).isU32 = true := by
-    simp only [Felt.isU32, decide_eq_true_eq]
-    rw [felt_ofNat_val_lt _ (by unfold GOLDILOCKS_PRIME; omega)]; omega
-  have hc4_val : (Felt.ofNat ((cin.val + w3.val + z3.val) / 2^32)).val =
-      (cin.val + w3.val + z3.val) / 2^32 :=
-    felt_ofNat_val_lt _ (by unfold GOLDILOCKS_PRIME; omega)
-  unfold awc_chunk3 execProcedure
-  simp only [List.foldlM]
-  miden_movdn
-  rw [stepSwapw2]; miden_bind
-  miden_movup; miden_movup; miden_movup
-  rw [stepU32OverflowAdd3 (ha := hcin) (hb := hw3) (hc := hz3)]; miden_bind
-  miden_movup; miden_movup
-  rw [stepU32OverflowAdd3 (ha := hc4_isU32) (hb := hw2) (hc := hz2)]; miden_bind
-  rw [hc4_val]
-  simp only [pure, Pure.pure]
+  miden_vcg
 
-set_option maxHeartbeats 4000000 in
+set_option maxHeartbeats 400000 in
 /-- Chunk 4: add limbs 6,7 (final).
     Input:  [cin, prev5, prev4, w0, w1, z0, z1, prev3..prev0 | rest]
     Output: [carry, r7, r6, prev5, prev4, prev3..prev0 | rest] -/
@@ -208,23 +131,7 @@ private theorem awc_chunk4_correct
     some ⟨Felt.ofNat (s7 / 2^32) :: Felt.ofNat (s7 % 2^32) :: Felt.ofNat (s6 % 2^32) ::
           prev5 :: prev4 :: prev3 :: prev2 :: prev1 :: prev0 :: rest,
           mem, frames, adv⟩ := by
-  have hcin_lt : cin.val < 2^32 := by simpa [Felt.isU32, decide_eq_true_eq] using hcin
-  have hw1_lt : w1.val < 2^32 := by simpa [Felt.isU32, decide_eq_true_eq] using hw1
-  have hz1_lt : z1.val < 2^32 := by simpa [Felt.isU32, decide_eq_true_eq] using hz1
-  have hc6_isU32 : (Felt.ofNat ((cin.val + w1.val + z1.val) / 2^32)).isU32 = true := by
-    simp only [Felt.isU32, decide_eq_true_eq]
-    rw [felt_ofNat_val_lt _ (by unfold GOLDILOCKS_PRIME; omega)]; omega
-  have hc6_val : (Felt.ofNat ((cin.val + w1.val + z1.val) / 2^32)).val =
-      (cin.val + w1.val + z1.val) / 2^32 :=
-    felt_ofNat_val_lt _ (by unfold GOLDILOCKS_PRIME; omega)
-  unfold awc_chunk4 execProcedure
-  simp only [List.foldlM]
-  miden_movup; miden_movup
-  rw [stepU32OverflowAdd3 (ha := hcin) (hb := hw1) (hc := hz1)]; miden_bind
-  miden_movup; miden_movup
-  rw [stepU32OverflowAdd3 (ha := hc6_isU32) (hb := hw0) (hc := hz0)]; miden_bind
-  rw [hc6_val]
-  simp only [pure, Pure.pure]
+  miden_vcg
 
 -- ============================================================================
 -- Carry chain bridging lemma

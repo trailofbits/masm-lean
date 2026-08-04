@@ -32,14 +32,8 @@ theorem u256_mulstep_exec
         Felt.ofNat (((c.val * b.val + a.val) % 2 ^ 32 + d.val) / 2 ^ 32)) ::
       Felt.ofNat (((c.val * b.val + a.val) % 2 ^ 32 + d.val) % 2 ^ 32) :: rest)) := by
   miden_vcg
-  · miden_finish_reflection
-  · -- The `u32Max` spelling survives on the multiply-add low word, which the
-    -- widening-add carry lemmas in `Symbolic/Reflect.lean` do not cover. Recover
-    -- that value first, then reduce `2 ^ 32` to the literal spelling the rest of
-    -- the goal already uses; only the carry summands' order is then left.
-    simp only [MidenLean.u32Max, u32_mod_val]
-    simp only [Nat.reducePow, Nat.mod_add_mod]
-    exact ⟨add_comm _ _, trivial⟩
+  -- Only the order of the two carry summands is left.
+  exact add_comm _ _
 
 set_option maxHeartbeats 4000000 in
 /-- `mulstep` computes one step of schoolbook long multiplication: given multiplier `a`,

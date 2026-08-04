@@ -28,7 +28,6 @@ theorem u64_overflowing_add_exec
       Felt.ofNat ((a_hi.val + b_hi.val + (b_lo.val + a_lo.val) / 2 ^ 32) % 2 ^ 32) ::
       rest)) := by
   miden_vcg
-  all_goals miden_finish_reflection
 
 /-- `u64::overflowing_add` computes `a + b` with overflow detection.
     Input stack:  [b.lo, b.hi, a.lo, a.hi] ++ rest

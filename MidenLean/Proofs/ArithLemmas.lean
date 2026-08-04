@@ -94,6 +94,67 @@ attribute [miden_val] Proofs.u32_prod_mod_add_div_val
   rw [hsnd_val] at hfelt_lt64
   exact hfelt_lt64
 
+/-- The boolean `Felt` literals are u32. These are what a case split on a
+    borrow or comparison flag leaves behind, once `boolFelt_isU32`'s `if` has
+    been reduced away. -/
+@[miden_u32] theorem felt_zero_isU32 : (0 : Felt).isU32 = true :=
+  felt_ofNat_isU32_of_lt 0 (by norm_num)
+
+@[miden_u32] theorem felt_one_isU32 : (1 : Felt).isU32 = true :=
+  felt_ofNat_isU32_of_lt 1 (by norm_num)
+
+/-- The `Felt` literal `31`, the mask used by the u64 rotate procedures, has
+    `val = 31`. -/
+@[miden_val, miden_bound] theorem felt31_val : (31 : Felt).val = 31 :=
+  felt_ofNat_val_lt 31 (by unfold GOLDILOCKS_PRIME; omega)
+
+/-- Masking with `b` cannot exceed any bound on `b`. This discharges the
+    `valLeq` shift bounds that `pow2` imposes on a masked shift amount, where
+    the mask and the bound are both literals. -/
+@[miden_bound] theorem land_le_of_right_le (a b n : Nat) (h : b ≤ n) : a &&& b ≤ n :=
+  le_trans Nat.and_le_right h
+
+/-- A power of two whose exponent is masked by a small literal round-trips
+    through `Felt`: the mask bounds the exponent, so the power stays below the
+    prime. The `b < 64` side condition is decidable for the literal masks that
+    the rotate and shift procedures use. -/
+@[miden_val, miden_bound] theorem felt_ofNat_pow2_land_val (a b : Nat) (hb : b < 64) :
+    (Felt.ofNat (2 ^ (a &&& b))).val = 2 ^ (a &&& b) :=
+  felt_ofNat_val_lt _ (pow2_lt_goldilocks_of_lt64 _ (lt_of_le_of_lt Nat.and_le_right hb))
+
+/-- A power of two whose exponent is masked by a literal below `32` is u32. -/
+@[miden_u32] theorem felt_ofNat_pow2_land_isU32 (a b : Nat) (hb : b < 32) :
+    (Felt.ofNat (2 ^ (a &&& b))).isU32 = true := by
+  apply felt_ofNat_isU32_of_lt
+  calc 2 ^ (a &&& b) ≤ 2 ^ b := Nat.pow_le_pow_right (by omega) Nat.and_le_right
+    _ < 2 ^ 32 := Nat.pow_lt_pow_right (by omega) hb
+
+/-- The borrow of `u32OverflowingSub` is set exactly on underflow. -/
+@[miden_bound] theorem u32OverflowingSub_fst_eq_one_iff (a b : Nat) :
+    (u32OverflowingSub a b).1 = 1 ↔ a < b := by
+  unfold u32OverflowingSub; split <;> simp <;> omega
+
+/-- The borrow of `u32OverflowingSub` is a boolean, after embedding into `Felt`.
+    This is the `Precondition.isBool` obligation `cswap` leaves on a borrow. -/
+@[miden_bound] theorem felt_ofNat_u32OverflowingSub_fst_isBool (a b : Nat) :
+    Felt.ofNat (u32OverflowingSub a b).1 = 0 ∨ Felt.ofNat (u32OverflowingSub a b).1 = 1 := by
+  unfold u32OverflowingSub; split
+  · exact Or.inl rfl
+  · exact Or.inr rfl
+
+/-- MASM `or` applied to two borrow flags. The symbolic `or` node evaluates to
+    the arithmetic form `x + y - x * y`; on the `0`/`1` values a borrow can take
+    that is the disjunction of the two underflow conditions. This is the shape
+    every multi-limb subtraction leaves where the VM combines the current limb's
+    borrow with the propagated one. -/
+@[miden_bound] theorem felt_borrow_or (u v w z : Nat) :
+    Felt.ofNat (u32OverflowingSub u v).1 + Felt.ofNat (u32OverflowingSub w z).1 -
+        Felt.ofNat (u32OverflowingSub u v).1 * Felt.ofNat (u32OverflowingSub w z).1 =
+      if u < v ∨ w < z then 1 else 0 := by
+  rw [u32OverflowingSub_borrow_ite u v, u32OverflowingSub_borrow_ite w z]
+  by_cases huv : u < v <;> by_cases hwz : w < z <;>
+    simp [huv, hwz]
+
 -- New isU32 propagation lemmas
 
 /-- The carry from adding three u32 values is u32. -/
