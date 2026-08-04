@@ -694,11 +694,35 @@ private def registryExecTheoremNames
   let some calleeName := calleeExpr.getAppFn.constName? | return #[]
   findExecSummaryTheorems calleeName
 
+/-- Expose the equation at the head of an execution goal.
+
+    Statements often bind shared subexpressions in front of the equation, e.g.
+
+        let s := a.toNat + b.toNat
+        execProcedure env fuel st proc = some ⟨… s …⟩
+
+    whose head is a `let`, not an `Eq`, so `Expr.eq?` sees nothing. Substituting
+    the bindings (zeta reduction) yields the equation those statements mean.
+    Bindings *inside* the right-hand side are left alone — they are already
+    handled, and expanding them would duplicate large terms. -/
+private def exposeExecEquation (goal : MVarId) : TacticM MVarId := do
+  let mut g := goal
+  -- `let`s can nest; peel all of them, but bound the loop so a pathological
+  -- goal cannot spin here.
+  for _ in [:32] do
+    let ty ← instantiateMVars (← g.getType)
+    unless ty.isLet do return g
+    g ← g.change (← zetaReduce ty)
+  return g
+
 /-- Parse the current goal as an `execProcedure` equation with a concrete op list. -/
 private def parseExecGoal (goal : MVarId) : TacticM ExecGoal := do
   let goalTy ← goal.getType
   let some (_, lhs, rhs) := goalTy.eq?
-    | throwError "miden_vcg: goal is not an equation"
+    | throwError "miden_vcg: goal is not an equation. If the statement binds \
+        values in front of the equation (`let x := …; lhs = rhs`), \
+        `exposeExecEquation` should have substituted them — the head is:\
+        {indentExpr goalTy}"
 
   unless lhs.isAppOf ``MidenLean.execProcedure && lhs.getAppNumArgs == 4 do
     throwError "miden_vcg: goal must be `execProcedure emptyEnv` or `execProcedure`"
@@ -1179,6 +1203,9 @@ elab_rules : tactic
   let gammaExpr? ← match gammaTerm with
     | some stx => some <$> Lean.Elab.Term.elabTerm stx none
     | none => pure none
+  -- Normalize before parsing: `parseReflectGoal` reads the *current* main goal,
+  -- so the `let`-peeling has to be in place first.
+  setGoals ((← exposeExecEquation (← getMainGoal)) :: (← getGoals).tail)
   let reflectGoal ← parseReflectGoal
   let mainGoal ← getMainGoal
   if let some remaining ← tryExecOverrideTheorem? mainGoal then
@@ -2139,7 +2166,7 @@ elab_rules : tactic
 syntax "miden_vcg" : tactic
 elab_rules : tactic
   | `(tactic| miden_vcg) => do
-      let mainGoal ← getMainGoal
+      let mainGoal ← exposeExecEquation (← getMainGoal)
       let remaining ← decomposeVcgGoal mainGoal
       setGoals remaining
       Lean.Elab.Term.synthesizeSyntheticMVarsNoPostponing
@@ -2151,7 +2178,7 @@ elab_rules : tactic
 syntax "miden_vcg_step" : tactic
 elab_rules : tactic
   | `(tactic| miden_vcg_step) => do
-      let mainGoal ← getMainGoal
+      let mainGoal ← exposeExecEquation (← getMainGoal)
       let remaining ← decomposeVcgStepGoal mainGoal
       setGoals remaining
       Lean.Elab.Term.synthesizeSyntheticMVarsNoPostponing
