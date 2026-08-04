@@ -758,7 +758,12 @@ abbrev ProcEnv := String → Option Spec
 /-- Execute a single op with a symbolic procedure environment.
     Handles `Op.inst (.exec target)` by looking up the target in the ProcEnv,
     `Op.inst i` by delegating to execInstruction, and returns none for
-    control-flow ops (ifElse, repeat, whileTrue). -/
+    control-flow ops (ifElse, repeat, whileTrue).
+
+    This is the reference formulation, with preconditions kept in execution
+    order; all soundness reasoning in `Soundness.lean` folds over it. `execOps`
+    computes the same results through `execOpRev` below, which is cheaper to
+    reduce (see `execOps_eq_foldlM_execOp`). -/
 def execOp (senv : ProcEnv) (acc : BlockResult) (op : Op) :
     Option BlockResult :=
   match op with
@@ -774,9 +779,126 @@ def execOp (senv : ProcEnv) (acc : BlockResult) (op : Op) :
     return { state := s', preconditions := acc.preconditions ++ preconds }
   | _ => none  -- control flow handled by Phase 4
 
-/-- Execute a sequence of ops with a symbolic procedure environment. -/
+/-- For a non-`exec` instruction, `execOp` delegates to `execInstruction`. -/
+theorem execOp_inst_non_exec
+    (senv : ProcEnv) (acc : BlockResult) (i : Instruction)
+    (hi : ∀ t, i ≠ .exec t) :
+    execOp senv acc (.inst i) =
+      (execInstruction acc.state i).bind fun ⟨s', preconds⟩ =>
+        some { state := s', preconditions := acc.preconditions ++ preconds } := by
+  unfold execOp
+  cases i with
+  | exec t => exact absurd rfl (hi t)
+  | _ => rfl
+
+/-- `execOp` with the precondition accumulator held in reverse order: each op
+    prepends its own (reversed) preconditions instead of appending to the
+    accumulated list.
+
+    This is only a change of *representation*: `execOps` reverses once at the
+    end, and `execOps_eq_foldlM_execOp` below proves the result is identical to
+    folding `execOp` — same state, same preconditions, same order. The reason
+    for the detour is reduction cost. `execOp`'s `acc.preconditions ++ preconds`
+    is left-nested, so each op forces the whole accumulated list built so far,
+    and under the `foldlM` those forcings compose multiplicatively: full
+    normalization of a block is exponential in the number of ops even when every
+    op contributes *no* preconditions at all (18 `nop`s: 3.7 s vs 8 ms here).
+    Prepending keeps the chain right-nested and the cost linear, which is what
+    lets `miden_reflect` reflect whole procedures. `execBlock`/`execBlockStep`
+    above already use this same reversed-accumulator convention. -/
+def execOpRev (senv : ProcEnv) (acc : BlockResult) (op : Op) :
+    Option BlockResult :=
+  match op with
+  | .inst (.exec target) =>
+    match senv target with
+    | some spec => do
+      let result ← spec.transform acc.state
+      return { state := result.state,
+               preconditions := result.preconditions.reverse ++ acc.preconditions }
+    | none => none
+  | .inst i => do
+    let (s', preconds) ← execInstruction acc.state i
+    return { state := s', preconditions := preconds.reverse ++ acc.preconditions }
+  | _ => none  -- control flow handled by Phase 4
+
+/-- Execute a sequence of ops with a symbolic procedure environment.
+    Preconditions are accumulated in reverse and reversed once at the end (see
+    `execOpRev`); `execOps_eq_foldlM_execOp` shows this agrees with the in-order
+    `execOp` fold. -/
 def execOps (senv : ProcEnv) (ops : List Op) (s : State) :
     Option BlockResult :=
-  ops.foldlM (execOp senv) { state := s, preconditions := [] }
+  match ops.foldlM (execOpRev senv) { state := s, preconditions := [] } with
+  | some r => some { r with preconditions := r.preconditions.reverse }
+  | none => none
+
+/-- `execOpRev` counterpart of `execOp_inst_non_exec`. -/
+private theorem execOpRev_inst_non_exec
+    (senv : ProcEnv) (acc : BlockResult) (i : Instruction)
+    (hi : ∀ t, i ≠ .exec t) :
+    execOpRev senv acc (.inst i) =
+      (execInstruction acc.state i).bind fun ⟨s', preconds⟩ =>
+        some { state := s', preconditions := preconds.reverse ++ acc.preconditions } := by
+  unfold execOpRev
+  cases i with
+  | exec t => exact absurd rfl (hi t)
+  | _ => rfl
+
+/-- One step of `execOpRev` on a reversed accumulator is one step of `execOp` on
+    the in-order accumulator, up to reversing the precondition list. -/
+private theorem execOpRev_eq_execOp
+    (senv : ProcEnv) (st : State) (pre : List Precondition) (op : Op) :
+    execOpRev senv { state := st, preconditions := pre.reverse } op =
+      (execOp senv { state := st, preconditions := pre } op).map
+        fun r => { r with preconditions := r.preconditions.reverse } := by
+  cases op with
+  | inst i =>
+    by_cases hi : ∃ t, i = .exec t
+    · obtain ⟨t, rfl⟩ := hi
+      simp only [execOp, execOpRev]
+      match senv t with
+      | none => simp
+      | some spec =>
+        match spec.transform st with
+        | none => simp
+        | some r => simp
+    · push_neg at hi
+      rw [execOp_inst_non_exec senv _ i hi, execOpRev_inst_non_exec senv _ i hi]
+      match execInstruction st i with
+      | none => simp
+      | some p => obtain ⟨_, _⟩ := p; simp
+  | _ => rfl
+
+/-- Folding `execOpRev` over a reversed accumulator is folding `execOp` over the
+    in-order one, up to reversing the precondition list. -/
+private theorem foldlM_execOpRev_eq_foldlM_execOp
+    (senv : ProcEnv) (ops : List Op) (st : State) (pre : List Precondition) :
+    ops.foldlM (execOpRev senv) { state := st, preconditions := pre.reverse } =
+      (ops.foldlM (execOp senv) { state := st, preconditions := pre }).map
+        fun r => { r with preconditions := r.preconditions.reverse } := by
+  induction ops generalizing st pre with
+  | nil => rfl
+  | cons op rest ih =>
+    simp only [List.foldlM, bind, Bind.bind, Option.bind]
+    rw [execOpRev_eq_execOp senv st pre op]
+    cases execOp senv { state := st, preconditions := pre } op with
+    | none => rfl
+    | some acc' =>
+      obtain ⟨st', pre'⟩ := acc'
+      exact ih st' pre'
+
+/-- `execOps` agrees with the in-order `execOp` fold it replaces: for every
+    symbolic environment, op list and state the two produce the same state and
+    the same precondition list, in the same order. All soundness reasoning in
+    `Soundness.lean` is phrased against the `execOp` fold and reaches `execOps`
+    through this theorem. -/
+theorem execOps_eq_foldlM_execOp (senv : ProcEnv) (ops : List Op) (s : State) :
+    execOps senv ops s = ops.foldlM (execOp senv) { state := s, preconditions := [] } := by
+  unfold execOps
+  have h := foldlM_execOpRev_eq_foldlM_execOp senv ops s []
+  simp only [List.reverse_nil] at h
+  rw [h]
+  cases ops.foldlM (execOp senv) { state := s, preconditions := [] } with
+  | none => rfl
+  | some r => obtain ⟨_, _⟩ := r; simp
 
 end MidenLean.Symbolic

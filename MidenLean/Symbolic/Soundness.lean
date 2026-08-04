@@ -1236,18 +1236,6 @@ def Spec.sound (spec : Spec) (env : MidenLean.ProcEnv) (minFuel : Nat)
     ∃ cs', MidenLean.execProcedure env fuel cs callee = some cs'
       ∧ result.state.models cs' σ rest
 
-/-- For a non-`exec` instruction, execOp delegates to the symbolic execInstruction. -/
-private theorem execOp_inst_non_exec
-    (senv : ProcEnv) (acc : BlockResult) (i : Instruction)
-    (hi : ∀ t, i ≠ .exec t) :
-    execOp senv acc (.inst i) =
-      (execInstruction acc.state i).bind fun ⟨s', preconds⟩ =>
-        some { state := s', preconditions := acc.preconditions ++ preconds } := by
-  unfold execOp
-  cases i with
-  | exec t => exact absurd rfl (hi t)
-  | _ => rfl
-
 /-- Exec case of `execOp_preconds_prefix`: on an `exec` op the output
     accumulates all input preconditions. -/
 private theorem execOp_exec_preconds_prefix
@@ -1456,7 +1444,8 @@ private theorem foldlM_execOp_eq_foldlM_execBlockStep
     `execOps` coincides with the primitive block executor `execBlock`. -/
 theorem execOps_map_inst_eq_execBlock (insts : List Instruction) (s : State) :
     execOps (fun _ => none) (insts.map .inst) s = execBlock insts s := by
-  unfold execOps execBlock
+  rw [execOps_eq_foldlM_execOp]
+  unfold execBlock
   have h := foldlM_execOp_eq_foldlM_execBlockStep insts s []
   simp only [List.reverse_nil] at h
   rw [h]
@@ -1474,8 +1463,7 @@ theorem execBlock_sound
     (hpreconds : ∀ p ∈ result.preconditions, p.holds σ) :
     ∃ cs', Concrete.execBlock insts cs = some cs'
       ∧ result.state.models cs' σ rest := by
-  rw [← execOps_map_inst_eq_execBlock] at hresult
-  unfold execOps at hresult
+  rw [← execOps_map_inst_eq_execBlock, execOps_eq_foldlM_execOp] at hresult
   obtain ⟨cs', hfold, hmod⟩ :=
     foldlM_execOp_sound (fun _ => none) MidenLean.emptyEnv 0
       (insts.map .inst) { state := ss, preconditions := [] } result cs σ rest
@@ -1501,8 +1489,8 @@ theorem execOps_sound
       ∃ callee, env name = some callee ∧ spec.sound env minFuel callee) :
     ∃ cs', MidenLean.execProcedure env (minFuel + 1) cs (Procedure.ofOps ops) = some cs'
       ∧ result.state.models cs' σ rest := by
-  -- execOps unfolds to foldlM (execOp senv) over the initial accumulator
-  unfold execOps at hresult
+  -- execOps agrees with foldlM (execOp senv) over the initial accumulator
+  rw [execOps_eq_foldlM_execOp] at hresult
   -- execProcedure at fuel (minFuel + 1) with Procedure.ofOps (numLocals = 0)
   -- unfolds to foldlM (opStep env minFuel)
   have hunfold : MidenLean.execProcedure env (minFuel + 1) cs (Procedure.ofOps ops)

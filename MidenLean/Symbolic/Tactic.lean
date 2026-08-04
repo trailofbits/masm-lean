@@ -300,7 +300,7 @@ private def closeReflectResultGoal (goal : MVarId) : TacticM Unit := do
               MidenLean.Symbolic.Reflect.ReflectEnv.empty,
               MidenLean.Symbolic.Reflect.concreteState,
               MidenLean.Symbolic.execOps,
-              MidenLean.Symbolic.execOp,
+              MidenLean.Symbolic.execOpRev,
               MidenLean.Symbolic.execInstruction,
               bind, Bind.bind, Option.bind]))
       match remaining with
