@@ -149,32 +149,39 @@ intentionally out of scope for automatic proofs — no procedure in the core
 library uses it, so loop-bearing proofs would use the invariant/measure rules in
 `Proofs/ControlFlow.lean` instead.
 
-#### Leaf size: the reflection ceiling
+#### Leaf size: reduction is no longer the limit
 
-The reflection leaf is closed by kernel reduction, whose cost grows steeply in
-the number of ops in the block (measured on `closeReflectResultGoal`'s `whnf`
-fast path: ~11 ms at 6 ops, ~48 ms at 11, ~107 ms at 16, ~720 ms at 22, ~1.7 s
-at 28, ~16 s at 33, ~36 s at 39, and beyond ~44 ops it does not return within a
-usable budget). The practical ceiling for one leaf is therefore roughly 15-25
-ops, which is why `U128.overflowing_add` (15 ops) is a one-line `miden_vcg`
-proof while `U128.overflowing_sub` (44 ops) and `U256.sub_with_borrow_be`
-(53 ops) are still proved by hand-splitting the body into chunks.
+Reflection used to have a practical ceiling of roughly 15-25 ops per leaf, with
+cost growing ~1.65× per op. That was **not** caused by any instruction: it was
+`acc.preconditions ++ preconds` in `execOp`. A left-nested append forces the
+whole accumulated list at every step, and under `foldlM` those forcings compose
+multiplicatively — exponential *even when every appended list is empty*. The
+control experiment that pinned it: 18 `nop`s, which touch no stack element and
+contribute no preconditions, cost the same as a real 18-op body.
 
-Automating that split — segmenting long straight-line bodies via
-`execProcedure_append` so each leaf stays under the ceiling — is the known next
-step for the remaining large manual proofs, and `prepareAppendSplit` already
-provides the mechanism. An attempt at it is preserved outside the tree; it
-worked but roughly doubled elaboration time for already-passing proofs, because
-the accompanying "fail-soft" heartbeat cap on the `whnf` fast path was set equal
-to the ambient budget, so a leaf that was going to fail ground through the whole
-cap before falling back instead of bailing immediately. A retry should use a
-small cap, and should land segmentation and fail-soft as separate, separately
-measured changes.
+`execOps` now folds `execOpRev` (reverse-prepend) and reverses once at the end,
+matching the convention `execBlock`/`execBlockStep` already used;
+`execOps_eq_foldlM_execOp` proves the result is identical to the in-order
+definition, which is retained verbatim as the reference semantics that
+`Soundness.lean` folds over. Reduction is now flat past ~14 ops — a full 28-op
+procedure normalizes in ~193 ms, against ~900 s extrapolated before.
 
-When comparing elaboration times, compare like with like: a warm incremental
-build of one module and a cold full parallel build of the same module differ by
-orders of magnitude, so per-module timings are only meaningful within a single
-build mode.
+What still blocks the large chunked proofs is **arithmetic, not reduction**:
+`miden_reflect` reaches the bridge goal in well under a second, and the time
+goes into the residual-goal cleanup ladder's `simp` over wide carry chains.
+`U64/Rotl` is the clearest example — it no longer times out, it fails with
+honest `unsolved goals` needing the bounds lemmas its manual proof supplies.
+
+Two measurement traps to avoid when working here, both of which produced wrong
+conclusions in this repo:
+
+- **`whnf` is lazy.** It stops at the `some _` head and shows *no* difference
+  between a pathological definition and its fix. Force the result
+  (`Meta.reduce`) or count heartbeats on a forced goal.
+- **Build timings are not per-declaration costs.** `lake`'s per-module figure is
+  cumulative wall-clock and mixes in parallelism and machine contention. Measure
+  with `#count_heartbeats` or an isolated timed goal, dependencies prebuilt, and
+  compare only within one mode.
 
 Two related reduction hazards, both fixed and worth knowing about when
 extending the engine:
