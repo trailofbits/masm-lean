@@ -169,8 +169,20 @@ procedure normalizes in ~193 ms, against ~900 s extrapolated before.
 What still blocks the large chunked proofs is **arithmetic, not reduction**:
 `miden_reflect` reaches the bridge goal in well under a second, and the time
 goes into the residual-goal cleanup ladder's `simp` over wide carry chains.
-`U64/Rotl` is the clearest example — it no longer times out, it fails with
-honest `unsolved goals` needing the bounds lemmas its manual proof supplies.
+`U256/SubWithBorrowBe` is the clearest remaining example — it no longer times
+out, it fails with honest `unsolved goals`, and it is the one proof in the
+corpus with no `miden_vcg` at all. Closing it needs a merging normalization
+(`Felt.ofNat m + Felt.ofNat n = Felt.ofNat (m + n)`) plus an `isU32 → val <
+2 ^ 32` bridge, neither of which is safe to add blind.
+
+`U64/Rotl` used to be the example here and no longer is: it was migrated once
+the reduction cost was fixed, and shows the shape a successful migration
+leaves behind. `u64_rotl_exec` is now a single `miden_vcg`, and what survived
+is exactly the two bridge lemmas (`rotl_nat_case1`/`_case2`) relating
+schoolbook limb arithmetic to the rotate formula — 381 lines down to 183.
+That residue is the norm, not a shortfall: bridge lemmas of that kind are
+outside what the automation can absorb, because they are mathematical content
+rather than execution.
 
 Two measurement traps to avoid when working here, both of which produced wrong
 conclusions in this repo:

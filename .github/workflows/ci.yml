@@ -135,25 +135,49 @@ jobs:
       # Deliberately omitted: `unusedArguments`, which does not finish within
       # a reasonable budget at this library size. Re-add it (per-module) if
       # someone makes it affordable.
-      # Mathlib-provided, so it cannot go in the package's `leanOptions` (those
-      # reach core-Lean-only modules like Symbolic/SimpAttrs.lean, where the
-      # option does not exist and `-D` on an unknown option is a hard error).
-      # Enforced per-file instead. `native_decide` puts the Lean compiler in the
-      # trusted base of every dependent theorem, so a NEW one must be a
-      # deliberate, reviewed act — note the axiom audit will NOT catch it, since
-      # it reuses the already-whitelisted ofReduceBool/trustCompiler axioms.
-      - name: No new native_decide
+      # `native_decide` puts the Lean compiler in the trusted base of every
+      # dependent theorem, so a NEW one must be a deliberate, reviewed act. Note
+      # the axiom audit will NOT catch one, since it reuses the already-
+      # whitelisted ofReduceBool/trustCompiler axioms.
+      #
+      # ENFORCEMENT LIVES IN THE LAKEFILE, not here: `weak.linter.style.
+      # nativeDecide` is in `leanOptions`, so it applies to every module in the
+      # build, and the build job above fails on any warning. The `weak.` prefix
+      # is what makes that possible — it sets the option where it is registered
+      # and ignores it where it is not, so Mathlib-provided linters can be
+      # library-wide after all.
+      #
+      # This step used to be a per-file `-D` sweep instead, and it was
+      # effectively vacuous. Two independent reasons, both worth remembering:
+      #   * `git ls-files 'MidenLean/**/*.lean'` does NOT match top-level
+      #     modules — `**/` requires an intervening directory. That silently
+      #     excluded MidenLean/{Felt,Instruction,Op,Linters}.lean, and Felt.lean
+      #     is the ONLY file in the repo containing `native_decide`. The one
+      #     file the check existed for was the one file it could not see.
+      #     (Beware: a bare `*` in a git pathspec DOES match `/`, so
+      #     'MidenLean/*.lean' is recursive while 'MidenLean/**/*.lean' is not.)
+      #   * The `grep -q '^import Mathlib'` guard, added because a bare `-D` on
+      #     a core-Lean-only module is a hard error, matched 3 of 138 files —
+      #     everything else gets Mathlib transitively.
+      # So it swept 3 files, none of them Felt.lean.
+      #
+      # What remains here is the part a grep can do reliably: assert the
+      # exemption list. Searching for the PRESENCE of an opt-out is sound in a
+      # way that searching for the absence of a construct is not.
+      - name: native_decide exemption list is unchanged
         run: |
-          status=0
-          for f in $(git ls-files 'MidenLean/**/*.lean' | grep -v '^MidenLean/Proofs/Generated/'); do
-            grep -q '^import Mathlib' "$f" || continue          # option is Mathlib-provided
-            grep -q 'linter.style.nativeDecide false' "$f" && continue   # documented exception
-            out=$(lake env lean -Dlinter.style.nativeDecide=true "$f" 2>&1 || true)
-            if echo "$out" | grep -q "native_decide"; then
-              echo "::error file=$f::native_decide introduced"; echo "$out" | head -5; status=1
-            fi
-          done
-          exit $status
+          expected="MidenLean/Felt.lean"
+          actual=$(git ls-files 'MidenLean' | grep '\.lean$' \
+                   | xargs grep -l 'linter.style.nativeDecide false' | sort)
+          if [ "$actual" != "$expected" ]; then
+            echo "::error::native_decide exemptions changed."
+            echo "expected: $expected"
+            echo "actual:   $actual"
+            echo "A new exemption needs review: it adds compiler trust to every"
+            echo "theorem downstream of it. Update this step if intended."
+            exit 1
+          fi
+          echo "exemption list unchanged: $actual"
 
       # The `miden*` linters are this project's own, defined in
       # `MidenLean/Linters.lean` and reached through `import MidenLean`. They
@@ -229,8 +253,13 @@ jobs:
       # name below is verified to exist and to fire.
       - name: Mathlib standard linter set on changed files
         run: |
+          # Pathspec is 'MidenLean' with a suffix filter, NOT
+          # 'MidenLean/**/*.lean' — the latter is a git pathspec that skips
+          # top-level modules, since `**/` requires an intervening directory.
+          # See the native_decide step above for what that cost.
           changed=$(git diff --name-only "origin/${{ github.base_ref }}...HEAD" \
-                     -- 'MidenLean/**/*.lean' \
+                     -- 'MidenLean' \
+                     | grep '\.lean$' \
                      | grep -v '^MidenLean/Proofs/Generated/' || true)
           if [ -z "$changed" ]; then
             echo "no library files changed"; exit 0
