@@ -44,18 +44,38 @@ package MidenLean where
     -- simp a 110-equation match and the check itself runs out of heartbeats;
     -- that one declaration opts out locally with a comment, everything else is
     -- clean. Cost is in the noise (`U64/Shr` 5.76s → 5.72s, `U128/Divmod` 84s).
-    ⟨`weak.linter.loopingSimpArgs, true⟩
+    ⟨`weak.linter.loopingSimpArgs, true⟩,
+    -- The most valuable linter here: it flags a RIGID tactic (`rw`, `exact`,
+    -- `omega`, and `simp only` too) whose success depends on the goal shape a
+    -- preceding FLEXIBLE one (bare `simp`/`simp_all`) happened to leave. That is
+    -- precisely the fragility this project keeps rediscovering across Mathlib
+    -- bumps: `simp` normalizes slightly differently, and the rigid tactic after
+    -- it stops matching. Terminal `simp` calls are correctly not flagged.
+    -- Cleared from 438 warnings / 75 reported sites / 25 files. Every fix was a
+    -- squeeze — the house rule "non-terminal `simp` becomes `simp only [...]`" —
+    -- with no proof restructuring anywhere. Two things learned doing it:
+    --   * The reported site count is a LOWER BOUND. The linter's stain stops
+    --     propagating at the first fix, so pinning a flagged `simp` unmasks the
+    --     next one in the same ladder. Real total was ~105 sites, not 75
+    --     (U128/Divmod alone: 15 reported, 30 changed). Probe EVERY occurrence
+    --     of an idiom in one pass or you get a cascade of rounds.
+    --   * Derive every list with `simp?` in place. Lists do not transfer between
+    --     sites that look identical, and the linter's own `Try this:` suggestion
+    --     must not be pasted — it re-runs a DEFAULT `simp`, dropping the
+    --     arguments the original call passed.
+    ⟨`weak.linter.flexible, true⟩
     -- Measured but NOT yet enabled, because they are not clean and a gate that
-    -- fails is not a gate. Backlog, with counts from a full build:
-    --   linter.flexible          438 warnings / 75 sites / 25 files
+    -- fails is not a gate. Backlog:
     --   linter.style.maxHeartbeats 286 overrides wanting a justification comment
     --     (measured before StepLemmas' file-level override was deleted, so the
     --      real figure is now 285 or lower; not re-measured, so treat as stale)
-    --   linter.style.longLine      489 lines over 100 characters
+    --   linter.style.longLine      489 reported by the linter; 581 raw lines
+    --     over 100 characters, so ~92 are exempt under its own rules. Heavily
+    --     concentrated: U128/Divmod.lean holds 148 of the 581 and the top ten
+    --     files about half, which argues for fixing it per-file when a file is
+    --     open for another reason rather than as a sweep.
     -- They run in CI's advisory job; promote each into this list as it reaches
-    -- zero. `flexible` is the valuable one: it flags a rigid tactic depending on
-    -- a flexible one, which is the fragility class that has broken this project
-    -- repeatedly.
+    -- zero.
   ]
 
 require "leanprover-community" / "mathlib" @ git "v4.28.0"

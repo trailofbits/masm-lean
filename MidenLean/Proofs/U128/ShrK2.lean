@@ -19,7 +19,7 @@ private theorem shift_sub32_val
     (shift : Felt) (hshift : shift.val ≤ 31) :
     (Felt.ofNat (u32OverflowingSub 32 shift.val).2).val = 32 - shift.val := by
   unfold u32OverflowingSub
-  simp [show shift.val ≤ 32 by omega]
+  simp only [ge_iff_le, show shift.val ≤ 32 by omega, ↓reduceIte]
   rw [felt_ofNat_val_lt _ (by unfold GOLDILOCKS_PRIME; omega)]
 
 private theorem pow32_sub_val
@@ -232,7 +232,8 @@ theorem u128_shr_k2_raw
   rw [stepEqImm]
   miden_bind
   by_cases hzero : shift == (0 : Felt)
-  · simp [hzero, Concrete.State.withStack]
+  · simp only [hzero, ↓reduceIte, Felt.val_one', BEq.rfl, Concrete.State.withStack,
+      Option.pure_def]
     unfold execProcedure
     simp only [List.foldlM]
     rw [stepDrop]
@@ -240,7 +241,8 @@ theorem u128_shr_k2_raw
     rw [stepDrop]
     miden_bind
     rw [stepDrop]
-  · simp [hzero, Concrete.State.withStack]
+  · simp only [hzero, Bool.false_eq_true, ↓reduceIte, ZMod.val_zero, Nat.reduceBEq, BEq.rfl,
+      Concrete.State.withStack, Fin.isValue, Option.pure_def]
     have hshift_ne_zero : shift.val ≠ 0 := by
       intro hval
       apply hzero

@@ -155,7 +155,7 @@ private theorem divmodBorrow2_prop_eq (a0 a1 a2 b0 b1 b2 : Felt)
   have hEq := divmodBorrow2_eq a0 a1 a2 b0 b1 b2 ha0 ha1 hb0 hb1
   unfold u128Borrow2 at hEq
   have hval := congrArg (fun x : Felt => x.val) hEq
-  simp at hval
+  simp only [Bool.or_eq_true, decide_eq_true_eq, Nat.reducePow] at hval
   constructor
   · intro hp
     by_cases hq :
@@ -323,7 +323,7 @@ private theorem divmodCol0Carry_lt
     (q0 b0 r0 : Felt)
     (hq0 : q0.isU32 = true) (hb0 : b0.isU32 = true) (hr0 : r0.isU32 = true) :
     u128DivmodCol0 q0.val b0.val r0.val / 2 ^ 32 < 2 ^ 32 := by
-  simp [Felt.isU32, decide_eq_true_eq] at hq0 hb0 hr0
+  simp only [Felt.isU32, Nat.reducePow, decide_eq_true_eq] at hq0 hb0 hr0
   have hsum :
       u128DivmodCol0 q0.val b0.val r0.val ≤
         (2 ^ 32 - 1) * (2 ^ 32 - 1) + (2 ^ 32 - 1) := by
@@ -387,7 +387,7 @@ private theorem divmodCol0Carry_eq
       calc
         (b0.val * q0.val) / 2 ^ 32 ≤ ((2 ^ 32 - 1) * (2 ^ 32 - 1)) / 2 ^ 32 := by
           apply Nat.div_le_div_right
-          simp [Felt.isU32, decide_eq_true_eq] at hq0 hb0
+          simp only [Felt.isU32, Nat.reducePow, decide_eq_true_eq] at hq0 hb0
           exact Nat.mul_le_mul (Nat.le_pred_of_lt hb0) (Nat.le_pred_of_lt hq0)
         _ ≤ 2 ^ 32 - 2 := by decide
     have h2 : (((b0.val * q0.val) % 2 ^ 32 + r0.val) / 2 ^ 32) ≤ 1 := by
@@ -855,7 +855,8 @@ private theorem divmodCol2a_run
     omega]
   rw [show Felt.ofNat ((b1.val * q1.val + lo0) % 2 ^ 32) = Felt.ofNat lo1 by rfl]
   miden_swap
-  simp [pure, Pure.pure]
+  simp only [pure, Nat.reducePow, Nat.add_mod_mod, Option.some.injEq, Concrete.State.mk.injEq,
+    List.cons.injEq, and_true, and_self]
   constructor
   · apply congrArg Felt.ofNat
     dsimp [lo1, lo0, base]
@@ -921,7 +922,8 @@ private theorem divmodCol2b_run
   rw [show madd2Hi + sumHi = sumHi + madd2Hi by omega]
   rw [show Felt.ofNat ((b2.val * q0.val + lo1) % 2 ^ 32) = Felt.ofNat madd2Lo by rfl]
   miden_swap
-  simp [pure, Pure.pure]
+  simp only [pure, Nat.reducePow, Nat.add_mod_mod, Option.some.injEq, Concrete.State.mk.injEq,
+    List.cons.injEq, and_true, true_and, and_self]
   dsimp [sumHi, madd2Hi, hi0, hi1]
   rw [hlo1_flat]
   rfl
@@ -1368,7 +1370,8 @@ private theorem divmodCol3a_run
     omega]
   rw [show Felt.ofNat ((b1.val * q2.val + lo0) % 2 ^ 32) = Felt.ofNat lo1 by rfl]
   miden_swap
-  simp [pure, Pure.pure]
+  simp only [pure, Nat.reducePow, Option.some.injEq, Concrete.State.mk.injEq, List.cons.injEq,
+    and_true, true_and, and_self]
   rw [felt_ofNat_val_lt _ (felt_val_lt_prime c2Hi)]
   simp [sumHi, hi0, hi1, lo0, base]
 
@@ -1425,7 +1428,8 @@ private theorem divmodCol3b_run
   rw [show madd2Hi + sumHi = sumHi + madd2Hi by omega]
   rw [show Felt.ofNat ((b2.val * q1.val + lo1) % 2 ^ 32) = Felt.ofNat madd2Lo by rfl]
   miden_swap
-  simp [pure, Pure.pure]
+  simp only [pure, Nat.reducePow, Nat.add_mod_mod, Option.some.injEq, Concrete.State.mk.injEq,
+    List.cons.injEq, and_true, true_and, and_self]
   dsimp [sumHi, madd2Hi, hi0, hi1]
   rw [hlo1_flat]
   rfl
@@ -2468,7 +2472,7 @@ private theorem divmodOverflow1_run
   miden_bind
   rw [stepOrIte (p := false) (q := false)]
   miden_bind
-  simp
+  simp only [Bool.or_self, Bool.false_eq_true, ↓reduceIte, Fin.isValue, Option.pure_def]
   miden_dup
   miden_dup
   rw [stepU32WidenMul (a := b2) (b := q2) (ha := hb2) (hb := hq2)]
@@ -2533,7 +2537,7 @@ private theorem divmodOverflow2_run
   miden_bind
   rw [stepOrIte (p := false) (q := false)]
   miden_bind
-  simp
+  simp only [Bool.or_self, Bool.false_eq_true, ↓reduceIte, Fin.isValue, Option.pure_def]
   miden_dup
   miden_dup
   rw [stepU32WidenMul (a := b2) (b := q3) (ha := hb2) (hb := hq3)]
@@ -2596,7 +2600,7 @@ private theorem divmodOverflow3_run
   miden_bind
   rw [stepOrIte (p := false) (q := false)]
   miden_bind
-  simp
+  simp only [Bool.or_self, Bool.false_eq_true, ↓reduceIte, Fin.isValue, Option.pure_def]
   miden_dup
   miden_dup
   rw [stepU32WidenMul (a := b3) (b := q3) (ha := hb3) (hb := hq3)]
@@ -2621,7 +2625,7 @@ private theorem divmodOverflow3_run
   miden_bind
   rw [stepOrIte (p := false) (q := false)]
   miden_bind
-  simp
+  simp only [Bool.or_self, Bool.false_eq_true, ↓reduceIte]
   rw [stepAssertzWithErrorLocal "u128 divmod: q*b overflow" mem frames adv_rest (0 : Felt)
     (q0 :: q1 :: q2 :: q3 :: r0 :: r1 :: r2 :: r3 :: b0 :: b1 :: b2 :: b3 :: rest) rfl]
 
@@ -2751,7 +2755,9 @@ private theorem divmodCompare2_run
   rw [u32OverflowingSub_borrow_ite r1.val b1.val]
   rw [stepOrIte]
   miden_bind
-  simp [pure, Pure.pure, u32OverflowingSub_snd_eq_zero_iff r1 b1 hr1 hb1]
+  simp only [pure, Bool.or_eq_true, decide_eq_true_eq, Bool.and_eq_true, beq_iff_eq,
+    u32OverflowingSub_snd_eq_zero_iff r1 b1 hr1 hb1, Option.some.injEq, Concrete.State.mk.injEq,
+    List.cons.injEq, and_true, and_self]
   have hlow64 :
       (r1.val < b1.val ∨ r1.val = b1.val ∧ r0.val < b0.val) ↔
         r1.val * 2 ^ 32 + r0.val < b1.val * 2 ^ 32 + b0.val :=
@@ -2801,7 +2807,9 @@ private theorem divmodCompare3_run
   rw [u32OverflowingSub_borrow_ite r2.val b2.val]
   rw [stepOrIte]
   miden_bind
-  simp [pure, Pure.pure, u32OverflowingSub_snd_eq_zero_iff r2 b2 hr2 hb2]
+  simp only [pure, Bool.or_eq_true, decide_eq_true_eq, Bool.and_eq_true, beq_iff_eq,
+    u32OverflowingSub_snd_eq_zero_iff r2 b2 hr2 hb2, Option.some.injEq, Concrete.State.mk.injEq,
+    List.cons.injEq, and_true, and_self]
   have hlow96 :
       (r2.val < b2.val ∨
         r2.val = b2.val ∧ ((u128Sub1 r1 b1).2 < (u128Sub0 r0 b0).1 ∨ r1.val < b1.val)) ↔
@@ -4291,7 +4299,7 @@ theorem u128_divmod_conditions_of_exec
       a.a0.val a.a1.val a.a2.val a.a3.val
       rest adv_rest mem frames      q.a0.isU32 q.a1.isU32 q.a2.isU32 q.a3.isU32
       r.a0.isU32 r.a1.isU32 r.a2.isU32 r.a3.isU32] at hexec
-  simp at hexec
+  simp only [Option.bind_eq_bind, Option.bind_some] at hexec
   rw [exec_append] at hexec
   have ha0_eq :
       a.a0.val = Felt.ofNat (u128DivmodCol0 q.a0.val.val b.a0.val.val r.a0.val.val % 2 ^ 32) := by
@@ -4303,7 +4311,7 @@ theorem u128_divmod_conditions_of_exec
         a.a0.val a.a1.val a.a2.val a.a3.val
         rest adv_rest mem frames        q.a0.isU32 q.a1.isU32 q.a2.isU32 q.a3.isU32
         r.a0.isU32 b.a0.isU32 h_not] at hexec
-    simp at hexec
+    simp only [Option.bind_eq_bind, Option.bind_none, reduceCtorEq] at hexec
   rw [divmodCol0_run
       q.a0.val q.a1.val q.a2.val q.a3.val
       r.a0.val r.a1.val r.a2.val r.a3.val
@@ -4311,7 +4319,7 @@ theorem u128_divmod_conditions_of_exec
       a.a0.val a.a1.val a.a2.val a.a3.val
       rest adv_rest mem frames      q.a0.isU32 q.a1.isU32 q.a2.isU32 q.a3.isU32
       r.a0.isU32 ha0_eq b.a0.isU32] at hexec
-  simp at hexec
+  simp only [Nat.reducePow, Option.bind_eq_bind, Option.bind_some] at hexec
   simp only [← two_pow_32] at hexec
   rw [exec_append] at hexec
   have hc0_lt :
@@ -4339,7 +4347,7 @@ theorem u128_divmod_conditions_of_exec
         rest adv_rest mem frames        q.a0.isU32 q.a1.isU32 r.a1.isU32
         b.a0.isU32 b.a1.isU32
         hc0_u32 hc0_val h_not] at hexec
-    simp at hexec
+    simp only [Option.bind_eq_bind, Option.bind_none, reduceCtorEq] at hexec
   rw [divmodCol1_run
       (Felt.ofNat (u128DivmodCol0 q.a0.val.val b.a0.val.val r.a0.val.val / 2 ^ 32))
       q.a0.val q.a1.val q.a2.val q.a3.val
@@ -4349,7 +4357,7 @@ theorem u128_divmod_conditions_of_exec
       rest adv_rest mem frames      q.a0.isU32 q.a1.isU32 r.a1.isU32
       b.a0.isU32 b.a1.isU32
       hc0_u32 hc0_val ha1_eq] at hexec
-  simp at hexec
+  simp only [Nat.reducePow, Option.bind_eq_bind, Option.bind_some] at hexec
   simp only [← two_pow_32] at hexec
   rw [divmodCol2_eq, exec_append] at hexec
   rw [exec_append] at hexec
@@ -4375,7 +4383,7 @@ theorem u128_divmod_conditions_of_exec
       rest adv_rest mem frames      q.a1.isU32 q.a2.isU32 b.a0.isU32 b.a1.isU32
       (u32_mod_isU32 _)
       (felt_ofNat_val_lt _ (u32_mod_lt_prime _))] at hexec
-  simp at hexec
+  simp only [Nat.reducePow, Nat.add_mod_mod, Option.bind_eq_bind, Option.bind_some] at hexec
   simp only [← two_pow_32] at hexec
   let c1Lo : Felt :=
     Felt.ofNat
@@ -4606,7 +4614,7 @@ theorem u128_divmod_conditions_of_exec
             (felt_ofNat_val_lt _ (u32_mod_lt_prime _))
             (felt_ofNat_val_lt _ (u32_val_lt_prime _ hc1Hi_lt))
             h_not)] at hexec
-    simp at hexec
+    simp only [Option.bind_none, reduceCtorEq] at hexec
   rw [show execProcedure emptyEnv 163
       ⟨Felt.ofNat col2Madd2Lo :: Felt.ofNat (col2SumHi + col2Madd2Hi) ::
           q.a0.val :: q.a1.val :: q.a2.val :: q.a3.val ::
@@ -4652,7 +4660,7 @@ theorem u128_divmod_conditions_of_exec
           (felt_ofNat_val_lt _ (u32_mod_lt_prime _))
           (felt_ofNat_val_lt _ (u32_val_lt_prime _ hc1Hi_lt))
           ha2_eq)] at hexec
-  simp at hexec
+  simp only [Nat.reducePow, Option.bind_some] at hexec
   simp only [← two_pow_32] at hexec
   rw [divmodCol3_eq, exec_append] at hexec
   rw [exec_append] at hexec
@@ -4680,7 +4688,7 @@ theorem u128_divmod_conditions_of_exec
       a.a3.val
       rest adv_rest mem frames      q.a2.isU32 q.a3.isU32 b.a0.isU32 b.a1.isU32
       (u32_mod_isU32 _)] at hexec
-  simp at hexec
+  simp only [Nat.reducePow, Nat.add_mod_mod, Option.bind_eq_bind, Option.bind_some] at hexec
   simp only [← two_pow_32] at hexec
   let c2Lo : Felt :=
     Felt.ofNat
@@ -4899,7 +4907,7 @@ theorem u128_divmod_conditions_of_exec
         (felt_ofNat_val_lt _ (u32_mod_lt_prime _))
         (felt_ofNat_val_lt _ (u32_val_lt_prime _ hc2Hi_lt))
         h_not] at hexec
-    simp at hexec
+    simp only [Option.bind_none, reduceCtorEq] at hexec
   have hcarry_zero_nat :
       u128DivmodCol3 q.a0.val.val q.a1.val.val q.a2.val.val q.a3.val.val
           b.a0.val.val b.a1.val.val b.a2.val.val b.a3.val.val
@@ -4924,7 +4932,7 @@ theorem u128_divmod_conditions_of_exec
         (felt_ofNat_val_lt _ (u32_mod_lt_prime _))
         (felt_ofNat_val_lt _ (u32_val_lt_prime _ hc2Hi_lt))
         ha3_eq h_not] at hexec
-    simp at hexec
+    simp only [Option.bind_none, reduceCtorEq] at hexec
   rw [divmodCol3c_run
       (Felt.ofNat
         (u128DivmodCol2 q.a0.val.val q.a1.val.val q.a2.val.val b.a0.val.val b.a1.val.val b.a2.val.val
@@ -4943,7 +4951,7 @@ theorem u128_divmod_conditions_of_exec
       (felt_ofNat_val_lt _ (u32_mod_lt_prime _))
       (felt_ofNat_val_lt _ (u32_val_lt_prime _ hc2Hi_lt))
       ha3_eq hcarry_zero_nat] at hexec
-  simp at hexec
+  simp only [Option.bind_some] at hexec
   rw [divmodTail_eq, exec_append] at hexec
   have hover_false :
       divmodOverflowBool q.a1.val q.a2.val q.a3.val b.a1.val b.a2.val b.a3.val = false := by
@@ -4964,7 +4972,7 @@ theorem u128_divmod_conditions_of_exec
       b.a0.val b.a1.val b.a2.val b.a3.val
       rest adv_rest mem frames      q.a1.isU32 q.a2.isU32 q.a3.isU32
       b.a1.isU32 b.a2.isU32 b.a3.isU32] at hexec
-  simp [hover_false, bind, Bind.bind, Option.bind] at hexec
+  simp only [bind, Option.bind, hover_false, Bool.false_eq_true, ↓reduceIte] at hexec
   have hover_parts := by
     simpa [divmodOverflowBool, Bool.or_eq_false_iff] using hover_false
   rcases hover_parts with ⟨hover_parts, h63_false⟩
@@ -4996,14 +5004,14 @@ theorem u128_divmod_conditions_of_exec
       r.a0.val r.a1.val r.a2.val r.a3.val
       b.a0.val b.a1.val b.a2.val b.a3.val
       rest adv_rest mem frames      r.a0.isU32 b.a0.isU32] at hexec
-  simp at hexec
+  simp only [Option.bind_eq_bind, Option.bind_some] at hexec
   rw [exec_append] at hexec
   rw [divmodCompare2_run
       q.a0.val q.a1.val q.a2.val q.a3.val
       r.a0.val r.a1.val r.a2.val r.a3.val
       b.a0.val b.a1.val b.a2.val b.a3.val
       rest adv_rest mem frames      r.a0.isU32 r.a1.isU32 b.a0.isU32 b.a1.isU32] at hexec
-  simp at hexec
+  simp only [Option.bind_eq_bind, Option.bind_some] at hexec
   rw [exec_append] at hexec
   rw [divmodCompare3_run
       q.a0.val q.a1.val q.a2.val q.a3.val
@@ -5011,7 +5019,7 @@ theorem u128_divmod_conditions_of_exec
       b.a0.val b.a1.val b.a2.val b.a3.val
       rest adv_rest mem frames      r.a0.isU32 r.a1.isU32 r.a2.isU32
       b.a0.isU32 b.a1.isU32 b.a2.isU32] at hexec
-  simp at hexec
+  simp only [Option.bind_eq_bind, Option.bind_some] at hexec
   have h_lt_result : u128LtBool r.a0.val r.a1.val r.a2.val r.a3.val b.a0.val b.a1.val b.a2.val b.a3.val = true := by
     by_contra h_not
     rw [divmodCompare4_none
@@ -5021,7 +5029,7 @@ theorem u128_divmod_conditions_of_exec
         rest adv_rest mem frames        r.a0.isU32 r.a1.isU32 r.a2.isU32 r.a3.isU32
         b.a0.isU32 b.a1.isU32 b.a2.isU32 b.a3.isU32
         h_not] at hexec
-    simp at hexec
+    simp only [reduceCtorEq] at hexec
   have ha0_nat : a.a0.val.val = u128DivmodCol0 q.a0.val.val b.a0.val.val r.a0.val.val % 2 ^ 32 := by
     have h := congrArg (fun z : Felt => z.val) ha0_eq
     change
