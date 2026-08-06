@@ -161,14 +161,20 @@ jobs:
       # `scripts/generate_verified_tables.py` scrapes into the README actually
       # say something, that every `_exec` execution summary is registered with
       # `@[miden_exec_summary]` (an untagged one silently degrades every caller
-      # to re-deriving the callee body), and that every `Instruction`
-      # constructor has a soundness lemma or a documented exception.
+      # to re-deriving the callee body), that every `Instruction` constructor has
+      # a soundness lemma or a documented exception, and that no lemma in the u32
+      # simp banks is keyed on the `u32Max` spelling of the modulus (such a lemma
+      # is true, provable, applicable-looking, and never fires).
+      #
+      # Note the `only` form: a linter missing from this list does not run, no
+      # matter that it is registered with `@[env_linter]`.
       - name: Batteries + project linters
         run: |
           cat > /tmp/Lint.lean <<'EOF'
           import MidenLean
           #lint only simpNF dupNamespace simpVarHead
-            midenCorrectDocs midenExecSummaryTagged midenSoundnessCoverage in MidenLean
+            midenCorrectDocs midenExecSummaryTagged midenSoundnessCoverage
+            midenSimpBankNumerals in MidenLean
           EOF
           lake env lean /tmp/Lint.lean 2>&1 | tee /tmp/lint.out
           if grep -qE '^-- Found [1-9]' /tmp/lint.out; then

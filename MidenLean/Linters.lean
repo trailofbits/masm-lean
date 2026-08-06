@@ -4,7 +4,7 @@ import MidenLean.Symbolic.SimpAttrs
 /-!
 # Project-specific `#lint` linters
 
-Three declaration-level linters (Batteries' `@[env_linter]` kind, which is what
+Four declaration-level linters (Batteries' `@[env_linter]` kind, which is what
 CI's `#lint` job runs) checking invariants that no generic linter can express.
 Each is here because the invariant it protects has already been violated in this
 repository, and because the violation is *silent*: everything still compiles.
@@ -26,6 +26,12 @@ repository, and because the violation is *silent*: everything still compiles.
 * `midenSoundnessCoverage` — a coverage invariant: every `MidenLean.Instruction`
   constructor should have a named `execInstruction_sound_<ctor>` lemma, or be
   listed in one of the two allowlists below with a reason.
+
+* `midenSimpBankNumerals` — the u32 modulus has three spellings here
+  (`MidenLean.u32Max`, `2 ^ 32`, `4294967296`) and simp matching does not see
+  through them, so a bank lemma keyed on one spelling never fires against a goal
+  written in another. That cost two multi-hour debugging sessions, because the
+  lemma is true, provable, applicable-looking, and simply never applies.
 
 ## Implementation notes
 
@@ -279,5 +285,168 @@ meta def soundnessLemmaExists (env : Environment) (midenModules : Array Name)
       msg := msg ++ m!"\n  allowlisted constructors that now DO have a named \
         lemma (drop them from the allowlist): {nowProved}"
     return msg
+
+/-! ## `midenSimpBankNumerals`
+
+The u32 modulus has three spellings in this codebase: `MidenLean.u32Max`,
+`2 ^ 32`, and the literal `4294967296`. `simp` matching does not see through
+them — a rewrite keyed on one spelling silently never fires against a goal
+normalized to another — and the failure has no visible symptom, because the
+lemma is true, provable, applicable-looking, and simply never applies. Finding
+that out twice cost two multi-hour debugging sessions.
+
+The convention that came out of those sessions, recorded at length in
+`Symbolic/Reflect.lean`: a lemma in these banks should be phrased over
+*structure* — an `Expr.eval` node applied to operands — so that its left-hand
+side contains no numeral at all and cannot be out of step with the goal; and
+where a numeral is unavoidable it must be spelled `2 ^ 32`, never `u32Max`,
+because `simp` normalizes goals towards the literal (`Nat.reducePow`) and it is
+`2 ^ 32` that survives matching.
+
+So this linter reports a bank lemma whose *matched* side mentions `u32Max`. Only
+the matched side counts: right-hand sides legitimately spell `u32Max` when they
+are steering a reflected goal onto the spelling that the concrete semantics and
+the manual `*_correct` statements use, which is exactly what
+`u32CountLeadingOnes_eq` and `u32CountTrailingOnes_eq` do.
+
+Two things are checked at the anchor declaration `MidenLean.u32Max` rather than
+per lemma: that all four bank attributes are actually registered (otherwise
+membership queries return nothing and the linter is vacuous), and that no
+allowlist entry has gone stale. -/
+
+/-- The `register_simp_attr` banks whose lemmas take part in u32 goal
+    normalization, declared in `Proofs/SimpAttrs.lean` and
+    `Symbolic/SimpAttrs.lean`. Membership is read out of the simp extension
+    itself, so the check follows the attribute rather than a naming convention.
+
+    `miden_cleanup` is deliberately absent: it is an unfold set whose members
+    include the auto-generated `Expr.eval.eq_*` equations, whose right-hand
+    sides mention `u32Max` because `Expr.eval` is *defined* that way. -/
+meta def simpBankAttrs : List Name :=
+  [`miden_val, `miden_bound, `miden_u32, `miden_reflect_norm]
+
+/-- The u32 modulus constant. Referred to by name (this module does not import
+    the library it lints); its absence from the environment is reported at the
+    anchor rather than passing vacuously. -/
+meta def u32MaxName : Name := `MidenLean.u32Max
+
+/-- Bank lemmas allowed to match on the `u32Max` spelling, because relating the
+    spellings is the lemma's whole purpose — a lemma stating `u32Max = 2 ^ 32`,
+    or one whose left-hand side is `u32Max` so that it unfolds the modulus into
+    the canonical spelling. One entry per line, each with its reason; entries
+    that no longer name such a lemma are reported as stale, so this list cannot
+    quietly outlive its justification.
+
+    Empty today: of the two bank lemmas that used to match on `u32Max`,
+    `u32Not_isU32` was restated over `2 ^ 32` and `u32Shl_isU32` was deleted as
+    subsumed by `u32_mod_isU32`. -/
+meta def numeralSpellingAllowlist : List Name := []
+
+/-- Does `e` mention the `u32Max` constant? -/
+meta def mentionsU32Max (e : Expr) : Bool :=
+  (e.find? (·.isConstOf u32MaxName)).isSome
+
+/-- The banks `declName` is a rewrite lemma in, each paired with whether the
+    entry is reversed (`@[bank ←]`, which rewrites right-to-left and therefore
+    matches goals against the statement's right-hand side).
+
+    Read from the simp extensions, which is the only faithful source: these are
+    `register_simp_attr` sets, so there is no per-set environment extension of
+    names to consult the way `@[miden_exec_summary]` has one. `Origin`'s `BEq`
+    ignores the pre/post flag, so a `↓` lemma is found by the same query. -/
+meta def bankEntries (declName : Name) : MetaM (List (Name × Bool)) := do
+  let mut entries := []
+  for attr in simpBankAttrs do
+    let some ext ← getSimpExtension? attr | continue
+    let thms ← ext.getTheorems
+    if thms.isLemma (.decl declName) then
+      entries := (attr, false) :: entries
+    if thms.isLemma (.decl declName (inv := true)) then
+      entries := (attr, true) :: entries
+  return entries
+
+/-- The side of `ty`'s conclusion that `simp` matches goals against: the
+    left-hand side, or the right-hand side for a reversed entry. Leading `let`
+    binders are substituted away first, as in `isExecSummaryShape`. A conclusion
+    that is not an equation or an iff is used by `simp` as `p = True`, so the
+    whole conclusion is the matched side. -/
+meta def matchedSide (ty : Expr) (reversed : Bool) : MetaM Expr :=
+  forallTelescopeReducing ty fun _ body => do
+    let body := peelLets body
+    if let some (_, lhs, rhs) := body.eq? then
+      return if reversed then rhs else lhs
+    if let some (lhs, rhs) := body.iff? then
+      return if reversed then rhs else lhs
+    return body
+
+/-- Allowlist entries that no longer name a bank lemma matching on `u32Max`:
+    either the declaration is gone, or it left the banks, or it was restated and
+    no longer mentions the modulus on its matched side. Any of those means the
+    entry is dead weight and should be deleted. -/
+meta def staleAllowlistEntries : MetaM (List Name) := do
+  let mut stale := []
+  for entry in numeralSpellingAllowlist do
+    let entries ← bankEntries entry
+    match (← getEnv).find? entry with
+    | none => stale := entry :: stale
+    | some info =>
+      let mut needed := false
+      for (_, reversed) in entries do
+        if mentionsU32Max (← matchedSide info.type reversed) then needed := true
+      unless needed do stale := entry :: stale
+  return stale.reverse
+
+/-- No lemma in the `miden_val` / `miden_bound` / `miden_u32` /
+    `miden_reflect_norm` simp banks may match goals on the `MidenLean.u32Max`
+    spelling of the u32 modulus: `simp` normalizes goals towards `2 ^ 32` and
+    the literal `4294967296`, so a `u32Max`-keyed rewrite is dead weight that
+    looks live. Right-hand sides are not checked — spelling the modulus
+    `u32Max` there is how a reflected goal is steered onto the concrete
+    semantics' spelling. Genuine spelling bridges go in
+    `numeralSpellingAllowlist`, whose stale entries are reported too. -/
+@[env_linter] meta def midenSimpBankNumerals : Batteries.Tactic.Lint.Linter where
+  noErrorsFound := "No simp-bank lemma is keyed on the `u32Max` spelling of the \
+    u32 modulus."
+  errorsFound := "SIMP-BANK LEMMAS KEYED ON `MidenLean.u32Max` (they cannot fire \
+    against a goal whose modulus `simp` has normalized to `2 ^ 32` / \
+    `4294967296`, and nothing about them looks wrong):"
+  test declName := do
+    -- Cheapest possible rejection first: this runs once per declaration.
+    unless (`MidenLean).isPrefixOf declName do return none
+    if declName == u32MaxName then
+      -- Whole-bank checks, anchored on the modulus itself so that they are paid
+      -- for on exactly one declaration.
+      let env ← getEnv
+      unless env.contains u32MaxName do
+        return m!"is not in the environment, so every check in \
+          `midenSimpBankNumerals` is vacuous. Fix \
+          `MidenLean.Linters.u32MaxName`."
+      let mut problems := []
+      for attr in simpBankAttrs do
+        if (← getSimpExtension? attr).isNone then
+          problems := m!"\n  simp bank `{attr}` is not a registered simp \
+            attribute, so its lemmas are not checked at all. Fix \
+            `MidenLean.Linters.simpBankAttrs`." :: problems
+      let stale ← staleAllowlistEntries
+      unless stale.isEmpty do
+        problems := m!"\n  allowlisted names that are no longer bank lemmas \
+          matching on `{u32MaxName}` (stale allowlist): {stale}" :: problems
+      if problems.isEmpty then return none
+      return MessageData.joinSep problems.reverse ""
+    let entries ← bankEntries declName
+    if entries.isEmpty then return none
+    if numeralSpellingAllowlist.contains declName then return none
+    let info ← getConstInfo declName
+    let mut offending := []
+    for (attr, reversed) in entries do
+      if mentionsU32Max (← matchedSide info.type reversed) then
+        offending := (if reversed then m!"@[{attr} ←]" else m!"@[{attr}]") :: offending
+    if offending.isEmpty then return none
+    return m!"is in {MessageData.andList offending} and matches on \
+      `{u32MaxName}`, so it can only ever fire against a goal that spells the \
+      modulus the same way. State it over the `Expr.eval` structure, or spell \
+      the modulus `2 ^ 32`. If relating the two spellings is the point of the \
+      lemma, add it to `MidenLean.Linters.numeralSpellingAllowlist` with a \
+      reason."
 
 end MidenLean.Linters

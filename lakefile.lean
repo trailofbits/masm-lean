@@ -15,7 +15,17 @@ package MidenLean where
     -- prefix is exactly the escape hatch for this: set the option where it is
     -- registered, ignore it where it is not.
     ⟨`weak.linter.style.admit, true⟩,        -- `admit` is `sorry` by another name
-    ⟨`weak.linter.style.nativeDecide, true⟩  -- compiler trust must be a reviewed, local act
+    ⟨`weak.linter.style.nativeDecide, true⟩, -- compiler trust must be a reviewed, local act
+    -- Core Lean rather than Mathlib, so the `weak.` prefix is belt-and-braces
+    -- here; it keeps the list uniform and costs nothing. Flags a theorem passed
+    -- as a simp argument whose right-hand side the ambient simp set cannot
+    -- normalize, which is what turns `simp [thm]` into a divergence instead of a
+    -- readable failure. Measured over the 143 hand-written library modules: one
+    -- finding, in `Symbolic/Soundness.lean`, where `simp [execInstruction]` hands
+    -- simp a 110-equation match and the check itself runs out of heartbeats;
+    -- that one declaration opts out locally with a comment, everything else is
+    -- clean. Cost is in the noise (`U64/Shr` 5.76s → 5.72s, `U128/Divmod` 84s).
+    ⟨`weak.linter.loopingSimpArgs, true⟩
     -- Measured but NOT yet enabled, because they are not clean and a gate that
     -- fails is not a gate. Backlog, with counts from a full build:
     --   linter.flexible          438 warnings / 75 sites / 25 files

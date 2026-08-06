@@ -419,6 +419,17 @@ private theorem execInstruction_sound_movdn
       simp only [Bool.and_eq_false_iff, decide_eq_false_iff_not]; omega
     simp [hfalse] at hexec
 
+-- The `unsupported` branch below closes with `simp [execInstruction] at hexec`,
+-- which hands `simp` a *definition*, i.e. all ~110 equation lemmas of a match on
+-- `Instruction`. `linter.loopingSimpArgs` checks each simp argument by simplifying
+-- its right-hand side; on `execInstruction.eq_106` that right-hand side is a
+-- hundred-branch match, so the check does not terminate within this file's
+-- heartbeat budget and reports "possibly looping" — the failure mode the linter
+-- warns about explicitly ("it typically fails because of running out of recursion
+-- depth"), not a real loop. It is the only site in the library where the linter
+-- has anything to say, so the exception is local and the gate stays on everywhere
+-- else.
+set_option linter.loopingSimpArgs false in
 /-- Per-instruction soundness: if symbolic execution succeeds on instruction i
     with all preconditions satisfied, then concrete execution also succeeds
     and the resulting state models the symbolic result. -/

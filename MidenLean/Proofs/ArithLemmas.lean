@@ -155,7 +155,14 @@ attribute [miden_val] Proofs.u32_prod_mod_add_div_val
   by_cases huv : u < v <;> by_cases hwz : w < z <;>
     simp [huv, hwz]
 
--- New isU32 propagation lemmas
+-- New isU32 propagation lemmas.
+--
+-- The modulus is spelled `2 ^ 32` throughout, never `u32Max`: `simp` normalizes
+-- goals towards `2 ^ 32` and the literal `4294967296`, and matching does not see
+-- through the three spellings, so a bank lemma keyed on `u32Max` is true,
+-- provable, and never fires. `midenSimpBankNumerals` in `MidenLean/Linters.lean`
+-- enforces that, and there is a longer account of the failure mode in
+-- `Symbolic/Reflect.lean`.
 
 /-- The carry from adding three u32 values is u32. -/
 @[miden_u32] theorem u32_add3_div_isU32 (a b c : Felt)
@@ -191,16 +198,14 @@ attribute [miden_val] Proofs.u32_prod_mod_add_div_val
 /-- Bitwise NOT of a u32 value is u32. -/
 @[miden_u32] theorem u32Not_isU32 (a : Felt)
     (ha : a.isU32 = true) :
-    (Felt.ofNat (u32Max - 1 - a.val)).isU32 = true := by
+    (Felt.ofNat (2 ^ 32 - 1 - a.val)).isU32 = true := by
   apply felt_ofNat_isU32_of_lt
   simp only [Felt.isU32, decide_eq_true_eq] at ha
-  unfold u32Max; omega
+  omega
 
-/-- Left shift of a u32 value (mod 2^32) is u32. -/
-@[miden_u32] theorem u32Shl_isU32 (a b : Felt) :
-    (Felt.ofNat ((a.val * 2^b.val) % u32Max)).isU32 = true := by
-  apply felt_ofNat_isU32_of_lt
-  unfold u32Max; exact Nat.mod_lt _ (by positivity)
+-- There is no `u32Shl_isU32`: `u32_mod_isU32` above already closes
+-- `(Felt.ofNat (n % 2 ^ 32)).isU32 = true` for any numerator, so a shift-specific
+-- lemma in the canonical spelling would be subsumed by it.
 
 /-- Right shift of a u32 value is u32. -/
 @[miden_u32] theorem u32Shr_isU32 (a b : Felt)
