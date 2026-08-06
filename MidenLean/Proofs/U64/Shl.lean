@@ -8,7 +8,9 @@ open MidenLean.StepLemmas
 open MidenLean.Tactics
 
 set_option maxHeartbeats 16000000 in
-/-- `u64::shl` raw: result in terms of schoolbook multiplication of limbs. -/
+/-- `u64::shl` raw: result in terms of schoolbook multiplication of limbs.
+    Registered as a fixed-fuel callee summary, matching `u64_shr_exec`. -/
+@[miden_exec_summary]
 theorem u64_shl_exec
     (lo hi shift : Felt) (rest : List Felt) (s : Concrete.State)
     (hs : s.stack = shift :: lo :: hi :: rest)

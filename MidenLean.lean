@@ -122,3 +122,8 @@ import MidenLean.Symbolic.Reflect
 import MidenLean.Symbolic.Tactic
 import MidenLean.Tests.Semantics
 import MidenLean.Tests.Procedures
+-- Project-specific `#lint` linters. Imported here so that CI's lint job, which
+-- runs `#lint` against `import MidenLean`, picks them up. The module itself
+-- imports only `Batteries.Tactic.Lint` and the leaf `Symbolic/SimpAttrs.lean`,
+-- so it adds no cycle and nothing above depends on it.
+import MidenLean.Linters
