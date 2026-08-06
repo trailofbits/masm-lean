@@ -333,12 +333,21 @@ theorem u64_widening_mul_correct (a b : U64) (rest : List Felt) (s : Concrete.St
                               (show bh * 2^32 + bl ≤ 2^64 - 1 by omega)]
   -- Derive all four limb equalities from reconstruction + bounds
   have hlimbs := limbs_from_reconstruction _ _ _ _ _ (by omega) (by omega) (by omega) hprod_lt hrec
+  -- Peel the four output limbs off the stack one at a time. Each `congr 1`
+  -- that splits the goal gets one `·` block per branch, so the proof does not
+  -- depend on `congr`'s goal ordering. No `show` headers here: the goals are
+  -- whole machine-generated stack terms and restating them would bury the
+  -- argument.
   congr 1; congr 1; congr 1
-  · congr 1; exact hlimbs.1
-  · congr 1; congr 1
-    · exact hlimbs.2.1
-    · congr 1; congr 1
-      · exact hlimbs.2.2.1
-      · congr 1; congr 1; exact hlimbs.2.2.2
+  · congr 1
+    exact hlimbs.1
+  · congr 1
+    · congr 1
+      exact hlimbs.2.1
+    · congr 1
+      · congr 1
+        exact hlimbs.2.2.1
+      · congr 1; congr 1
+        exact hlimbs.2.2.2
 
 end MidenLean.Proofs

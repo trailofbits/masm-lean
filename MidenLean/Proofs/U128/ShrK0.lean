@@ -28,8 +28,10 @@ private theorem pow32_sub_val
   apply felt_ofNat_val_lt
   have hpow_le : 2 ^ (32 - shift.val) ≤ 2 ^ 31 := by
     apply Nat.pow_le_pow_right
-    omega
-    omega
+    · show 2 > 0
+      omega
+    · show 32 - shift.val ≤ 31
+      omega
   unfold GOLDILOCKS_PRIME
   omega
 
@@ -39,8 +41,10 @@ private theorem pow32_sub_isU32
   apply felt_ofNat_isU32_of_lt
   have hpow_le : 2 ^ (32 - shift.val) ≤ 2 ^ 31 := by
     apply Nat.pow_le_pow_right
-    omega
-    omega
+    · show 2 > 0
+      omega
+    · show 32 - shift.val ≤ 31
+      omega
   omega
 
 -- ============================================================================

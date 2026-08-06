@@ -16,6 +16,25 @@ package MidenLean where
     -- registered, ignore it where it is not.
     ⟨`weak.linter.style.admit, true⟩,        -- `admit` is `sorry` by another name
     ⟨`weak.linter.style.nativeDecide, true⟩, -- compiler trust must be a reviewed, local act
+    -- One focused goal at a time: any tactic leaving several goals is followed
+    -- by one `·` block per goal. Goal-ordering dependence is the fragility
+    -- class this library keeps rediscovering — a `congr`/`apply` whose
+    -- subgoals get reordered silently redirects the next `omega` or `exact`
+    -- onto a different limb, and the breakage surfaces far from its cause.
+    -- Measured over the 138 hand-written modules under `MidenLean/` (excluding
+    -- `Proofs/Generated/`): 8 findings, cleared by focusing the two
+    -- `Nat.pow_le_pow_right` side conditions in U128/ShrK0-2 (6) and the
+    -- `congr 1` limb peel at the end of U64/WideningMul (2).
+    ⟨`weak.linter.style.multiGoal, true⟩,
+    -- No `debug`/`pp`/`profiler`/`trace` options, and no UNSCOPED
+    -- `maxHeartbeats`. Note it is only the unscoped, file-level form that is
+    -- forbidden: `set_option maxHeartbeats N in <decl>` is fine and this
+    -- library leans on it heavily (284 occurrences). The file-level form is
+    -- the problem, because it silently hands every later declaration in the
+    -- file a budget nobody measured for it. One finding, in
+    -- `Proofs/StepLemmas.lean`, whose 4M file-level budget re-measured as pure
+    -- scaffolding: all 82 step lemmas elaborate inside the 200000 default.
+    ⟨`weak.linter.style.setOption, true⟩,
     -- Core Lean rather than Mathlib, so the `weak.` prefix is belt-and-braces
     -- here; it keeps the list uniform and costs nothing. Flags a theorem passed
     -- as a simp argument whose right-hand side the ambient simp set cannot
@@ -29,9 +48,9 @@ package MidenLean where
     -- Measured but NOT yet enabled, because they are not clean and a gate that
     -- fails is not a gate. Backlog, with counts from a full build:
     --   linter.flexible          438 warnings / 75 sites / 25 files
-    --   linter.style.multiGoal     8 sites (U128 ShrK0-2, U64 WideningMul)
-    --   linter.style.setOption     1 site
     --   linter.style.maxHeartbeats 286 overrides wanting a justification comment
+    --     (measured before StepLemmas' file-level override was deleted, so the
+    --      real figure is now 285 or lower; not re-measured, so treat as stale)
     --   linter.style.longLine      489 lines over 100 characters
     -- They run in CI's advisory job; promote each into this list as it reaches
     -- zero. `flexible` is the valuable one: it flags a rigid tactic depending on

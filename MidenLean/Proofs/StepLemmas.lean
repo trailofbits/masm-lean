@@ -12,11 +12,12 @@ through the symbolic executor instead and do not use them.
 
 namespace MidenLean.StepLemmas
 
-/- One file-level heartbeat budget instead of a copy-pasted per-lemma
-   override on all 82 lemmas: at that density the annotations carried no
-   information about which lemma is actually expensive. The word-width step
-   lemmas (dupw/swapw/movupw) are the reason for the size. -/
-set_option maxHeartbeats 4000000
+/- No heartbeat override here. This file used to carry a file-level
+   `set_option maxHeartbeats 4000000`, on the theory that the word-width step
+   lemmas (dupw/swapw/movupw) needed it; re-measured, every one of the 82
+   lemmas elaborates inside the 200000 default, so the budget was dead
+   scaffolding. Keep it that way: an unscoped `maxHeartbeats` also defeats
+   `linter.style.setOption`, which this package gates on. -/
 
 open MidenLean
 
