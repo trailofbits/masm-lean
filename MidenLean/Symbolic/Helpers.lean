@@ -884,13 +884,13 @@ theorem execInstruction_sound_swapw
       · refine ⟨?_, hmem, hframes, hadv⟩
         unfold Concrete.State.withStack
         rw [hstack,
-            set_map_append_left _ _ _ (n.val * 4 + 3) a3 (by simp [List.length_set]; exact hb3lt),
-            set_map_append_left _ _ _ (n.val * 4 + 2) a2 (by simp [List.length_set]; exact hb2lt),
-            set_map_append_left _ _ _ (n.val * 4 + 1) a1 (by simp [List.length_set]; exact hb1lt),
-            set_map_append_left _ _ _ (n.val * 4) a0 (by simp [List.length_set]; exact hb0lt),
-            set_map_append_left _ _ _ 3 b3 (by simp [List.length_set]; exact h3lt),
-            set_map_append_left _ _ _ 2 b2 (by simp [List.length_set]; exact h2lt),
-            set_map_append_left _ _ _ 1 b1 (by simp [List.length_set]; exact h1lt),
+            set_map_append_left _ _ _ (n.val * 4 + 3) a3 (by simp only [List.length_set]; exact hb3lt),
+            set_map_append_left _ _ _ (n.val * 4 + 2) a2 (by simp only [List.length_set]; exact hb2lt),
+            set_map_append_left _ _ _ (n.val * 4 + 1) a1 (by simp only [List.length_set]; exact hb1lt),
+            set_map_append_left _ _ _ (n.val * 4) a0 (by simp only [List.length_set]; exact hb0lt),
+            set_map_append_left _ _ _ 3 b3 (by simp only [List.length_set]; exact h3lt),
+            set_map_append_left _ _ _ 2 b2 (by simp only [List.length_set]; exact h2lt),
+            set_map_append_left _ _ _ 1 b1 (by simp only [List.length_set]; exact h1lt),
             set_map_append_left _ _ _ 0 b0 h0lt]
     · -- not all some: contradiction
       exact absurd hexec (by simp)

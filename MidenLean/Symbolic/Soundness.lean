@@ -912,7 +912,9 @@ theorem execInstruction_sound
         · simp [hgt] at hexec
       · push_neg at hguard
         obtain ⟨hmod, hle⟩ := hguard
-        simp [hmod, hle] at hexec
+        simp only [hmod, bne_self_eq_false, gt_iff_lt, Bool.false_or, decide_eq_true_eq,
+          Option.ite_none_left_eq_some, not_lt, hle, Option.some.injEq, Prod.mk.injEq,
+          List.nil_eq, true_and] at hexec
         obtain ⟨rfl, rfl⟩ := hexec
         refine ⟨cs.withStack (cs.memory (frame.localAddr idx + 3) ::
           cs.memory (frame.localAddr idx + 2) :: cs.memory (frame.localAddr idx + 1) ::
@@ -947,7 +949,9 @@ theorem execInstruction_sound
         · simp [hgt] at hexec
       · push_neg at hguard
         obtain ⟨hmod, hle⟩ := hguard
-        simp [hmod, hle] at hexec
+        simp only [hmod, bne_self_eq_false, gt_iff_lt, Bool.false_or, decide_eq_true_eq,
+          Option.ite_none_left_eq_some, not_lt, hle, Option.some.injEq, Prod.mk.injEq,
+          List.nil_eq, true_and] at hexec
         obtain ⟨rfl, rfl⟩ := hexec
         refine ⟨cs.withStack (cs.memory (frame.localAddr idx) ::
           cs.memory (frame.localAddr idx + 1) :: cs.memory (frame.localAddr idx + 2) ::
@@ -982,7 +986,9 @@ theorem execInstruction_sound
         · simp [hgt] at hexec
       · push_neg at hguard
         obtain ⟨hmod, hle⟩ := hguard
-        simp [hmod, hle] at hexec
+        simp only [hmod, bne_self_eq_false, gt_iff_lt, Bool.false_or, decide_eq_true_eq,
+          Option.ite_none_left_eq_some, not_lt, hle, Option.some.injEq, Prod.mk.injEq,
+          List.nil_eq, true_and] at hexec
         obtain ⟨rfl, rfl⟩ := hexec
         refine ⟨(((cs.writeMemory (frame.localAddr idx) (e3.eval σ)).writeMemory
           (frame.localAddr idx + 1) (e2.eval σ)).writeMemory (frame.localAddr idx + 2) (e1.eval σ)
@@ -1018,7 +1024,9 @@ theorem execInstruction_sound
         · simp [hgt] at hexec
       · push_neg at hguard
         obtain ⟨hmod, hle⟩ := hguard
-        simp [hmod, hle] at hexec
+        simp only [hmod, bne_self_eq_false, gt_iff_lt, Bool.false_or, decide_eq_true_eq,
+          Option.ite_none_left_eq_some, not_lt, hle, Option.some.injEq, Prod.mk.injEq,
+          List.nil_eq, true_and] at hexec
         obtain ⟨rfl, rfl⟩ := hexec
         refine ⟨(((cs.writeMemory (frame.localAddr idx) (e0.eval σ)).writeMemory
           (frame.localAddr idx + 1) (e1.eval σ)).writeMemory (frame.localAddr idx + 2) (e2.eval σ)
@@ -1315,7 +1323,8 @@ private theorem foldlM_execOp_preconds_subset
     (p : Precondition) (hp : p ∈ acc.preconditions) : p ∈ result.preconditions := by
   induction ops generalizing acc with
   | nil =>
-    simp [List.foldlM] at hfold; rw [← hfold]; exact hp
+    simp only [List.foldlM_nil, Option.pure_def, Option.some.injEq] at hfold
+    rw [← hfold]; exact hp
   | cons op rest ih =>
     simp only [List.foldlM, bind, Bind.bind, Option.bind] at hfold
     match hstep : execOp senv acc op with
@@ -1389,7 +1398,7 @@ private theorem foldlM_execOp_sound
       ∧ result.state.models cs' σ rest := by
   induction ops generalizing acc cs with
   | nil =>
-    simp [List.foldlM] at hfold
+    simp only [List.foldlM_nil, Option.pure_def, Option.some.injEq] at hfold
     exact ⟨cs, rfl, hfold ▸ hmodels⟩
   | cons op rest_ops ih =>
     simp only [List.foldlM, bind, Bind.bind, Option.bind] at hfold ⊢

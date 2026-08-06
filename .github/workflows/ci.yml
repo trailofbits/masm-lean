@@ -46,8 +46,23 @@ jobs:
 
       # The library and proofs. A clean build with no `sorry` means every
       # correctness theorem is machine-checked.
-      - name: Build library and proofs
-        run: lake build MidenLean
+      #
+      # Warnings are failures. Roughly 30 linters are enabled by default in
+      # Lean/Mathlib (unusedTactic, unusedSimpArgs, unnecessarySimpa,
+      # unreachableTactic, unusedVariables, dupNamespace, nameCheck, deprecated,
+      # …) and this library already satisfies all of them — but `lake build`
+      # exits 0 with warnings, so without this gate that compliance is
+      # unprotected and would rot silently. The lakefile additionally turns on
+      # style.multiGoal, style.admit and style.setOption, which are also clean.
+      - name: Build library and proofs (warnings are failures)
+        run: |
+          set -o pipefail
+          lake build MidenLean 2>&1 | tee /tmp/build.log
+          if grep -q "warning:" /tmp/build.log; then
+            echo "::error::build emitted warnings (linter findings are failures here)"
+            grep -n "warning:" /tmp/build.log | head -50
+            exit 1
+          fi
 
       # Not part of the default target by design, so it must be built
       # explicitly — this is exactly how Symbolic/TacticTest.lean silently
@@ -120,6 +135,26 @@ jobs:
       # Deliberately omitted: `unusedArguments`, which does not finish within
       # a reasonable budget at this library size. Re-add it (per-module) if
       # someone makes it affordable.
+      # Mathlib-provided, so it cannot go in the package's `leanOptions` (those
+      # reach core-Lean-only modules like Symbolic/SimpAttrs.lean, where the
+      # option does not exist and `-D` on an unknown option is a hard error).
+      # Enforced per-file instead. `native_decide` puts the Lean compiler in the
+      # trusted base of every dependent theorem, so a NEW one must be a
+      # deliberate, reviewed act — note the axiom audit will NOT catch it, since
+      # it reuses the already-whitelisted ofReduceBool/trustCompiler axioms.
+      - name: No new native_decide
+        run: |
+          status=0
+          for f in $(git ls-files 'MidenLean/**/*.lean' | grep -v '^MidenLean/Proofs/Generated/'); do
+            grep -q '^import Mathlib' "$f" || continue          # option is Mathlib-provided
+            grep -q 'linter.style.nativeDecide false' "$f" && continue   # documented exception
+            out=$(lake env lean -Dlinter.style.nativeDecide=true "$f" 2>&1 || true)
+            if echo "$out" | grep -q "native_decide"; then
+              echo "::error file=$f::native_decide introduced"; echo "$out" | head -5; status=1
+            fi
+          done
+          exit $status
+
       - name: Batteries linters (simpNF, dupNamespace, simpVarHead)
         run: |
           cat > /tmp/Lint.lean <<'EOF'

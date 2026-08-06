@@ -16,6 +16,12 @@ abbrev Felt := ZMod GOLDILOCKS_PRIME
 -- of 2^64 - 2^32 + 1) but did not finish within an hour of kernel checking;
 -- removing this axiom would need a precomputed, inlined primality
 -- certificate.
+-- The `nativeDecide` linter is enabled library-wide precisely so that a NEW
+-- `native_decide` cannot appear unnoticed; this is the one sanctioned site, so
+-- the exemption is local and deliberate rather than a global exclusion. Note
+-- the axiom audit in `scripts/AxiomCheck.lean` would NOT catch a new use, since
+-- it would reuse the already-whitelisted `ofReduceBool`/`trustCompiler` axioms.
+set_option linter.style.nativeDecide false in
 set_option maxHeartbeats 800000 in
 instance : Fact (Nat.Prime GOLDILOCKS_PRIME) := ⟨by native_decide⟩
 
