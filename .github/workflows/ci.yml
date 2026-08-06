@@ -52,8 +52,12 @@ jobs:
       # unreachableTactic, unusedVariables, dupNamespace, nameCheck, deprecated,
       # …) and this library already satisfies all of them — but `lake build`
       # exits 0 with warnings, so without this gate that compliance is
-      # unprotected and would rot silently. The lakefile additionally turns on
-      # style.multiGoal, style.admit and style.setOption, which are also clean.
+      # unprotected and would rot silently.
+      #
+      # This is also where the lakefile's `leanOptions` linters are enforced —
+      # style.admit, style.nativeDecide, style.multiGoal, style.setOption,
+      # loopingSimpArgs and flexible. They are all at zero, and they are only
+      # gates because THIS step turns their warnings into failures.
       - name: Build library and proofs (warnings are failures)
         run: |
           set -o pipefail
@@ -208,13 +212,20 @@ jobs:
 
   # Mathlib's full `mathlibStandardSet` (long lines, undocumented
   # `set_option maxHeartbeats`, cdot/cases/induction style, docstring rules, …)
-  # is ADVISORY for now: the existing tree has roughly 960 findings — ~576 lines
-  # over 100 characters across 64 files, plus ~387 `maxHeartbeats` overrides
-  # that want an explanatory comment. Gating on that today would fail every PR.
+  # is ADVISORY for now, because two of its members are still not clean:
+  #   longLine      489 reported (581 raw lines over 100 characters, so ~92 are
+  #                 exempt under the linter's own rules). Concentrated —
+  #                 U128/Divmod.lean holds 148 of the 581, the top ten files
+  #                 about half.
+  #   maxHeartbeats 286 overrides wanting an explanatory comment; stale by at
+  #                 least one since StepLemmas' file-level override was deleted.
+  # Gating on those today would fail every PR. Everything else the standard set
+  # covers that this library cares about is already a hard gate via the
+  # lakefile's `leanOptions` (see the build job) — flexible, multiGoal,
+  # setOption, admit, nativeDecide and loopingSimpArgs are all at zero.
   #
-  # So it runs only over the files a PR touches, and does not block. Burn the
-  # backlog down, then move this into the `lint` job and drop
-  # `continue-on-error`.
+  # So this runs only over the files a PR touches, and does not block. Clear the
+  # two above, then move this into the `lint` job and drop `continue-on-error`.
   style-advisory:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
