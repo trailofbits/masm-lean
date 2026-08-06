@@ -3,3 +3,11 @@
 
 docs
 examples
+
+# Local agent and editor state; nothing here is shareable.
+# `.claude/skills/` is a SYMLINK into a separate skills repo, so committing it
+# would capture a link, not content. `.claude/worktrees/` accumulates leftover
+# agent worktrees and was 1.6 GB when this line was added — worth pruning
+# periodically with `git worktree prune`.
+.claude/
+.vscode/
