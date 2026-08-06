@@ -217,21 +217,21 @@ theorem while_vcg_test
     intro s₀ cond_ rest₀ hs₀ hstk hcond
     rcases hs₀ with rfl | rfl
     · -- state = ⟨1 :: rest, ...⟩
-      simp at hstk; obtain ⟨rfl, rfl⟩ := hstk
+      simp only [List.cons.injEq] at hstk; obtain ⟨rfl, rfl⟩ := hstk
       obtain ⟨f', rfl⟩ : ∃ f', fuel = f' + 1 := ⟨fuel - 1, by omega⟩
       refine ⟨⟨(0 : Felt) :: rest, mem, frames, adv⟩, ?_, Or.inr rfl, ?_⟩
       · simp [execProcedure, Procedure.ofOps, List.foldlM, bind, Bind.bind, Option.bind,
               MidenLean.execInstruction, execPush, Concrete.State.withStack]
       · simp [h0v, h1v]
     · -- state = ⟨0 :: rest, ...⟩, cond.val = 1 → contradiction
-      simp at hstk; obtain ⟨rfl, rfl⟩ := hstk
+      simp only [List.cons.injEq] at hstk; obtain ⟨rfl, rfl⟩ := hstk
       simp [h0v] at hcond
   · -- hexit: postcondition when cond = 0
     intro s₀ cond_ rest₀ hs₀ hstk hcond
     rcases hs₀ with rfl | rfl
-    · simp at hstk; obtain ⟨rfl, rfl⟩ := hstk
+    · simp only [List.cons.injEq] at hstk; obtain ⟨rfl, rfl⟩ := hstk
       simp [h1v] at hcond
-    · simp at hstk; obtain ⟨rfl, rfl⟩ := hstk
+    · simp only [List.cons.injEq] at hstk; obtain ⟨rfl, rfl⟩ := hstk
       simp [Concrete.State.withStack]
   · -- hfuel: fuel ≥ measure + 1
     simp [h1v]; omega

@@ -430,15 +430,15 @@ def rotl (a : U128) (n : Nat) : U128 :=
 @[simp] theorem ofNat_or (x y : Nat) : U128.ofNat (x ||| y) = U128.ofNat x ||| U128.ofNat y := by
   refine U128.ext (U32.eq_of_toNat_eq ?_) (U32.eq_of_toNat_eq ?_) (U32.eq_of_toNat_eq ?_) (U32.eq_of_toNat_eq ?_)
   · simpa using (Nat.or_mod_two_pow (a := x) (b := y) (n := 32))
-  · simp
+  · simp only [ofNat_a1_toNat, Nat.reducePow, or_a1_toNat]
     rw [show (x ||| y) / 4294967296 = x / 4294967296 ||| y / 4294967296 by
       simpa using (Nat.or_div_two_pow (a := x) (b := y) (n := 32))]
     simpa using (Nat.or_mod_two_pow (a := x / 2^32) (b := y / 2^32) (n := 32))
-  · simp
+  · simp only [ofNat_a2_toNat, Nat.reducePow, or_a2_toNat]
     rw [show (x ||| y) / 18446744073709551616 = x / 18446744073709551616 ||| y / 18446744073709551616 by
       simpa using (Nat.or_div_two_pow (a := x) (b := y) (n := 64))]
     simpa using (Nat.or_mod_two_pow (a := x / 2^64) (b := y / 2^64) (n := 32))
-  · simp
+  · simp only [ofNat_a3_toNat, Nat.reducePow, or_a3_toNat]
     rw [show (x ||| y) / 79228162514264337593543950336 = x / 79228162514264337593543950336 ||| y / 79228162514264337593543950336 by
       simpa using (Nat.or_div_two_pow (a := x) (b := y) (n := 96))]
     simpa using (Nat.or_mod_two_pow (a := x / 2^96) (b := y / 2^96) (n := 32))

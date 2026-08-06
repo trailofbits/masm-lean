@@ -62,7 +62,7 @@ theorem execProcedure_ifElse_same
     (hbool : cond.val = 0 ∨ cond.val = 1) :
     execProcedure env fuel s [Op.ifElse thenOps elseOps] = some s' := by
   have h := execProcedure_ifElse env fuel thenOps elseOps s s' s' cond rest hs hfuel hthen helse hbool
-  simp [ite_self] at h; exact h
+  simp only [ite_self] at h; exact h
 
 -- repeat composition rules
 

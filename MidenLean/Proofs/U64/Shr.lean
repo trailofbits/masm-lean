@@ -387,13 +387,15 @@ theorem u64_shr_exec
   cases hcond : !decide
     ((Felt.ofNat (2 ^ shift.val)).lo32.val <
       (if (Felt.ofNat (2 ^ shift.val)).lo32 == 0 then (1 : Felt) else 0).val)
-  · simp
+  · simp only [Bool.false_eq_true, ↓reduceIte, beq_iff_eq, mul_zero, zero_mul, add_zero,
+      Fin.isValue, Option.pure_def, Option.bind_eq_bind, Option.bind_fun_some]
     miden_movup
     rw [stepMul]
     miden_bind
     miden_swap
     simp
-  · simp
+  · simp only [↓reduceIte, beq_iff_eq, mul_one, Fin.isValue, Option.pure_def,
+      Option.bind_eq_bind, Option.bind_fun_some]
     miden_movup
     rw [stepMul]
     miden_bind
@@ -473,10 +475,10 @@ theorem u64_shr_correct (a : U64) (shift : Felt) (rest : List Felt) (s : Concret
   -- Recover key bounds
   have hlo_u32 := a.lo.isU32
   have hlo_lt : a.lo.val.val < 2^32 := by
-    simp [Felt.isU32, decide_eq_true_eq] at hlo_u32; exact hlo_u32
+    simp only [Felt.isU32, decide_eq_true_eq] at hlo_u32; exact hlo_u32
   have hhi_u32 := a.hi.isU32
   have hhi_lt : a.hi.val.val < 2^32 := by
-    simp [Felt.isU32, decide_eq_true_eq] at hhi_u32; exact hhi_u32
+    simp only [Felt.isU32, decide_eq_true_eq] at hhi_u32; exact hhi_u32
   have hpow_val := pow2_val_eq shift hshift
   -- Target: show result = (a.shr shift.val).lo :: (a.shr shift.val).hi :: rest
   show _ = some (s.withStack (

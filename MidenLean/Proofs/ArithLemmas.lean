@@ -221,7 +221,8 @@ attribute [miden_val] Proofs.u32_prod_mod_add_div_val
 @[miden_u32] theorem u32OverflowingSub_snd_isU32_felt (a b : Felt)
     (ha : a.isU32 = true) (hb : b.isU32 = true) :
     (Felt.ofNat (u32OverflowingSub a.val b.val).2).isU32 = true := by
-  apply u32OverflowingSub_snd_isU32 <;> simp [Felt.isU32, decide_eq_true_eq] at * <;> assumption
+  apply u32OverflowingSub_snd_isU32 <;>
+    simp only [Felt.isU32, decide_eq_true_eq] at * <;> assumption
 
 -- New value recovery lemmas
 
@@ -235,7 +236,7 @@ attribute [miden_val] Proofs.u32_prod_mod_add_div_val
 @[miden_val] theorem u32OverflowingSub_snd_val_felt (a b : Felt)
     (ha : a.isU32 = true) (hb : b.isU32 = true) :
     (Felt.ofNat (u32OverflowingSub a.val b.val).2).val = (u32OverflowingSub a.val b.val).2 := by
-  apply u32OverflowingSub_snd_val <;> simp [Felt.isU32, decide_eq_true_eq] at * <;> assumption
+  apply u32OverflowingSub_snd_val <;> simp only [Felt.isU32, decide_eq_true_eq] at * <;> assumption
 
 /-- The high 32 bits of a u32 product round-trips through Felt.ofNat. -/
 @[miden_val] theorem u32_prod_div_val (a b : Felt)

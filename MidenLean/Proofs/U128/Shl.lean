@@ -468,7 +468,7 @@ theorem u128_shl_correct (a : U128) (shift : U32) (rest : List Felt) (s : Concre
     simp only [U32.toNat, show ¬(shift.toNat < 64) from by omega, ↓reduceIte]
     have hs64_val : (Felt.ofNat (u32OverflowingSub shift.toNat 64).2).val = shift.toNat - 64 := by
       unfold u32OverflowingSub
-      simp [show shift.toNat ≥ 64 from hlt]
+      simp only [ge_iff_le, show shift.toNat ≥ 64 from hlt, ↓reduceIte]
       exact felt_ofNat_val_lt _ (by unfold GOLDILOCKS_PRIME; omega)
     have hs64_lt : shift.toNat - 64 < 64 := by omega
     -- Rewrite all raw pow2 limbs to match ofNat(2^shift) limbs

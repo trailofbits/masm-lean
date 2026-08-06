@@ -19,7 +19,7 @@ private theorem shift_sub32_val
     (shift : Felt) (hshift : shift.val ≤ 31) :
     (Felt.ofNat (u32OverflowingSub 32 shift.val).2).val = 32 - shift.val := by
   unfold u32OverflowingSub
-  simp [show shift.val ≤ 32 by omega]
+  simp only [ge_iff_le, show shift.val ≤ 32 by omega, ↓reduceIte]
   rw [felt_ofNat_val_lt _ (by unfold GOLDILOCKS_PRIME; omega)]
 
 private theorem pow32_sub_val

@@ -70,12 +70,12 @@ theorem u64_min_correct (a b : U64) (rest : List Felt) (s : Concrete.State)
   have h := u64_min_ite a b rest s hs
   simp only [U64.min_def, U64.le_iff_toNat_le]
   by_cases hab : a.toNat < b.toNat
-  · simp [hab, Nat.le_of_lt hab] at h ⊢; exact h
-  · simp [hab] at h ⊢
+  · simp only [U64.lt_iff_toNat_lt, hab, decide_true, ↓reduceIte, Nat.le_of_lt hab] at h ⊢; exact h
+  · simp only [U64.lt_iff_toNat_lt, hab, decide_false, Bool.false_eq_true, ↓reduceIte] at h ⊢
     by_cases hle : a.toNat ≤ b.toNat
     · -- a.toNat = b.toNat, so a = b
       have := U64.eq_of_toNat_eq (Nat.le_antisymm hle (Nat.le_of_not_lt hab))
       subst this; simp only [Nat.le_refl, ite_true]; exact h
-    · simp [hle]; exact h
+    · simp only [hle, ↓reduceIte]; exact h
 
 end MidenLean.Proofs

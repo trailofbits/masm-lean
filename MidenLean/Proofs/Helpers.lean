@@ -267,10 +267,10 @@ theorem execProcedure_ifElse_bool_ite
     else
       execProcedure env (fuel - 1) (s.withStack rest) elseBlk) := by
   by_cases hp : p
-  · simp [hp]
+  · simp only [hp, ↓reduceIte]
     exact execProcedure_ifElse_state_one env fuel s rest thenBlk elseBlk
       (by simpa [hp] using hs) hfuel
-  · simp [hp]
+  · simp only [hp, ↓reduceIte]
     exact execProcedure_ifElse_state_zero env fuel s rest thenBlk elseBlk
       (by simpa [hp] using hs) hfuel
 
@@ -287,10 +287,10 @@ theorem execProcedure_ifElse_bool_ite_neg
     else
       execProcedure env (fuel - 1) (s.withStack rest) thenBlk) := by
   by_cases hp : p
-  · simp [hp]
+  · simp only [hp, ↓reduceIte]
     exact execProcedure_ifElse_state_zero env fuel s rest thenBlk elseBlk
       (by simpa [hp] using hs) hfuel
-  · simp [hp]
+  · simp only [hp, ↓reduceIte]
     exact execProcedure_ifElse_state_one env fuel s rest thenBlk elseBlk
       (by simpa [hp] using hs) hfuel
 

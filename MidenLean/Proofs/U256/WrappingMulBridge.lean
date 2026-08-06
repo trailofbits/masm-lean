@@ -1040,14 +1040,14 @@ theorem wrapping_mul_limbs_correct (a b : U256) :
     b.a0.val.val b.a1.val.val b.a2.val.val b.a3.val.val
     b.a4.val.val b.a5.val.val b.a6.val.val b.a7.val.val
     -- R_k < 2^32 (from mulstepLo_isU32)
-    (by have := mulstepLo_isU32 0 a.a0.val b.a0.val 0; simp [Felt.isU32, decide_eq_true_eq] at this; exact this)
-    (by have := mulstepLo_isU32 0 a.a0.val b.a1.val l01; simp [Felt.isU32, decide_eq_true_eq] at this; exact this)
-    (by have := mulstepLo_isU32 0 a.a0.val b.a2.val l11; simp [Felt.isU32, decide_eq_true_eq] at this; exact this)
-    (by have := mulstepLo_isU32 0 a.a0.val b.a3.val l21; simp [Felt.isU32, decide_eq_true_eq] at this; exact this)
-    (by have := mulstepLo_isU32 0 a.a0.val b.a4.val l31; simp [Felt.isU32, decide_eq_true_eq] at this; exact this)
-    (by have := mulstepLo_isU32 0 a.a0.val b.a5.val l41; simp [Felt.isU32, decide_eq_true_eq] at this; exact this)
-    (by have := mulstepLo_isU32 0 a.a0.val b.a6.val l51; simp [Felt.isU32, decide_eq_true_eq] at this; exact this)
-    (by have := mulstepLo_isU32 0 a.a0.val b.a7.val l61; simp [Felt.isU32, decide_eq_true_eq] at this; exact this)
+    (by have := mulstepLo_isU32 0 a.a0.val b.a0.val 0; simp only [Felt.isU32, decide_eq_true_eq] at this; exact this)
+    (by have := mulstepLo_isU32 0 a.a0.val b.a1.val l01; simp only [Felt.isU32, decide_eq_true_eq] at this; exact this)
+    (by have := mulstepLo_isU32 0 a.a0.val b.a2.val l11; simp only [Felt.isU32, decide_eq_true_eq] at this; exact this)
+    (by have := mulstepLo_isU32 0 a.a0.val b.a3.val l21; simp only [Felt.isU32, decide_eq_true_eq] at this; exact this)
+    (by have := mulstepLo_isU32 0 a.a0.val b.a4.val l31; simp only [Felt.isU32, decide_eq_true_eq] at this; exact this)
+    (by have := mulstepLo_isU32 0 a.a0.val b.a5.val l41; simp only [Felt.isU32, decide_eq_true_eq] at this; exact this)
+    (by have := mulstepLo_isU32 0 a.a0.val b.a6.val l51; simp only [Felt.isU32, decide_eq_true_eq] at this; exact this)
+    (by have := mulstepLo_isU32 0 a.a0.val b.a7.val l61; simp only [Felt.isU32, decide_eq_true_eq] at this; exact this)
     -- Round equations
     hr0 hr1 hr2 hr3 hr4 hr5 hr6 hr7
   -- hlimbs gives us 8 Nat equalities for the product AB = a.toNat * b.toNat

@@ -417,9 +417,9 @@ theorem u64_rotr_correct (a : U64) (shift : Felt) (rest : List Felt) (s : Concre
   rw [u64_rotr_exec a.lo.val a.hi.val shift rest s hs hshift_u32]
   -- Recover u32 bounds
   have hlo_lt : a.lo.val.val < 2 ^ 32 := by
-    have h := a.lo.isU32; simp [Felt.isU32, decide_eq_true_eq] at h; exact h
+    have h := a.lo.isU32; simp only [Felt.isU32, decide_eq_true_eq] at h; exact h
   have hhi_lt : a.hi.val.val < 2 ^ 32 := by
-    have h := a.hi.isU32; simp [Felt.isU32, decide_eq_true_eq] at h; exact h
+    have h := a.hi.isU32; simp only [Felt.isU32, decide_eq_true_eq] at h; exact h
   -- Simplify shiftAnd31 and effShift
   have h_and_le : shift.val &&& 31 ≤ 31 := Nat.and_le_right
   have h_and31_val : (Felt.ofNat (shift.val &&& 31)).val = shift.val &&& 31 :=

@@ -372,7 +372,7 @@ private def closeReflectResultGoal (goal : MVarId) : TacticM Unit := do
         ((MidenLean.Symbolic.Expr.lit shift).u32WSub (MidenLean.Symbolic.Expr.lit 64)) 63).holds
       MidenLean.Symbolic.Reflect.concreteAssignment := by
   unfold MidenLean.Symbolic.Precondition.holds
-  simp [MidenLean.Symbolic.Expr.eval]
+  simp only [MidenLean.Symbolic.Expr.eval]
   exact u32OverflowingSub64SndValLe63 shift hshift_u32 hshift_ge64 hshift_lt128
 
 /-- Apply light cleanup to remaining goals, closing trivial `hpreconds` goals. -/

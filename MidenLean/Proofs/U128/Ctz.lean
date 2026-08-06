@@ -40,7 +40,8 @@ theorem u128_ctz_raw
   rw [stepEqImm]
   miden_bind
   by_cases ha0 : a == (0 : Felt)
-  · simp [ha0, Concrete.State.withStack]
+  · simp only [ha0, ↓reduceIte, Felt.val_one', BEq.rfl, Concrete.State.withStack, Fin.isValue,
+      Option.pure_def, beq_iff_eq]
     unfold execProcedure
     simp only [List.foldlM]
     rw [stepDrop]
@@ -49,7 +50,8 @@ theorem u128_ctz_raw
     rw [stepEqImm]
     miden_bind
     by_cases hb0 : b == (0 : Felt)
-    · simp [hb0, Concrete.State.withStack]
+    · simp only [hb0, ↓reduceIte, Felt.val_one', BEq.rfl, Concrete.State.withStack, Fin.isValue,
+        Option.pure_def]
       unfold execProcedure
       simp only [List.foldlM]
       rw [stepDrop]
@@ -58,7 +60,8 @@ theorem u128_ctz_raw
       rw [stepEqImm]
       miden_bind
       by_cases hc0 : c == (0 : Felt)
-      · simp [hc0, Concrete.State.withStack]
+      · simp only [hc0, ↓reduceIte, Felt.val_one', BEq.rfl, Concrete.State.withStack,
+          Option.pure_def]
         unfold execProcedure
         simp only [List.foldlM]
         rw [stepDrop]
@@ -69,7 +72,8 @@ theorem u128_ctz_raw
         have hb_eq : b = 0 := by exact beq_iff_eq.mp hb0
         have hc_eq : c = 0 := by exact beq_iff_eq.mp hc0
         simp [hb_eq, hc_eq]
-      · simp [hc0, Concrete.State.withStack]
+      · simp only [hc0, Bool.false_eq_true, ↓reduceIte, ZMod.val_zero, Nat.reduceBEq, BEq.rfl,
+          Concrete.State.withStack, Fin.isValue, Option.pure_def]
         unfold execProcedure
         simp only [List.foldlM]
         simp (config := { decide := true }) only [bind, Bind.bind, Option.bind, pure, Pure.pure]
@@ -85,7 +89,8 @@ theorem u128_ctz_raw
           intro hc_eq
           exact hc0 (by simp [hc_eq])
         simp [hb_eq, hc_ne]
-    · simp [hb0, Concrete.State.withStack]
+    · simp only [hb0, Bool.false_eq_true, ↓reduceIte, ZMod.val_zero, Nat.reduceBEq, BEq.rfl,
+        Concrete.State.withStack, Option.pure_def]
       unfold execProcedure
       simp only [List.foldlM]
       simp (config := { decide := true }) only [bind, Bind.bind, Option.bind, pure, Pure.pure]
@@ -101,7 +106,8 @@ theorem u128_ctz_raw
         intro hb_eq
         exact hb0 (by simp [hb_eq])
       simp [hb_ne]
-  · simp [ha0, Concrete.State.withStack]
+  · simp only [ha0, Bool.false_eq_true, ↓reduceIte, ZMod.val_zero, Nat.reduceBEq, BEq.rfl,
+      Concrete.State.withStack, Option.pure_def]
     unfold execProcedure
     simp only [List.foldlM]
     simp (config := { decide := true }) only [bind, Bind.bind, Option.bind, pure, Pure.pure]

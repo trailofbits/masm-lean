@@ -21,7 +21,7 @@ namespace U32
 abbrev toNat (x : U32) : Nat := x.val.val
 
 theorem val_lt (x : U32) : x.val.val < 2^32 := by
-  have := x.isU32; simp [Felt.isU32, decide_eq_true_eq] at this; exact this
+  have := x.isU32; simp only [Felt.isU32, decide_eq_true_eq] at this; exact this
 
 theorem toNat_lt (x : U32) : x.toNat < 2^32 := x.val_lt
 

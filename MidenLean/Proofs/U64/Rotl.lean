@@ -129,9 +129,9 @@ theorem u64_rotl_correct (a : U64) (shift : Felt) (rest : List Felt) (s : Concre
   rw [u64_rotl_exec a.lo.val a.hi.val shift rest s hs hshift_u32 a.lo.isU32 a.hi.isU32]
   -- Recover u32 bounds
   have hlo_lt : a.lo.val.val < 2 ^ 32 := by
-    have h := a.lo.isU32; simp [Felt.isU32, decide_eq_true_eq] at h; exact h
+    have h := a.lo.isU32; simp only [Felt.isU32, decide_eq_true_eq] at h; exact h
   have hhi_lt : a.hi.val.val < 2 ^ 32 := by
-    have h := a.hi.isU32; simp [Felt.isU32, decide_eq_true_eq] at h; exact h
+    have h := a.hi.isU32; simp only [Felt.isU32, decide_eq_true_eq] at h; exact h
   -- Case split on shift > 31
   cases h31 : decide (31 < shift.val) <;> simp only [Bool.false_eq_true, ↓reduceIte]
   · -- Case 1: shift ≤ 31 (no swap)

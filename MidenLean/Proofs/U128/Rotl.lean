@@ -21,7 +21,7 @@ private theorem complement_val (shift : Felt) (hshift_lt128 : shift.val < 128)
     (hshift_pos : 0 < shift.val) :
     (Felt.ofNat (u32OverflowingSub 128 shift.val).2).val = 128 - shift.val := by
   unfold u32OverflowingSub
-  simp [show shift.val ≤ 128 by omega]
+  simp only [ge_iff_le, show shift.val ≤ 128 by omega, ↓reduceIte]
   rw [felt_ofNat_val_lt _ (by unfold GOLDILOCKS_PRIME; omega)]
 
 private theorem complement_isU32 (shift : Felt) (hshift_lt128 : shift.val < 128)

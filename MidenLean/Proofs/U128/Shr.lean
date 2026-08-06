@@ -151,18 +151,22 @@ private theorem shr_k1_body_decomp :
 
 private theorem shr_k1_prefix_pure :
     ∀ op ∈ shr_k1_prefix, ∃ i, op = .inst i ∧ ∀ t, i ≠ .exec t := by
-  intro op hmem; simp [shr_k1_prefix] at hmem
+  intro op hmem
+  simp only [shr_k1_prefix, Fin.isValue, List.mem_cons, List.not_mem_nil, or_false] at hmem
   rcases hmem with rfl | rfl <;> exact ⟨_, rfl, fun _ => by simp⟩
 
 private theorem shr_k1_then_pure :
     ∀ op ∈ shr_k1_then, ∃ i, op = .inst i ∧ ∀ t, i ≠ .exec t := by
-  intro op hmem; simp [shr_k1_then] at hmem
+  intro op hmem
+  simp only [shr_k1_then, List.mem_cons, List.not_mem_nil, or_false, or_self] at hmem
   rcases hmem with rfl | rfl
   exact ⟨_, rfl, fun _ => by simp⟩
 
 private theorem shr_k1_else_pure :
     ∀ op ∈ shr_k1_else, ∃ i, op = .inst i ∧ ∀ t, i ≠ .exec t := by
-  intro op hmem; simp [shr_k1_else] at hmem
+  intro op hmem
+  simp only [shr_k1_else, Fin.isValue, List.mem_cons, List.not_mem_nil, or_false, or_self,
+    or_self_left] at hmem
   rcases hmem with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl |
     rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl |
     rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl |
@@ -207,18 +211,22 @@ private theorem shr_k2_body_decomp :
 
 private theorem shr_k2_prefix_pure :
     ∀ op ∈ shr_k2_prefix, ∃ i, op = .inst i ∧ ∀ t, i ≠ .exec t := by
-  intro op hmem; simp [shr_k2_prefix] at hmem
+  intro op hmem
+  simp only [shr_k2_prefix, Fin.isValue, List.mem_cons, List.not_mem_nil, or_false] at hmem
   rcases hmem with rfl | rfl <;> exact ⟨_, rfl, fun _ => by simp⟩
 
 private theorem shr_k2_then_pure :
     ∀ op ∈ shr_k2_then, ∃ i, op = .inst i ∧ ∀ t, i ≠ .exec t := by
-  intro op hmem; simp [shr_k2_then] at hmem
+  intro op hmem
+  simp only [shr_k2_then, List.mem_cons, List.not_mem_nil, or_false, or_self] at hmem
   rcases hmem with rfl | rfl | rfl
   exact ⟨_, rfl, fun _ => by simp⟩
 
 private theorem shr_k2_else_pure :
     ∀ op ∈ shr_k2_else, ∃ i, op = .inst i ∧ ∀ t, i ≠ .exec t := by
-  intro op hmem; simp [shr_k2_else] at hmem
+  intro op hmem
+  simp only [shr_k2_else, Fin.isValue, List.mem_cons, List.not_mem_nil, or_false, or_self,
+    or_self_left] at hmem
   rcases hmem with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl |
     rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl |
     rfl | rfl | rfl | rfl
